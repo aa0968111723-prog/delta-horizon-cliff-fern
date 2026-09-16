@@ -220,9 +220,31 @@ export function CalendarPage() {
                 <p className="text-xs text-muted">{format(day, "M/d EEE", { locale: zhTW })}</p>
                 {dayItems.length ? (
                   dayItems.map((item) => (
-                    <p key={item.id} className="mt-1 text-sm">
-                      {item.title}
-                    </p>
+                    <div key={item.id} className="mt-2 border-t border-border pt-2 first:mt-1 first:border-0 first:pt-0">
+                      <p className="text-sm">{item.title}</p>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => extend(item)}>
+                          AI 延伸
+                        </Button>
+                        {item.campaignId && item.waveId ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => duplicateWave(item.campaignId!, item.waveId!)}
+                          >
+                            複製
+                          </Button>
+                        ) : null}
+                        {item.kind !== "event" && item.status !== "published" ? (
+                          <PublishButton
+                            campaignId={item.campaignId}
+                            waveId={item.waveId}
+                            projectId={item.projectId}
+                            title={item.title}
+                          />
+                        ) : null}
+                      </div>
+                    </div>
                   ))
                 ) : (
                   <p className="mt-1 text-xs text-subtle">這天還沒排</p>

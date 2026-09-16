@@ -6,7 +6,7 @@ import { ReelsDesk, StoryStrip } from "@/components/create/kit-visuals";
 import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
-import { convertContent } from "@/lib/ai/convert";
+import { convertContent, type ConvertResult } from "@/lib/ai/convert";
 import { generateCopy, type CopyBlock } from "@/lib/ai/copy";
 import { generateStudioImage, listVisualDirections } from "@/lib/ai/image";
 import { applyStudentRevisions } from "@/lib/ai/pack-mock";
@@ -27,8 +27,8 @@ import { createGeneratedAsset } from "@/lib/studio/assets";
 import { brandMemoryBlock } from "@/lib/studio/brand";
 import { emptyBrief } from "@/lib/studio/brief";
 import { uid } from "@/lib/studio/ids";
-import { COPY_TONES } from "@/lib/studio/content";
-import type { CreativeDirection, ReelsBeat, StoryFrame } from "@/lib/studio/types";
+import { COPY_TONES, formatForKind } from "@/lib/studio/content";
+import type { CarouselPagePlan, ContentKind, CreativeDirection, ReelsBeat, StoryFrame } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -38,6 +38,54 @@ const ASPECTS = [
   { id: "1:1" as const, label: "IG 1:1 / LINE" },
   { id: "9:16" as const, label: "Story / Reels Cover" },
 ];
+
+const CONVERT_TO_KIND: Record<string, ContentKind> = {
+  ig: "ig-post",
+  carousel: "carousel",
+  story: "story",
+  threads: "threads",
+  line: "line",
+  reels: "reels",
+};
+
+const CONVERT_ROLES: CarouselPagePlan["role"][] = ["cover", "problem", "detail", "proof", "cta"];
+
+function mergeConvert(pack: CreativePack, kind: string, kit: ConvertResult): CreativePack {
+  const pages: CarouselPagePlan[] = kit.carousel.map((page, index) => ({
+    role: CONVERT_ROLES[index] ?? "close",
+    headline: page.title,
+    subhead: "",
+    body: page.body,
+    cta: pack.plan.cta,
+    visualNote: page.role,
+    templateId: pack.plan.templateId,
+  }));
+  return {
+    ...pack,
+    plan: {
+      ...pack.plan,
+      carouselPages: kind === "carousel" ? pages : pack.plan.carouselPages,
+      threadsPost: kind === "threads" ? kit.threads : pack.plan.threadsPost,
+      lineCopy: kind === "line" ? kit.line : pack.plan.lineCopy,
+      reelsScript: kind === "reels" ? kit.reels : pack.plan.reelsScript,
+    },
+    conversions: {
+      carousel: kind === "carousel" ? pages : pack.conversions.carousel,
+      story: kind === "story" ? kit.story : pack.conversions.story,
+      threads: kind === "threads" ? kit.threads : pack.conversions.threads,
+      line: kind === "line" ? kit.line : pack.conversions.line,
+      reels: kind === "reels" ? kit.reels : pack.conversions.reels,
+    },
+  };
+}
+
+function scheduledAtFor(kind: ContentKind, campDate?: string) {
+  if (!campDate) return Date.now() + 86400000;
+  const event = Date.parse(`${campDate}T19:00:00+08:00`);
+  const days =
+    kind === "story" || kind === "countdown" ? -1 : kind === "reels" ? -3 : kind === "carousel" ? -7 : kind === "line" ? -4 : kind === "threads" ? -5 : -10;
+  return event + days * 86400000;
+}
 
 async function readAssetAsDataUrl(asset: { id: string; seedSrc?: string }) {
   const stored = await getAssetStorage().get(asset.id);
@@ -375,61 +423,67 @@ export function CreateStudio({
     toast.success(kind === "carousel" ? "已轉成 Carousel" : kind === "story" ? "已轉成限動" : "已轉成 Reels");
   }
 
-  function applyToStudio(andSchedule: boolean) {
+  function applyToStudio(andSchedule: boolean, opts?: { kind?: ContentKind; nextPack?: CreativePack }) {
     const brand = brands[0];
-    if (!brand || !pack) return;
+    const active = opts?.nextPack ?? pack;
+    const kind = opts?.kind ?? "carousel";
+    if (!brand || !active) return;
     let camp = campaignId ? campaigns.find((c) => c.id === campaignId) : undefined;
     if (!camp && andSchedule) {
       camp = addCampaign({
-        name: pack.plan.campaignName,
+        name: active.plan.campaignName,
         date: inferEventDate(query),
-        type: inferCampaignType(`${query} ${pack.plan.campaignName}`),
-        oneLiner: pack.plan.hook,
-        fullIntro: pack.plan.body,
-        studentPain: pack.plan.insight,
-        cta: pack.plan.cta,
-        theme: pack.plan.visualTheme,
+        type: inferCampaignType(`${query} ${active.plan.campaignName}`),
+        oneLiner: active.plan.hook,
+        fullIntro: active.plan.body,
+        studentPain: active.plan.insight,
+        cta: active.plan.cta,
+        theme: active.plan.visualTheme,
         location: campaign?.location ?? "淡江校園",
       });
     }
     const brief = {
       ...emptyBrief(),
-      eventName: pack.plan.campaignName,
-      product: pack.plan.campaignName,
+      eventName: active.plan.campaignName,
+      product: active.plan.campaignName,
       schedule: camp ? `${camp.date} ${camp.time}` : "",
       location: camp?.location ?? "淡江校園",
-      audience: pack.studentContext,
-      features: pack.plan.concept,
-      style: pack.plan.visualTheme,
+      audience: active.studentContext,
+      features: active.plan.concept,
+      style: active.plan.visualTheme,
       deliverables: { post: true, story: true, carousel: true, reels: true },
     };
     const project = createProject({
-      name: pack.plan.campaignName,
+      name: `${active.plan.campaignName} · ${kind === "carousel" ? "Carousel" : kind === "story" ? "Story" : kind === "reels" ? "Reels" : kind === "line" ? "LINE" : kind === "threads" ? "Threads" : "IG"}`,
       brandId: brand.id,
-      formatId: "feed-portrait",
+      formatId: formatForKind(kind),
       brief,
-      templateId: pack.plan.templateId,
+      templateId: active.plan.templateId,
     });
-    applyCampaignPlan(project.id, pack.plan, brief);
-    const scheduledAt = camp ? Date.parse(`${camp.date}T19:00:00+08:00`) - 7 * 86400000 : Date.now() + 86400000;
+    applyCampaignPlan(project.id, active.plan, brief);
+    const scheduledAt = scheduledAtFor(kind, camp?.date);
     useStudio.getState().updateProject(project.id, {
-      contentKind: "carousel",
+      contentKind: kind,
       campaignId: camp?.id ?? null,
       sourceRefs: [
-        ...pack.sources,
+        ...active.sources,
         ...(imageSrc?.startsWith("https:") ? [{ source: "generated" as const, label: "AI 主視覺", id: imageSrc }] : []),
       ],
       status: andSchedule ? "scheduled" : "creating",
       scheduledAt: andSchedule ? scheduledAt : null,
     });
     if (camp) {
-      generateWaves(camp.id);
+      if (!camp.waves.length) generateWaves(camp.id);
       const latest = useCreative.getState().campaigns.find((c) => c.id === camp.id);
-      const visual = latest?.waves.find((w) => w.intent === "主視覺") ?? latest?.waves[0];
-      if (visual) setWaveStatus(camp.id, visual.id, andSchedule ? "scheduled" : "creating", project.id);
+      const wave =
+        latest?.waves.find((item) => item.contentKind === kind && !item.projectId) ??
+        latest?.waves.find((item) => item.contentKind === kind) ??
+        latest?.waves.find((item) => item.intent === "主視覺") ??
+        latest?.waves[0];
+      if (wave) setWaveStatus(camp.id, wave.id, andSchedule ? "scheduled" : "creating", project.id);
       updateCampaign(camp.id, { projectIds: [...new Set([...camp.projectIds, project.id])] });
     }
-    toast.success(andSchedule ? "已套進畫布並排進月曆節奏" : "已套進畫布");
+    toast.success(andSchedule ? "已排進月曆，到時間可以發" : "已套進畫布");
     if (andSchedule) {
       void navigate({ to: "/calendar" });
       return;
@@ -794,7 +848,19 @@ export function CreateStudio({
 
           <div>
             <h2 className="text-sm font-medium">再轉一版</h2>
-            <ConvertPreview title={pack.plan.campaignName} hook={pack.plan.hook} when={campaign?.date} where={campaign?.location} />
+            <ConvertPreview
+              title={pack.plan.campaignName}
+              hook={pack.plan.hook}
+              body={pack.plan.body}
+              when={campaign ? `${campaign.date} ${campaign.time}` : pack.plan.subhead}
+              where={campaign?.location}
+              cta={pack.plan.cta}
+              onSchedule={(kind, kit) => {
+                const next = mergeConvert(pack, kind, kit);
+                setPack(next);
+                applyToStudio(true, { kind: CONVERT_TO_KIND[kind] ?? "carousel", nextPack: next });
+              }}
+            />
           </div>
 
           <div>
@@ -931,11 +997,28 @@ function PackKit({
   );
 }
 
-function ConvertPreview({ title, hook, when, where }: { title: string; hook: string; when?: string; where?: string }) {
+function ConvertPreview({
+  title,
+  hook,
+  body,
+  when,
+  where,
+  cta,
+  onSchedule,
+}: {
+  title: string;
+  hook: string;
+  body?: string;
+  when?: string;
+  where?: string;
+  cta?: string;
+  onSchedule: (kind: string, kit: ConvertResult) => void;
+}) {
   const [open, setOpen] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [story, setStory] = useState<StoryFrame[] | null>(null);
   const [reels, setReels] = useState<ReelsBeat[] | null>(null);
+  const [kit, setKit] = useState<ConvertResult | null>(null);
   const labels: Record<string, string> = {
     ig: "轉 IG 貼文",
     carousel: "轉 Carousel",
@@ -945,15 +1028,16 @@ function ConvertPreview({ title, hook, when, where }: { title: string; hook: str
     reels: "轉 Reels 腳本",
   };
   async function run(kind: string) {
-    const result = await convertContent({ data: { title, hook, when, where } });
+    const result = await convertContent({ data: { title, hook, body, when, where, cta } });
     if (!result.ok) return;
+    setKit(result);
     setOpen(kind);
     setStory(kind === "story" ? result.story : null);
     setReels(kind === "reels" ? result.reels : null);
     if (kind === "carousel") setText(result.carousel.map((p, i) => `${i + 1}. ${p.title}\n${p.body}`).join("\n\n"));
     else if (kind === "threads") setText(result.threads);
     else if (kind === "line") setText(result.line);
-    else if (kind === "ig") setText(`${hook}\n${title}\n${[when, where].filter(Boolean).join(" · ")}\n晚上來坐一下`);
+    else if (kind === "ig") setText(`${hook}\n${title}\n${[when, where].filter(Boolean).join(" · ")}\n${cta || "晚上來坐一下"}`);
     else setText("");
   }
   return (
@@ -968,6 +1052,11 @@ function ConvertPreview({ title, hook, when, where }: { title: string; hook: str
       {story ? <div className="mt-3"><StoryStrip frames={story} /></div> : null}
       {reels ? <div className="mt-3"><ReelsDesk beats={reels} /></div> : null}
       {text ? <pre className="mt-3 whitespace-pre-wrap rounded-2xl bg-bg p-3 font-sans text-xs leading-relaxed">{text}</pre> : null}
+      {open && kit ? (
+        <Button className="mt-3 min-h-11 rounded-full" onClick={() => onSchedule(open, kit)}>
+          排進月曆
+        </Button>
+      ) : null}
     </div>
   );
 }

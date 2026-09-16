@@ -7,9 +7,9 @@ import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { mockStudentSim } from "@/lib/ai/pack-mock";
 import { clubDnaFromMemory } from "@/lib/club/dna";
 import { clubInsightsFromPosts } from "@/lib/club/insights";
+import { analyzeIgMemoryPost } from "@/lib/club/ig-analyze";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { ArtboardView } from "@/components/studio/artboard-view";
@@ -37,23 +37,7 @@ export function IgCenter() {
 
   function analyze() {
     if (!active) return;
-    const sim = mockStudentSim({
-      hook: active.caption.split("\n")[0] ?? "",
-      caption: active.caption,
-      when: format(active.takenAt, "yyyy-MM-dd"),
-      where: "淡江",
-      cta: "",
-    });
-    analyzeIg(active.id, {
-      hook: active.caption.split("\n")[0] ?? "",
-      visual: "生活感畫面",
-      theme: active.analysis?.theme ?? "日常",
-      captionLength: active.caption.length,
-      cta: active.analysis?.cta ?? "弱",
-      direction: "延續自己的 IG DNA，不要套模板。",
-      improve: sim.revisions.length ? sim.revisions : ["Hook 可以更生活"],
-      studentSim: sim,
-    });
+    analyzeIg(active.id, analyzeIgMemoryPost(active));
     toast.success("已用淡江學生視角看過這篇");
   }
 
