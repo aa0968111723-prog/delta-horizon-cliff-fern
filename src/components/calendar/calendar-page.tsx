@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { addDays, format, isSameDay, startOfMonth, startOfWeek, endOfMonth, endOfWeek } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
@@ -9,6 +9,7 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { runPublishItem } from "@/lib/connect/publish-item";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { agendaSorted, firstPublishable, isDue } from "@/lib/zen/schedule";
+import { campaignsForCalendar, scheduleForCampaign } from "@/lib/studio/calendar-search";
 import { contentKindLabel, contentStatusLabel } from "@/lib/studio/content";
 import { uid } from "@/lib/studio/ids";
 import { cn } from "@/lib/utils";
@@ -22,13 +23,18 @@ type View = "month" | "week" | "agenda";
 
 export function CalendarPage() {
   const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as { campaign?: string };
   const hydrated = useStudio((s) => s.hydrated);
-  const schedule = useStudio((s) => s.schedule);
+  const scheduleAll = useStudio((s) => s.schedule);
   const campaigns = useStudio((s) => s.campaigns);
   const moveSchedule = useStudio((s) => s.moveSchedule);
   const upsertSchedule = useStudio((s) => s.upsertSchedule);
   const publishSchedule = useStudio((s) => s.publishSchedule);
   const setCreateOpen = useUi((s) => s.setCreateOpen);
+  const campaignId = search.campaign;
+  const focused = campaigns.find((row) => row.id === campaignId);
+  const schedule = useMemo(() => scheduleForCampaign(scheduleAll, campaignId), [scheduleAll, campaignId]);
+  const visibleCampaigns = useMemo(() => campaignsForCalendar(campaigns, campaignId), [campaigns, campaignId]);
   const urls = useAssetUrls(
     schedule.flatMap((item) => [item.imageAssetId, item.videoAssetId]).filter((id): id is string => Boolean(id)),
   );
@@ -38,8 +44,18 @@ export function CalendarPage() {
   const [publishingId, setPublishingId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (campaignId) {
+      setView("agenda");
+      return;
+    }
     if (window.matchMedia("(min-width: 768px)").matches) setView("month");
-  }, []);
+  }, [campaignId]);
+
+  useEffect(() => {
+    if (!focused?.date) return;
+    const next = new Date(`${focused.date}T12:00:00+08:00`);
+    if (!Number.isNaN(next.getTime())) setCursor(next);
+  }, [focused?.date]);
 
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 });
@@ -120,14 +136,29 @@ export function CalendarPage() {
     <main data-testid="calendar-ready" className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
       <PageHeader
         kicker="排程"
-        title="什麼時候要發？"
-        description="只服務創作與發布。沒有負責人、沒有審核。拖曳可改日期。"
+        title={focused ? `什麼時候發「${focused.name}」？` : "什麼時候要發？"}
+        description={
+          focused
+            ? "只看這一場。沒有負責人、沒有審核。拖曳可改日期。"
+            : "只服務創作與發布。沒有負責人、沒有審核。拖曳可改日期。"
+        }
         actions={
           <Button onClick={() => setCreateOpen(true)} size="sm">
             快速新增
           </Button>
         }
       />
+
+      {focused ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2" data-testid="calendar-campaign">
+          <p className="text-sm">只看 {focused.name}</p>
+          <Button size="sm" variant="secondary" asChild>
+            <Link to="/calendar" search={{}}>
+              看全部
+            </Link>
+          </Button>
+        </div>
+      ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
         {(["month", "week", "agenda"] as View[]).map((id) => (
@@ -329,7 +360,7 @@ export function CalendarPage() {
       <section className="mt-8">
         <h2 className="text-sm font-medium">活動</h2>
         <ul className="mt-3 grid gap-3 sm:grid-cols-2">
-          {campaigns.map((c) => (
+          {visibleCampaigns.map((c) => (
             <li key={c.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
               <p className="text-xs text-muted">
                 {c.date} {c.time}
@@ -338,13 +369,22 @@ export function CalendarPage() {
               <p className="mt-1 text-sm text-muted" data-testid="campaign-oneliner">
                 {c.oneLiner}
               </p>
-              <Link
-                to="/create"
-                search={{ mode: "campaign", idea: c.name, campaign: c.id }}
-                className="mt-2 inline-block text-sm text-accent"
-              >
-                AI 延伸
-              </Link>
+              <div className="mt-2 flex flex-wrap gap-3">
+                <Link
+                  to="/calendar"
+                  search={{ campaign: c.id }}
+                  className="text-sm text-accent"
+                >
+                  只看這場
+                </Link>
+                <Link
+                  to="/create"
+                  search={{ mode: "campaign", idea: c.name, campaign: c.id }}
+                  className="text-sm text-accent"
+                >
+                  AI 延伸
+                </Link>
+              </div>
             </li>
           ))}
         </ul>

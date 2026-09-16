@@ -20,6 +20,7 @@ import { runPublishItem } from "@/lib/connect/publish-item";
 import { searchDriveLive } from "@/lib/connect/sync";
 import { emptyBrief, migrateBrief } from "@/lib/studio/brief";
 import { getAssetBlob, hydrateSeedAsset, putAssetBlob } from "@/lib/studio/assets-idb";
+import { canvaHeroAssetId } from "@/lib/studio/calendar-search";
 import { persistGeneratedImage } from "@/lib/studio/raster";
 import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById, FORMATS } from "@/lib/studio/formats";
@@ -953,6 +954,35 @@ export function CreateStudio() {
     if (!plan) return;
     setBusy(true);
     try {
+      let imageBase64 = lastImage?.base64;
+      let mime = lastImage?.mime;
+      const hero = campaign ? heroScheduleItem(useStudio.getState().schedule, campaign.id) : undefined;
+      const assetId = canvaHeroAssetId({
+        lastAssetId: lastImage?.assetId,
+        campaignAssetId: campaign?.imageAssetId,
+        heroAssetId: hero?.imageAssetId,
+      });
+      if (!imageBase64 && assetId) {
+        let blob = await getAssetBlob(assetId);
+        if (!blob) {
+          const meta = assets.find((item) => item.id === assetId);
+          if (meta?.seedSrc) {
+            try {
+              await hydrateSeedAsset(assetId, meta.seedSrc);
+              blob = await getAssetBlob(assetId);
+            } catch {
+              /* generated stills live in IndexedDB only */
+            }
+          }
+        }
+        if (blob) {
+          const encoded = bytesToBase64(new Uint8Array(await blob.arrayBuffer()));
+          if (encoded.length && encoded.length < 1_400_000) {
+            imageBase64 = encoded;
+            mime = blob.type || "image/png";
+          }
+        }
+      }
       const result = await createCanvaDesign({
         data: {
           title: plan.campaignName,
@@ -963,8 +993,8 @@ export function CreateStudio() {
           palette: plan.colorMood,
           composition: pickedDirection?.composition,
           headline: pickedDirection?.headline || plan.headline,
-          imageBase64: lastImage?.base64,
-          mime: lastImage?.mime,
+          imageBase64,
+          mime,
         },
       });
       if (!result.ok) {
@@ -1518,7 +1548,17 @@ export function CreateStudio() {
                 <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/ig" })}>
                   IG Preview
                 </Button>
-                <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/calendar" })}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  data-testid="kit-calendar"
+                  onClick={() =>
+                    void navigate({
+                      to: "/calendar",
+                      search: campaign?.id ? { campaign: campaign.id } : {},
+                    })
+                  }
+                >
                   看月曆
                 </Button>
                 <Button size="sm" disabled={busy} data-testid="publish-hero" onClick={() => void publishHero()}>
