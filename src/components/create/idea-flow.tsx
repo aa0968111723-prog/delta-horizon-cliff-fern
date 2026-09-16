@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { applyStudentReviewToPlan } from "@/lib/copy/review";
 import { toBriefInput } from "@/lib/ai/payload";
 import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, notesFromHits, summarizeFound } from "@/lib/club/compose";
 import { applyCanvaPush, canvaPushMessage, ensurePublicRaster, pushHeroToCanva } from "@/lib/club/canva-push";
-import { formatIdFromKind, httpsRasterUrl, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, publicReelsCoverUrl, rasterReadyMessage, withPackKind, withReelsVideo } from "@/lib/club/last-pack";
+import { formatIdFromKind, httpsRasterUrl, ideaFlowRestore, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, publicReelsCoverUrl, rasterReadyMessage, withPackKind, withReelsVideo } from "@/lib/club/last-pack";
 import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
 import { convertedScheduleUpserts } from "@/lib/club/schedule";
@@ -21,6 +21,8 @@ import { runPackPublish } from "@/lib/club/run-publish";
 import { styleBriefFromPublish } from "@/lib/club/publish";
 import { CONVERT_TARGETS, allConvertedPacks, convertPlan, reelsVideoPrompt } from "@/lib/convert/pack";
 import { folderSearchInput } from "@/lib/connections/presets";
+import { beginOAuth } from "@/lib/connections/begin";
+import { takeOAuthResume } from "@/lib/connections/resume";
 import { generateStudioImage } from "@/lib/image/studio";
 import { moodFromVariation, posterDataUrl } from "@/lib/image/poster";
 import { createGeneratedAsset } from "@/lib/studio/assets";
@@ -69,6 +71,8 @@ export function IdeaFlow({
   const lastPackState = useCreative((s) => s.lastPack);
   const rememberStyle = useCreative((s) => s.rememberStyle);
   const setFocusIgId = useCreative((s) => s.setFocusIgId);
+  const hydrated = useCreative((s) => s.hydrated);
+  const restoredRef = useRef(false);
 
   const [idea, setIdea] = useState(seedIdea || "下週有一場茶會");
   const [phase, setPhase] = useState<Phase>("idea");
@@ -107,6 +111,31 @@ export function IdeaFlow({
     // Intentionally once per consumed handoff.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seedAutoRun, seedIdea]);
+
+  useEffect(() => {
+    if (seedAutoRun || seedIdea) return;
+    if (!hydrated || restoredRef.current || phase !== "idea") return;
+    const restored = ideaFlowRestore(useCreative.getState().lastPack);
+    if (!restored) return;
+    restoredRef.current = true;
+    setIdea(restored.idea);
+    setPlan(restored.plan);
+    setCampaignId(restored.campaignId);
+    setProjectId(restored.projectId);
+    setPackKind(seedConvertKind || restored.packKind);
+    setPicked(restored.picked);
+    setFormatsOnCalendar(true);
+    setPublishHint(restored.publishHint);
+    setStatus("接著上次的宣傳。");
+    setPhase("pack");
+  }, [hydrated, phase, seedAutoRun, seedIdea, seedConvertKind]);
+
+  useEffect(() => {
+    if (!hydrated || phase !== "pack") return;
+    if (!takeOAuthResume("canva-push")) return;
+    void sendToCanva(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, phase]);
 
   const converted = plan ? convertPlan(plan, packKind) : null;
   const thumb = heroUrl || hits[0]?.thumb || "/seed/tea.svg";
@@ -259,6 +288,7 @@ export function IdeaFlow({
       directionName: direction.name,
       heroAssetId,
       heroThumb: currentHits[0]?.thumb,
+      sourceIdea: raw,
     });
     setLastPack(packed);
     setPhase("pack");
@@ -378,6 +408,17 @@ export function IdeaFlow({
     setBusy(true);
     try {
       const result = await runPackPublish(current, previewSrc);
+      if (result.needsConnect) {
+        toast.message("正在連接 Instagram，回來後會接著發布。");
+        const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
+        if (!started.ok) {
+          ingestIg([result.post]);
+          rememberStyle(styleBriefFromPublish(current));
+          toast.message(started.error);
+          void navigate({ to: "/connections" });
+        }
+        return;
+      }
       ingestIg([result.post]);
       rememberStyle(styleBriefFromPublish(current));
       setFocusIgId(result.post.id);
@@ -493,25 +534,43 @@ export function IdeaFlow({
     }
   }
 
-  async function sendToCanva() {
-    if (!plan) return;
+  async function sendToCanva(copyCaption = true) {
+    const pack = useCreative.getState().lastPack;
+    const currentPlan = plan ?? pack?.plan ?? null;
+    if (!currentPlan && !pack) {
+      toast.message("先做成一篇，才能送進 Canva。");
+      return;
+    }
     setBusy(true);
     try {
-      const caption = plan.captions[0]?.text ?? plan.hook;
+      const eventName = currentPlan?.campaignName || pack?.eventName || parseIdea(idea).eventName;
+      const caption = currentPlan?.captions[0]?.text ?? currentPlan?.hook ?? pack?.caption ?? pack?.hook ?? "";
+      const src = (pack ? lastPackPreviewSrc(pack, urls, packKind) : previewSrc) || previewSrc || "/seed/tea.svg";
       const result = await pushHeroToCanva({
-        title: `${plan.campaignName} · ${parseIdea(idea).eventName}`,
-        kind: packKind,
-        previewSrc,
+        title: `${eventName} · ${parseIdea(pack?.sourceIdea || idea).eventName}`.slice(0, 80),
+        kind: pack?.kind ?? packKind,
+        previewSrc: src,
         caption,
+        copyCaption,
       });
-      const current = useCreative.getState().lastPack;
+      const current = useCreative.getState().lastPack ?? pack;
       if (current && result.ok) setLastPack(applyCanvaPush(current, result));
       if (result.ok) {
         window.open(result.editUrl, "_blank", "noopener,noreferrer");
         toast.success(canvaPushMessage(result));
+        const nextPack = useCreative.getState().lastPack ?? current;
+        if (nextPack) setPublishHint(rasterReadyMessage(nextPack));
         return;
       }
-      window.open("https://www.canva.com", "_blank", "noopener,noreferrer");
+      if (result.needsConnect) {
+        toast.message("正在連接 Canva，回來後會自動把主視覺送進去。");
+        const started = await beginOAuth({ provider: "canva", next: "create", resume: "canva-push" });
+        if (!started.ok) {
+          toast.message(started.error);
+          void navigate({ to: "/connections" });
+        }
+        return;
+      }
       toast.message(canvaPushMessage(result));
     } finally {
       setBusy(false);
@@ -576,6 +635,11 @@ export function IdeaFlow({
       ) : (
         <p className="text-sm text-muted">輸入一句話即可。會先找素材，再給三個方向，不會顯示 Agent 流程。</p>
       )}
+      {phase === "pack" && restoredRef.current ? (
+        <p className="sr-only" data-testid="idea-restored">
+          接著上次的宣傳
+        </p>
+      ) : null}
 
       {phase !== "idea" || hits.length ? (
         <ul className="flex flex-wrap gap-2" data-testid="idea-flow-sources">
@@ -731,6 +795,7 @@ export function IdeaFlow({
                         directionName: picked?.name ?? current?.directionName,
                         heroAssetId: current?.heroAssetId,
                         heroThumb: current?.heroThumb,
+                        sourceIdea: idea,
                       }),
                     );
                   }

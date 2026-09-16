@@ -1,5 +1,5 @@
 import type { ConvertedPack } from "../convert/pack.ts";
-import type { CampaignPlan, ContentKind, FormatId } from "../studio/types.ts";
+import type { CampaignPlan, ContentKind, CreativeDirection, FormatId } from "../studio/types.ts";
 
 export type LastPack = {
   projectId: string;
@@ -21,6 +21,8 @@ export type LastPack = {
   reelsVideoUrl?: string;
   reelsJobId?: string;
   directionName?: string;
+  plan?: CampaignPlan;
+  sourceIdea?: string;
   updatedAt: number;
 };
 
@@ -105,6 +107,7 @@ export function lastPackFromPlan(input: {
   reelsVideoUrl?: string;
   reelsJobId?: string;
   directionName?: string;
+  sourceIdea?: string;
   heroAssetId?: string | null;
   heroThumb?: string;
   updatedAt?: number;
@@ -115,6 +118,7 @@ export function lastPackFromPlan(input: {
   const formatAssetIds = input.formatAssetIds ?? {};
   const formatPublicUrls = httpsUrlMap(input.formatPublicUrls);
   const heroThumb = input.heroThumb?.startsWith("data:") ? fallbackHeroThumb(input.eventName) : input.heroThumb;
+  const plan = input.plan.campaignName ? (input.plan as CampaignPlan) : undefined;
   return {
     projectId: input.projectId,
     campaignId: input.campaignId,
@@ -135,6 +139,8 @@ export function lastPackFromPlan(input: {
     reelsVideoUrl: httpsVideoUrl(input.reelsVideoUrl) || undefined,
     reelsJobId: input.reelsJobId,
     directionName: input.directionName,
+    plan,
+    sourceIdea: input.sourceIdea,
     updatedAt: input.updatedAt ?? Date.now(),
   };
 }
@@ -220,5 +226,41 @@ export function persistablePack(pack: LastPack | null): LastPack | null {
     canvaExportUrl: httpsRasterUrl(pack.canvaExportUrl) || undefined,
     reelsVideoUrl: httpsVideoUrl(pack.reelsVideoUrl) || undefined,
     reelsJobId: pack.reelsJobId,
+    plan: pack.plan?.hook ? pack.plan : undefined,
+    sourceIdea: pack.sourceIdea,
+  };
+}
+
+export function pickedFromPack(pack: LastPack): CreativeDirection | null {
+  const dirs = pack.plan?.directions;
+  if (dirs?.length) {
+    return dirs.find((item) => item.name === pack.directionName) ?? dirs[0] ?? null;
+  }
+  if (!pack.plan?.hook) return null;
+  return {
+    id: "restored",
+    name: pack.directionName || "主視覺",
+    concept: pack.plan.concept || pack.plan.visualDirection || "",
+    palette: pack.plan.colorMood || "",
+    composition: "",
+    typeDirection: "",
+    imagePrompt: "",
+    headline: pack.hook,
+    subhead: pack.plan.subhead || "",
+  };
+}
+
+export function ideaFlowRestore(pack: LastPack | null) {
+  if (!pack?.plan?.hook) return null;
+  const picked = pickedFromPack(pack);
+  if (!picked) return null;
+  return {
+    idea: pack.sourceIdea || `下週有一場${pack.eventName}`,
+    plan: pack.plan,
+    campaignId: pack.campaignId || null,
+    projectId: pack.projectId || null,
+    packKind: pack.kind,
+    picked,
+    publishHint: rasterReadyMessage(pack),
   };
 }

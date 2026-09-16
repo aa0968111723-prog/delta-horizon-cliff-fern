@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fallbackHeroThumb, formatIdFromKind, httpsVideoUrl, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, needsPublicRaster, packForScheduleRow, persistablePack, publicReelsCoverUrl, rasterReadyMessage, withCanvaExport, withPackKind, withReelsVideo } from "./last-pack.ts";
+import { fallbackHeroThumb, formatIdFromKind, httpsVideoUrl, ideaFlowRestore, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, needsPublicRaster, packForScheduleRow, persistablePack, publicReelsCoverUrl, rasterReadyMessage, withCanvaExport, withPackKind, withReelsVideo } from "./last-pack.ts";
 
 test("lastPackFromPlan keeps hook, caption, and a public hero fallback", () => {
   const pack = lastPackFromPlan({
@@ -73,6 +73,43 @@ test("persistablePack drops data-url thumbs and keeps https Canva exports", () =
   assert.equal(saved?.formatPublicUrls?.story, undefined);
   assert.equal(saved?.canvaExportUrl, "https://export-download.canva.com/hero.jpg");
   assert.equal(saved?.canvaEditUrl, "https://www.canva.com/design/tea/edit");
+});
+
+test("persistablePack keeps the campaign plan so pack UI survives a remount", () => {
+  const pack = lastPackFromPlan({
+    projectId: "p",
+    campaignId: "c",
+    eventName: "茶會",
+    sourceIdea: "下週有一場茶會",
+    plan: {
+      campaignName: "茶會",
+      hook: "最近是不是很久沒有好好坐下來？",
+      captions: [{ style: "學生版", text: "人到了就好。" }],
+      hashtags: ["#淡江禪學社"],
+      directions: [
+        {
+          id: "d1",
+          name: "安靜的晚上",
+          concept: "淡水夜色",
+          palette: "暖燈",
+          composition: "近景",
+          typeDirection: "手寫感",
+          imagePrompt: "tea night",
+          headline: "最近是不是很久沒有好好坐下來？",
+          subhead: "人到了就好",
+        },
+      ],
+    },
+    directionName: "安靜的晚上",
+    updatedAt: 1,
+  });
+  const saved = persistablePack(pack);
+  assert.equal(saved?.plan?.hook, "最近是不是很久沒有好好坐下來？");
+  assert.equal(saved?.sourceIdea, "下週有一場茶會");
+  const restored = ideaFlowRestore(saved);
+  assert.equal(restored?.idea, "下週有一場茶會");
+  assert.equal(restored?.picked.name, "安靜的晚上");
+  assert.equal(restored?.plan.hook, "最近是不是很久沒有好好坐下來？");
 });
 
 test("lastPackPreviewSrc prefers the generated asset url", () => {

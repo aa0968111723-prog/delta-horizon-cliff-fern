@@ -29,6 +29,7 @@ import { kindFromFormat, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, wit
 import { convertedScheduleInput, matchingScheduleRow } from "@/lib/club/schedule";
 import type { ContentKind, CreativeDirection, FormatId } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
+import { beginOAuth } from "@/lib/connections/begin";
 
 export type { CreateTab };
 
@@ -672,7 +673,15 @@ function ConvertStudio({
                 toast.success(canvaPushMessage(result));
                 return;
               }
-              window.open("https://www.canva.com", "_blank", "noopener,noreferrer");
+              if (result.needsConnect) {
+                toast.message("正在連接 Canva，回來後會自動把主視覺送進去。");
+                const started = await beginOAuth({ provider: "canva", next: "create", resume: "canva-push" });
+                if (!started.ok) {
+                  toast.message(started.error);
+                  void navigate({ to: "/connections" });
+                }
+                return;
+              }
               toast.message(canvaPushMessage(result));
             } finally {
               setSending(false);

@@ -15,6 +15,8 @@ import { runPackPublish } from "@/lib/club/run-publish";
 import { styleBriefFromPublish } from "@/lib/club/publish";
 import { toast } from "sonner";
 import { listConnectedMedia } from "@/lib/connections/oauth";
+import { beginOAuth } from "@/lib/connections/begin";
+import { takeOAuthResume } from "@/lib/connections/resume";
 import { useCreative, type IgMemoryPost } from "@/stores/creative-store";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 
@@ -28,28 +30,48 @@ export function InstagramCenter() {
   const rememberStyle = useCreative((s) => s.rememberStyle);
   const focusIgId = useCreative((s) => s.focusIgId);
   const setFocusIgId = useCreative((s) => s.setFocusIgId);
-  const schedule = useCreative((s) => s.schedule);
   const [active, setActive] = useState<IgMemoryPost | null>(null);
   const [live, setLive] = useState<IgMemoryPost[]>([]);
   const [publishing, setPublishing] = useState(false);
   const urls = useAssetUrls(packAssetIds(lastPack));
   const draftThumb = lastPack ? lastPackPreviewSrc(lastPack, urls) : "";
+  const hydrated = useCreative((s) => s.hydrated);
 
   async function publishDraft() {
-    if (!lastPack) return;
+    const pack = useCreative.getState().lastPack;
+    if (!pack) return;
     setPublishing(true);
     try {
-      const result = await runPackPublish(lastPack, lastPackPreviewSrc(lastPack, urls));
+      const result = await runPackPublish(pack, lastPackPreviewSrc(pack, urls));
+      if (result.needsConnect) {
+        toast.message("正在連接 Instagram，回來後會接著發布。");
+        const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
+        if (!started.ok) {
+          ingestIg([result.post]);
+          rememberStyle(styleBriefFromPublish(pack));
+          toast.message(started.error);
+          void navigate({ to: "/connections" });
+        }
+        return;
+      }
       ingestIg([result.post]);
-      rememberStyle(styleBriefFromPublish(lastPack));
+      rememberStyle(styleBriefFromPublish(pack));
       setFocusIgId(result.post.id);
-      const row = schedule.find((item) => item.campaignId === lastPack.campaignId && item.contentKind === lastPack.kind && item.status !== "published");
+      const row = useCreative.getState().schedule.find((item) => item.campaignId === pack.campaignId && item.contentKind === pack.kind && item.status !== "published");
       if (row) setScheduleStatus(row.id, "published");
       toast.success(result.message);
     } finally {
       setPublishing(false);
     }
   }
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!takeOAuthResume("ig-publish")) return;
+    if (!useCreative.getState().lastPack) return;
+    void publishDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
 
   useEffect(() => {
     void listConnectedMedia().then((result) => {

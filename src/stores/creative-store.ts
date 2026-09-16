@@ -386,6 +386,8 @@ export const useCreative = create<CreativeState>()(
                 canvaExportUrl: p.lastPack.canvaExportUrl ?? current.lastPack?.canvaExportUrl,
                 reelsVideoUrl: p.lastPack.reelsVideoUrl ?? current.lastPack?.reelsVideoUrl,
                 reelsJobId: p.lastPack.reelsJobId ?? current.lastPack?.reelsJobId,
+                plan: p.lastPack.plan ?? current.lastPack?.plan,
+                sourceIdea: p.lastPack.sourceIdea ?? current.lastPack?.sourceIdea,
               }
             : current.lastPack ?? null,
         };

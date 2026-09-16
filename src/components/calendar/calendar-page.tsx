@@ -18,6 +18,7 @@ import type { ContentKind } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useCreative, type ScheduleItem } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
+import { beginOAuth } from "@/lib/connections/begin";
 
 const DAY_MS = 86_400_000;
 
@@ -59,6 +60,18 @@ function ScheduleActions({
   async function publishToIg() {
     try {
       const result = await publishScheduleRow({ row, lastPack, assetUrls: urls });
+      if (result.needsConnect) {
+        toast.message("正在連接 Instagram，回來後會接著發布。");
+        const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
+        if (!started.ok) {
+          ingestIg([result.post]);
+          const packed = lastPack ? withPackKind(lastPack, row.contentKind) : null;
+          if (packed) rememberStyle(styleBriefFromPublish(packed));
+          toast.message(started.error);
+          void navigate({ to: "/connections" });
+        }
+        return;
+      }
       ingestIg([result.post]);
       const packed = lastPack ? withPackKind(lastPack, row.contentKind) : null;
       if (packed) rememberStyle(styleBriefFromPublish(packed));

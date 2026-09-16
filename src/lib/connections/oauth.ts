@@ -14,8 +14,9 @@ import {
 import { fetchCanvaDesigns, fetchInstagramMedia, probeDrive, createCanvaDesign, searchDriveFolders, publishInstagramMedia } from "./live";
 import { graphImageUrl } from "@/lib/club/publish";
 import { httpsVideoUrl } from "@/lib/club/last-pack";
+import { parseOAuthNext, type OAuthNext } from "./resume";
 
-type PkceState = { verifier: string; provider: "canva" | "instagram"; at: number };
+type PkceState = { verifier: string; provider: "canva" | "instagram"; at: number; next?: OAuthNext };
 
 function originFromRequest(req: Request) {
   const xf = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
@@ -74,7 +75,10 @@ export const getConnectionStatus = createServerFn({ method: "POST" }).handler(as
 export const startOAuth = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
     z
-      .object({ provider: z.enum(["canva", "instagram"]) })
+      .object({
+        provider: z.enum(["canva", "instagram"]),
+        next: z.enum(["create", "connections", "instagram"]).optional(),
+      })
       .parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input),
   )
   .handler(async ({ data }) => {
@@ -82,7 +86,8 @@ export const startOAuth = createServerFn({ method: "POST" })
     if (!req) return { ok: false as const, error: "無法開始連接" };
     const origin = originFromRequest(req);
     const { verifier, challenge } = pkce();
-    const state = await encryptState({ verifier, provider: data.provider, at: Date.now() } satisfies PkceState);
+    const next = parseOAuthNext(data.next);
+    const state = await encryptState({ verifier, provider: data.provider, at: Date.now(), next } satisfies PkceState);
 
     if (data.provider === "canva") {
       if (!canvaConfigured()) return { ok: false as const, error: "還沒有官方 Canva 應用程式。" };
@@ -162,7 +167,7 @@ export const finishOAuth = createServerFn({ method: "POST" })
     }
 
     await setBlobCookie(blob);
-    return { ok: true as const };
+    return { ok: true as const, next: parseOAuthNext(pkceState.next) };
   });
 
 export const disconnectOAuth = createServerFn({ method: "POST" })

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { maybeConnectorLogin } from "@/lib/app-data/login";
 import { searchCreative } from "@/lib/search/creative";
-import { disconnectOAuth, getConnectionStatus, listClubFolders, listConnectedMedia, startOAuth } from "@/lib/connections/oauth";
+import { disconnectOAuth, getConnectionStatus, listClubFolders, listConnectedMedia } from "@/lib/connections/oauth";
+import { beginOAuth } from "@/lib/connections/begin";
 import { folderSearchInput } from "@/lib/connections/presets";
 import { useCreative } from "@/stores/creative-store";
 
@@ -54,12 +55,10 @@ export function ConnectionCenter() {
   }
 
   async function connect(provider: "canva" | "instagram") {
-    const result = await startOAuth({ data: { provider } });
+    const result = await beginOAuth({ provider, next: "connections" });
     if (!result.ok) {
       toast.error(result.error);
-      return;
     }
-    window.location.assign(result.url);
   }
 
   async function disconnect(provider: "canva" | "instagram") {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { finishOAuth } from "@/lib/connections/oauth";
+import { parseOAuthNext } from "@/lib/connections/resume";
 import { Button } from "@/components/ui/button";
 
 export function OAuthCallback({
@@ -35,6 +36,15 @@ export function OAuthCallback({
         return;
       }
       setMessage("已連接，正在回去。");
+      const next = parseOAuthNext("next" in result ? result.next : "connections");
+      if (next === "create") {
+        void navigate({ to: "/create", search: { tab: "campaign" } });
+        return;
+      }
+      if (next === "instagram") {
+        void navigate({ to: "/instagram" });
+        return;
+      }
       void navigate({ to: "/connections" });
     })();
     return () => {

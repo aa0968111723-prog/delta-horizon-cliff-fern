@@ -41,7 +41,7 @@ export type CanvaPushResult = Awaited<ReturnType<typeof pushHeroToCanva>>;
 export function canvaPushMessage(result: CanvaPushResult) {
   if (result.ok && result.exportUrl) return "已把主視覺送進 Canva，並匯出公開圖，之後可以官方發布到 IG。";
   if (result.ok) return "已在 Canva 開新設計，文案已複製。";
-  if (result.needsConnect) return "還沒連接 Canva。文案已複製，可先貼上再連接。";
+  if (result.needsConnect) return "還沒連接 Canva。連接後會自動把主視覺送進去。";
   return `${result.error} 文案已複製。`;
 }
 
