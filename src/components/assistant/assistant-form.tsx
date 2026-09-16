@@ -2,7 +2,10 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BriefFields } from "@/components/assistant/brief-fields";
-import { EditorAgent } from "@/components/assistant/editor-agent";
+import { BrandMemoryStrip } from "@/components/assistant/brand-memory-strip";
+import { CanvasEditor } from "@/components/assistant/canvas-editor";
+import { CopyStudio } from "@/components/assistant/copy-studio";
+import { IgSurfaceConvert } from "@/components/assistant/ig-surface-convert";
 import { PlanResult } from "@/components/assistant/plan-result";
 import { ErrorState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -18,7 +21,11 @@ import {
 import { formatBrandMemory } from "@/lib/studio/brand";
 import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
 import { describeAdapter, generateCampaignPlan, getCampaignAiStatus, type AiStatus } from "@/lib/ai/campaign";
+import { campaignToBrief } from "@/lib/creative/brief-from-campaign";
+import { memoryInjectionHints } from "@/lib/creative/memory";
+import { hashtagsFromOutcomes, mergeHashtagMemory } from "@/lib/creative/learning";
 import { toBriefInput } from "@/lib/ai/payload";
+import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
 import { emptyBrief, formatsFromBrief, migrateBrief } from "@/lib/studio/brief";
 import { FORMATS } from "@/lib/studio/formats";
 import type { Brief, FormatId, Project } from "@/lib/studio/types";
@@ -44,14 +51,19 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
   const insightsText = useIgInsightsText();
 
   const existing = projectId ? projects.find((p) => p.id === projectId) : undefined;
-  const [targetId, setTargetId] = useState<string>(existing?.id ?? "new");
+  const [targetId, setTargetId] = useState<string>(() => (useUi.getState().creativePreset ? "new" : (existing?.id ?? "new")));
   const [brandId, setBrandId] = useState(existing?.brandId ?? brands[0]?.id ?? "");
   const [formatId, setFormatId] = useState<FormatId>(existing?.activeFormatId ?? "feed-portrait");
-  const [name, setName] = useState(existing?.name ?? "");
-  const [brief, setBrief] = useState<Brief>(existing ? migrateBrief(existing.brief) : emptyBrief());
+  const [name, setName] = useState(() => useUi.getState().creativePreset?.eventName || existing?.name || "");
+  const [brief, setBrief] = useState<Brief>(() => {
+    const preset = useUi.getState().creativePreset;
+    if (preset) return migrateBrief({ ...emptyBrief(), ...preset });
+    if (existing) return migrateBrief(existing.brief);
+    return emptyBrief();
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [doneId, setDoneId] = useState<string | null>(existing?.plan ? existing.id : null);
+  const [doneId, setDoneId] = useState<string | null>(() => (useUi.getState().creativePreset ? null : (existing?.plan ? existing.id : null)));
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [liveFailed, setLiveFailed] = useState(false);
 
@@ -76,6 +88,44 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!creativePreset) return;
+    const preset = migrateBrief({ ...emptyBrief(), ...creativePreset });
+    setTargetId("new");
+    setDoneId(null);
+    setBrief(preset);
+    setName(preset.eventName);
+    clearCreativePreset();
+  }, [creativePreset, clearCreativePreset]);
+
+  useEffect(() => {
+    if (useUi.getState().creativePreset) return;
+    if (projectId) return;
+    if (brief.eventName.trim() || brief.product.trim()) return;
+    const campaign = campaigns.find((item) => item.id === activeCampaignId) ?? campaigns[0];
+    if (!campaign) return;
+    const preset = migrateBrief({ ...emptyBrief(), ...campaignToBrief(campaign) });
+    setTargetId("new");
+    setDoneId(null);
+    setBrief(preset);
+    setName(preset.eventName);
+    // Only fill an empty form once — do not overwrite a student who clears the name.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (useUi.getState().creativePreset) return;
+    if (!projectId) return;
+    const project = useStudio.getState().projects.find((item) => item.id === projectId);
+    if (!project) return;
+    setTargetId(project.id);
+    setDoneId(project.plan ? project.id : null);
+    setBrief(migrateBrief(project.brief));
+    setBrandId(project.brandId);
+    setFormatId(project.activeFormatId);
+    setName(project.name);
+  }, [projectId]);
+
   function patchBrief(patch: Partial<Brief>) {
     setBrief((b) => ({ ...b, ...patch, deliverables: patch.deliverables ?? b.deliverables }));
   }
@@ -98,11 +148,11 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
       return;
     }
     if (!brief.eventName.trim() && !brief.product.trim()) {
-      setError("請先填活動名稱，代理才有依據。");
+      setError("請先填活動名稱，創作才有依據。");
       return;
     }
     if (!brief.audience.trim()) {
-      setError("請先填受眾，代理才有依據。");
+      setError("請先填受眾，創作才有依據。");
       return;
     }
     setBusy(true);
@@ -140,15 +190,20 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
         });
       } else {
         const current = projects.find((p) => p.id === targetId);
-        if (!current) throw new Error("找不到專案");
+        if (!current) throw new Error("找不到這則網宣");
         project = current;
       }
       applyCampaignPlan(project.id, result.plan, nextBrief);
+      if (contentLinkId) {
+        linkProject(contentLinkId, project.id);
+        clearContentLink();
+      }
       setLastProjectId(project.id);
       setDoneId(project.id);
       setTargetId(project.id);
       setBrief(nextBrief);
-      toast.success(result.adapter === "mock" ? "本機草案已套用到畫布" : "企劃已套用到畫布");
+      setCreationDesk("copy");
+      toast.success(result.adapter === "mock" ? "本機草案已套用到畫布，接著寫文案" : "企劃已套用到畫布，接著寫文案");
     } catch (err) {
       const message = err instanceof Error ? err.message : "企劃失敗";
       setError(message);
@@ -166,118 +221,225 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
   const mockMode = status ? !status.available || liveFailed : false;
   const statusLabel = status ?? describeAdapter(false);
 
+  const desks = [
+    { id: "plan" as const, label: "企劃", hint: "活動與概念" },
+    { id: "copy" as const, label: "文案", hint: "Hook 與貼文" },
+    { id: "art" as const, label: "畫面", hint: "尺寸與改圖" },
+  ];
+
   return (
-    <div className={cn("space-y-5", variant === "page" && "pb-8")}>
-      <div
-        data-testid="ai-adapter-banner"
-        className={cn("rounded-lg px-3 py-3", !status ? "bg-surface-2" : status.available ? "bg-surface-2" : "bg-warn/15")}
-      >
-        <p className="text-sm font-medium">{status ? statusLabel.label : "正在確認企劃服務"}</p>
-        <p className="mt-1 text-xs text-muted">
-          {status ? statusLabel.detail : "先確認有沒有連到 AI，不會假裝已經連線。"}
-        </p>
+    <div className={cn("min-w-0 space-y-5", variant === "page" && "pb-8")}>
+      <BrandMemoryStrip compact={variant === "sheet"} />
+
+      <div className="-mx-1 flex gap-1 overflow-x-auto px-1" data-testid="creation-desks">
+        {desks.map((desk) => (
+          <button
+            key={desk.id}
+            type="button"
+            onClick={() => setCreationDesk(desk.id)}
+            className={cn(
+              "min-h-14 min-w-24 shrink-0 rounded-xl px-3 py-2 text-left",
+              creationDesk === desk.id ? "bg-accent text-accent-fg" : "bg-surface text-muted shadow-[var(--shadow-border)]",
+            )}
+          >
+            <span className="block text-sm font-medium">{desk.label}</span>
+            <span className={cn("mt-0.5 block text-xs", creationDesk === desk.id ? "text-accent-fg/80" : "text-subtle")}>
+              {desk.hint}
+            </span>
+          </button>
+        ))}
       </div>
 
-      {targetId !== "new" ? <EditorAgent projectId={targetId} compact={variant === "sheet"} /> : null}
+      {creationDesk === "plan" ? (
+        <>
+          <div
+            data-testid="ai-adapter-banner"
+            className={cn("rounded-lg px-3 py-3", !status ? "bg-surface-2" : status.available ? "bg-surface-2" : "bg-warn/15")}
+          >
+            <p className="text-sm font-medium">{status ? statusLabel.label : "正在確認企劃服務"}</p>
+            <p className="mt-1 break-words text-xs leading-5 text-muted">
+              {status ? statusLabel.detail : "先確認有沒有連到 AI，不會假裝已經連線。"}
+              {brand
+                ? ` 已帶入：${memoryInjectionHints({
+                    brand,
+                    assets,
+                    campaigns,
+                    styleReferences,
+                    instagramHashtags,
+                    outcomeHashtags: hashtagsFromOutcomes(outcomes),
+                  }).join("、") || "Brand Memory 預設校園情境"}。`
+                : ""}
+            </p>
+          </div>
 
-      <div className={variant === "page" ? "hidden" : undefined}>
-        <h2 className="text-sm font-medium">活動需求</h2>
-        <p className="text-sm text-muted">寫清楚活動、對象與要產出的尺寸，再生成可編輯的企劃。</p>
-      </div>
+          <div className={variant === "page" ? "hidden" : undefined}>
+            <h2 className="text-sm font-medium">這則網宣要說什麼</h2>
+            <p className="text-sm text-muted">寫清楚活動、對象與要產出的尺寸，再生成可編輯的企劃。</p>
+          </div>
 
-      <BriefFields brief={brief} onChange={patchBrief} compact={variant === "sheet"} />
+          <BriefFields brief={brief} onChange={patchBrief} compact={variant === "sheet"} />
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="品牌">
-          <Select value={brandId} onValueChange={setBrandId}>
-            <SelectTrigger>
-              <SelectValue placeholder="選擇品牌" />
-            </SelectTrigger>
-            <SelectContent>
-              {brands.map((b) => (
-                <SelectItem key={b.id} value={b.id}>
-                  {b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label="主尺寸">
-          <Select value={formatId} onValueChange={(v) => setFormatId(v as FormatId)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {FORMATS.map((f) => (
-                <SelectItem key={f.id} value={f.id}>
-                  {f.name} · {f.short}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </div>
+          <div className={cn("grid gap-3", brands.length > 1 ? "sm:grid-cols-2" : "")}>
+            {brands.length > 1 ? (
+              <Field label="品牌記憶">
+                <Select value={brandId} onValueChange={setBrandId}>
+                  <SelectTrigger className="min-h-11">
+                    <SelectValue placeholder="淡江大學禪學社" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {brands.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            ) : null}
+            <Field label="主尺寸">
+              <Select value={formatId} onValueChange={(v) => setFormatId(v as FormatId)}>
+                <SelectTrigger className="min-h-11">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FORMATS.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.name} · {f.short}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
 
-      <Field label="套用到">
-        <Select value={targetId} onValueChange={onTargetChange}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="new">建立新專案</SelectItem>
-            {projects.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
+          <Field label="套用到哪一則">
+            <Select value={targetId} onValueChange={onTargetChange}>
+              <SelectTrigger className="min-h-11">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="new">建立新的一則網宣</SelectItem>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
 
-      {targetId === "new" ? (
-        <Field label="專案名稱（選填）">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="空白則用戰役名稱" />
-        </Field>
+          {targetId === "new" ? (
+            <Field label="這則名稱（選填）">
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="空白則用活動名稱" className="min-h-11" />
+            </Field>
+          ) : null}
+
+          {error ? (
+            <ErrorState
+              message={error}
+              onRetry={() => void generate(false)}
+            />
+          ) : null}
+
+          {liveFailed ? (
+            <Button className="w-full min-h-11" variant="secondary" disabled={busy} onClick={() => void generate(true)}>
+              改用本機草案
+            </Button>
+          ) : null}
+
+          <Button className="w-full min-h-11" data-testid="ai-generate" disabled={busy || !status} onClick={() => void generate(mockMode)}>
+            {busy
+              ? status?.available && !mockMode
+                ? "企劃生成中…"
+                : "草案撰寫中…"
+              : !status
+                ? "確認服務中…"
+              : resultProject?.plan
+                ? mockMode
+                  ? "重新生成本機草案"
+                  : "重新生成並套用"
+                : mockMode
+                  ? "生成本機草案並排版"
+                  : "生成企劃並排版"}
+          </Button>
+
+          {busy ? (
+            <p className="text-center text-xs text-muted">
+              {status?.available && !mockMode
+                ? "正在依 Brand Memory 寫概念、文案與頁面，並套進畫布。"
+                : "用本機規則寫一版可編輯草案，不是線上模型回覆。"}
+            </p>
+          ) : null}
+
+          {resultProject?.plan ? (
+            <>
+              <CreationLoop current="copy" />
+              <PlanResult
+                projectId={resultProject.id}
+                onOpenEditor={openEditor}
+                onWriteCopy={() => setCreationDesk("copy")}
+                onEditArt={() => setCreationDesk("art")}
+              />
+            </>
+          ) : (
+            <CreationLoop current="campaign" />
+          )}
+        </>
       ) : null}
 
-      {error ? (
-        <ErrorState
-          message={error}
-          onRetry={() => void generate(false)}
-        />
+      {creationDesk === "copy" ? (
+        resultProject?.plan ? (
+          <CopyStudio projectId={resultProject.id} />
+        ) : (
+          <EmptyDesk
+            title="還不能寫文案"
+            detail="先在企劃填活動與受眾，生成一版概念。Brand Memory 已經在上面，不用再開一個聊天視窗。"
+            actionLabel="回企劃"
+            onAction={() => setCreationDesk("plan")}
+          />
+        )
       ) : null}
 
-      {liveFailed ? (
-        <Button className="w-full" variant="secondary" disabled={busy} onClick={() => void generate(true)}>
-          改用本機草案
-        </Button>
+      {creationDesk === "art" ? (
+        resultProject ? (
+          <div className="space-y-5">
+            <IgSurfaceConvert projectId={resultProject.id} />
+            <CanvasEditor projectId={resultProject.id} compact={variant === "sheet"} />
+            <Button className="w-full min-h-11" variant="secondary" onClick={() => openEditor(resultProject.id)}>
+              打開 Studio 細修
+            </Button>
+          </div>
+        ) : (
+          <EmptyDesk
+            title="還沒有可改的畫面"
+            detail="先生成企劃，畫布才有這則網宣。這裡是改畫面，不是對話機器人。"
+            actionLabel="回企劃"
+            onAction={() => setCreationDesk("plan")}
+          />
+        )
       ) : null}
+    </div>
+  );
+}
 
-      <Button className="w-full" data-testid="ai-generate" disabled={busy || !status} onClick={() => void generate(mockMode)}>
-        {busy
-          ? status?.available && !mockMode
-            ? "企劃生成中…"
-            : "草案撰寫中…"
-          : !status
-            ? "確認服務中…"
-          : resultProject?.plan
-            ? mockMode
-              ? "重新生成本機草案"
-              : "重新生成並套用"
-            : mockMode
-              ? "生成本機草案並排版"
-              : "生成企劃並排版"}
+function EmptyDesk({
+  title,
+  detail,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  detail: string;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
+      <p className="font-medium">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-muted">{detail}</p>
+      <Button className="mt-4 min-h-11 w-full" variant="secondary" onClick={onAction}>
+        {actionLabel}
       </Button>
-
-      {busy ? (
-        <p className="text-center text-xs text-muted">
-          {status?.available && !mockMode
-            ? "正在依品牌規範寫概念、文案與頁面，並套進畫布。"
-            : "用本機規則寫一版可編輯草案，不是線上模型回覆。"}
-        </p>
-      ) : null}
-
-      {resultProject?.plan ? <PlanResult projectId={resultProject.id} onOpenEditor={openEditor} /> : null}
     </div>
   );
 }

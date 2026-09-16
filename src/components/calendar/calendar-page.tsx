@@ -229,7 +229,7 @@ export function CalendarPage() {
   })();
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full min-w-0 max-w-5xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
       <PageHeader
         kicker="排程"
         title="內容日曆"

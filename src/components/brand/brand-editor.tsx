@@ -2,6 +2,8 @@ import { Check, Plus, Star, Trash2, Upload } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
+import { StyleMemoryPanel } from "@/components/brand/style-memory";
+import { OutcomeJournal } from "@/components/learning/outcome-journal";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { StorageNotice } from "@/components/shared/storage-notice";
@@ -52,10 +54,10 @@ export function BrandEditor() {
   const brands = useStudio((s) => s.brands);
   const updateBrand = useStudio((s) => s.updateBrand);
   const createBrand = useStudio((s) => s.createBrand);
-  const deleteBrand = useStudio((s) => s.deleteBrand);
   const addAsset = useStudio((s) => s.addAsset);
   const assets = useStudio((s) => s.assets);
   const [activeId, setActiveId] = useState(brands[0]?.id ?? "");
+  const locationHash = useRouterState({ select: (state) => state.location.hash });
   const [section, setSection] = useState<(typeof SECTIONS)[number]["id"]>("identity");
   const brand = brands.find((b) => b.id === activeId) ?? brands[0];
   const fileRef = useRef<HTMLInputElement>(null);
@@ -63,15 +65,28 @@ export function BrandEditor() {
   const logoIds = (brand?.logos ?? []).map((item) => item.assetId);
   if (brand?.logoAssetId) logoIds.push(brand.logoAssetId);
   const urls = useAssetUrls(logoIds);
+  const memory = brand?.memory ?? emptyBrandMemory();
+
+  useEffect(() => {
+    function applyHash() {
+      const hash = window.location.hash.replace("#", "");
+      if (SECTIONS.some((item) => item.id === hash)) {
+        setSection(hash as (typeof SECTIONS)[number]["id"]);
+      }
+    }
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
+  }, [locationHash]);
 
   if (!brand) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-16">
         <EmptyState
           icon={SwatchBook}
-          title="尚無品牌"
-          description="建立品牌規範後，排版與 AI 企劃都會跟著走。"
-          action={<Button onClick={() => setActiveId(createBrand("新品牌").id)}>建立品牌</Button>}
+          title="尚無 Brand Memory"
+          description="建立淡江大學禪學社的識別後，AI 創作與畫布都會跟著走。這裡不是多品牌後台。"
+          action={<Button onClick={() => setActiveId(createBrand("淡江大學禪學社").id)}>建立禪學社品牌</Button>}
         />
       </main>
     );
@@ -140,19 +155,7 @@ export function BrandEditor() {
         title="品牌記憶"
         description="理念、龜龜、三色光、語氣與歷屆文宣會在每一次 AI 生成前先被讀進去。名稱與 Logo 仍然在這裡改。"
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <BrandSubnav current="brand" />
-            <Button variant="secondary" onClick={() => setActiveId(createBrand("新品牌").id)}>
-              <Plus className="size-4" />
-              新增品牌
-            </Button>
-            {brands.length > 1 && (
-              <Button variant="outline" onClick={() => deleteBrand(brand.id)}>
-                <Trash2 className="size-4" />
-                刪除
-              </Button>
-            )}
-          </div>
+          <BrandSubnav current="brand" />
         }
       />
 
@@ -204,6 +207,31 @@ export function BrandEditor() {
             />
           ))}
         </div>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <Button
+            type="button"
+            data-testid="apply-brand-current"
+            className="min-h-11"
+            variant="secondary"
+            onClick={() => {
+              const targetId = lastProjectId && projects.some((item) => item.id === lastProjectId)
+                ? lastProjectId
+                : projects[0]?.id;
+              if (!targetId) {
+                toast.error("還沒有網宣可套用。先到 Studio 打開一則。");
+                return;
+              }
+              applyBrandKit(targetId);
+              const name = projects.find((item) => item.id === targetId)?.name ?? "目前網宣";
+              toast.success(`已把色彩、字體與標誌套到「${name}」`);
+            }}
+          >
+            套用到目前網宣
+          </Button>
+          <p className="text-xs leading-5 opacity-70">
+            改色票會自動跟上還在用品牌色的畫面。自訂過的色塊按這顆才會整張重套。
+          </p>
+        </div>
       </div>
 
       <div className="sticky top-0 z-10 -mx-4 flex gap-1 overflow-x-auto bg-bg/90 px-4 py-2 backdrop-blur-sm md:static md:mx-0 md:bg-transparent md:px-0 md:backdrop-blur-none">
@@ -211,10 +239,11 @@ export function BrandEditor() {
           <Button
             key={item.id}
             size="sm"
+            className="min-h-11 shrink-0"
             variant={section === item.id ? "default" : "secondary"}
             onClick={() => {
               setSection(item.id);
-              document.getElementById(`brand-${item.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              history.replaceState(null, "", `#${item.id}`);
             }}
           >
             {item.label}
@@ -238,6 +267,17 @@ export function BrandEditor() {
         <Field label="品牌聲音">
           <Textarea value={brand.voice} onChange={(e) => patch("voice", e.target.value)} placeholder="語氣、節奏、像誰在說話" />
         </Field>
+        <Field label="社團理念">
+          <Textarea value={brand.clubIntro} onChange={(e) => patch("clubIntro", e.target.value)} placeholder="給學生一個可以慢下來的地方" />
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="吉祥物">
+            <Input value={brand.mascot} onChange={(e) => patch("mascot", e.target.value)} />
+          </Field>
+          <Field label="招牌視覺">
+            <Input value={brand.signatureLights} onChange={(e) => patch("signatureLights", e.target.value)} />
+          </Field>
+        </div>
       </section>
 
       <section id="brand-memory" className="space-y-3 rounded-2xl surface-card p-5">
@@ -452,7 +492,10 @@ export function BrandEditor() {
         <p className="text-xs text-muted">主色、輔助色與背景色會進自動排版；強調色用於 CTA 與線條。</p>
         <ul className="space-y-3">
           {brand.colors.map((color) => (
-            <li key={color.id} className="grid grid-cols-[2.5rem_1fr_1fr_auto] items-center gap-2">
+            <li
+              key={color.id}
+              className="flex flex-col gap-2 rounded-xl bg-bg p-3 sm:grid sm:grid-cols-[2.75rem_minmax(0,1fr)_minmax(0,8rem)_auto] sm:items-center sm:gap-2 sm:bg-transparent sm:p-0"
+            >
               <input
                 type="color"
                 value={color.hex}
@@ -462,11 +505,12 @@ export function BrandEditor() {
                     brand.colors.map((c) => (c.id === color.id ? { ...c, hex: e.target.value.toUpperCase() } : c)),
                   )
                 }
-                className="size-10 cursor-pointer rounded-md border border-border bg-transparent"
+                className="size-11 cursor-pointer rounded-md border border-border bg-transparent"
                 aria-label={color.label}
               />
               <Input
                 value={color.hex}
+                className="min-h-11 min-w-0"
                 onChange={(e) =>
                   patch(
                     "colors",
@@ -483,7 +527,7 @@ export function BrandEditor() {
                   )
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="min-h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -497,6 +541,7 @@ export function BrandEditor() {
               <Button
                 variant="ghost"
                 size="icon-sm"
+                className="min-h-11 min-w-11 self-end sm:self-auto"
                 aria-label="移除色票"
                 onClick={() => patch("colors", brand.colors.filter((c) => c.id !== color.id))}
               >
@@ -565,14 +610,14 @@ export function BrandEditor() {
           label="固定標語"
           hint="主標語會出現在品牌預覽，AI 企劃會參考。"
           values={brand.slogans}
-          placeholder="例如：這個月只烘一個產地。"
+          placeholder="例如：在忙亂裡，留一點空間給自己。"
           onChange={(slogans) => patch("slogans", slogans)}
         />
         <ChipList
           label="常用 CTA"
           hint="第一則會作為新專案預設按鈕文案。"
           values={brand.ctas}
-          placeholder="例如：查看風味"
+          placeholder="例如：看看活動"
           onChange={(ctas) => {
             patch("ctas", ctas);
             patch("boilerplate", { ...brand.boilerplate, cta: ctas[0] || brand.boilerplate.cta });
@@ -582,7 +627,7 @@ export function BrandEditor() {
           <Textarea
             value={brand.boilerplate.captionClose}
             onChange={(e) => patch("boilerplate", { ...brand.boilerplate, captionClose: e.target.value })}
-            placeholder="例如：歡迎到店，或私訊詢問。"
+            placeholder="例如：如果你也想喘口氣，可以找朋友一起來。"
           />
         </Field>
         <Field label="固定標籤（逗號分隔）">
@@ -615,7 +660,7 @@ export function BrandEditor() {
           <Input
             value={brand.imageStyle.mood}
             onChange={(e) => patch("imageStyle", { ...brand.imageStyle, mood: e.target.value })}
-            placeholder="沉靜、暖光、留白"
+            placeholder="沉靜、暖光、有空氣感"
           />
         </Field>
         <Field label="光線">
@@ -629,14 +674,14 @@ export function BrandEditor() {
           <Input
             value={brand.imageStyle.paletteHint}
             onChange={(e) => patch("imageStyle", { ...brand.imageStyle, paletteHint: e.target.value })}
-            placeholder="亞麻、深焙、赤陶"
+            placeholder="霧白、淡水深綠、禪光金"
           />
         </Field>
         <Field label="構圖">
           <Input
             value={brand.imageStyle.composition}
             onChange={(e) => patch("imageStyle", { ...brand.imageStyle, composition: e.target.value })}
-            placeholder="商品置中或上半，下半留白給標題"
+            placeholder="人物或校園情境保留呼吸感，標題區清楚"
           />
         </Field>
         <Field label="應該拍／用">
@@ -685,8 +730,8 @@ export function BrandEditor() {
           </div>
         ) : null}
         <ToggleRow
-          label="禁止競品標誌"
-          hint="畫布與素材不得出現其他品牌 Logo。"
+          label="禁止其他品牌標誌"
+          hint="畫布與素材不要出現其他社團或品牌 Logo。"
           checked={brand.rules.noCompetitorMarks}
           onChange={(noCompetitorMarks) => patch("rules", { ...brand.rules, noCompetitorMarks })}
         />
@@ -706,7 +751,7 @@ export function BrandEditor() {
           <Textarea
             value={brand.rules.notes}
             onChange={(e) => patch("rules", { ...brand.rules, notes: e.target.value })}
-            placeholder="例如：Logo 不壓在杯緣；價格不進主畫面。"
+            placeholder="例如：Logo 不壓過人物臉部；時間地點不可藏起來。"
           />
         </Field>
       </section>
@@ -847,8 +892,9 @@ function ChipList({
     <div>
       <Label className="mb-1.5 block">{label}</Label>
       <p className="mb-2 text-xs text-muted">{hint}</p>
-      <div className="flex gap-2">
+      <div className="flex min-w-0 gap-2">
         <Input
+          className="min-h-11 min-w-0 flex-1"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder={placeholder}
@@ -859,26 +905,22 @@ function ChipList({
             }
           }}
         />
-        <Button type="button" variant="secondary" onClick={add}>
+        <Button type="button" variant="secondary" className="min-h-11 shrink-0" onClick={add}>
           加入
         </Button>
       </div>
       {values.length === 0 ? (
         <p className="mt-2 text-xs text-muted">尚未新增。</p>
       ) : (
-        <ul className="mt-2 space-y-2">
+        <ul className="mt-2 flex flex-wrap gap-2">
           {values.map((item, index) => (
-            <li key={`${item}-${index}`} className="flex items-center gap-2 rounded-lg bg-bg px-3 py-2">
-              {index === 0 ? <Star className="size-3.5 text-warn" /> : <span className="size-3.5" />}
-              <Input
-                className="h-9"
-                value={item}
-                onChange={(e) => onChange(values.map((v, i) => (i === index ? e.target.value : v)))}
-              />
+            <li key={`${item}-${index}`} className="flex min-h-11 max-w-full items-center gap-1 rounded-full bg-bg pl-3 pr-1">
+              {index === 0 ? <Star className="size-3.5 shrink-0 text-warn" /> : null}
+              <span className="max-w-64 truncate text-sm leading-5">{item}</span>
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="移除"
+                aria-label={`移除 ${item}`}
                 onClick={() => onChange(values.filter((_, i) => i !== index))}
               >
                 <Trash2 className="size-4" />

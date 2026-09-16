@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
   Home,
@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { CLUB_SHORT } from "@/lib/zen/club";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
+import { useState } from "react";
 
 type NavKey =
   | "home"
@@ -79,6 +80,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const createOpen = useUi((s) => s.createOpen);
   const setCreateOpen = useUi((s) => s.setCreateOpen);
   const current = activeKey(pathname);
+  const [createOpen, setCreateOpen] = useState(false);
+  const navigate = useNavigate();
 
   function hrefFor(item: NavItem) {
     if (item.match === "studio" && lastProjectId) {

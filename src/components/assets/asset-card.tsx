@@ -67,6 +67,14 @@ export function AssetCard({
               {usageLabel(usage)}
             </Badge>
           </span>
+          <span className="absolute bottom-2 left-2">
+            <Badge variant="accent">{sourceLabel(asset.source)}</Badge>
+          </span>
+          {asset.analysis ? (
+            <span className="absolute top-2 right-2 rounded-full bg-surface/90 p-1.5 text-accent shadow-sm" title="已有 AI 視覺分析">
+              <BrainCircuit className="size-3.5" />
+            </span>
+          ) : null}
         </div>
       </button>
       <div className="space-y-1.5 px-3 py-2.5">
@@ -74,7 +82,7 @@ export function AssetCard({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{asset.name}</p>
             <p className="truncate text-xs text-muted">
-              {categoryLabel(asset.category)} · {sourceLabel(asset.source)}
+              {categoryLabel(asset.category)} · {provenanceLabel(asset)}
             </p>
           </div>
           <Button
@@ -103,6 +111,9 @@ export function AssetCard({
             <Button size="sm" variant="secondary" className="flex-1" onClick={onPlace}>
               放到畫布
             </Button>
+          ) : null}
+          {referenceOnly ? (
+            <p className="flex-1 text-xs leading-5 text-muted">沒有原圖，不能放到畫布。</p>
           ) : null}
           {onDelete ? (
             <Button variant="ghost" size="icon-sm" aria-label={`刪除 ${asset.name}`} onClick={onDelete}>

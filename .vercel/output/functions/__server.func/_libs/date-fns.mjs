@@ -28,6 +28,18 @@ var millisecondsInWeek = 6048e5;
 var millisecondsInDay = 864e5;
 /**
 * @constant
+* @name millisecondsInMinute
+* @summary Milliseconds in 1 minute
+*/
+var millisecondsInMinute = 6e4;
+/**
+* @constant
+* @name millisecondsInHour
+* @summary Milliseconds in 1 hour
+*/
+var millisecondsInHour = 36e5;
+/**
+* @constant
 * @name secondsInDay
 * @summary Seconds in 1 day.
 */

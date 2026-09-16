@@ -32,7 +32,7 @@ export const SEED_CAMPAIGN_ID = "camp_fuyou_zen_light";
 const SEED_TIME = Date.parse("2026-09-08T00:00:00+08:00");
 
 export const SEED_ASSETS: AssetMeta[] = [
-  {
+  seedAsset({
     id: SEED_LOGO_ID,
     name: "三色光標誌",
     kind: "logo",
@@ -43,7 +43,7 @@ export const SEED_ASSETS: AssetMeta[] = [
     tags: ["logo", "三色光", "品牌"],
     createdAt: SEED_TIME,
     updatedAt: SEED_TIME,
-    seedSrc: "/seed/zen-mark.svg",
+    seedSrc: "/seed/club-mark.svg",
     source: "seed",
     licenseNotes: "社團自有標誌，僅限禪學社網宣使用。",
     licenseOwner: CLUB_NAME,
@@ -145,7 +145,7 @@ export const SEED_BRAND: BrandKit = {
     { id: "c4", hex: CLUB_PALETTE.warm, role: "accent", label: "曦光" },
     { id: "c5", hex: CLUB_PALETTE.ink, role: "ink", label: "墨" },
   ],
-  fontDisplay: "Noto Serif TC",
+  fontDisplay: "Noto Sans TC",
   fontBody: "Noto Sans TC",
   logoAssetId: SEED_LOGO_ID,
   logos: [
@@ -179,6 +179,10 @@ export const SEED_BRAND: BrandKit = {
   updatedAt: SEED_TIME,
 };
 
+/* ------------------------------------------------------------------ */
+/* 示範活動：浮游禪光                                                     */
+/* ------------------------------------------------------------------ */
+
 const copy = {
   eyebrow: "09/24 浮游禪光",
   headline: "很久沒有\n好好坐下來了吧",
@@ -193,10 +197,7 @@ const copy = {
 };
 
 function stabilize(layers: Layer[], prefix: string): Layer[] {
-  return layers.map((layer, index) => ({
-    ...layer,
-    id: `${prefix}${index}`,
-  }));
+  return layers.map((layer, index) => ({ ...layer, id: `${prefix}${index}` }));
 }
 
 export function createSeedProject(): Project {
@@ -240,7 +241,24 @@ export function createSeedProject(): Project {
     "editorial",
     { imageAssetId: SEED_WINDOW_ID },
   );
-  page3.layers = stabilize(page3.layers, "seed_p3_ly_");
+  const line: LineLayer = {
+    id: "seed_p3_line",
+    name: "分隔線",
+    type: "line",
+    x: 72,
+    y: 820,
+    w: 220,
+    h: 32,
+    rotation: 0,
+    opacity: 1,
+    locked: false,
+    hidden: false,
+    fromLayout: false,
+    stroke: "#B85C38",
+    strokeWidth: 3,
+    shadow: { ...DEFAULT_SHADOW },
+  };
+  page3.layers = [...stabilize(page3.layers, "seed_p3_ly_"), line];
   page3.role = "detail";
   page3.templateId = "editorial";
 
@@ -274,9 +292,9 @@ export function createSeedProject(): Project {
     SEED_BRAND,
     "offer",
   );
-  page5.layers = stabilize(page5.layers, "seed_p5_ly_");
-  page5.role = "cta";
-  page5.templateId = "offer";
+  page4.layers = stabilize(page4.layers, "seed_p4_ly_");
+  page4.role = "cta";
+  page4.templateId = "offer";
 
   const slides = [page1, page2, page3, page4, page5];
 
@@ -429,6 +447,10 @@ export function createSeedProject(): Project {
     ],
     planVersions: migratePlanVersions(undefined, plan),
     exports: [],
+    campaignId: "camp_floating_light",
+    contentKind: "carousel",
+    scheduledAt: Date.parse("2026-09-17T20:00:00+08:00"),
+    publishedAt: null,
   };
 }
 
@@ -494,6 +516,10 @@ export function createSeedDraft(): Project {
     snapshots: [],
     planVersions: [],
     exports: [],
+    campaignId: "camp_welcome_tea",
+    contentKind: "story",
+    scheduledAt: null,
+    publishedAt: null,
   };
 }
 

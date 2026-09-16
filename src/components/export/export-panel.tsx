@@ -11,6 +11,7 @@ import { uid } from "@/lib/studio/ids";
 import { pagesOf } from "@/lib/studio/layers";
 import { igPostText, packStats, packLimit, threadsPostText } from "@/lib/studio/post-pack";
 import type { Artboard, BrandKit, Project } from "@/lib/studio/types";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
 export function ExportPanel({
@@ -67,6 +68,44 @@ export function ExportPanel({
     }
   }
 
+  async function exportPublishPack() {
+    setBusy(true);
+    setError(null);
+    try {
+      const stem = safePackStem(project.name);
+      const manifest = publishPackManifest(stem, format.short, pages.length);
+      const files: { name: string; blob: Blob }[] = [
+        { name: manifest.noteName, blob: new Blob([buildExportCopyPack(project, { contentItems, campaigns })], { type: "text/plain;charset=utf-8" }) },
+      ];
+      for (let index = 0; index < pages.length; index += 1) {
+        const target = pages[index]!;
+        const images = await loadImages(collectArtboardAssetIds(target, brand));
+        const canvas = await renderArtboardToCanvas(target, brand, images, scale);
+        const blob = await canvasToBlob(canvas, "image/png", 0.95);
+        const filename = manifest.imageNames[index] ?? `${stem}-p${index + 1}.png`;
+        files.push({ name: filename, blob });
+        recordExport(project.id, {
+          id: uid("exp"),
+          createdAt: Date.now(),
+          formatId: target.formatId,
+          scale,
+          mime: "image/png",
+          width: format.width * scale,
+          height: format.height * scale,
+          filename,
+        });
+      }
+      downloadBlob(await zipBlobs(files), manifest.zipName);
+      toast.success(pages.length > 1 ? `已下載一人發佈包：${pages.length} 頁畫布與備註` : "已下載一人發佈包：畫布 PNG 與備註");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "匯出失敗";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function exportCarousel() {
     setBusy(true);
     setError(null);
@@ -92,7 +131,7 @@ export function ExportPanel({
       <div>
         <h2 className="text-sm font-medium">高畫質輸出</h2>
         <p className="mt-1 text-xs text-muted">
-          Instagram 以 1080 邊長為準。建議 PNG 2x 再壓縮，避免平台二次糊掉。
+          Instagram 以 1080 邊長為準。建議 PNG 2x 再壓縮。這是本機下載，不是發文，也不含官方 Insights。
         </p>
       </div>
       <div>
@@ -129,17 +168,17 @@ export function ExportPanel({
         </div>
       </div>
       {error ? <p className="text-sm text-danger">{error}</p> : null}
-      <Button className="w-full" disabled={busy} onClick={() => void exportNow()}>
+      <Button className="w-full min-h-11" disabled={busy} onClick={() => void exportNow()}>
         {busy ? "匯出中…" : "下載此頁"}
       </Button>
       {pages.length > 1 ? (
-        <Button className="w-full" variant="secondary" disabled={busy} onClick={() => void exportCarousel()}>
+        <Button className="w-full min-h-11" variant="secondary" disabled={busy} onClick={() => void exportCarousel()}>
           匯出輪播全部（{pages.length} 頁）
         </Button>
       ) : null}
       <Button
         variant="secondary"
-        className="w-full"
+        className="w-full min-h-11"
         onClick={async () => {
           const text = igPostText(project.copy);
           await navigator.clipboard.writeText(text);

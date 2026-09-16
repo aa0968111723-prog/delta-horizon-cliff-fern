@@ -209,6 +209,9 @@ function LayerNode({
       data-layer-type={layer.type}
       data-layer-name={layer.name}
       data-layer-role={layer.type === "text" ? layer.role : undefined}
+      data-color={layer.type === "text" ? layer.color : undefined}
+      data-fill={layer.type === "shape" ? layer.fill : undefined}
+      data-logo={layer.type === "logo" ? layer.assetId : undefined}
       style={style}
       onPointerDown={(e) => onPointerDownLayer?.(layer.id, e)}
       onDoubleClick={(e) => {
@@ -348,6 +351,8 @@ export function ArtboardView({
       data-ratio={format.ratio}
       data-format={artboard.formatId}
       className="relative overflow-hidden bg-surface"
+      data-testid="artboard-surface"
+      data-bg={bg.color}
       style={{
         width,
         height,

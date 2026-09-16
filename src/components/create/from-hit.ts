@@ -1,0 +1,74 @@
+import { toast } from "sonner";
+import { generateCreativePack } from "@/lib/ai/pack";
+import { toBriefInput } from "@/lib/ai/payload";
+import { migrateBrief } from "@/lib/studio/brief";
+import { clientMemoryLines, composeMemoryNotes } from "@/lib/zen/ingest";
+import { ingestHitPixels } from "@/lib/zen/ingest-client";
+import { ideaFromHit, memorySourceFromHit } from "@/lib/zen/from-hit";
+import { igDnaBlock } from "@/lib/zen/insights";
+import { searchCreativeKnowledge, type SearchHit } from "@/lib/zen/search";
+import { useCreative } from "@/stores/creative-store";
+import { useStudio } from "@/stores/studio-store";
+
+export async function createFromHit(hit: SearchHit) {
+  const brand = useStudio.getState().brands[0];
+  if (!brand) {
+    toast.error("還沒有品牌記憶。");
+    return false;
+  }
+  const { memory, igPosts, campaigns, addMemory, setLastPack } = useCreative.getState();
+  const { addAsset, assets } = useStudio.getState();
+  const thumbAssetId = (await ingestHitPixels(hit, addAsset)) ?? hit.thumbAssetId;
+  addMemory({
+    id: hit.id,
+    source: memorySourceFromHit(hit),
+    title: hit.title,
+    subtitle: hit.subtitle,
+    thumbAssetId,
+    tags: hit.tags,
+    kind: hit.source,
+    url: hit.url,
+  });
+  const idea = ideaFromHit(hit);
+  const brief = migrateBrief({
+    eventName: hit.title.slice(0, 40),
+    product: idea,
+    audience: "淡江大學學生",
+    location: "淡江大學淡水校園",
+    goal: "awareness",
+    notes: idea,
+    deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
+  });
+  const world = searchCreativeKnowledge(`${hit.title} ${hit.subtitle}`, {
+    assets,
+    campaigns,
+    igPosts,
+    memory,
+  });
+  const result = await generateCreativePack({
+    data: toBriefInput(brief, brand, {
+      dnaNotes: igDnaBlock(igPosts),
+      memoryNotes: composeMemoryNotes([
+        `${hit.subtitle} / ${hit.title}`,
+        world.memoryNotes,
+        clientMemoryLines(memory),
+      ]),
+      foundCount: Math.max(world.foundCount, 1),
+      citedSources: [
+        {
+          source: memorySourceFromHit(hit),
+          label: hit.subtitle.includes("/") ? hit.subtitle : hit.title,
+          detail: hit.title,
+        },
+        ...world.sources,
+      ].slice(0, 16),
+    }),
+  });
+  if (!result.ok) {
+    toast.error(result.error);
+    return false;
+  }
+  setLastPack(result.pack);
+  toast.success(`已根據「${hit.title}」生成 3 個方向`);
+  return true;
+}

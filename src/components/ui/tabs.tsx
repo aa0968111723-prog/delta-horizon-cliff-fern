@@ -23,7 +23,7 @@ export function TabsTrigger({
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        "inline-flex h-9 items-center justify-center rounded-md px-3 text-sm text-muted",
+        "inline-flex min-h-11 items-center justify-center rounded-md px-3 text-sm text-muted",
         "data-[state=active]:bg-surface data-[state=active]:text-fg data-[state=active]:shadow-[var(--shadow-border)]",
         className,
       )}
