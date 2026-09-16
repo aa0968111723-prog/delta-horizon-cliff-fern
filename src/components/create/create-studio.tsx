@@ -4,14 +4,21 @@ import { toast } from "sonner";
 import { convertPlan, packCaption, type ConvertedPack } from "@/lib/ai/convert";
 import { generateCampaignPlan, getCampaignAiStatus, describeAdapter, type AiStatus } from "@/lib/ai/campaign";
 import { generateCopyPacks } from "@/lib/ai/copy-studio";
-import { analyzeStudioImage, generateStudioImage, generateVisualDirections, type VisionAnalysis } from "@/lib/ai/image-studio";
+import {
+  analyzeStudioImage,
+  generateStudioImage,
+  generateVisualDirections,
+  toImageFormat,
+  varyImagePrompt,
+  type VisionAnalysis,
+} from "@/lib/ai/image-studio";
 import { toBriefInput } from "@/lib/ai/payload";
 import { createCanvaDesign } from "@/lib/connect/canva";
 import { searchDriveLive } from "@/lib/connect/sync";
 import { emptyBrief, migrateBrief } from "@/lib/studio/brief";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
 import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
-import { formatById } from "@/lib/studio/formats";
+import { formatById, FORMATS } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { parseEventDate, parseEventTime, guessEventName } from "@/lib/zen/dates";
 import { DEFAULT_AUDIENCE } from "@/lib/zen/context";
@@ -36,6 +43,14 @@ import { PageHeader } from "@/components/shared/page-header";
 import { useStudio } from "@/stores/studio-store";
 
 const KINDS: ContentKind[] = ["ig-post", "carousel", "story", "reels", "threads", "line"];
+
+const VARIATIONS: { id: "composition" | "mood" | "background" | "style" | "text"; label: string }[] = [
+  { id: "composition", label: "換構圖" },
+  { id: "mood", label: "換氣氛" },
+  { id: "background", label: "換背景" },
+  { id: "style", label: "換風格" },
+  { id: "text", label: "換文字空間" },
+];
 
 const MODE_HINT: Record<string, string> = {
   post: "會先寫 Hook、正文、CTA。",
@@ -297,9 +312,13 @@ export function CreateStudio() {
     }
   }
 
-  async function saveGeneratedImage(dir: VisualDirection) {
-    const format = toCreateImageFormat(mode);
-    const result = await generateStudioImage({ data: { prompt: dir.prompt, format } });
+  async function saveGeneratedImage(
+    dir: VisualDirection,
+    opts?: { kind?: (typeof VARIATIONS)[number]["id"]; format?: string },
+  ) {
+    const format = toImageFormat(opts?.format ?? toCreateImageFormat(mode));
+    const prompt = opts?.kind ? varyImagePrompt(dir.prompt, opts.kind) : dir.prompt;
+    const result = await generateStudioImage({ data: { prompt, format } });
     if (!result.ok) {
       toast.message("主視覺先用畫布方向。連上圖片生成後可以再出圖。");
       return null;
@@ -310,7 +329,9 @@ export function CreateStudio() {
     await putAssetBlob(id, blob);
     addAsset({
       id,
-      name: dir.name,
+      name: [dir.name, opts?.kind ? VARIATIONS.find((item) => item.id === opts.kind)?.label : null, spec.short]
+        .filter(Boolean)
+        .join(" · "),
       kind: "image",
       category: "ai",
       mime: result.mime,
@@ -331,10 +352,14 @@ export function CreateStudio() {
     return id;
   }
 
-  async function generateFromDirection(dir: VisualDirection) {
+  async function generateFromDirection(
+    dir: VisualDirection,
+    kind?: (typeof VARIATIONS)[number]["id"],
+    format?: string,
+  ) {
     setBusy(true);
     try {
-      await saveGeneratedImage(dir);
+      await saveGeneratedImage(dir, { kind, format });
     } finally {
       setBusy(false);
     }
@@ -367,7 +392,12 @@ export function CreateStudio() {
     return project;
   }
 
-  function saveCampaignAndWaves(nextPlan = plan, assetId = lastImage?.assetId, projectId: string | null = null) {
+  function saveCampaignAndWaves(
+    nextPlan = plan,
+    assetId = lastImage?.assetId,
+    projectId: string | null = null,
+    opts?: { silent?: boolean },
+  ) {
     const name = eventName.trim() || guessEventName(`${idea} ${nextPlan?.campaignName ?? ""}`) || nextPlan?.campaignName || "未命名活動";
     const date = parseEventDate(schedule);
     const type = eventKindFromText(`${name} ${idea}`);
@@ -405,8 +435,10 @@ export function CreateStudio() {
       });
     }
     setCampaign(created);
-    toast.success("活動與節奏已進月曆");
-    toast.message(rhythmHint(recentKinds));
+    if (!opts?.silent) {
+      toast.success("活動與節奏已進月曆");
+      toast.message(rhythmHint(recentKinds));
+    }
     return created;
   }
 
@@ -491,7 +523,7 @@ export function CreateStudio() {
     try {
       const imageId = (await saveGeneratedImage(dir)) ?? undefined;
       const project = applyToCanvas(next, false);
-      const created = saveCampaignAndWaves(next, imageId, project?.id ?? null);
+      const created = saveCampaignAndWaves(next, imageId, project?.id ?? null, { silent: true });
       scheduleConverted(next, created, project?.id ?? null, imageId);
       toast.success("已用這個方向做出整套：主視覺、文案、各平台、月曆");
     } finally {
@@ -560,27 +592,25 @@ export function CreateStudio() {
             <Input value={location} onChange={(e) => setLocation(e.target.value)} />
           </Field>
         </div>
-        {mode === "campaign" ? (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <Field label="一句活動介紹">
-              <Input value={oneLiner} onChange={(e) => setOneLiner(e.target.value)} placeholder="最近是不是很久沒有好好坐下來？" />
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <Field label="一句活動介紹">
+            <Input value={oneLiner} onChange={(e) => setOneLiner(e.target.value)} placeholder="最近是不是很久沒有好好坐下來？" />
+          </Field>
+          <Field label="活動主題">
+            <Input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="光、坐下來、朋友…" />
+          </Field>
+          <Field label="學生痛點">
+            <Input value={studentPain} onChange={(e) => setStudentPain(e.target.value)} />
+          </Field>
+          <Field label="報名連結（可空）">
+            <Input value={signupUrl} onChange={(e) => setSignupUrl(e.target.value)} placeholder="https://" />
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="完整介紹">
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
             </Field>
-            <Field label="活動主題">
-              <Input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="光、坐下來、朋友…" />
-            </Field>
-            <Field label="學生痛點">
-              <Input value={studentPain} onChange={(e) => setStudentPain(e.target.value)} />
-            </Field>
-            <Field label="報名連結（可空）">
-              <Input value={signupUrl} onChange={(e) => setSignupUrl(e.target.value)} placeholder="https://" />
-            </Field>
-            <div className="sm:col-span-2">
-              <Field label="完整介紹">
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-              </Field>
-            </div>
           </div>
-        ) : null}
+        </div>
         <div className="mt-4 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
           <Button disabled={busy} onClick={() => void runKit()}>
             AI 生成完整宣傳
@@ -600,7 +630,40 @@ export function CreateStudio() {
       </div>
 
       {vision ? (
-        <VisionCard vision={vision} />
+        <VisionCard vision={vision}>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" disabled={busy} onClick={() => void runKit()}>
+              延續這個風格
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy || !plan}
+              onClick={() => plan && schedulePack(convertPlan(plan, "story"))}
+            >
+              做成限動
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy || !plan}
+              onClick={() => plan && schedulePack(convertPlan(plan, "carousel"))}
+            >
+              做成 Carousel
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy || !plan}
+              onClick={() => plan && schedulePack(convertPlan(plan, "reels"))}
+            >
+              做成 Reels Cover
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void runDirections()}>
+              生成相似視覺
+            </Button>
+          </div>
+        </VisionCard>
       ) : null}
 
       {found.length ? (
@@ -668,7 +731,12 @@ export function CreateStudio() {
 
       {directions.length ? (
         <section className="mt-8">
-          <h2 className="text-sm font-medium">根據過去內容生成 {directions.length} 個方向</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-medium">根據過去內容生成 {directions.length} 個方向</h2>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void runDirections()}>
+              換三個方向
+            </Button>
+          </div>
           <ul className="mt-3 grid gap-3">
             {directions.map((dir) => (
               <li key={dir.id || dir.name} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
@@ -683,6 +751,31 @@ export function CreateStudio() {
                   <Button size="sm" disabled={busy} onClick={() => void generateFromDirection(dir)}>
                     生成圖片
                   </Button>
+                  <Button size="sm" variant="secondary" disabled={busy} onClick={() => void generateFromDirection(dir)}>
+                    重新生成
+                  </Button>
+                  {VARIATIONS.map((item) => (
+                    <Button
+                      key={item.id}
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => void generateFromDirection(dir, item.id)}
+                    >
+                      {item.label}
+                    </Button>
+                  ))}
+                  {FORMATS.filter((item) => item.id !== "feed-landscape").map((item) => (
+                    <Button
+                      key={`ext-${item.id}`}
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => void generateFromDirection(dir, undefined, item.id)}
+                    >
+                      延伸 {item.short}
+                    </Button>
+                  ))}
                 </div>
               </li>
             ))}

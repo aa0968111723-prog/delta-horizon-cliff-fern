@@ -43,12 +43,24 @@ function eventGuess(text: string) {
 export function igHookAnalysis(caption: string) {
   const first = caption.trim().split(/\n/)[0] ?? "";
   const review = studentReviewOf(caption);
+  const theme = eventGuess(caption);
+  const hasQuestion = /[？?]/.test(first);
+  const hasCta = /一起|來坐|報名|限動|來坐一下|揪/.test(caption);
   return {
     hook: first,
     length: caption.length,
+    visual: /光|夜|淡水|龜|茶|坐|燈/.test(caption) ? "有生活場景線索，比較容易停滑。" : "視覺線索偏少，比較像純文字公告。",
+    theme,
+    cta: hasCta ? "有行動句。" : "我還不知道要不要出門、怎麼報名。",
+    direction: hasQuestion ? "生活問句開頭，再進活動。" : "偏公告，比較難停滑。",
+    improve: [
+      hasQuestion ? "Hook 可再更貼淡江近況。" : "第一句改成學生會停下來的問句。",
+      caption.length > 280 ? "縮短，時間地點放到前三行。" : "時間地點再靠近第一屏。",
+      hasCta ? "保留揪人，不要改成招生口號。" : "加一句『要不要找人一起來』。",
+    ],
     review,
     notes: [
-      first.includes("？") ? "Hook 是問句，比較像在講學生。" : "可把第一句改成生活問句。",
+      hasQuestion ? "Hook 是問句，比較像在講學生。" : "可把第一句改成生活問句。",
       caption.length > 280 ? "Caption 偏長。" : "長度還好。",
       /誠摯邀請|淡江大學禪學社誠/.test(caption) ? "開頭太正式。" : "語氣還算自然。",
     ],

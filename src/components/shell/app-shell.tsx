@@ -87,7 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="relative grid grid-cols-5">
             <MobileLink to="/" label="首頁" icon={House} active={current === "home"} />
             <MobileLink to="/calendar" label="排程" icon={CalendarDays} match={current === "calendar"} />
-            <div className="flex items-end justify-center pb-2">
+            <div className="relative flex h-14 flex-col items-center justify-end pb-1">
               <button
                 type="button"
                 onClick={() => setCreateOpen(true)}
@@ -96,6 +96,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               >
                 <Plus className="size-6" />
               </button>
+              <span className="text-[10px] text-muted">AI 創作</span>
             </div>
             <MobileLink to="/assets" label="素材" icon={Images} active={current === "assets"} />
             <MobileLink to="/ig" label="IG" icon={Instagram} active={current === "ig"} />

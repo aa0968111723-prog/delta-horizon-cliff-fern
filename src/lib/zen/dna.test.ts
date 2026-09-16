@@ -3,7 +3,7 @@ import test from "node:test";
 import { clubCreativeDna } from "./dna.ts";
 import { tagsFromVision, ideaFromVision } from "./vision-tags.ts";
 import { guessEventName } from "./dates.ts";
-import { proposedHook, studentReviewOf, tidyCopy } from "./review.ts";
+import { igHookAnalysis, proposedHook, studentReviewOf, tidyCopy } from "./review.ts";
 
 test("clubCreativeDna prefers own IG and motifs, not generic youth", () => {
   const dna = clubCreativeDna({
@@ -120,4 +120,13 @@ test("proposedHook never keeps 誠摯邀請", () => {
 
 test("tidyCopy collapses doubled periods", () => {
   assert.equal(tidyCopy("休息會心虛。。今晚來坐。"), "休息會心虛。今晚來坐。");
+});
+
+test("igHookAnalysis names visual, theme, CTA and what to improve", () => {
+  const analysis = igHookAnalysis("最近是不是很久沒有好好坐下來？\n淡水晚上有茶。要不要找人一起來。");
+  assert.match(analysis.visual, /生活/);
+  assert.match(analysis.cta, /行動/);
+  assert.match(analysis.direction, /問句/);
+  assert.ok(analysis.improve.length >= 2);
+  assert.doesNotMatch(analysis.hook, /誠摯邀請/);
 });

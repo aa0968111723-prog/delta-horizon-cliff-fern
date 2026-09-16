@@ -160,9 +160,13 @@ export function InstagramCenter() {
             {analysis ? (
               <ul className="mt-3 space-y-1 text-sm text-muted">
                 <li>Hook：{analysis.hook}</li>
+                <li>視覺：{analysis.visual}</li>
+                <li>主題：{analysis.theme}</li>
                 <li>Caption 長度：{analysis.length}</li>
-                {analysis.notes.map((note) => (
-                  <li key={note}>{note}</li>
+                <li>CTA：{analysis.cta}</li>
+                <li>內容方向：{analysis.direction}</li>
+                {analysis.improve.map((note) => (
+                  <li key={note}>可改善：{note}</li>
                 ))}
                 <li>太宗教？{analysis.review.tooReligious}</li>
                 <li>太 AI？{analysis.review.tooAi}</li>
