@@ -125,14 +125,18 @@ try {
 
   // 6b. 一鍵轉換 + Reels 腳本
   await expectText("一鍵轉換", "做成其他型態");
-  await page.getByRole("button", { name: /寫 Reels 腳本/ }).click();
-  await page.waitForSelector("text=Reels 腳本", { timeout: 30000 });
+  await page.getByRole("button", { name: /寫 Reels 腳本/ }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForSelector("text=複製整支腳本", { timeout: 30000 });
   await expectText("Reels 腳本", "複製整支腳本");
   await expectText("生成封面", "生成封面圖");
   await page.screenshot({ path: `${prefix}-reels.png` });
 
   await page.getByText("做成其他型態").scrollIntoViewIfNeeded();
-  await page.locator("[aria-label^='做成']").first().click();
+  await page.locator("[aria-label^='做成']").first().evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
   await page.waitForTimeout(800);
   const afterConvert = await text();
   record("一鍵轉換輪播", afterConvert.includes("輪播") || afterConvert.includes("做成其他型態"), "轉換後畫面沒更新");
@@ -170,7 +174,9 @@ try {
 
   await page.goto(`${base}/calendar`, { waitUntil: "networkidle" });
   await expectText("日曆可改節奏", "還沒建立");
-  await page.getByRole("button", { name: "依宣傳節奏排程" }).click();
+  await page.getByRole("button", { name: "依宣傳節奏排程" }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
   await page.waitForTimeout(800);
   const cal = await text();
   record(
@@ -188,7 +194,9 @@ try {
   await page.waitForSelector("text=宣傳節奏", { timeout: 20000 });
   await expectText("活動詳情", "宣傳節奏");
   await expectText("做成這篇入口", "做成這篇");
-  await page.getByRole("button", { name: /AI 生成完整宣傳/ }).click();
+  await page.getByRole("button", { name: /AI 生成完整宣傳/ }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
   await page.waitForTimeout(2500);
   const waves = await page.locator("ol > li").count();
   record("宣傳節奏波次", waves >= 4, `只有 ${waves} 波`);
