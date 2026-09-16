@@ -7,8 +7,10 @@ import { useStudio } from "@/stores/studio-store";
 /** 示範／素材庫照片捷徑。點一下回呼，由畫面或視覺方向決定怎麼套。 */
 export function PhotoHeroButtons({
   onPick,
+  testIdPrefix = "hero-photo",
 }: {
   onPick: (assetId: string, name: string) => void;
+  testIdPrefix?: string;
 }) {
   const assets = useStudio((s) => s.assets);
   const photos = assets.filter((asset) => !isStampAsset(asset)).slice(0, 6);
@@ -23,7 +25,7 @@ export function PhotoHeroButtons({
           <button
             type="button"
             aria-label={`${asset.name} 當主視覺`}
-            data-testid={`hero-photo-${asset.id}`}
+            data-testid={`${testIdPrefix}-${asset.id}`}
             onClick={() => onPick(asset.id, asset.name)}
             className="overflow-hidden rounded-lg bg-surface-2 text-left shadow-[var(--shadow-border)]"
           >
@@ -51,6 +53,7 @@ export function HeroPhotoStrip({ projectId }: { projectId: string }) {
 
   return (
     <PhotoHeroButtons
+      testIdPrefix="hero-strip"
       onPick={(assetId, name) => {
         const count = applyVisualToPack(projectId, assetId);
         if (count > 1) toast.success(`「${name}」已套成全套主視覺。`);

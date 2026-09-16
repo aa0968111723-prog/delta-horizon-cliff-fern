@@ -161,7 +161,7 @@ export function VisualDirectionCard({
         {onImageSaved ? (
           <div className="space-y-1.5">
             <p className="text-xs text-subtle">沒有生成時，點照片也能當主視覺。</p>
-            <PhotoHeroButtons onPick={(assetId) => onImageSaved(assetId, ratio)} />
+            <PhotoHeroButtons testIdPrefix="hero-card" onPick={(assetId) => onImageSaved(assetId, ratio)} />
           </div>
         ) : null}
       </div>
