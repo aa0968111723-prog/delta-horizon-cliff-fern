@@ -262,7 +262,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
           </Group>
         </div>
 
-        <div className="flex h-0 min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:hidden">
+        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:hidden">
           <div className="shrink-0 border-b border-border bg-surface">
             <EditorToolbar />
           </div>
