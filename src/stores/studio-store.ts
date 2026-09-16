@@ -211,13 +211,6 @@ function migrateProject(raw: Project): Project {
   const slideIndex = Math.min(Math.max(0, raw.slideIndex ?? 0), Math.max(0, pages.length - 1));
   if (pages[slideIndex]) artboards[formatId] = pages[slideIndex];
   const plan = migratePlan(raw.plan);
-  const brief = migrateBrief(raw.brief);
-  const contentKind =
-    raw.contentKind ??
-    (brief.deliverables.carousel ? "carousel" : brief.deliverables.reels ? "reels" : brief.deliverables.story ? "story" : "ig-post");
-  const contentStatus =
-    raw.contentStatus ??
-    (raw.status === "exported" ? "published" : raw.status === "ready" ? "done" : "creating");
   return {
     ...raw,
     status: migrateProjectStatus(raw.status, Boolean(plan)),
@@ -345,13 +338,7 @@ export const useStudio = create<StudioState>()(
             ),
           };
         }),
-      addAsset: (meta) => {
-        const next = migrateAsset(meta);
-        set((s) => ({ assets: upsertAssetList(s.assets, next) }));
-        if (next.seedSrc && typeof indexedDB !== "undefined") {
-          void hydrateSeedAsset(next.id, next.seedSrc).catch(() => undefined);
-        }
-      },
+      addAsset: (meta) => set((s) => ({ assets: [migrateAsset(meta), ...s.assets] })),
       updateAsset: (id, patch) =>
         set((s) => ({
           assets: s.assets.map((a) =>
@@ -417,7 +404,6 @@ export const useStudio = create<StudioState>()(
         const tpl = templateId ?? "editorial";
         const copy = withBoilerplate(emptyCopy(brand.handle, brand.boilerplate), brand.boilerplate);
         copy.headline = name;
-        const nextBrief = migrateBrief(brief);
         const artboard = buildLayout(formatId, copy, brand, tpl);
         const project: Project = {
           id: uid("proj"),
@@ -1140,7 +1126,7 @@ export const useStudio = create<StudioState>()(
           lastProjectId: p.lastProjectId ?? projects[0]?.id ?? current.lastProjectId,
         };
       },
-      migrate: (persisted, version) => {
+      migrate: (persisted) => {
         const state = persisted as {
           brands?: BrandKit[];
           assets?: AssetMeta[];
@@ -1159,10 +1145,10 @@ export const useStudio = create<StudioState>()(
         }
         const projects = (state.projects ?? []).map(migrateProject);
         return {
-          brands: brands.length ? brands : [SEED_BRAND],
-          assets: assets.length ? assets : SEED_ASSETS,
-          projects: projects.length ? projects : [createSeedProject(), createSeedDraft()],
-          lastProjectId: state.lastProjectId ?? SEED_PROJECT_ID,
+          brands,
+          assets,
+          projects,
+          lastProjectId: state.lastProjectId ?? projects[0]?.id ?? null,
         };
       },
     },

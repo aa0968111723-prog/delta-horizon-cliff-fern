@@ -359,65 +359,11 @@ export function AssetDetailSheet({
             placeholder="例如：淡江禪學社、拍攝社員"
           />
         </div>
-        {report ? (
-          <div className="rounded-2xl bg-bg p-3 text-sm">
-            <p className="font-medium">AI 分析</p>
-            <p className="mt-2 text-muted">{report.content}</p>
-            <p className="mt-1 text-xs text-muted">品牌感：{report.brandFeel}</p>
-            <p className="mt-1 text-xs text-muted">學生感：{report.studentFeel}</p>
-            <p className="mt-1 text-xs text-muted">太宗教？{report.tooReligious}</p>
-          </div>
-        ) : null}
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
         <div className="flex flex-wrap gap-2 pb-4">
           <Button onClick={place} disabled={!lastProjectId}>
             放到目前畫布
           </Button>
-          <Button data-testid="asset-analyze" variant="secondary" disabled={busy} onClick={() => void analyze()}>
-            {busy ? "分析中…" : "AI 分析／Tag"}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() =>
-              goCreate(
-                "campaign",
-                report ? ideaFromVision("continue", report, current.name) : `從素材開始：${current.name}`,
-              )
-            }
-          >
-            加入創作
-          </Button>
-          <Button variant="secondary" disabled={busy} onClick={() => void extend("continue")}>
-            延伸生成
-          </Button>
-          <Button variant="secondary" disabled={busy} onClick={() => void extend("similar")}>
-            生成相似視覺
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() =>
-              goCreate("copy", report ? `${report.content}\n${current.name}` : current.name)
-            }
-          >
-            生成文案
-          </Button>
-          {report
-            ? report.actions
-                .filter((action) => action.id === "story" || action.id === "carousel" || action.id === "reels")
-                .map((action) => (
-                  <Button
-                    key={action.id}
-                    variant="secondary"
-                    onClick={() =>
-                      goCreate("campaign", ideaFromVision(action.id, report, current.name), {
-                        convertKind: convertKindFromAction(action.id),
-                      })
-                    }
-                  >
-                    {action.label}
-                  </Button>
-                ))
-            : null}
           <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}
           </Button>

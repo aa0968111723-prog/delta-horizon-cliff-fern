@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
-import { useCreative } from "@/stores/creative-store";
 
 export function PlannerPanel({ project, brand }: { project: Project; brand: BrandKit }) {
   const updateProject = useStudio((s) => s.updateProject);

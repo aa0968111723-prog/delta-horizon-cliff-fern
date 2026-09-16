@@ -134,13 +134,6 @@ export function migratePlan(raw?: Partial<CampaignPlan> | null): CampaignPlan | 
     copyPack: raw.copyPack,
     generatedAt: raw.generatedAt ?? Date.now(),
     source: raw.source === "mock" || raw.source === "live" ? raw.source : "live",
-    directions: Array.isArray(raw.directions) ? raw.directions : undefined,
-    waves: Array.isArray(raw.waves) ? raw.waves : undefined,
-    studentReview: raw.studentReview ?? undefined,
-    reelsScript: Array.isArray(raw.reelsScript) ? raw.reelsScript : undefined,
-    threadsPost: raw.threadsPost ?? undefined,
-    lineCopy: raw.lineCopy ?? undefined,
-    sources: Array.isArray(raw.sources) ? raw.sources : undefined,
   };
 }
 

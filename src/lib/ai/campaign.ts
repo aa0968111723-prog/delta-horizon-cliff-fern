@@ -1,9 +1,6 @@
 import { completeCarouselPages } from "@/lib/studio/carousel";
 import { createServerFn } from "@tanstack/react-start";
-import type { CampaignPlan, ContentKind, TemplateId } from "@/lib/studio/types";
-import { studentContext } from "@/lib/club/season";
-import { systemPlanner, studentReviewInstruction } from "@/lib/club/prompts";
-import { extractJson } from "./json";
+import type { CampaignPlan, TemplateId } from "@/lib/studio/types";
 import { buildMockPlan } from "./mock";
 import { BriefInputSchema, PlanJsonSchema, type BriefInput } from "./schema";
 
@@ -22,23 +19,14 @@ export type AiStatus = {
   detail: string;
 };
 
-function asContentKind(value: string): ContentKind {
-  const allowed: ContentKind[] = [
-    "ig-post",
-    "carousel",
-    "story",
-    "reels",
-    "threads",
-    "line",
-    "poster",
-    "recap",
-    "member-story",
-    "countdown",
-    "qa",
-    "poll",
-    "knowledge",
-  ];
-  return allowed.includes(value as ContentKind) ? (value as ContentKind) : "ig-post";
+function extractJson(text: string): unknown {
+  const trimmed = text.trim();
+  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = fence ? fence[1] : trimmed;
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start === -1 || end === -1) throw new Error("模型未回傳 JSON");
+  return JSON.parse(raw.slice(start, end + 1));
 }
 
 function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: CampaignPlan["source"]): CampaignPlan {
@@ -57,10 +45,10 @@ function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: Campaig
     headline,
     subhead: parsed.subhead,
     body: parsed.body,
-    cta: parsed.cta || "來坐一下",
+    cta: parsed.cta || "了解更多",
     captions: parsed.captions.length
       ? parsed.captions
-      : [{ style: "學生版", text: parsed.hook || parsed.concept || headline }],
+      : [{ style: "敘事", text: parsed.hook || parsed.concept || headline }],
     hashtags: parsed.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)),
     storyBeats: parsed.storyBeats,
     carouselPages: parsed.carouselPages,
@@ -70,16 +58,6 @@ function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: Campaig
     qaNotes: parsed.qaNotes,
     generatedAt: Date.now(),
     source,
-    directions: parsed.directions?.filter((row) => row.name || row.concept),
-    waves: parsed.waves?.map((wave) => ({
-      ...wave,
-      contentKind: asContentKind(wave.contentKind),
-    })),
-    studentReview: parsed.studentReview ?? undefined,
-    reelsScript: parsed.reelsScript?.length ? parsed.reelsScript : undefined,
-    threadsPost: parsed.threadsPost ?? undefined,
-    lineCopy: parsed.lineCopy ?? undefined,
-    sources: parsed.sources?.length ? parsed.sources : undefined,
   };
 }
 
@@ -99,15 +77,15 @@ export function describeAdapter(available: boolean): AiStatus {
     return {
       available: true,
       adapter: "live",
-      label: "AI 創作已連線",
-      detail: "會依淡江禪學社品牌記憶與學生情境，生成文案、方向與畫布企劃。",
+      label: "已連線 AI 企劃",
+      detail: "會依品牌規範與活動需求生成結構化企劃，再套進專案與畫布。",
     };
   }
   return {
     available: false,
     adapter: "mock",
-    label: "本機創作草案",
-    detail: "目前沒有連到 AI。按下生成會用社團規則寫一版可編輯草案，不是線上模型回覆。",
+    label: "本機企劃草案",
+    detail: "目前沒有連到 AI 服務。按下生成會用本機規則寫一版可編輯、可套用的草案，不是線上模型回覆。",
   };
 }
 
@@ -121,13 +99,12 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
     return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
 
-  const ctx = studentContext();
-  const forbidden = data.forbiddenWords.filter(Boolean).join("、") || "誠摯邀請您、蒞臨、限時瘋搶";
+  const forbidden = data.forbiddenWords.filter(Boolean).join("、") || "無";
   const deliverables = [
     data.wantPost ? "單張貼文" : null,
     data.wantCarousel ? "輪播" : null,
     data.wantStory ? "限時動態" : null,
-    data.wantReels ? "Reels 封面與腳本" : null,
+    data.wantReels ? "Reels 封面" : null,
   ]
     .filter(Boolean)
     .join("、");
@@ -152,7 +129,7 @@ Brand Memory：
 ${data.brandMemory || "先說學生生活，再介紹活動；使用三色光與真實社員互動"}
 若記憶含校園情境、近期活動、Canva 風格、IG hashtags 或「現場：」筆記，必須寫進 hook、insight 與 hashtags。現場筆記裡覺得像淡江的 Hook 要優先沿用，「下次要記得」寫進 checklist。不可做成通用心靈雞湯或電商促銷，也不要發明讚數、觸及或觀看次數。
 
-活動：${data.eventName}
+活動名稱：${data.eventName}
 時間：${data.schedule || "未填"}
 地點：${data.location || "未填"}
 活動內容：${data.product || data.eventName}
@@ -160,13 +137,9 @@ ${data.brandMemory || "先說學生生活，再介紹活動；使用三色光與
 本次主要學生情境：${data.audience}
 目的：${data.goal}
 特色：${data.features || "無"}
-風格：${data.style || "無"}
-產出：${deliverables || "單張貼文"}
+希望風格：${data.style || "無"}
+需要產出：${deliverables || "單張貼文"}
 補充：${data.notes || "無"}
-學生情境：${ctx.phaseLabel}。${ctx.calendarNote} ${ctx.weatherNote}
-過去 IG 成效（用來改善這次，不是報表）：
-${data.igLessons || "還沒有足夠成效。先用學生生活問句。"}
-記住的風格：${data.styleMemory || "尚無"}。延續社團自己的語氣與畫面，不要改回社團全名當第一句。
 
 JSON 欄位：
 campaignName, concept, insight, hook, visualTheme, visualDirection,
@@ -192,11 +165,10 @@ concept 是宣傳核心概念（2-3 句）。visualTheme 是視覺主題。`;
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    signal: AbortSignal.timeout(18_000),
     body: JSON.stringify({
       model: "grok-4.5",
       temperature: 0.6,
-      max_tokens: 5000,
+      max_tokens: 4096,
       response_format: { type: "json_object" },
       messages: [
         {
@@ -243,11 +215,5 @@ export const generateCampaignPlan = createServerFn({ method: "POST" })
     if (!hasKey || data.forceMock) {
       return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
     }
-    try {
-      const live = await generateLive(data);
-      if (live.ok) return live;
-      return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
-    } catch {
-      return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
-    }
+    return generateLive(data);
   });

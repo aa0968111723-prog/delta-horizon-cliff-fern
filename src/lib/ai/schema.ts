@@ -49,113 +49,6 @@ export const PlanJsonSchema = z.object({
   checklist: z.array(z.string()).max(10).catch([]),
   altText: z.string().catch(""),
   qaNotes: z.array(z.string()).max(8).catch([]),
-  directions: z
-    .array(
-      z.object({
-        id: z.string().catch(""),
-        name: z.string().catch(""),
-        concept: z.string().catch(""),
-        palette: z.string().catch(""),
-        composition: z.string().catch(""),
-        typeDirection: z.string().catch(""),
-        imagePrompt: z.string().catch(""),
-        headline: z.string().catch(""),
-        subhead: z.string().catch(""),
-      }),
-    )
-    .max(3)
-    .optional()
-    .catch([]),
-  waves: z
-    .array(
-      z.object({
-        id: z.string().catch(""),
-        offsetDays: z.number().catch(0),
-        label: z.string().catch(""),
-        purpose: z
-          .enum([
-            "tease",
-            "emotion",
-            "hero",
-            "info",
-            "reason",
-            "story",
-            "countdown",
-            "dayof",
-            "recap",
-            "life",
-            "interact",
-            "knowledge",
-          ])
-          .catch("info"),
-        contentKind: z.string().catch("ig-post"),
-        topic: z.string().catch(""),
-        hook: z.string().catch(""),
-      }),
-    )
-    .max(12)
-    .optional()
-    .catch([]),
-  studentReview: z
-    .object({
-      wouldStop: z.string().catch(""),
-      understood: z.string().catch(""),
-      tooReligious: z.string().catch(""),
-      tooSerious: z.string().catch(""),
-      tooLiterary: z.string().catch(""),
-      tooAi: z.string().catch(""),
-      tooLong: z.string().catch(""),
-      knowsWhat: z.string().catch(""),
-      knowsWhenWhere: z.string().catch(""),
-      wouldBringFriend: z.string().catch(""),
-      knowsSignup: z.string().catch(""),
-      revisions: z.array(z.string()).catch([]),
-    })
-    .optional()
-    .nullable()
-    .catch(null),
-  reelsScript: z
-    .array(
-      z.object({
-        start: z.number().catch(0),
-        end: z.number().catch(0),
-        visual: z.string().catch(""),
-        caption: z.string().catch(""),
-        voiceover: z.string().catch(""),
-        transition: z.string().catch(""),
-        assetHint: z.string().catch(""),
-      }),
-    )
-    .max(6)
-    .optional()
-    .catch([]),
-  threadsPost: z
-    .object({
-      caption: z.string().catch(""),
-      visualNote: z.string().catch(""),
-    })
-    .optional()
-    .nullable()
-    .catch(null),
-  lineCopy: z
-    .object({
-      title: z.string().catch(""),
-      body: z.string().catch(""),
-      cta: z.string().catch(""),
-    })
-    .optional()
-    .nullable()
-    .catch(null),
-  sources: z
-    .array(
-      z.object({
-        kind: z.enum(["drive", "canva", "instagram", "generated", "brand"]).catch("brand"),
-        label: z.string().catch(""),
-        id: z.string().optional(),
-      }),
-    )
-    .optional()
-    .catch([]),
 });
 
 export const BriefInputSchema = z.object({
@@ -168,7 +61,7 @@ export const BriefInputSchema = z.object({
   goal: z.enum(["awareness", "traffic", "conversion", "ugc"]),
   features: z.string().max(400),
   style: z.string().max(200),
-  notes: z.string().max(1200),
+  notes: z.string().max(400),
   wantPost: z.boolean(),
   wantStory: z.boolean(),
   wantCarousel: z.boolean(),
