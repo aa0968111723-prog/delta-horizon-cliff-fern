@@ -1,7 +1,8 @@
 import type { CreativeDirection } from "../studio/types.ts";
 
-export function mockDirections(idea: string, eventName = ""): CreativeDirection[] {
+export function mockDirections(idea: string, eventName = "", learnedHook = ""): CreativeDirection[] {
   const title = eventName || idea.slice(0, 10);
+  const hook = learnedHook.includes("？") ? learnedHook : "";
   return [
     {
       id: "dir_a",
@@ -11,7 +12,7 @@ export function mockDirections(idea: string, eventName = ""): CreativeDirection[
       composition: "上半光或人，下半字",
       typeDirection: "兩行大標",
       imagePrompt: `Quiet Tamkang university evening, student sitting, warm paper light, soft cyan amber rose glow, not temple, not golden, editorial photo, space for Chinese headline, idea: ${idea}, event: ${title}`,
-      headline: "最近是不是很久沒坐下來？",
+      headline: hook || "最近是不是很久沒坐下來？",
       subhead: title,
     },
     {
@@ -39,7 +40,7 @@ export function mockDirections(idea: string, eventName = ""): CreativeDirection[
   ];
 }
 
-export function directionsOrMock(idea: string, eventName = "", parsed?: CreativeDirection[] | null) {
+export function directionsOrMock(idea: string, eventName = "", parsed?: CreativeDirection[] | null, learnedHook = "") {
   const directions = parsed?.filter((row) => row.imagePrompt && row.headline) ?? [];
-  return directions.length ? directions : mockDirections(idea, eventName);
+  return directions.length ? directions : mockDirections(idea, eventName, learnedHook);
 }

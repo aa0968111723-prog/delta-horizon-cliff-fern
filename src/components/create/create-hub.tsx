@@ -26,7 +26,7 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { lessonPrompt } from "@/lib/club/insights";
 import { applyCanvaPush, canvaPushMessage, pushHeroToCanva } from "@/lib/club/canva-push";
 import { kindFromFormat, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, withPackKind, httpsRasterUrl } from "@/lib/club/last-pack";
-import { convertedScheduleInput, matchingScheduleRow } from "@/lib/club/schedule";
+import { convertedScheduleInput, mergeConvertedOntoRhythm } from "@/lib/club/schedule";
 import type { ContentKind, CreativeDirection, FormatId } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { beginOAuth } from "@/lib/connections/begin";
@@ -629,19 +629,17 @@ function ConvertStudio({
       campaignId: pack.campaignId,
       projectId: pack.projectId,
     });
-    const existing = matchingScheduleRow(useCreative.getState().schedule, {
+    const merged = mergeConvertedOntoRhythm(useCreative.getState().schedule, draft, {
       campaignId: pack.campaignId,
-      kind: nextKind,
-      plannedAt: draft.plannedAt,
     });
-    upsertSchedule({ ...draft, id: existing?.id });
+    upsertSchedule({ ...merged, id: merged.id });
     updateProject(pack.projectId, {
       campaignId: pack.campaignId,
       contentKind: nextKind,
       contentStatus: "scheduled",
-      scheduledAt: draft.plannedAt,
+      scheduledAt: merged.plannedAt,
     });
-    toast.success(`已排入 Calendar · ${draft.title}`);
+    toast.success(`已排入 Calendar · ${merged.title}`);
     void navigate({ to: "/calendar" });
   }
 

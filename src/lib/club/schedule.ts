@@ -277,6 +277,8 @@ export function convertedScheduleUpserts<
     contentKind: ContentKind;
     plannedAt: number;
     status: ContentStatus;
+    title?: string;
+    sourceLabel?: string;
   },
 >(
   rows: T[],
@@ -289,14 +291,46 @@ export function convertedScheduleUpserts<
     projectId: string | null;
   },
 ) {
-  return convertedScheduleDrafts(input).map((draft) => {
-    const existing = matchingScheduleRow(rows, {
-      campaignId: input.campaignId,
-      kind: draft.contentKind,
-      plannedAt: draft.plannedAt,
-    });
-    return { ...draft, id: existing?.id };
+  return convertedScheduleDrafts(input).map((draft) => mergeConvertedOntoRhythm(rows, draft, input));
+}
+
+/** Keep 預熱／倒數 titles and hours when a converted format lands on that day. */
+export function mergeConvertedOntoRhythm<
+  T extends {
+    id: string;
+    campaignId: string | null;
+    contentKind: ContentKind;
+    plannedAt: number;
+    status: ContentStatus;
+    title?: string;
+    sourceLabel?: string;
+  },
+>(
+  rows: T[],
+  draft: {
+    campaignId: string | null;
+    projectId: string | null;
+    title: string;
+    contentKind: ContentKind;
+    status: ContentStatus;
+    plannedAt: number;
+    sourceLabel: string;
+  },
+  input: { campaignId: string | null; kind?: ContentKind; plannedAt?: number },
+) {
+  const existing = matchingScheduleRow(rows, {
+    campaignId: input.campaignId ?? draft.campaignId,
+    kind: draft.contentKind,
+    plannedAt: draft.plannedAt,
   });
+  if (!existing) return { ...draft, id: undefined as string | undefined };
+  return {
+    ...draft,
+    id: existing.id,
+    title: existing.title ?? draft.title,
+    plannedAt: existing.plannedAt,
+    sourceLabel: existing.sourceLabel ?? draft.sourceLabel,
+  };
 }
 
 export function isSameScheduleDay(a: number, b: number) {
@@ -317,13 +351,20 @@ export function matchingScheduleRow<
   rows: T[],
   input: { campaignId: string | null; kind: ContentKind; plannedAt: number },
 ): T | undefined {
-  return rows.find((row) => {
+  const eligible = rows.filter((row) => {
     if (row.contentKind !== input.kind) return false;
     if (row.status === "published") return false;
-    if (!isSameScheduleDay(row.plannedAt, input.plannedAt)) return false;
     if (input.campaignId) return row.campaignId === input.campaignId;
     return !row.campaignId;
   });
+  const sameDay = eligible.find((row) => isSameScheduleDay(row.plannedAt, input.plannedAt));
+  if (sameDay) return sameDay;
+  return [...eligible].sort((a, b) => {
+    const da = Math.abs(a.plannedAt - input.plannedAt);
+    const db = Math.abs(b.plannedAt - input.plannedAt);
+    if (da !== db) return da - db;
+    return a.plannedAt - b.plannedAt;
+  })[0];
 }
 
 export function scheduleChipLabel(row: { contentKind: ContentKind; title: string }) {

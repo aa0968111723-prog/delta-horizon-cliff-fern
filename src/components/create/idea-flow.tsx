@@ -400,7 +400,7 @@ if (seedAutoRun) return;
     }
     const current = useCreative.getState().lastPack;
     if (current) setLastPack(withPackKind(current, packKind, convertPlan(plan, packKind).items));
-    toast.success("已排入 IG Post、Carousel、Story、Threads、LINE、Reels");
+    toast.success("已排入活動節奏，並補上 Threads、LINE、Reels");
     setFormatsOnCalendar(true);
     void navigate({ to: "/calendar" });
   }
@@ -839,7 +839,7 @@ if (seedAutoRun) return;
 
           {formatsOnCalendar ? (
             <p className="text-sm text-muted" data-testid="idea-scheduled">
-              已排入 IG Post、Carousel、Story、Threads、LINE、Reels
+              已排入活動節奏（預熱、生活、主視覺、倒數、回顧），並補上 Threads、LINE、Reels。
             </p>
           ) : null}
           {publishHint ? (

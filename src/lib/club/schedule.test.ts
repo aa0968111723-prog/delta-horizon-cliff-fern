@@ -128,11 +128,15 @@ test("auto-scheduling converted formats reuses the same-day wave slot", () => {
   assert.equal(upserts.length, 6);
   const story = upserts.find((row) => row.contentKind === "story");
   assert.ok(story?.id);
+  assert.match(story?.title ?? "", /倒數/);
   const match = rows.find((row) => row.id === story?.id);
   assert.match(match?.title ?? "", /倒數/);
+  assert.equal(story?.plannedAt, match?.plannedAt);
   assert.ok(upserts.some((row) => row.title === "Reels · 茶會"));
   assert.ok(upserts.some((row) => row.title === "LINE · 茶會"));
   assert.ok(upserts.every((row) => row.status === "scheduled"));
+  assert.equal(upserts.some((row) => row.title === "IG 貼文 · 茶會"), false);
+  assert.ok(upserts.some((row) => /預熱|生活|主視覺|參加理由/.test(row.title ?? "")));
 });
 
 test("short lead compresses into a dense sequence", () => {

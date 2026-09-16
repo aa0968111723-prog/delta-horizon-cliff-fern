@@ -7,6 +7,7 @@ import { chatGrok, editImage, hasXaiKey, imagineImage } from "@/lib/ai/xai";
 import { moodFromVariation, posterDataUrl } from "@/lib/image/poster";
 import { formatById } from "@/lib/studio/formats";
 import { directionsOrMock, mockDirections } from "@/lib/image/directions";
+import { quotedHookFromLessons } from "@/lib/club/insights";
 import type { CreativeDirection, FormatId } from "@/lib/studio/types";
 
 export { directionsOrMock, mockDirections };
@@ -24,8 +25,9 @@ export const generateImageDirections = createServerFn({ method: "POST" })
     DirectionInput.parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input),
   )
   .handler(async ({ data }) => {
+    const learnedHook = quotedHookFromLessons(data.igLessons || "");
     if (!hasXaiKey() || data.forceMock) {
-      return { ok: true as const, adapter: "mock" as const, directions: mockDirections(data.idea, data.eventName) };
+      return { ok: true as const, adapter: "mock" as const, directions: mockDirections(data.idea, data.eventName, learnedHook) };
     }
     const ctx = studentContext();
     const result = await chatGrok({
@@ -43,15 +45,15 @@ JSON：{directions:[{id,name,concept,palette,composition,typeDirection,imageProm
       ],
     });
     if (!result.ok) {
-      return { ok: true as const, adapter: "mock" as const, directions: mockDirections(data.idea, data.eventName) };
+      return { ok: true as const, adapter: "mock" as const, directions: mockDirections(data.idea, data.eventName, learnedHook) };
     }
     try {
       const parsed = extractJson(result.text) as { directions?: CreativeDirection[] };
-      const directions = directionsOrMock(data.idea, data.eventName, parsed.directions);
+      const directions = directionsOrMock(data.idea, data.eventName, parsed.directions, learnedHook);
       const live = Boolean(parsed.directions?.some((row) => row.imagePrompt && row.headline));
       return { ok: true as const, adapter: live ? ("live" as const) : ("mock" as const), directions };
     } catch {
-      return { ok: true as const, adapter: "mock" as const, directions: mockDirections(data.idea, data.eventName) };
+      return { ok: true as const, adapter: "mock" as const, directions: mockDirections(data.idea, data.eventName, learnedHook) };
     }
   });
 
