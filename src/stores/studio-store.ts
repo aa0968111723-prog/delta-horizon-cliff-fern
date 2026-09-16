@@ -12,12 +12,14 @@ import {
   roleTemplate,
   stampSlideMeta,
 } from "@/lib/studio/carousel";
+import { defaultWavePlan, migrateCampaign } from "@/lib/studio/campaign";
 import { emptyCopy, withBoilerplate } from "@/lib/studio/copy";
 import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
 import { uid } from "@/lib/studio/ids";
 import { applyCopyToArtboard, buildLayout, extractImageAssetId } from "@/lib/studio/layout";
 import { inspectProject } from "@/lib/studio/quality";
+import { CONTENT_KIND_META, inferContentKind, migrateStatus } from "@/lib/studio/status";
 import { applyQaFixToPages } from "@/lib/studio/quality-fix";
 import {
   cloneArtboard,
@@ -30,7 +32,15 @@ import {
   normalizeArtboard,
   pagesOf,
 } from "@/lib/studio/layers";
-import { SEED_ASSETS, SEED_BRAND, SEED_BRAND_ID, SEED_PROJECT_ID, createSeedDraft, createSeedProject } from "@/lib/studio/seed";
+import {
+  SEED_ASSETS,
+  SEED_BRAND,
+  SEED_BRAND_ID,
+  SEED_CAMPAIGNS,
+  SEED_PROJECT_ID,
+  createSeedDraft,
+  createSeedProject,
+} from "@/lib/studio/seed";
 import { templateById } from "@/lib/studio/templates";
 import type {
   AlignMode,
@@ -38,20 +48,27 @@ import type {
   AssetMeta,
   BrandKit,
   Brief,
+  Campaign,
   CampaignPlan,
+  CampaignWave,
+  ContentKind,
+  ContentStatus,
   CopyDeck,
+  CopyDraft,
+  CreativeSourceRef,
   EditorTool,
   ExportVersion,
   FormatId,
   Layer,
   Project,
-  ProjectStatus,
   QaIssue,
+  ReelsScript,
   Snapshot,
+  StudentReview,
   TemplateId,
 } from "@/lib/studio/types";
 
-const STORAGE_KEY = "kouzhen-studio-v1";
+const STORAGE_KEY = "tku-zen-studio-v1";
 const AUTO_SNAP_MS = 20000;
 
 type EditorState = {
@@ -73,6 +90,7 @@ type StudioState = {
   brands: BrandKit[];
   assets: AssetMeta[];
   projects: Project[];
+  campaigns: Campaign[];
   lastProjectId: string | null;
   editor: EditorState;
   history: Record<string, HistoryEntry[]>;
@@ -95,14 +113,32 @@ type StudioState = {
     formatId: FormatId;
     brief: Brief;
     templateId?: TemplateId;
+    contentKind?: ContentKind;
+    campaignId?: string | null;
+    status?: ContentStatus;
+    sources?: CreativeSourceRef[];
   }) => Project;
   createFromTemplate: (input: { templateId: TemplateId; brandId: string }) => Project;
+  createCampaign: (patch?: Partial<Campaign>) => Campaign;
+  updateCampaign: (id: string, patch: Partial<Campaign>) => void;
+  deleteCampaign: (id: string) => void;
+  setCampaignWaves: (id: string, waves: CampaignWave[]) => void;
+  updateWave: (campaignId: string, waveId: string, patch: Partial<CampaignWave>) => void;
+  fillDefaultWaves: (id: string) => void;
+  setContentKind: (projectId: string, kind: ContentKind) => void;
+  setSchedule: (projectId: string, at: number | null) => void;
+  markPublished: (projectId: string, at?: number) => void;
+  addCopyDraft: (projectId: string, draft: CopyDraft) => void;
+  useCopyDraft: (projectId: string, draftId: string) => void;
+  setStudentReview: (projectId: string, review: StudentReview | null) => void;
+  setReels: (projectId: string, reels: ReelsScript | null) => void;
+  addSources: (projectId: string, sources: CreativeSourceRef[]) => void;
   applyCampaignPlan: (projectId: string, plan: CampaignPlan, brief: Brief) => void;
   restorePlanVersion: (projectId: string, versionId: string) => void;
   patchPlan: (projectId: string, patch: Partial<CampaignPlan> | ((plan: CampaignPlan) => CampaignPlan)) => void;
   applyAiEdit: (projectId: string, label: string, mutate: () => void | Promise<void>) => Promise<void>;
   updateProject: (id: string, patch: Partial<Project> | ((p: Project) => Project)) => void;
-  setProjectStatus: (id: string, status: ProjectStatus) => void;
+  setProjectStatus: (id: string, status: ContentStatus) => void;
   deleteProject: (id: string) => void;
   duplicateProject: (id: string) => Project | null;
   recordExport: (id: string, version: ExportVersion) => void;
@@ -195,9 +231,18 @@ function migrateProject(raw: Project): Project {
   const slideIndex = Math.min(Math.max(0, raw.slideIndex ?? 0), Math.max(0, pages.length - 1));
   if (pages[slideIndex]) artboards[formatId] = pages[slideIndex];
   const plan = migratePlan(raw.plan);
+  const pageCount = slides[formatId]?.length ?? 1;
   return {
     ...raw,
-    status: raw.status ?? (plan ? "ready" : "draft"),
+    status: migrateStatus(raw.status, Boolean(plan)),
+    contentKind: raw.contentKind ?? inferContentKind(formatId, pageCount),
+    campaignId: raw.campaignId ?? null,
+    scheduledAt: raw.scheduledAt ?? null,
+    publishedAt: raw.publishedAt ?? null,
+    copyDrafts: Array.isArray(raw.copyDrafts) ? raw.copyDrafts : [],
+    studentReview: raw.studentReview ?? null,
+    reels: raw.reels ?? null,
+    sources: Array.isArray(raw.sources) ? raw.sources : [],
     exports: raw.exports ?? [],
     artboards,
     slides,
@@ -268,6 +313,7 @@ export const useStudio = create<StudioState>()(
       brands: [SEED_BRAND],
       assets: SEED_ASSETS,
       projects: [createSeedProject(), createSeedDraft()],
+      campaigns: SEED_CAMPAIGNS,
       lastProjectId: SEED_PROJECT_ID,
       editor: {
         selectedId: null,
@@ -365,7 +411,7 @@ export const useStudio = create<StudioState>()(
         get().markAssetUsed(asset.id);
         return true;
       },
-      createProject: ({ name, brandId, formatId, brief, templateId }) => {
+      createProject: ({ name, brandId, formatId, brief, templateId, contentKind, campaignId, status, sources }) => {
         const brand = brandById(get().brands, brandId);
         const tpl = templateId ?? "editorial";
         const copy = withBoilerplate(emptyCopy(brand.handle, brand.boilerplate), brand.boilerplate);
@@ -373,16 +419,24 @@ export const useStudio = create<StudioState>()(
         const artboard = buildLayout(formatId, copy, brand, tpl);
         const project: Project = {
           id: uid("proj"),
-          name: name.trim() || "未命名專案",
+          name: name.trim() || "未命名內容",
           createdAt: Date.now(),
           updatedAt: Date.now(),
           brandId,
           templateId: tpl,
           activeFormatId: formatId,
-          status: "draft",
+          status: status ?? "making",
+          contentKind: contentKind ?? inferContentKind(formatId, 1),
+          campaignId: campaignId ?? null,
+          scheduledAt: null,
+          publishedAt: null,
           brief: migrateBrief(brief),
           copy,
           plan: null,
+          copyDrafts: [],
+          studentReview: null,
+          reels: null,
+          sources: sources ?? [],
           artboards: { [formatId]: artboard },
           slides: { [formatId]: [artboard] },
           slideIndex: 0,
@@ -393,6 +447,92 @@ export const useStudio = create<StudioState>()(
         set((s) => ({ projects: [project, ...s.projects], lastProjectId: project.id }));
         return project;
       },
+      createCampaign: (patch) => {
+        const campaign = migrateCampaign({ ...patch, id: patch?.id ?? uid("camp") });
+        set((s) => ({ campaigns: [campaign, ...s.campaigns] }));
+        return campaign;
+      },
+      updateCampaign: (id, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) => (c.id === id ? { ...c, ...patch, updatedAt: Date.now() } : c)),
+        })),
+      deleteCampaign: (id) =>
+        set((s) => ({
+          campaigns: s.campaigns.filter((c) => c.id !== id),
+          projects: s.projects.map((p) => (p.campaignId === id ? { ...p, campaignId: null } : p)),
+        })),
+      setCampaignWaves: (id, waves) => get().updateCampaign(id, { waves }),
+      updateWave: (campaignId, waveId, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) =>
+            c.id === campaignId
+              ? {
+                  ...c,
+                  waves: c.waves.map((w) => (w.id === waveId ? { ...w, ...patch } : w)),
+                  updatedAt: Date.now(),
+                }
+              : c,
+          ),
+        })),
+      fillDefaultWaves: (id) => {
+        const campaign = get().campaigns.find((c) => c.id === id);
+        if (!campaign) return;
+        get().updateCampaign(id, { waves: defaultWavePlan(campaign), planSource: "mock" });
+      },
+      setContentKind: (projectId, kind) => {
+        const meta = CONTENT_KIND_META[kind];
+        get().updateProject(projectId, { contentKind: kind });
+        if (meta && meta.formatId !== get().projects.find((p) => p.id === projectId)?.activeFormatId) {
+          get().setActiveFormat(projectId, meta.formatId);
+        }
+      },
+      setSchedule: (projectId, at) =>
+        get().updateProject(projectId, (p) => ({
+          ...p,
+          scheduledAt: at,
+          status: at ? (p.status === "published" ? p.status : "scheduled") : p.status === "scheduled" ? "done" : p.status,
+        })),
+      markPublished: (projectId, at) =>
+        get().updateProject(projectId, (p) => ({
+          ...p,
+          status: "published",
+          publishedAt: at ?? Date.now(),
+        })),
+      addCopyDraft: (projectId, draft) =>
+        get().updateProject(projectId, (p) => ({
+          ...p,
+          copyDrafts: [draft, ...p.copyDrafts].slice(0, 12),
+        })),
+      useCopyDraft: (projectId, draftId) => {
+        const project = get().projects.find((p) => p.id === projectId);
+        const draft = project?.copyDrafts.find((d) => d.id === draftId);
+        if (!project || !draft) return;
+        const caption = [draft.hook, draft.body, draft.cta].filter(Boolean).join("\n\n");
+        get().setCopy(projectId, {
+          headline: draft.hook.slice(0, 24),
+          body: draft.body,
+          cta: draft.cta,
+        });
+        get().updateProject(projectId, (p) => ({
+          ...p,
+          copy: { ...p.copy, caption, hashtags: draft.hashtags.length ? draft.hashtags : p.copy.hashtags },
+          status: p.status === "idea" ? "making" : p.status,
+        }));
+      },
+      setStudentReview: (projectId, review) => get().updateProject(projectId, { studentReview: review }),
+      setReels: (projectId, reels) => get().updateProject(projectId, { reels }),
+      addSources: (projectId, sources) =>
+        get().updateProject(projectId, (p) => {
+          const seen = new Set(p.sources.map((s) => `${s.kind}:${s.label}`));
+          const next = [...p.sources];
+          for (const src of sources) {
+            const key = `${src.kind}:${src.label}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            next.push(src);
+          }
+          return { ...p, sources: next.slice(0, 24) };
+        }),
       createFromTemplate: ({ templateId, brandId }) => {
         const brand = brandById(get().brands, brandId);
         const starter = templateById(templateId);
@@ -409,10 +549,18 @@ export const useStudio = create<StudioState>()(
           brandId,
           templateId,
           activeFormatId: starter.formatId,
-          status: "draft",
+          status: "making",
+          contentKind: inferContentKind(starter.formatId, 1),
+          campaignId: null,
+          scheduledAt: null,
+          publishedAt: null,
           brief: migrateBrief(starter.brief),
           copy,
           plan: null,
+          copyDrafts: [],
+          studentReview: null,
+          reels: null,
+          sources: [],
           artboards: { [starter.formatId]: artboard },
           slides: { [starter.formatId]: [artboard] },
           slideIndex: 0,
@@ -453,7 +601,7 @@ export const useStudio = create<StudioState>()(
           artboards: boards.artboards,
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
-          status: "ready" as const,
+          status: "done" as const,
           planVersions: [version, ...(p.planVersions ?? [])].slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, nextPlan.source === "mock" ? "本機草案" : "AI 企劃", "manual");
@@ -477,7 +625,7 @@ export const useStudio = create<StudioState>()(
           artboards: boards.artboards,
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
-          status: "ready" as const,
+          status: "done" as const,
           planVersions: [version, p.planVersions.filter((v) => v.id !== versionId)].flat().slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, `還原 ${version.name}`, "manual");
@@ -548,7 +696,9 @@ export const useStudio = create<StudioState>()(
           name: `${src.name} 副本`,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          status: "draft",
+          status: "making",
+          scheduledAt: null,
+          publishedAt: null,
           exports: [],
         };
         set((s) => ({ projects: [copy, ...s.projects], lastProjectId: copy.id }));
@@ -557,7 +707,7 @@ export const useStudio = create<StudioState>()(
       recordExport: (id, version) =>
         get().updateProject(id, (p) => ({
           ...p,
-          status: "exported",
+          status: p.status === "idea" || p.status === "making" ? "done" : p.status,
           exports: [version, ...p.exports].slice(0, 20),
         })),
       ensureArtboard: (projectId, formatId) => {
@@ -1058,11 +1208,12 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 6,
+      version: 7,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,
         projects: s.projects,
+        campaigns: s.campaigns,
         lastProjectId: s.lastProjectId,
       }),
       merge: (persisted, current) => {
@@ -1070,17 +1221,20 @@ export const useStudio = create<StudioState>()(
           brands: BrandKit[];
           assets: AssetMeta[];
           projects: Project[];
+          campaigns: Campaign[];
           lastProjectId: string | null;
         }>;
         const brands = (p.brands ?? current.brands).map(migrateBrandRecord);
         const assets = (p.assets ?? current.assets).map(migrateAssetRecord);
         const projects = (p.projects ?? current.projects).map(migrateProject);
+        const campaigns = (p.campaigns ?? current.campaigns).map(migrateCampaign);
         return {
           ...current,
           ...p,
           brands,
           assets,
           projects,
+          campaigns,
           lastProjectId: p.lastProjectId ?? projects[0]?.id ?? current.lastProjectId,
         };
       },
@@ -1089,15 +1243,18 @@ export const useStudio = create<StudioState>()(
           brands?: BrandKit[];
           assets?: AssetMeta[];
           projects?: Project[];
+          campaigns?: Campaign[];
           lastProjectId?: string | null;
         };
         const brands = (state.brands ?? []).map(migrateBrandRecord);
         const assets = (state.assets ?? []).map(migrateAssetRecord);
         const projects = (state.projects ?? []).map(migrateProject);
+        const campaigns = (state.campaigns ?? []).map(migrateCampaign);
         return {
           brands,
           assets,
           projects,
+          campaigns,
           lastProjectId: state.lastProjectId ?? projects[0]?.id ?? null,
         };
       },

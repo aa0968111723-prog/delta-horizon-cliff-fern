@@ -26,7 +26,24 @@ export type Align = "left" | "center" | "right";
 
 export type ColorRole = "primary" | "secondary" | "accent" | "background" | "ink";
 
-export type ProjectStatus = "draft" | "ready" | "exported";
+/** 一人創作流程只需要這五個狀態。沒有審核、沒有負責人。 */
+export type ContentStatus = "idea" | "making" | "done" | "scheduled" | "published";
+
+/** 禪學社實際會發的內容型態。 */
+export type ContentKind =
+  | "ig-post"
+  | "carousel"
+  | "story"
+  | "reels"
+  | "threads"
+  | "line"
+  | "poster"
+  | "recap"
+  | "member-story"
+  | "countdown"
+  | "qa"
+  | "poll"
+  | "knowledge";
 
 export type EditorTool = "select" | "text" | "rect" | "ellipse" | "line";
 
@@ -361,6 +378,64 @@ export type ExportVersion = {
   filename: string;
 };
 
+/** IG 文案 AI 的語氣版本。 */
+export type CopyTone = "short" | "normal" | "emotional" | "student" | "life" | "humor";
+
+export type CopyDraft = {
+  id: string;
+  tone: CopyTone;
+  hook: string;
+  body: string;
+  cta: string;
+  hashtags: string[];
+  createdAt: number;
+  source: PlanSource;
+};
+
+/** 反向學生模擬：生成後用淡江學生視角重看一次。 */
+export type StudentReviewItem = {
+  question: string;
+  verdict: "ok" | "risk";
+  note: string;
+};
+
+export type StudentReview = {
+  score: number;
+  items: StudentReviewItem[];
+  rewriteHook: string;
+  suggestions: string[];
+  createdAt: number;
+  source: PlanSource;
+};
+
+export type ReelsBeat = {
+  range: string;
+  visual: string;
+  caption: string;
+  voice: string;
+  transition: string;
+  asset: string;
+};
+
+export type ReelsScript = {
+  hook: string;
+  cover: string;
+  beats: ReelsBeat[];
+  createdAt: number;
+  source: PlanSource;
+};
+
+/** AI 參考過的素材來源，一定要能顯示給使用者看。 */
+export type CreativeSourceKind = "drive" | "canva" | "instagram" | "generated" | "local";
+
+export type CreativeSourceRef = {
+  kind: CreativeSourceKind;
+  label: string;
+  detail: string;
+  href?: string;
+  assetId?: string;
+};
+
 export type Project = {
   id: string;
   name: string;
@@ -369,10 +444,18 @@ export type Project = {
   brandId: string;
   templateId: TemplateId;
   activeFormatId: FormatId;
-  status: ProjectStatus;
+  status: ContentStatus;
+  contentKind: ContentKind;
+  campaignId: string | null;
+  scheduledAt: number | null;
+  publishedAt: number | null;
   brief: Brief;
   copy: CopyDeck;
   plan: CampaignPlan | null;
+  copyDrafts: CopyDraft[];
+  studentReview: StudentReview | null;
+  reels: ReelsScript | null;
+  sources: CreativeSourceRef[];
   artboards: Partial<Record<FormatId, Artboard>>;
   slides: Partial<Record<FormatId, Artboard[]>>;
   slideIndex: number;
@@ -381,10 +464,56 @@ export type Project = {
   exports: ExportVersion[];
 };
 
+/** 活動（Campaign）。沒有負責人、沒有審核人。 */
+export type CampaignDirection = {
+  id: string;
+  title: string;
+  concept: string;
+  visual: string;
+  sampleHook: string;
+};
+
+export type CampaignWave = {
+  id: string;
+  /** 相對活動日的天數，負數代表提前幾天 */
+  offsetDays: number;
+  stage: string;
+  title: string;
+  kind: ContentKind;
+  hook: string;
+  note: string;
+  contentId: string | null;
+};
+
+export type Campaign = {
+  id: string;
+  name: string;
+  kind: string;
+  date: string;
+  time: string;
+  location: string;
+  oneLiner: string;
+  intro: string;
+  theme: string;
+  painPoint: string;
+  cta: string;
+  signupUrl: string;
+  coverAssetId: string | null;
+  assetIds: string[];
+  audienceIds: string[];
+  axis: string;
+  directions: CampaignDirection[];
+  waves: CampaignWave[];
+  createdAt: number;
+  updatedAt: number;
+  planSource: PlanSource | null;
+};
+
 export type PersistSlice = {
   brands: BrandKit[];
   assets: AssetMeta[];
   projects: Project[];
+  campaigns: Campaign[];
   lastProjectId: string | null;
 };
 
