@@ -107,7 +107,7 @@ export function InstagramCenter() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-10" data-testid="ig-ready">
+    <main className="mx-auto w-full max-w-4xl px-4 py-6 pb-nav md:px-8 md:py-10" data-testid="ig-ready">
       <PageHeader
         kicker="Instagram"
         title="IG 是產品出口"

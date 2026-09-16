@@ -44,6 +44,45 @@ export function IgFeedPreview({
 
   return (
     <section className="mt-8">
+      {nextReel ? (
+        <div className="mx-auto mb-8 w-full max-w-[12rem] sm:max-w-[16rem] md:max-w-[18rem]" data-testid="ig-reels-preview">
+          <h2 className="text-sm font-medium">Reels Preview</h2>
+          <p className="mt-1 text-xs text-muted">9:16 短影音。編成後在這裡看，再排入 Calendar。</p>
+          <div className="mt-3 overflow-hidden rounded-[1.75rem] bg-surface p-2 shadow-[var(--shadow-artboard)]">
+            {previewMediaId(nextReel) && urls[previewMediaId(nextReel)!] ? (
+              <AssetMedia
+                src={urls[previewMediaId(nextReel)!]}
+                video={Boolean(nextReel.videoAssetId && videoSet.has(nextReel.videoAssetId))}
+                controls
+                className="aspect-[9/16] w-full rounded-[1.4rem]"
+                testId="ig-reels-film"
+              />
+            ) : (
+              <div className="flex aspect-[9/16] items-end rounded-[1.4rem] bg-surface-2 p-4 text-sm">{nextReel.title}</div>
+            )}
+            <p className="mt-2 px-1 text-xs text-muted">{isDue(nextReel) ? "現在可以發" : "即將"} · Reels</p>
+            <p className="mt-1 line-clamp-2 px-1 text-sm">{nextReel.caption || nextReel.title}</p>
+            {nextReel.videoAssetId ? (
+              <Button
+                className="mt-2 min-h-11 w-full"
+                size="sm"
+                disabled={publishingId === nextReel.id}
+                data-testid="ig-reels-publish"
+                onClick={() => onPublish(nextReel)}
+              >
+                發布到 IG
+              </Button>
+            ) : (
+              <Button className="mt-2 min-h-11 w-full" size="sm" variant="secondary" asChild>
+                <Link to="/create" search={{ mode: "reels", idea: nextReel.caption || nextReel.title }}>
+                  編成短影音
+                </Link>
+              </Button>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       <h2 className="text-sm font-medium">Feed Preview</h2>
       <p className="mt-1 text-xs text-muted">像學生滑到的樣子。剛發布的在上面，可以標記會不會停。</p>
       <div
@@ -136,45 +175,6 @@ export function IgFeedPreview({
           ) : null}
         </ul>
       </div>
-
-      {nextReel ? (
-        <div className="mx-auto mt-8 w-full max-w-[18rem]" data-testid="ig-reels-preview">
-          <h3 className="text-sm font-medium">Reels Preview</h3>
-          <p className="mt-1 text-xs text-muted">9:16 短影音。編成後在這裡看，再排入 Calendar。</p>
-          <div className="mt-3 overflow-hidden rounded-[1.75rem] bg-surface p-2 shadow-[var(--shadow-artboard)]">
-            {previewMediaId(nextReel) && urls[previewMediaId(nextReel)!] ? (
-              <AssetMedia
-                src={urls[previewMediaId(nextReel)!]}
-                video={Boolean(nextReel.videoAssetId && videoSet.has(nextReel.videoAssetId))}
-                controls
-                className="aspect-[9/16] w-full rounded-[1.4rem]"
-                testId="ig-reels-film"
-              />
-            ) : (
-              <div className="flex aspect-[9/16] items-end rounded-[1.4rem] bg-surface-2 p-4 text-sm">{nextReel.title}</div>
-            )}
-            <p className="mt-2 px-1 text-xs text-muted">{isDue(nextReel) ? "現在可以發" : "即將"} · Reels</p>
-            <p className="mt-1 line-clamp-2 px-1 text-sm">{nextReel.caption || nextReel.title}</p>
-            {nextReel.videoAssetId ? (
-              <Button
-                className="mt-2 min-h-11 w-full"
-                size="sm"
-                disabled={publishingId === nextReel.id}
-                data-testid="ig-reels-publish"
-                onClick={() => onPublish(nextReel)}
-              >
-                發布到 IG
-              </Button>
-            ) : (
-              <Button className="mt-2 min-h-11 w-full" size="sm" variant="secondary" asChild>
-                <Link to="/create" search={{ mode: "reels", idea: nextReel.caption || nextReel.title }}>
-                  編成短影音
-                </Link>
-              </Button>
-            )}
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }
