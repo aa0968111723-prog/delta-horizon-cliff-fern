@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { matchesAssetQuery, migrateAsset, uniqueAssets, upsertAssetList } from "./assets.ts";
+import { assetsByIds, matchesAssetQuery, migrateAsset, uniqueAssets, upsertAssetList } from "./assets.ts";
 
 const tea = migrateAsset({
   id: "asset_tea",
@@ -27,4 +27,19 @@ test("addAsset upserts by id instead of duplicating", () => {
   assert.ok(twice[0]?.tags.includes("drive"));
   assert.ok(twice[0]?.tags.includes("茶會"));
   assert.equal(uniqueAssets([tea, tea]).length, 1);
+});
+
+test("campaign related ids keep Drive hits in order without duplicates", () => {
+  const drive = migrateAsset({
+    id: "asset_drv_tea_2025",
+    name: "2025 夜間茶會照片",
+    source: "drive",
+    tags: ["茶會"],
+    seedSrc: "/seed/tea.svg",
+  });
+  const related = assetsByIds([tea, drive, tea], ["asset_drv_tea_2025", "asset_tea", "asset_drv_tea_2025"]);
+  assert.deepEqual(
+    related.map((item) => item.id),
+    ["asset_drv_tea_2025", "asset_tea"],
+  );
 });

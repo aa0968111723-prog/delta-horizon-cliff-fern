@@ -45,6 +45,12 @@ export function needsPublicRaster(pack: LastPack) {
   return !httpsRasterUrl(pack.formatPublicUrls?.[pack.kind]) && !httpsRasterUrl(pack.canvaExportUrl);
 }
 
+export function rasterReadyMessage(pack: LastPack) {
+  if (!needsPublicRaster(pack)) return "已有公開圖，可以官方發布到 IG。";
+  if (pack.canvaEditUrl) return "Canva 設計已開。匯出 JPG 後，才能官方發布。";
+  return "還沒連接 Canva。可以先看 IG Preview 與排程，連接後再送進 Canva。";
+}
+
 function httpsUrlMap(urls?: Partial<Record<ContentKind, string>>) {
   const next: Partial<Record<ContentKind, string>> = {};
   for (const [kind, url] of Object.entries(urls ?? {})) {

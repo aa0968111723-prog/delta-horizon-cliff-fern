@@ -1,6 +1,6 @@
 import type { MemoryItem } from "../club/memory.ts";
 import { matchHit, rankHits } from "../club/rank.ts";
-import { inferCategory, migrateAsset } from "../studio/assets.ts";
+import { inferCategory, migrateAsset, sourceLabel as assetSourceLabel } from "../studio/assets.ts";
 import type { AssetMeta, AssetSourceKind } from "../studio/types.ts";
 import { styleBriefFromReport, styleReportFromHit } from "../vision/from-hit.ts";
 
@@ -127,5 +127,20 @@ export function assetsFromHits(items: Array<Parameters<typeof assetFromHit>[0]>)
   return uniqueIds(items.map((item) => assetIdFromHit(item))).map((id) => {
     const hit = items.find((item) => assetIdFromHit(item) === id);
     return assetFromHit(hit!);
+  });
+}
+
+export function creativeSourceFromAsset(source: AssetMeta["source"]): MemoryItem["source"] {
+  if (source === "drive" || source === "canva" || source === "instagram" || source === "generated") return source;
+  return "brand";
+}
+
+export function adoptIdeaFromAsset(asset: Pick<AssetMeta, "name" | "licenseNotes" | "source" | "tags">) {
+  return adoptIdeaFromHit({
+    title: asset.name,
+    notes: asset.licenseNotes,
+    subtitle: `${assetSourceLabel(asset.source)} / ${asset.name}`,
+    source: creativeSourceFromAsset(asset.source),
+    tags: asset.tags,
   });
 }

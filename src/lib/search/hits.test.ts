@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { asDriveHits, adoptIdeaFromHit, assetFromHit, assetIdFromHit, driveThumb, mergeRanked } from "./hits.ts";
+import { asDriveHits, adoptIdeaFromAsset, adoptIdeaFromHit, assetFromHit, assetIdFromHit, driveThumb, mergeRanked } from "./hits.ts";
 
 test("Drive files keep a useful thumb and club tags", () => {
   assert.equal(driveThumb({ name: "2024 茶會現場.JPG" }), "/seed/tea.svg");
@@ -100,4 +100,16 @@ test("Drive tea hits become library assets with source tags, not duplicate seed 
     notes: "Hook 有效。",
   });
   assert.equal(ig.source, "instagram");
+});
+
+test("adopting a library asset keeps the Drive or Canva source in the idea", () => {
+  const idea = adoptIdeaFromAsset({
+    name: "2025 夜間茶會照片",
+    licenseNotes: "Google Drive / 2025 茶會。很多人圍坐。",
+    source: "drive",
+    tags: ["茶會", "晚上"],
+  });
+  assert.match(idea, /夜間茶會/);
+  assert.match(idea, /Google Drive|現場感覺/);
+  assert.match(idea, /不要直接複製/);
 });

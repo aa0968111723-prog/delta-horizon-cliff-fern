@@ -6,16 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/input";
 import { writeHandoff } from "@/lib/create/handoff";
-import { generateCampaignPlan } from "@/lib/ai/campaign";
-import { toBriefInput } from "@/lib/ai/payload";
 import { generateCopyPack, type CopyTone } from "@/lib/copy/generate";
 import { generateImageDirections } from "@/lib/image/studio";
-import { emptyBrief } from "@/lib/studio/brief";
 import { lessonPrompt } from "@/lib/club/insights";
-import { lastPackFromPlan } from "@/lib/club/last-pack";
-import { convertPlan } from "@/lib/convert/pack";
+import { FEATURED_EVENT, featuredCampaignIdea } from "@/lib/club/memory";
 import { buildCampaignRhythm } from "@/lib/club/schedule";
+import { adoptIdeaFromAsset } from "@/lib/search/hits";
+import { assetsByIds, sourceLabel } from "@/lib/studio/assets";
 import { CONTENT_KIND_META } from "@/lib/studio/status";
+import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import type { CampaignWave } from "@/lib/studio/types";
@@ -72,15 +71,12 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
   const upsertCampaign = useCreative((s) => s.upsertCampaign);
   const setWaves = useCreative((s) => s.setWaves);
   const setDirections = useCreative((s) => s.setDirections);
-  const brands = useStudio((s) => s.brands);
-  const createProject = useStudio((s) => s.createProject);
-  const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
-  const updateProject = useStudio((s) => s.updateProject);
-  const attachProject = useCreative((s) => s.attachProject);
-  const setLastPack = useCreative((s) => s.setLastPack);
+  const assets = useStudio((s) => s.assets);
   const igPosts = useCreative((s) => s.igPosts);
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
+  const related = assetsByIds(assets, [...(campaign?.relatedAssetIds ?? []), ...(campaign?.imageAssetIds ?? [])]);
+  const urls = useAssetUrls(related.map((item) => item.id));
   if (!campaign) {
     return (
       <main className="px-4 py-10">
@@ -92,6 +88,23 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
     );
   }
   const current = campaign;
+
+  function startFullCreate() {
+    writeHandoff({
+      idea: featuredCampaignIdea({
+        ...FEATURED_EVENT,
+        name: current.name,
+        date: current.date,
+        time: current.time,
+        location: current.location,
+        oneLiner: current.oneLiner || FEATURED_EVENT.oneLiner,
+      }),
+      tab: "campaign",
+      autoRun: true,
+      sourceLabel: `活動 / ${current.name}`,
+    });
+    void navigate({ to: "/create", search: { tab: "campaign" } });
+  }
 
   async function rewriteWave(wave: CampaignWave, tone: CopyTone, idea?: string) {
     setBusy(true);
@@ -123,75 +136,82 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
     }
   }
 
-  async function generate() {
-    const brand = brands[0];
-    if (!brand) return;
-    setBusy(true);
-    try {
-      const brief = {
-        ...emptyBrief(),
-        eventName: current.name,
-        product: current.name,
-        schedule: `${current.date} ${current.time}`,
-        location: current.location,
-        audience: "淡江大學學生",
-        features: current.description,
-        notes: [
-          current.oneLiner,
-          `痛點：${current.studentPain}`,
-          ...useCreative.getState().styleMemory.slice(0, 2),
-        ]
-          .filter(Boolean)
-          .join("\n")
-          .slice(0, 1200),
-        deliverables: { post: true, story: true, carousel: true, reels: true },
-      };
-      const result = await generateCampaignPlan({
-        data: toBriefInput(brief, brand, { igLessons: lessonPrompt(igPosts) }),
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      if (result.plan.directions) setDirections(current.id, result.plan.directions);
-      const project = createProject({
-        name: result.plan.campaignName,
-        brandId: brand.id,
-        formatId: "feed-portrait",
-        brief,
-        templateId: result.plan.templateId,
-      });
-      applyCampaignPlan(project.id, result.plan, brief);
-      attachProject(current.id, project.id);
-      if (result.plan.waves?.length) setWaves(current.id, result.plan.waves, { syncCalendar: true });
-      else setWaves(current.id, buildCampaignRhythm({ eventDate: current.date, eventType: current.type || current.name }), { syncCalendar: true });
-      updateProject(project.id, {
-        campaignId: current.id,
-        contentStatus: "scheduled",
-        scheduledAt: Date.now(),
-      });
-      setLastPack(
-        lastPackFromPlan({
-          projectId: project.id,
-          campaignId: current.id,
-          eventName: current.name,
-          plan: result.plan,
-          kind: "ig-post",
-          converted: convertPlan(result.plan, "ig-post").items,
-          directionName: result.plan.directions?.[0]?.name,
-        }),
-      );
-      toast.success("已生成完整宣傳並排入 Calendar");
-      void navigate({ to: "/instagram" });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader kicker={current.type} title={current.name} description={current.oneLiner} />
-      <div className="mt-6 space-y-3 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section className="mt-6 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]" data-testid="campaign-related-assets">
+        <p className="text-xs tracking-[0.16em] text-muted">相關素材 · Drive / Canva / IG / AI</p>
+        {related.length ? (
+          <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {related.map((asset) => (
+              <li key={asset.id} className="overflow-hidden rounded-2xl bg-bg" data-testid="campaign-related-asset" data-asset-source={asset.source}>
+                <img src={urls[asset.id] || asset.seedSrc || ""} alt={asset.name} className="aspect-square w-full object-cover" />
+                <div className="space-y-2 px-2 py-2">
+                  <p className="truncate text-xs font-medium">{asset.name}</p>
+                  <p className="truncate text-[10px] text-muted">{sourceLabel(asset.source)}</p>
+                  <div className="flex flex-wrap gap-1">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      data-testid="campaign-asset-adopt"
+                      onClick={() => {
+                        writeHandoff({
+                          idea: adoptIdeaFromAsset(asset),
+                          tab: "campaign",
+                          autoRun: true,
+                          imageSrc: asset.seedSrc,
+                          assetId: asset.id,
+                          sourceLabel: `${sourceLabel(asset.source)} / ${asset.name}`,
+                        });
+                        void navigate({ to: "/create", search: { tab: "campaign" } });
+                      }}
+                    >
+                      加入創作
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      data-testid="campaign-asset-analyze"
+                      onClick={() => {
+                        writeHandoff({
+                          tab: "vision",
+                          imageSrc: asset.seedSrc,
+                          assetId: asset.id,
+                          visionNote: `${sourceLabel(asset.source)} / ${asset.name}`,
+                          autoRun: true,
+                          sourceLabel: `${sourceLabel(asset.source)} / ${asset.name}`,
+                        });
+                        void navigate({ to: "/create", search: { tab: "vision" } });
+                      }}
+                    >
+                      分析
+                    </Button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-muted">做完整宣傳後，Drive、Canva、IG 與 AI 生成會出現在這裡。</p>
+        )}
+      </section>
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <Button className="sm:col-span-3" data-testid="campaign-generate" onClick={() => startFullCreate()}>
+          AI 生成完整宣傳
+        </Button>
+        <Button variant="secondary" asChild>
+          <Link to="/calendar">看排程</Link>
+        </Button>
+        <Button variant="secondary" asChild>
+          <Link to="/instagram">IG Preview</Link>
+        </Button>
+        <Button variant="secondary" asChild>
+          <Link to="/assets">素材庫</Link>
+        </Button>
+      </div>
+      <details className="mt-6 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+        <summary className="cursor-pointer text-sm font-medium">活動資訊</summary>
+        <div className="mt-4 space-y-3">
         {(
           [
             ["活動名稱", "name"],
@@ -223,10 +243,8 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
             onChange={(e) => upsertCampaign({ ...current, description: e.target.value })}
           />
         </label>
-      </div>
-      <Button className="mt-6 w-full" disabled={busy} onClick={() => void generate()}>
-        {busy ? "生成中…" : "AI 生成完整宣傳"}
-      </Button>
+        </div>
+      </details>
       {current.waves.length ? (
         <section className="mt-8">
           <div className="flex items-center justify-between gap-2">

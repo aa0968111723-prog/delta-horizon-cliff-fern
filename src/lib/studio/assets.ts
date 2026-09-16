@@ -162,6 +162,14 @@ export function uniqueAssets(items: AssetMeta[]) {
   return items.filter((item, index, all) => item.id && all.findIndex((row) => row.id === item.id) === index);
 }
 
+export function assetsByIds(assets: AssetMeta[], ids: string[]) {
+  const map = new Map(assets.map((item) => [item.id, item]));
+  return ids
+    .filter((id, index, all) => id && all.indexOf(id) === index)
+    .map((id) => map.get(id))
+    .filter((item): item is AssetMeta => Boolean(item));
+}
+
 export function upsertAssetList(assets: AssetMeta[], meta: AssetMeta): AssetMeta[] {
   const next = migrateAsset(meta);
   const idx = assets.findIndex((item) => item.id === next.id);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fallbackHeroThumb, formatIdFromKind, httpsVideoUrl, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, needsPublicRaster, packForScheduleRow, persistablePack, publicReelsCoverUrl, withCanvaExport, withPackKind, withReelsVideo } from "./last-pack.ts";
+import { fallbackHeroThumb, formatIdFromKind, httpsVideoUrl, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, needsPublicRaster, packForScheduleRow, persistablePack, publicReelsCoverUrl, rasterReadyMessage, withCanvaExport, withPackKind, withReelsVideo } from "./last-pack.ts";
 
 test("lastPackFromPlan keeps hook, caption, and a public hero fallback", () => {
   const pack = lastPackFromPlan({
@@ -111,6 +111,11 @@ test("needsPublicRaster is true until a Canva or Imagine https raster exists", (
       formatPublicUrls: { "ig-post": "https://imgen.x.ai/tea.png" },
     }),
     false,
+  );
+  assert.match(rasterReadyMessage(pack), /Canva/);
+  assert.match(
+    rasterReadyMessage({ ...pack, canvaExportUrl: "https://export-download.canva.com/tea.jpg" }),
+    /公開圖/,
   );
 });
 

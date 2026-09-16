@@ -11,7 +11,7 @@ import { applyStudentReviewToPlan } from "@/lib/copy/review";
 import { toBriefInput } from "@/lib/ai/payload";
 import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, notesFromHits, summarizeFound } from "@/lib/club/compose";
 import { applyCanvaPush, canvaPushMessage, ensurePublicRaster, pushHeroToCanva } from "@/lib/club/canva-push";
-import { formatIdFromKind, httpsRasterUrl, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, publicReelsCoverUrl, withPackKind, withReelsVideo } from "@/lib/club/last-pack";
+import { formatIdFromKind, httpsRasterUrl, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, publicReelsCoverUrl, rasterReadyMessage, withPackKind, withReelsVideo } from "@/lib/club/last-pack";
 import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
 import { convertedScheduleUpserts } from "@/lib/club/schedule";
@@ -80,6 +80,7 @@ export function IdeaFlow({
   const [kindUrls, setKindUrls] = useState<Partial<Record<ContentKind, string>>>({});
   const [busy, setBusy] = useState(false);
   const [formatsOnCalendar, setFormatsOnCalendar] = useState(false);
+  const [publishHint, setPublishHint] = useState("");
 
   const brand = brands[0];
   const projects = useStudio((s) => s.projects);
@@ -122,6 +123,7 @@ export function IdeaFlow({
     setKindUrls({});
     setProjectId(null);
     setFormatsOnCalendar(false);
+    setPublishHint("");
     setStatus("正在找歷屆素材與品牌記憶…");
     try {
       setLastSearch(parsed.searchQuery);
@@ -258,6 +260,7 @@ export function IdeaFlow({
     setLastPack(packed);
     setPhase("pack");
     setStatus("已生成完整宣傳，並排入 Calendar。");
+    setPublishHint(rasterReadyMessage(packed));
     toast.success("已生成主視覺、文案與多模態內容，並排入 Calendar");
     void ensurePublicRaster({
       pack: packed,
@@ -265,11 +268,17 @@ export function IdeaFlow({
       title: parsed.eventName,
     })
       .then((result) => {
-        if (!result.changed) return;
-        setLastPack(result.pack);
-        toast.success(result.message);
+        if (result.changed) {
+          setLastPack(result.pack);
+          setPublishHint(result.message);
+          toast.success(result.message);
+          return;
+        }
+        setPublishHint(rasterReadyMessage(useCreative.getState().lastPack ?? packed));
       })
-      .catch(() => undefined);
+      .catch(() => {
+        setPublishHint(rasterReadyMessage(packed));
+      });
   }
 
   function adoptHit(item: SearchHit) {
@@ -752,6 +761,24 @@ export function IdeaFlow({
           {formatsOnCalendar ? (
             <p className="text-sm text-muted" data-testid="idea-scheduled">
               已排入 IG Post、Carousel、Story、Threads、LINE、Reels
+            </p>
+          ) : null}
+          {publishHint ? (
+            <p className="text-sm text-muted" data-testid="idea-publish-hint">
+              {publishHint}
+            </p>
+          ) : null}
+          {lastPackState?.canvaEditUrl ? (
+            <p className="text-sm">
+              <a
+                className="underline underline-offset-4"
+                href={lastPackState.canvaEditUrl}
+                target="_blank"
+                rel="noreferrer"
+                data-testid="idea-canva-open"
+              >
+                開啟 Canva
+              </a>
             </p>
           ) : null}
 
