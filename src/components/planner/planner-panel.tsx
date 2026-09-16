@@ -8,10 +8,12 @@ import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
 import { formatBrandMemory } from "@/lib/studio/brand";
 import { describeAdapter, generateCampaignPlan, getCampaignAiStatus, type AiStatus } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
+import { lessonPrompt } from "@/lib/club/insights";
 import { migrateBrief } from "@/lib/studio/brief";
 import type { BrandKit, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
+import { useCreative } from "@/stores/creative-store";
 
 export function PlannerPanel({ project, brand }: { project: Project; brand: BrandKit }) {
   const assets = useStudio((s) => s.assets);

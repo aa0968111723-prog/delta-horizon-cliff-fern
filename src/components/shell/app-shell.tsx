@@ -101,12 +101,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
           {SIDE_NAV.map((item) => {
             const active = current === item.match;
-            const dest = hrefFor(item);
             return (
               <Link
                 key={item.match}
-                to={dest.to}
-                params={"params" in dest ? dest.params : undefined}
+                to={item.to}
                 className={cn(
                   "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[0.68rem] transition-colors",
                   active ? "bg-surface-2 text-fg" : "text-muted hover:bg-surface-2 hover:text-fg",

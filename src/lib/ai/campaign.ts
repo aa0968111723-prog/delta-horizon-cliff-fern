@@ -1,6 +1,9 @@
 import { completeCarouselPages } from "@/lib/studio/carousel";
 import { createServerFn } from "@tanstack/react-start";
-import type { CampaignPlan, TemplateId } from "@/lib/studio/types";
+import type { CampaignPlan, ContentKind, TemplateId } from "@/lib/studio/types";
+import { studentContext } from "@/lib/club/season";
+import { systemPlanner, studentReviewInstruction } from "@/lib/club/prompts";
+import { extractJson } from "./json";
 import { buildMockPlan } from "./mock";
 import { BriefInputSchema, PlanJsonSchema, type BriefInput } from "./schema";
 import { buildZenContext, ZEN_SYSTEM_PROMPT } from "./zen-context";
@@ -20,14 +23,23 @@ export type AiStatus = {
   detail: string;
 };
 
-function extractJson(text: string): unknown {
-  const trimmed = text.trim();
-  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const raw = fence ? fence[1] : trimmed;
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("模型未回傳 JSON");
-  return JSON.parse(raw.slice(start, end + 1));
+function asContentKind(value: string): ContentKind {
+  const allowed: ContentKind[] = [
+    "ig-post",
+    "carousel",
+    "story",
+    "reels",
+    "threads",
+    "line",
+    "poster",
+    "recap",
+    "member-story",
+    "countdown",
+    "qa",
+    "poll",
+    "knowledge",
+  ];
+  return allowed.includes(value as ContentKind) ? (value as ContentKind) : "ig-post";
 }
 
 function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: CampaignPlan["source"]): CampaignPlan {
@@ -46,10 +58,10 @@ function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: Campaig
     headline,
     subhead: parsed.subhead,
     body: parsed.body,
-    cta: parsed.cta || "了解更多",
+    cta: parsed.cta || "來坐一下",
     captions: parsed.captions.length
       ? parsed.captions
-      : [{ style: "敘事", text: parsed.hook || parsed.concept || headline }],
+      : [{ style: "學生版", text: parsed.hook || parsed.concept || headline }],
     hashtags: parsed.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)),
     storyBeats: parsed.storyBeats,
     carouselPages: parsed.carouselPages,
@@ -59,6 +71,16 @@ function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: Campaig
     qaNotes: parsed.qaNotes,
     generatedAt: Date.now(),
     source,
+    directions: parsed.directions?.filter((row) => row.name || row.concept),
+    waves: parsed.waves?.map((wave) => ({
+      ...wave,
+      contentKind: asContentKind(wave.contentKind),
+    })),
+    studentReview: parsed.studentReview ?? undefined,
+    reelsScript: parsed.reelsScript?.length ? parsed.reelsScript : undefined,
+    threadsPost: parsed.threadsPost ?? undefined,
+    lineCopy: parsed.lineCopy ?? undefined,
+    sources: parsed.sources?.length ? parsed.sources : undefined,
   };
 }
 
@@ -78,15 +100,15 @@ export function describeAdapter(available: boolean): AiStatus {
     return {
       available: true,
       adapter: "live",
-      label: "已連線 AI 企劃",
-      detail: "會依品牌規範與活動需求生成結構化企劃，再套進專案與畫布。",
+      label: "AI 創作已連線",
+      detail: "會依淡江禪學社品牌記憶與學生情境，生成文案、方向與畫布企劃。",
     };
   }
   return {
     available: false,
     adapter: "mock",
-    label: "本機企劃草案",
-    detail: "目前沒有連到 AI 服務。按下生成會用本機規則寫一版可編輯、可套用的草案，不是線上模型回覆。",
+    label: "本機創作草案",
+    detail: "目前沒有連到 AI。按下生成會用社團規則寫一版可編輯草案，不是線上模型回覆。",
   };
 }
 
@@ -104,7 +126,7 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
     data.wantPost ? "單張貼文" : null,
     data.wantCarousel ? "輪播" : null,
     data.wantStory ? "限時動態" : null,
-    data.wantReels ? "Reels 封面" : null,
+    data.wantReels ? "Reels 封面與腳本" : null,
   ]
     .filter(Boolean)
     .join("、");
@@ -164,10 +186,11 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
+    signal: AbortSignal.timeout(18_000),
     body: JSON.stringify({
       model: "grok-4.5",
       temperature: 0.6,
-      max_tokens: 4096,
+      max_tokens: 5000,
       response_format: { type: "json_object" },
       messages: [
         {
@@ -214,5 +237,11 @@ export const generateCampaignPlan = createServerFn({ method: "POST" })
     if (!hasKey || data.forceMock) {
       return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
     }
-    return generateLive(data);
+    try {
+      const live = await generateLive(data);
+      if (live.ok) return live;
+      return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
+    } catch {
+      return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
+    }
   });

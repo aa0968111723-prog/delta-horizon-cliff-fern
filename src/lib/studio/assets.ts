@@ -1,3 +1,4 @@
+import { matchHit } from "../club/rank.ts";
 import type {
   Artboard,
   AssetCategory,
@@ -27,7 +28,7 @@ export const ASSET_CATEGORIES: {
   { id: "icon", label: "圖示", hint: "小圖、符號、徽章" },
   { id: "logo", label: "標誌", hint: "三色光標誌與變體" },
   { id: "template", label: "模板", hint: "可套用的版型起點", virtual: true },
-  { id: "history", label: "歷史素材", hint: "曾放到畫布的檔案", virtual: true },
+  { id: "history", label: "IG", hint: "曾放到畫布或來自 IG", virtual: true },
 ];
 
 export const ASSET_SOURCES: { id: AssetSourceKind; label: string }[] = [
@@ -149,7 +150,7 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
   if (/海報|文宣|主視覺|poster/.test(blob)) return "poster";
   if (/人物|人像|社員|portrait|people/.test(blob)) return "people";
   if (/背景|場景|材質|background|texture/.test(blob)) return "background";
-  if (/插圖|illustration|handdrawn/.test(blob)) return "illustration";
+  if (/龜龜|插圖|illustration|handdrawn/.test(blob)) return "illustration";
   if (/圖示|icon|badge/.test(blob)) return "icon";
   if (/logo|標誌/.test(blob)) return "logo";
   if (raw.source === "generated") return "illustration";
@@ -210,7 +211,7 @@ export function createGeneratedAsset(input: {
 }
 
 export function matchesAssetQuery(asset: AssetMeta, query: string) {
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   if (!q) return true;
   const blob = [
     asset.name,

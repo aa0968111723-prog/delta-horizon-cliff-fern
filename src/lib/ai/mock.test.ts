@@ -49,6 +49,96 @@ test("buildMockPlan is structured Traditional Chinese and marked mock", () => {
   assert.equal(plan.templateId, "product");
 });
 
+test("buildMockPlan for 淡江禪學社 uses student hooks", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "浮游禪光",
+    brandName: "淡江大學禪學社",
+    handle: "@tku.zen",
+    audience: "淡江大學學生",
+    wantCarousel: true,
+    wantStory: true,
+    wantReels: true,
+    forbiddenWords: ["誠摯邀請您"],
+    slogans: "最近是不是很久沒有好好坐下來？",
+    preferredCtas: "來坐一下",
+  });
+  assert.equal(plan.source, "mock");
+  assert.ok(plan.hook.includes("？") || plan.hook.includes("晚上"));
+  assert.equal(`${plan.hook}${plan.captions.map((c) => c.text).join()}`.includes("誠摯邀請您"), false);
+  assert.ok(plan.directions && plan.directions.length === 3);
+  assert.ok(plan.reelsScript && plan.reelsScript.length === 5);
+  assert.ok(plan.studentReview?.revisions.length);
+});
+
+test("zen mock does not use a slogan as the hook unless it is a question", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "茶會",
+    brandName: "淡江大學禪學社",
+    handle: "@tku.zen",
+    audience: "淡江大學學生",
+    slogans: "人到了就好。",
+    preferredCtas: "來坐一下",
+    wantCarousel: true,
+    wantStory: true,
+    wantReels: true,
+  });
+  assert.equal(plan.hook.includes("人到了就好"), false);
+  assert.ok(plan.hook.includes("？"));
+});
+
+test("zen mock prefers a proven IG hook from lessons", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "茶會",
+    brandName: "淡江大學禪學社",
+    handle: "@tku.zen",
+    audience: "淡江大學學生",
+    slogans: "人到了就好。",
+    igLessons: "Hook：比較有效的 Hook 像是「最近是不是連休息都覺得有罪惡感？」。",
+    wantCarousel: true,
+    wantStory: true,
+    wantReels: true,
+  });
+  assert.equal(plan.hook, "最近是不是連休息都覺得有罪惡感？");
+  assert.match(plan.qaNotes.join(), /成效回饋/);
+});
+
+test("zen mock prefers the hook the user asked to continue even if slogans have a question", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "浮游禪光",
+    brandName: "淡江大學禪學社",
+    handle: "@tku.zen",
+    audience: "淡江大學學生",
+    slogans: "最近是不是很久沒有好好坐下來？",
+    notes: "延續這個比較讓人停下來的第一句：「來的人比想像中多。我不會禪也可以嗎？」。幫09/24 浮游禪光做新的 IG。",
+    wantCarousel: true,
+    wantStory: true,
+    wantReels: true,
+  });
+  assert.match(plan.hook, /來的人比想像中多/);
+  assert.equal(plan.hook.includes("很久沒有好好坐下來"), false);
+});
+
+test("zen mock does not promote a past recap as the next tea hook", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "茶會",
+    brandName: "淡江大學禪學社",
+    handle: "@tku.zen",
+    audience: "淡江大學學生",
+    notes: "使用者想法：下週有一場茶會",
+    igLessons: "比較有效的 Hook 像是「來的人比想像中多。有人問「我不會禪也可以嗎？」」。少用社團全名當第一句。",
+    wantCarousel: true,
+    wantStory: true,
+    wantReels: true,
+  });
+  assert.equal(plan.hook.startsWith("來的人"), false);
+  assert.match(plan.hook, /我不會禪也可以嗎？/);
+});
+
 test("buildMockPlan strips forbidden words", () => {
   const plan = buildMockPlan({
     ...base,

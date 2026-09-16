@@ -379,10 +379,27 @@ export function createSeedProject(): Project {
       "輪播最後一頁有明確的下一步",
       "標題兩行以內且落在安全區",
     ],
+    checklist: ["第一句不是公文", "時間地點有出現", "不太宗教", "CTA 可讀", "Logo 沒壓主體"],
     altText: copy.altText,
     qaNotes: ["主視覺不要出現蓮花或金光", "龜龜留給限動與倒數，主視覺不放"],
     generatedAt: now,
     source: "live",
+    threadsPost: {
+      caption: "最近是不是很久沒有好好坐下來？\n下週三 19:30，浮游禪光。人到了就好。",
+      visualNote: "裁成 1:1，保留光暈與第一句。",
+    },
+    lineCopy: {
+      title: "09/24 浮游禪光",
+      body: "一個給淡江學生的晚上。不需要先懂禪。",
+      cta: "來看時間",
+    },
+    reelsScript: [
+      { start: 0, end: 3, visual: "捷運出站／風", caption: "很久沒坐下來？", voiceover: "最近是不是連休息都有點罪惡感。", transition: "切到室內光", assetHint: "淡水或捷運" },
+      { start: 3, end: 7, visual: "三色光亮起", caption: "燈會先亮", voiceover: "下週三晚上。", transition: "疊字", assetHint: "三色光" },
+      { start: 7, end: 12, visual: "有人坐下", caption: "人到了就好", voiceover: "沒有人要你懂禪。", transition: "慢推", assetHint: "茶會或現場" },
+      { start: 12, end: 17, visual: "時間地點", caption: "09/24 19:30 淡江", voiceover: "帶朋友來也可以。", transition: "切卡片", assetHint: "主視覺" },
+      { start: 17, end: 20, visual: "龜龜或 logo", caption: "來坐一下", voiceover: "來坐一下。", transition: "淡出", assetHint: "龜龜" },
+    ],
   });
 
   return {

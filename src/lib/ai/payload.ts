@@ -41,5 +41,7 @@ export function toBriefInput(
     igDnaText: extra?.igDnaText,
     insightsText: extra?.insightsText,
     ...(extra?.forceMock ? { forceMock: true } : {}),
+    ...(extra?.igLessons ? { igLessons: extra.igLessons.slice(0, 800) } : {}),
+    ...(extra?.styleMemory ? { styleMemory: extra.styleMemory.slice(0, 400) } : {}),
   };
 }
