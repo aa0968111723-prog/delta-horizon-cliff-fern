@@ -338,15 +338,21 @@ export function CalendarPage() {
         />
       ) : (
         <>
-          <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs text-muted">
-            {["一", "二", "三", "四", "五", "六", "日"].map((d) => (
-              <span key={d}>{d}</span>
-            ))}
-          </div>
-          <div className="mt-1 grid grid-cols-7 gap-1">
+          <div className={cn(view === "week" && "overflow-x-auto")}>
+            <div className={cn(view === "week" && "min-w-xl sm:min-w-0")}>
+              <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs text-muted">
+                {["一", "二", "三", "四", "五", "六", "日"].map((d) => (
+                  <span key={d}>{d}</span>
+                ))}
+              </div>
+              <div
+                data-testid={view === "week" ? "calendar-week" : "calendar-month"}
+                className="mt-1 grid grid-cols-7 gap-1"
+              >
             {days.map((day) => {
               const dayCells = cellsOn(day);
               const dim = view === "month" && !isSameMonth(day, cursor);
+              const cap = view === "week" ? 8 : 3;
               return (
                 <div
                   key={day.toISOString()}
@@ -360,15 +366,18 @@ export function CalendarPage() {
                     dropOn(day);
                   }}
                   className={cn(
-                    "min-h-24 rounded-xl bg-surface p-1.5 shadow-[var(--shadow-border)] transition-shadow sm:min-h-28",
+                    "rounded-xl p-1.5 shadow-[var(--shadow-border)] transition-shadow",
+                    view === "week" ? "glass min-h-40 sm:min-h-52" : "min-h-24 bg-surface sm:min-h-28",
                     dim && "opacity-45",
                     isSameDay(day, new Date()) && "ring-2 ring-ring",
                     (drag || pick) && "hover:shadow-[var(--shadow-lift)]",
                   )}
                 >
-                  <p className="px-0.5 text-xs tabular-nums text-muted">{format(day, "d")}</p>
+                  <p className="px-0.5 text-xs tabular-nums text-muted">
+                    {view === "week" ? format(day, "M/d", { locale: zhTW }) : format(day, "d")}
+                  </p>
                   <ul className="mt-1 space-y-1">
-                    {dayCells.slice(0, 3).map((item) => (
+                    {dayCells.slice(0, cap).map((item) => (
                       <li key={keyOf(item)}>
                         <CalendarChip
                           item={item}
@@ -379,18 +388,22 @@ export function CalendarPage() {
                         />
                       </li>
                     ))}
-                    {dayCells.length > 3 ? (
-                      <li className="px-1 text-xs text-subtle">+{dayCells.length - 3}</li>
+                    {dayCells.length > cap ? (
+                      <li className="px-1 text-xs text-subtle">+{dayCells.length - cap}</li>
                     ) : null}
                   </ul>
                 </div>
               );
             })}
+              </div>
+            </div>
           </div>
           <p className="mt-3 text-xs text-subtle">
             {tapMove
               ? "點一則內容、全套或灰色節奏再點日期就能改期。"
-              : "已排程的內容和還沒建立的節奏都可以拖到別的日期。同一套會併成一格，拖過去就整晚一起改。手機點再點日期也能改。"}
+              : view === "week"
+                ? "這一週七欄。已排程的內容可以拖到別天，同一套拖過去就整晚一起改。"
+                : "已排程的內容和還沒建立的節奏都可以拖到別的日期。同一套會併成一格，拖過去就整晚一起改。手機點再點日期也能改。"}
           </p>
         </>
       )}

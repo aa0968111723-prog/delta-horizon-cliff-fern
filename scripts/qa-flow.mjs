@@ -288,6 +288,12 @@ try {
   await expectText("日曆型態晶片", "IG 貼文");
   await expectText("日曆全套晶片", "全套 ·");
   await page.screenshot({ path: `${prefix}-calendar.png` });
+  await tap(page.getByRole("button", { name: "週" }));
+  await page.waitForSelector("[data-testid=calendar-week]", { timeout: 8000 });
+  await expectText("日曆週視圖", "那週");
+  await expectText("日曆週說明", "這一週七欄");
+  await expectText("日曆週全套", "全套 ·");
+  await page.screenshot({ path: `${prefix}-calendar-week.png` });
   await page.getByRole("button", { name: "清單" }).evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );
@@ -435,6 +441,17 @@ try {
     );
     record(`手機 ${width} 無橫向溢出`, !overflow, overflow ? "有橫向溢出" : "");
   }
+  await mp.setViewportSize({ width: 390, height: 844 });
+  await mp.goto(`${base}/calendar`, { waitUntil: "networkidle" });
+  await mp.getByRole("button", { name: "週" }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await mp.waitForSelector("[data-testid=calendar-week]", { timeout: 8000 });
+  const weekOverflow = await mp.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+  );
+  record("手機週視圖無橫向溢出", !weekOverflow, weekOverflow ? "有橫向溢出" : "");
+  await mp.screenshot({ path: `${prefix}-calendar-week-mobile.png` });
   // 中央 AI 創作按鈕
   await mp.goto(`${base}/`, { waitUntil: "networkidle" });
   await mp.getByRole("button", { name: "AI 創作" }).evaluate((el) =>
