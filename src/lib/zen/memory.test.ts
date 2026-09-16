@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canGraphPublish, igKindFromContent, igMemoryFromSchedule } from "./memory.ts";
+import {
+  canGraphPublish,
+  graphPublishFormat,
+  igKindFromContent,
+  igMemoryFromSchedule,
+  isFeedGraphKind,
+  isStoryGraphKind,
+} from "./memory.ts";
 
 test("igMemoryFromSchedule writes local caption into Creative Brain", () => {
   const memory = igMemoryFromSchedule({
@@ -41,8 +48,20 @@ test("official permalink turns published tea-party into Instagram memory", () =>
   assert.equal(memory.permalink, "https://www.instagram.com/p/tea1/");
 });
 
-test("stories are not Graph feed publishes", () => {
+test("stories and countdown publish as official Graph STORIES, not feed", () => {
   assert.equal(canGraphPublish("ig-post"), true);
-  assert.equal(canGraphPublish("story"), false);
+  assert.equal(canGraphPublish("carousel"), true);
+  assert.equal(canGraphPublish("story"), true);
+  assert.equal(canGraphPublish("countdown"), true);
+  assert.equal(canGraphPublish("reels"), false);
+  assert.equal(canGraphPublish("threads"), false);
+  assert.equal(canGraphPublish("line"), false);
+  assert.equal(isFeedGraphKind("carousel"), true);
+  assert.equal(isStoryGraphKind("countdown"), true);
+  assert.equal(isStoryGraphKind("member-story"), false);
   assert.equal(igKindFromContent("countdown"), "story");
+  assert.equal(graphPublishFormat("story"), "story");
+  assert.equal(graphPublishFormat("countdown"), "story");
+  assert.equal(graphPublishFormat("ig-post"), "feed-portrait");
+  assert.equal(graphPublishFormat("reels"), null);
 });

@@ -32,6 +32,23 @@ export function containerParams(opts: { imageUrl: string; caption: string }) {
   };
 }
 
+export function isStoryGraphFormat(format?: string) {
+  return format === "story";
+}
+
+/** Official Stories container. Caption is not a Graph Stories field. */
+export function storyParams(imageUrl: string) {
+  return {
+    media_type: "STORIES",
+    image_url: imageUrl,
+  };
+}
+
+export function graphContainerParams(opts: { imageUrl: string; caption: string; format?: string }): Record<string, string> {
+  if (isStoryGraphFormat(opts.format)) return storyParams(opts.imageUrl);
+  return containerParams({ imageUrl: opts.imageUrl, caption: opts.caption });
+}
+
 export function parseIgUser(json: unknown): { id: string; username?: string } | null {
   const accounts = json as { data?: { instagram_business_account?: { id: string; username?: string } }[] };
   const ig = accounts.data?.find((row) => row.instagram_business_account)?.instagram_business_account;

@@ -7,8 +7,9 @@ import {
   accountsUrl,
   carouselAlbumParams,
   carouselItemParams,
-  containerParams,
+  graphContainerParams,
   isPublicImageUrl,
+  isStoryGraphFormat,
   mediaContainerUrl,
   mediaInsightsUrl,
   mediaPermalinkUrl,
@@ -207,12 +208,17 @@ export const publishInstagramMedia = createServerFn({ method: "POST" })
       if (!ig?.id) {
         return { ok: false, reason: "api", note: "找不到 Instagram 專業帳號。請重新授權。" };
       }
+      const story = isStoryGraphFormat(data.format);
       let mediaId: string | null = null;
-      if (hosted.urls.length >= 2) {
+      if (!story && hosted.urls.length >= 2) {
         mediaId = await publishCarousel(ig.id, bundle.accessToken, hosted.urls, data.caption);
       }
       if (!mediaId) {
-        const params = containerParams({ imageUrl: hosted.urls[0]!, caption: data.caption });
+        const params = graphContainerParams({
+          imageUrl: hosted.urls[0]!,
+          caption: data.caption,
+          format: data.format,
+        });
         const creationId = await createContainer(ig.id, bundle.accessToken, params);
         if (!creationId) {
           return { ok: false, reason: "api", note: "IG 還沒準備好這則容器，請稍後再試。" };
@@ -222,7 +228,7 @@ export const publishInstagramMedia = createServerFn({ method: "POST" })
       if (!mediaId) {
         return { ok: false, reason: "api", note: "IG 發布沒有回傳編號。可能還在轉檔，請稍後再試。" };
       }
-      const permalink = await readPermalink(mediaId, bundle.accessToken);
+      const permalink = story ? undefined : await readPermalink(mediaId, bundle.accessToken);
       const insights = await readInsights(mediaId, bundle.accessToken);
       const hostedNote =
         hosted.hostedBy === "drive"
@@ -230,7 +236,11 @@ export const publishInstagramMedia = createServerFn({ method: "POST" })
           : hosted.hostedBy === "canva"
             ? "主視覺已從 Canva 匯出，"
             : "";
-      const carouselNote = hosted.urls.length >= 2 ? "已發 Carousel。" : "已用 Instagram 官方 API 發到帳號。";
+      const carouselNote = story
+        ? "已用 Instagram 官方 API 發到限動。"
+        : hosted.urls.length >= 2
+          ? "已發 Carousel。"
+          : "已用 Instagram 官方 API 發到帳號。";
       return {
         ok: true,
         mediaId,

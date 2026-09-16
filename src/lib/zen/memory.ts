@@ -28,6 +28,20 @@ export function igMemoryFromSchedule(item: ScheduleItem, now = Date.now()): IgMe
   };
 }
 
-export function canGraphPublish(kind: ContentKind) {
+export function isFeedGraphKind(kind: ContentKind) {
   return kind === "ig-post" || kind === "carousel";
+}
+
+export function isStoryGraphKind(kind: ContentKind) {
+  return kind === "story" || kind === "countdown";
+}
+
+export function canGraphPublish(kind: ContentKind) {
+  return isFeedGraphKind(kind) || isStoryGraphKind(kind);
+}
+
+export function graphPublishFormat(kind: ContentKind): "story" | "feed-portrait" | null {
+  if (isStoryGraphKind(kind)) return "story";
+  if (isFeedGraphKind(kind)) return "feed-portrait";
+  return null;
 }

@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   containerParams,
+  graphContainerParams,
   isPublicImageUrl,
+  isStoryGraphFormat,
+  storyParams,
   mediaContainerUrl,
   mediaPermalinkUrl,
   mediaPublishUrl,
@@ -31,6 +34,26 @@ test("Graph URLs and public image check stay official and non-local", () => {
   const params = containerParams({ imageUrl: "https://cdn.example.com/tea.jpg", caption: "來坐一下" });
   assert.equal(params.image_url, "https://cdn.example.com/tea.jpg");
   assert.doesNotMatch(JSON.stringify(params), /access_token/);
+  const story = storyParams("https://cdn.example.com/tea-story.jpg");
+  assert.equal(story.media_type, "STORIES");
+  assert.equal(story.image_url, "https://cdn.example.com/tea-story.jpg");
+  assert.equal("caption" in story, false);
+  assert.doesNotMatch(JSON.stringify(story), /access_token/);
+  const feed = graphContainerParams({
+    imageUrl: "https://cdn.example.com/tea.jpg",
+    caption: "來坐一下",
+    format: "feed-portrait",
+  });
+  assert.equal("caption" in feed, true);
+  const storyGraph = graphContainerParams({
+    imageUrl: "https://cdn.example.com/tea-story.jpg",
+    caption: "倒數文案不進 Graph 限動欄位",
+    format: "story",
+  });
+  assert.equal(isStoryGraphFormat("story"), true);
+  assert.equal(isStoryGraphFormat("feed-portrait"), false);
+  assert.equal(storyGraph.media_type, "STORIES");
+  assert.equal("caption" in storyGraph, false);
 });
 
 test("parseIgUser reads professional account without tokens in payload", () => {
