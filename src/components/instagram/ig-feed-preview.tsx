@@ -30,7 +30,7 @@ export function IgFeedPreview({
       <p className="mb-2 text-xs text-subtle">動態預覽 · {CLUB_HANDLE}</p>
       <div className="overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-lift)]">
         <ul>
-          {projects.slice(0, 4).map((project) => (
+          {projects.map((project) => (
             <FeedPost key={project.id} project={project} brand={brand} urls={urls} />
           ))}
         </ul>

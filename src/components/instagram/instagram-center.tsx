@@ -15,7 +15,15 @@ import { formatBrandMemory } from "@/lib/studio/brand";
 import { buildIgDna, buildIgInsights, formatIgInsights, formatIgReading, igHistoryCaptions } from "@/lib/studio/ig-dna";
 import { clipSeed } from "@/lib/studio/sources";
 import { contentKindLabel } from "@/lib/studio/status";
-import { igFeedPostCount, igHighlights, isHighlightKind, storyPreviewProjects } from "@/lib/studio/ig-profile";
+import {
+  igFeedPostCount,
+  igGridProjects,
+  igHighlights,
+  isHighlightKind,
+  isIgFeedKind,
+  storyPreviewProjects,
+} from "@/lib/studio/ig-profile";
+import type { BrandKit, Project } from "@/lib/studio/types";
 import { IgFeedPreview } from "@/components/instagram/ig-feed-preview";
 import { IgStoryPreview } from "@/components/instagram/ig-story-preview";
 import { cn } from "@/lib/utils";
@@ -72,10 +80,15 @@ export function InstagramCenter() {
   const insights = useMemo(() => buildIgInsights(igPosts), [igPosts]);
   const highlights = useMemo(() => igHighlights(feed), [feed]);
   const postCount = igFeedPostCount(projects);
-  const phoneFeed = useMemo(() => {
-    const posts = feed.filter((project) => !isHighlightKind(project.contentKind));
-    return posts.length ? posts : feed;
-  }, [feed]);
+  const gridPosts = useMemo(() => igGridProjects(feed), [feed]);
+  const igHistory = useMemo(
+    () => feed.filter((project) => isIgFeedKind(project.contentKind) || isHighlightKind(project.contentKind)),
+    [feed],
+  );
+  const projectById = useMemo(
+    () => Object.fromEntries(projects.map((project) => [project.id, project])),
+    [projects],
+  );
   const phoneStories = useMemo(() => storyPreviewProjects(feed), [feed]);
   const connected = connection?.state === "connected";
   const reading = brand?.memory.igReading;
@@ -159,7 +172,7 @@ export function InstagramCenter() {
           {connected ? "已連接。追蹤人數要等同步回來才會顯示真實數字。" : "還沒連接 Instagram，追蹤人數不會用假數字填。"}
         </p>
         {highlights.length ? (
-          <ul className="mt-4 flex gap-3 overflow-x-auto pb-1">
+          <ul className="mt-4 flex gap-3 overflow-x-auto pb-1" data-testid="ig-highlights">
             {highlights.map((item) => (
               <li key={item.id} className="w-14 shrink-0 text-center">
                 <Link
@@ -167,9 +180,12 @@ export function InstagramCenter() {
                   params={{ projectId: item.projectId }}
                   className="flex flex-col items-center gap-1"
                 >
-                  <span className="three-lights flex size-14 items-center justify-center rounded-full shadow-[var(--shadow-border)]">
-                    <span className="text-xs text-accent-fg">{contentKindLabel(item.kind).slice(0, 2)}</span>
-                  </span>
+                  <HighlightCover
+                    project={projectById[item.projectId]}
+                    brand={brand}
+                    urls={urls}
+                    fallback={contentKindLabel(item.kind).slice(0, 2)}
+                  />
                   <span className="w-full truncate text-xs text-muted">{item.label}</span>
                 </Link>
               </li>
@@ -207,7 +223,7 @@ export function InstagramCenter() {
         <section className="mt-6">
           <SectionHeader
             title="版面預覽"
-            hint="像 IG 一樣看整體是不是一致"
+            hint="九宮格只放貼文與輪播。限動與 Reels 在上面的精選圓圈。"
             action={
               <div className="flex gap-1 rounded-full bg-surface-2 p-0.5">
                 <button
@@ -255,12 +271,31 @@ export function InstagramCenter() {
                 </Button>
               }
             />
+          ) : gridView === "story" ? (
+            <IgStoryPreview projects={phoneStories} brand={brand} urls={urls} />
+          ) : gridPosts.length === 0 ? (
+            <EmptyBlock
+              text="還沒有貼文可以排進九宮格。限動與 Reels 會出現在上面的精選圓圈。"
+              action={
+                <Button asChild size="sm">
+                  <Link to="/create" search={{ from: "idea" }}>
+                    <Sparkles className="size-4" />
+                    寫一篇貼文
+                  </Link>
+                </Button>
+              }
+            />
           ) : gridView === "grid" ? (
-            <ul className="grid grid-cols-3 gap-1">
-              {feed.map((project) => {
+            <ul className="grid grid-cols-3 gap-1" data-testid="ig-grid">
+              {gridPosts.map((project) => {
                 const board = project.artboards[project.activeFormatId];
                 return (
-                  <li key={project.id} className="relative aspect-square overflow-hidden bg-surface-2">
+                  <li
+                    key={project.id}
+                    className="relative aspect-square overflow-hidden bg-surface-2"
+                    data-testid="ig-grid-cell"
+                    data-kind={project.contentKind}
+                  >
                     <Link
                       to="/studio/$projectId"
                       params={{ projectId: project.id }}
@@ -279,10 +314,8 @@ export function InstagramCenter() {
                 );
               })}
             </ul>
-          ) : gridView === "feed" ? (
-            <IgFeedPreview projects={phoneFeed} brand={brand} urls={urls} />
           ) : (
-            <IgStoryPreview projects={phoneStories} brand={brand} urls={urls} />
+            <IgFeedPreview projects={gridPosts} brand={brand} urls={urls} />
           )}
         </section>
       ) : null}
@@ -335,9 +368,9 @@ export function InstagramCenter() {
             />
           ) : null}
           {!loading && !connected && !igPosts.length ? (
-            feed.length ? (
+            igHistory.length ? (
               <p className="text-xs text-subtle">
-                還沒連接 Instagram。連接之後才有真實貼文；下面是這個工作室裡做過的內容，可以延續語氣再寫一篇。
+                還沒連接 Instagram。連接之後才有真實貼文；下面是這個工作室裡做過的 IG 內容，可以延續語氣再寫一篇。
               </p>
             ) : (
               <EmptyBlock
@@ -353,9 +386,9 @@ export function InstagramCenter() {
               />
             )
           ) : null}
-          {feed.length ? (
+          {igHistory.length ? (
             <ul className={igPosts.length || !connected ? "mt-3 space-y-2" : "space-y-2"}>
-              {feed.map((project) => (
+              {igHistory.map((project) => (
                 <li
                   key={project.id}
                   className="flex flex-wrap items-start justify-between gap-2 rounded-2xl surface-card p-3"
@@ -585,6 +618,39 @@ export function InstagramCenter() {
         </section>
       ) : null}
     </main>
+  );
+}
+
+function HighlightCover({
+  project,
+  brand,
+  urls,
+  fallback,
+}: {
+  project?: Project;
+  brand?: BrandKit;
+  urls: Record<string, string>;
+  fallback: string;
+}) {
+  const board = project?.artboards[project.activeFormatId];
+  return (
+    <span
+      data-testid="ig-highlight"
+      className="three-lights flex size-14 items-center justify-center rounded-full p-1 shadow-[var(--shadow-border)]"
+    >
+      <span className="relative size-full overflow-hidden rounded-full bg-surface-2">
+        {board && brand ? (
+          <span
+            data-testid="ig-highlight-cover"
+            className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          >
+            <ArtboardView artboard={board} brand={brand} urls={urls} width={56} />
+          </span>
+        ) : (
+          <span className="flex size-full items-center justify-center text-xs text-accent-fg">{fallback}</span>
+        )}
+      </span>
+    </span>
   );
 }
 

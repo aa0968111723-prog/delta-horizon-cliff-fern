@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { igFeedPostCount, igHighlights, isHighlightKind, storyPreviewProjects } from "./ig-profile.ts";
+import {
+  igFeedPostCount,
+  igGridProjects,
+  igHighlights,
+  isHighlightKind,
+  isIgFeedKind,
+  storyPreviewProjects,
+} from "./ig-profile.ts";
 
 const copy = {
   eyebrow: "",
@@ -33,6 +40,16 @@ test("isHighlightKind keeps stories off the feed grid count", () => {
   assert.equal(isHighlightKind("ig-post"), false);
 });
 
+test("isIgFeedKind keeps LINE and Threads off the Instagram grid", () => {
+  assert.equal(isIgFeedKind("ig-post"), true);
+  assert.equal(isIgFeedKind("carousel"), true);
+  assert.equal(isIgFeedKind("knowledge"), true);
+  assert.equal(isIgFeedKind("story"), false);
+  assert.equal(isIgFeedKind("reels"), false);
+  assert.equal(isIgFeedKind("line"), false);
+  assert.equal(isIgFeedKind("threads"), false);
+});
+
 test("storyPreviewProjects skips ideas and feed posts", () => {
   const rows = storyPreviewProjects([
     { status: "done" as const, contentKind: "story" as const },
@@ -45,14 +62,29 @@ test("storyPreviewProjects skips ideas and feed posts", () => {
   assert.equal(rows[1]?.contentKind, "reels");
 });
 
-test("igFeedPostCount skips ideas and highlight kinds", () => {
+test("igFeedPostCount skips ideas, highlights, LINE and Threads", () => {
   assert.equal(
     igFeedPostCount([
       { status: "done", contentKind: "ig-post" },
       { status: "published", contentKind: "carousel" },
       { status: "done", contentKind: "story" },
       { status: "idea", contentKind: "ig-post" },
+      { status: "done", contentKind: "line" },
+      { status: "published", contentKind: "threads" },
     ]),
     2,
+  );
+});
+
+test("igGridProjects only returns Instagram feed posts", () => {
+  const rows = igGridProjects([
+    { status: "done" as const, contentKind: "ig-post" as const },
+    { status: "done" as const, contentKind: "story" as const },
+    { status: "making" as const, contentKind: "line" as const },
+    { status: "published" as const, contentKind: "carousel" as const },
+  ]);
+  assert.deepEqual(
+    rows.map((row) => row.contentKind),
+    ["ig-post", "carousel"],
   );
 });

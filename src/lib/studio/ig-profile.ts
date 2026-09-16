@@ -1,6 +1,8 @@
 import type { ContentKind, Project } from "./types.ts";
 
 const HIGHLIGHT_KINDS = new Set<ContentKind>(["story", "countdown", "poll", "reels"]);
+/** Threads／LINE 不是 IG 九宮格上的貼文。 */
+const OFF_GRID_KINDS = new Set<ContentKind>(["threads", "line"]);
 
 export type IgHighlight = {
   id: string;
@@ -8,6 +10,15 @@ export type IgHighlight = {
   projectId: string;
   kind: ContentKind;
 };
+
+export function isHighlightKind(kind: ContentKind): boolean {
+  return HIGHLIGHT_KINDS.has(kind);
+}
+
+/** IG 個人頁九宮格／動態：貼文、輪播、知識卡；不含限動、Reels、Threads、LINE。 */
+export function isIgFeedKind(kind: ContentKind): boolean {
+  return !HIGHLIGHT_KINDS.has(kind) && !OFF_GRID_KINDS.has(kind);
+}
 
 export function igHighlights(
   projects: Array<Pick<Project, "id" | "name" | "contentKind" | "copy" | "status">>,
@@ -26,12 +37,12 @@ export function igHighlights(
   return out;
 }
 
-export function igFeedPostCount(projects: Array<Pick<Project, "status" | "contentKind">>): number {
-  return projects.filter((project) => project.status !== "idea" && !HIGHLIGHT_KINDS.has(project.contentKind)).length;
+export function igGridProjects<T extends Pick<Project, "status" | "contentKind">>(projects: T[]): T[] {
+  return projects.filter((project) => project.status !== "idea" && isIgFeedKind(project.contentKind));
 }
 
-export function isHighlightKind(kind: ContentKind): boolean {
-  return HIGHLIGHT_KINDS.has(kind);
+export function igFeedPostCount(projects: Array<Pick<Project, "status" | "contentKind">>): number {
+  return igGridProjects(projects).length;
 }
 
 /** 限動／Reels 直式預覽：跳過還只是想法的。 */

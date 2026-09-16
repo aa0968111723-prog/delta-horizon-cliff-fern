@@ -685,6 +685,35 @@ try {
   await expectText("IG 網格切換", "網格");
   await expectText("IG 貼文切換", "貼文");
   await expectText("IG 限動切換", "限動");
+  await expectText("IG 九宮格說明", "九宮格只放貼文");
+  const highlightCovers = await page.locator("[data-testid=ig-highlight-cover]").count();
+  record(
+    "IG 精選圓圈有封面",
+    highlightCovers > 0,
+    highlightCovers > 0 ? `${highlightCovers} 個精選封面` : "精選圓圈沒有畫面",
+  );
+  const highlightPortrait = await page.locator('[data-testid=ig-highlight-cover] [data-ratio="9:16"]').count();
+  record(
+    "IG 精選封面是直式",
+    highlightPortrait > 0,
+    highlightPortrait > 0 ? `${highlightPortrait} 張 9:16` : "精選封面不是 9:16",
+  );
+  const gridKinds = await page.locator("[data-testid=ig-grid-cell]").evaluateAll((els) =>
+    els.map((el) => el.getAttribute("data-kind") ?? ""),
+  );
+  const offGrid = gridKinds.filter((kind) =>
+    ["story", "reels", "line", "threads", "countdown", "poll"].includes(kind),
+  );
+  record(
+    "IG 網格只有貼文",
+    gridKinds.length > 0 && offGrid.length === 0,
+    gridKinds.length
+      ? offGrid.length
+        ? `不該出現 ${offGrid.join("、")}`
+        : `格子 ${gridKinds.join("、")}`
+      : "九宮格是空的",
+  );
+  await page.screenshot({ path: `${prefix}-ig-profile.png` });
   await page.getByRole("button", { name: "貼文" }).evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );
