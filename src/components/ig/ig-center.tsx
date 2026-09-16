@@ -14,6 +14,7 @@ import { academicMoment } from "@/lib/club/season";
 import { analyzeIgMemoryPost, applyStudentSimToCopy } from "@/lib/club/ig-analyze";
 import { captionFromProject } from "@/lib/creative/publish";
 import { coverFromSourceRefs, followPublishedSlot, igGridSlots, upcomingSlotId, upcomingStatusCopy, type IgGridSlot } from "@/lib/creative/ig-feed";
+import { contentKindLabel } from "@/lib/studio/content";
 import { planPreviewSchedule } from "@/lib/creative/schedule";
 import { syncConnectionMemory } from "@/lib/connect/oauth";
 import { uid } from "@/lib/studio/ids";
@@ -230,7 +231,7 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
         {active.origin === "published" || active.scheduledAt
           ? `${format(active.takenAt, "yyyy.MM.dd", { locale: zhTW })} · `
           : ""}
-        {active.mediaType}
+        {activeProject ? contentKindLabel(activeProject.contentKind) : igMediaLabel(active.mediaType)}
       </p>
       <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed">{active.caption}</pre>
       {active.origin === "published" ? (
@@ -423,6 +424,12 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
       </section>
     </main>
   );
+}
+
+function igMediaLabel(mediaType: IgGridSlot["mediaType"]) {
+  if (mediaType === "carousel") return "Carousel";
+  if (mediaType === "reels") return "Reels";
+  return "IG 貼文";
 }
 
 function GridCell({

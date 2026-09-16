@@ -907,6 +907,7 @@ export function CreateStudio({
       toast.message("先生成一張圖，再去 IG 預覽");
       return;
     }
+    toast.dismiss();
     void navigate({ to: "/ig", search: { item: id } });
   }
 
@@ -1381,6 +1382,34 @@ export function CreateStudio({
             >
               用這個方向做完整宣傳
             </Button>
+          </div>
+          <div data-poster-convert="">
+            <h2 className="text-sm font-medium">這一張再轉一版</h2>
+            <p className="mt-1 text-xs text-muted">不用先做完整宣傳。Carousel、Story、Threads、Reels 可以從這張直接拆。</p>
+            <ConvertPreview
+              title={pack.plan.campaignName}
+              hook={pack.plan.hook}
+              body={pack.plan.body}
+              when={campaign ? `${campaign.date} ${campaign.time}` : pack.plan.subhead}
+              where={campaign?.location}
+              cta={pack.plan.cta}
+              onSchedule={(kind, kit) => {
+                const next = mergeConvert(pack, kind, kit);
+                setPack(next);
+                persistSession({ pack: next, posterOnly: true });
+                const contentKind = CONVERT_TO_KIND[kind] ?? "carousel";
+                applyToStudio(true, {
+                  kind: contentKind,
+                  nextPack: next,
+                  single: true,
+                  heroSrc: coverForKind(contentKind, { feed: imageSrc, story: reelsCoverSrc }),
+                  heroAssetId: coverForKind(contentKind, {
+                    feed: lastAsset.current.feed,
+                    story: lastAsset.current.story,
+                  }),
+                });
+              }}
+            />
           </div>
         </section>
       ) : null}
@@ -1966,7 +1995,7 @@ function ConvertPreview({
     <div className="mt-2">
       <div className="flex flex-wrap gap-2">
         {Object.entries(labels).map(([kind, label]) => (
-          <Button key={kind} size="sm" variant={open === kind ? "default" : "secondary"} onClick={() => void run(kind)}>
+          <Button key={kind} className="min-h-11 rounded-full" variant={open === kind ? "default" : "secondary"} onClick={() => void run(kind)}>
             {label}
           </Button>
         ))}
