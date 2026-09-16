@@ -98,6 +98,7 @@ try {
   await page.waitForSelector("summary:has-text('圖片 Prompt')", { timeout: 30000 });
   const dirs = await page.locator("summary", { hasText: "圖片 Prompt" }).count();
   record("視覺方向數量", dirs >= 3, `只有 ${dirs} 個`);
+  await expectText("視覺方向可用示範照片", "點照片也能當主視覺");
   await page.screenshot({ path: `${prefix}-visual.png` });
 
   // 6. 用這版 → 建立內容
@@ -106,6 +107,15 @@ try {
   );
   await page.waitForTimeout(1200);
   await expectText("建立內容後回到創作頁", "進畫面編輯");
+  await tap(page.getByRole("button", { name: "IG 1:1" }).first());
+  await tap(page.getByRole("button", { name: "淡水河傍晚 當主視覺" }).first());
+  await page.waitForTimeout(500);
+  const afterCreateHero = await text();
+  record(
+    "創作頁 1:1 主視覺",
+    afterCreateHero.includes("已套成 1:1") || afterCreateHero.includes("1:1 主視覺"),
+    "選 1:1 再點淡水河傍晚之後沒有換成主視覺",
+  );
   await expectText("來源標示", "這則用到的來源");
   await expectText("完成這則", "這則完成了");
   await expectText("發文包", "複製發文文案");

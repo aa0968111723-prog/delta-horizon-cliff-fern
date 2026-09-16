@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PhotoHeroButtons } from "@/components/editor/hero-photo-strip";
 import { generateImage, type VisualDirection } from "@/lib/ai/image-ai";
 import { saveGeneratedImage } from "@/lib/studio/generated-image";
 import type { ImageRatio } from "@/lib/studio/wave-draft";
@@ -157,6 +158,12 @@ export function VisualDirectionCard({
             </Button>
           ) : null}
         </div>
+        {onImageSaved ? (
+          <div className="space-y-1.5">
+            <p className="text-xs text-subtle">沒有生成時，點照片也能當主視覺。</p>
+            <PhotoHeroButtons onPick={(assetId) => onImageSaved(assetId, ratio)} />
+          </div>
+        ) : null}
       </div>
     </article>
   );
