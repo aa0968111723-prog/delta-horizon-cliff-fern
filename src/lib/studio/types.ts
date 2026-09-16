@@ -453,11 +453,6 @@ export type Project = {
   templateId: TemplateId;
   activeFormatId: FormatId;
   status: ProjectStatus;
-  campaignId: string | null;
-  contentKind: ContentKind;
-  contentStatus: ContentStatus;
-  scheduledAt: number | null;
-  publishedAt: number | null;
   brief: Brief;
   copy: CopyDeck;
   plan: CampaignPlan | null;

@@ -14,12 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { writeHandoff } from "@/lib/create/handoff";
-import { generateStudioImage } from "@/lib/image/studio";
-import { ASSET_CATEGORIES, createGeneratedAsset, kindFromCategory, sourceLabel, usageLabel } from "@/lib/studio/assets";
-import { getAssetStorage } from "@/lib/studio/asset-storage";
-import { formatById } from "@/lib/studio/formats";
-import { uid } from "@/lib/studio/ids";
+import { ASSET_CATEGORIES, sourceLabel, usageLabel } from "@/lib/studio/assets";
+import { kindFromCategory } from "@/lib/studio/assets";
 import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
 import { LAUNCH_ACTIONS, launchSuccessMessage } from "@/lib/zen/from-asset";
 import { useStudio } from "@/stores/studio-store";
@@ -41,7 +37,6 @@ export function AssetDetailSheet({
 }) {
   const navigate = useNavigate();
   const updateAsset = useStudio((s) => s.updateAsset);
-  const addAsset = useStudio((s) => s.addAsset);
   const placeAsset = useStudio((s) => s.placeAsset);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
@@ -67,94 +62,6 @@ export function AssetDetailSheet({
     toast.success(`已放入「${current.name}」`);
     onOpenChange(false);
     void navigate({ to: "/studio/$projectId", params: { projectId: lastProjectId } });
-  }
-
-  async function dataUrl() {
-    return loadAssetDataUrl({ id: current.id, seedSrc: current.seedSrc, previewUrl: url });
-  }
-
-  function goCreate(tab: "campaign" | "copy" | "image" | "vision" | "convert", idea: string, extra?: { convertKind?: ReturnType<typeof convertKindFromAction> }) {
-    writeHandoff({
-      idea,
-      tab,
-      assetId: current.id,
-      sourceLabel: `${sourceLabel(current.source)} / ${current.name}`,
-      convertKind: extra?.convertKind,
-    });
-    onOpenChange(false);
-    void navigate({ to: "/create", search: { tab } });
-  }
-
-  async function analyze() {
-    setBusy(true);
-    try {
-      const image = await dataUrl();
-      if (!image) {
-        toast.error("找不到這張圖的檔案");
-        return;
-      }
-      const result = await analyzeImage({
-        data: {
-          imageDataUrl:
-            compactDataUrl(image, 5_500_000) ||
-            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-          note: `${current.name} ${current.tags.join(" ")}`.slice(0, 240),
-        },
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      setReport(result.report);
-      const tags = mergeAssetTags(current.tags, tagsFromVision(result.report, [current.name]));
-      updateAsset(current.id, { tags });
-      toast.success("已分析並加上 AI 標籤");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function extend(action: "similar" | "continue") {
-    setBusy(true);
-    try {
-      const image = await dataUrl();
-      const prompt = report
-        ? promptFromVision(report, action)
-        : `延續「${current.name}」的風格，做新的淡江禪學社主視覺。${current.tags.join(" ")}`;
-      const editUrl = image ? compactDataUrl(image) : null;
-      const result = await generateStudioImage({
-        data: {
-          prompt: prompt.slice(0, 1200),
-          headline: report?.hierarchy?.slice(0, 24) || "最近是不是很久沒有好好坐下來？",
-          eventName: current.name.slice(0, 40),
-          editUrls: editUrl ? [editUrl] : undefined,
-        },
-      });
-      const nextUrl = result.urls[0];
-      if (!nextUrl) {
-        toast.error("圖片暫時無法生成");
-        return;
-      }
-      const res = await fetch(nextUrl);
-      const blob = await res.blob();
-      const id = uid("asset");
-      await getAssetStorage().put(id, blob);
-      const format = formatById("feed-portrait");
-      addAsset(
-        createGeneratedAsset({
-          id,
-          name: `${action === "similar" ? "相似視覺" : "風格延伸"} · ${current.name}`,
-          mime: blob.type || "image/png",
-          width: format.width,
-          height: format.height,
-          category: current.category === "logo" ? "poster" : current.category,
-          tags: mergeAssetTags(["AI生成", "延伸", current.name], current.tags),
-        }),
-      );
-      toast.success(`已存進素材庫 · 來源：AI Generated（參考 ${sourceLabel(current.source)} / ${current.name}）`);
-    } finally {
-      setBusy(false);
-    }
   }
 
   return (
@@ -237,15 +144,6 @@ export function AssetDetailSheet({
             placeholder="例如：淡江禪學社、社員姓名"
           />
         </div>
-        {report ? (
-          <div className="rounded-2xl bg-bg p-3 text-sm">
-            <p className="font-medium">AI 分析</p>
-            <p className="mt-2 text-muted">{report.content}</p>
-            <p className="mt-1 text-xs text-muted">品牌感：{report.brandFeel}</p>
-            <p className="mt-1 text-xs text-muted">學生感：{report.studentFeel}</p>
-            <p className="mt-1 text-xs text-muted">太宗教？{report.tooReligious}</p>
-          </div>
-        ) : null}
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
         <div className="flex flex-wrap gap-2">
           <Button
