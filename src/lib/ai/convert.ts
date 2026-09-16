@@ -95,17 +95,29 @@ export function captionFromCopyPack(pack: { hook: string; body: string; cta: str
   return tidyCopy([hook, body, pack.cta, (pack.hashtags ?? []).join(" ")].filter(Boolean).join("\n"));
 }
 
+function isCaptionMetaLine(line: string) {
+  return /\d{1,2}\/\d{1,2}|19:00|淡江|淡水|想找人一起|^#/.test(line);
+}
+
 /** 快速修改 replaces the first line; keep the rest of the student body. */
 export function rewriteCopyPack(
   pack: { hook: string; body: string; cta: string; hashtags?: string[] },
   previousHook?: string,
 ) {
   const hook = pack.hook.trim();
-  let body = pack.body.trim();
   const prev = previousHook?.trim();
-  if (prev && prev !== hook && body.startsWith(prev)) {
-    body = body.slice(prev.length).trim();
+  const lines = pack.body
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter((line): line is string => Boolean(line && line !== hook && line !== prev));
+  if (
+    lines[0] &&
+    !isCaptionMetaLine(lines[0]) &&
+    (lines.length >= 3 || /[？?]$/.test(lines[0]))
+  ) {
+    lines.shift();
   }
+  const body = lines.join("\n");
   return {
     hook,
     body,

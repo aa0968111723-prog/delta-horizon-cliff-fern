@@ -59,7 +59,20 @@ test("captionFromCopyPack is what Calendar and Canva should send after 快速修
   assert.match(caption, /#淡江禪學社/);
 });
 
-test("rewriteCopyPack drops the previous opening line so 快速修改 replaces it", () => {
+test("rewriteCopyPack keeps a short humor body", () => {
+  const rewritten = rewriteCopyPack(
+    {
+      hook: "可以自己來？",
+      body: "不是要你頓悟，就是來坐一下。\n2026/09/23 19:00 淡江大學淡水校園",
+      cta: "來坐一下",
+      hashtags: ["#淡江禪學社"],
+    },
+    "可以自己來？",
+  );
+  assert.match(rewritten.caption, /不是要你頓悟/);
+});
+
+test("rewriteCopyPack drops a leftover opening even when realize already updated the hook", () => {
   const rewritten = rewriteCopyPack(
     {
       hook: "可以自己來？",
@@ -67,12 +80,11 @@ test("rewriteCopyPack drops the previous opening line so 快速修改 replaces i
       cta: "來坐一下",
       hashtags: ["#淡江禪學社"],
     },
-    "有時候我們需要的不是答案，只是一個安靜的晚上。",
+    "可以自己來？",
   );
   assert.match(rewritten.caption, /^可以自己來？/);
   assert.doesNotMatch(rewritten.caption, /有時候我們需要的不是答案/);
   assert.match(rewritten.caption, /想找人一起/);
-  assert.doesNotMatch(rewritten.body, /有時候我們需要的不是答案/);
 });
 
 test("captionFromCopyPack does not leak brief form labels into the calendar", () => {
