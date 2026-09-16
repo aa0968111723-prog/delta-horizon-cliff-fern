@@ -29,6 +29,7 @@ import { QualityPanel } from "@/components/qa/quality-panel";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SaveIndicator } from "@/components/shared/save-indicator";
 import { ContentFlowBar } from "@/components/shared/content-flow";
+import { SourceList } from "@/components/shared/source-list";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -201,8 +202,9 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
           {qa.score}
         </button>
       </header>
-      <div className="shrink-0 overflow-x-auto border-b border-border bg-surface px-3 py-2">
+      <div className="shrink-0 space-y-2 overflow-x-auto border-b border-border bg-surface px-3 py-2">
         <ConvertBar project={project} variant="compact" />
+        <SourceList sources={project.sources} />
       </div>
 
       <div className="flex h-0 min-h-0 flex-1">

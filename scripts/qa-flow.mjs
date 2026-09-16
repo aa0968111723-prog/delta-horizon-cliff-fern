@@ -254,7 +254,7 @@ try {
     .evaluate((el) => (el instanceof HTMLElement ? el.click() : undefined));
   await page.waitForURL(/\/studio\//, { timeout: 15000 });
   await page.waitForLoadState("networkidle");
-  await tap(page.getByRole("tab", { name: "文字" }));
+  await page.waitForSelector("text=這則用到的來源", { timeout: 10000 });
   await expectText("做成限動來源", "這則用到的來源");
   await page.screenshot({ path: `${prefix}-from-image.png` });
 
