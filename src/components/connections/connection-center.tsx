@@ -148,7 +148,7 @@ export function ConnectionCenter() {
   const importBlocked = driveImportBlockedReason(status);
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full min-w-0 max-w-5xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
         kicker="禪作所"
         title="連接"

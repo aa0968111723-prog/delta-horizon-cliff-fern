@@ -38,7 +38,13 @@ export function InstagramCenter({
   const [insightsNote, setInsightsNote] = useState("官方 Insights 尚未授權。這裡不會顯示模擬數據。");
   const [insights, setInsights] = useState<InstagramInsightsSnapshot | null>(null);
   const [canRequestInsights, setCanRequestInsights] = useState(false);
-  const [tab, setTab] = useState("memory");
+  const [tab, setTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.replace("#", "");
+      if (["memory", "preview", "reels", "insights", "learn"].includes(hash)) return hash;
+    }
+    return projectId ? "preview" : "memory";
+  });
   const [query, setQuery] = useState("");
   const locationHash = useRouterState({ select: (state) => state.location.hash });
 
@@ -100,11 +106,11 @@ export function InstagramCenter({
   }, [items, query]);
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
         kicker={username ? `@${username}` : "IG 內容記憶"}
         title="Instagram"
-        description="回看已授權的貼文、預覽 Studio 畫面、整理 Reels 腳本。沒有連接時不會假裝有貼文或觀看次數。"
+        description="回看已授權的貼文、預覽這則網宣的 Studio 畫面與文案。沒有連接時不會假裝有貼文或成效數字。"
         actions={<BrandSubnav current="connections" />}
       />
 
@@ -118,15 +124,17 @@ export function InstagramCenter({
           setTab(next);
           window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}#${next}`);
         }}
-        className="mt-6"
+        className="mt-6 min-w-0"
       >
-        <TabsList className="h-auto min-h-11 w-full justify-start overflow-x-auto">
-          <TabsTrigger value="memory" className="min-h-11 shrink-0">內容記憶</TabsTrigger>
-          <TabsTrigger value="preview" className="min-h-11 shrink-0">IG 預覽</TabsTrigger>
-          <TabsTrigger value="reels" className="min-h-11 shrink-0">Reels</TabsTrigger>
-          <TabsTrigger value="learn" className="min-h-11 shrink-0">現場筆記</TabsTrigger>
-          <TabsTrigger value="insights" className="min-h-11 shrink-0">Insights</TabsTrigger>
-        </TabsList>
+        <div className="min-w-0 overflow-x-auto">
+          <TabsList className="h-auto min-h-11 w-max min-w-full flex-nowrap justify-start">
+            <TabsTrigger value="memory" className="min-h-11 shrink-0">內容記憶</TabsTrigger>
+            <TabsTrigger value="preview" className="min-h-11 shrink-0">IG 預覽</TabsTrigger>
+            <TabsTrigger value="reels" className="min-h-11 shrink-0">Reels</TabsTrigger>
+            <TabsTrigger value="learn" className="min-h-11 shrink-0">現場筆記</TabsTrigger>
+            <TabsTrigger value="insights" className="min-h-11 shrink-0">Insights</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="memory" className="mt-5">
           {status === "unavailable" ? (
@@ -185,7 +193,7 @@ export function InstagramCenter({
         </TabsContent>
 
         <TabsContent value="reels" className="mt-5">
-          <ReelsStudio projectId={lastProjectId ?? undefined} />
+          <ReelsStudio projectId={projectId ?? lastProjectId ?? undefined} />
         </TabsContent>
 
         <TabsContent value="learn" className="mt-5">
@@ -234,7 +242,7 @@ export function InstagramCenter({
               <h2 className="mt-3 font-display text-2xl">不會顯示模擬成效</h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-muted">{insightsNote}</p>
               <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
-                沒有官方 Insights 時，不會用模擬讚數或觀看次數來教你下次怎麼寫。改用社團自己的現場筆記。
+                沒有官方 Insights 時，不會用模擬數字來教你下次怎麼寫。改用社團自己的現場筆記。
               </p>
               <Button className="mt-5 min-h-11" variant="secondary" onClick={() => setTab("learn")}>
                 打開現場筆記

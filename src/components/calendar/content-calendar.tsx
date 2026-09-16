@@ -75,7 +75,7 @@ export function ContentCalendar() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
         kicker="一人節奏"
         title="排程"
@@ -143,7 +143,7 @@ export function ContentCalendar() {
         <CreationLoop current="schedule" />
       </div>
 
-      <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+      <div className="mt-4 flex flex-nowrap gap-2 overflow-x-auto pb-1">
         <FilterChip active={campaignId === "all"} onClick={() => setCampaignId("all")}>全部活動</FilterChip>
         {campaigns.map((campaign) => (
           <FilterChip key={campaign.id} active={campaignId === campaign.id} onClick={() => setCampaignId(campaign.id)}>
@@ -322,16 +322,16 @@ function AgendaRow({
 }) {
   const plan = contentOpenPlan(item);
   return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-xl bg-bg p-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex min-w-0 flex-col gap-3 rounded-xl bg-bg p-3 sm:flex-row sm:items-start sm:justify-between">
       <button type="button" className="min-w-0 text-left" data-testid="calendar-open-work" onClick={() => onOpen()}>
         <div className="flex flex-wrap items-center gap-2">
           <Badge>{item.type}</Badge>
           <span className="text-xs text-muted">{campaignName}</span>
         </div>
-        <p className="mt-1 font-medium">{item.title}</p>
-        <p className="mt-1 text-xs text-muted">{item.angle}</p>
+        <p className="mt-1 break-words font-medium">{item.title}</p>
+        <p className="mt-1 text-xs leading-5 text-muted">{item.angle}</p>
       </button>
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-col gap-2 sm:items-end">
         <input
           type="date"
           data-testid="calendar-reschedule"
@@ -341,26 +341,28 @@ function AgendaRow({
             if (!event.target.value) return;
             onMove(event.target.value);
           }}
-          className="h-11 min-h-11 w-full min-w-0 max-w-full rounded-md border border-border bg-surface px-3 text-sm sm:w-auto"
+          className="h-11 min-h-11 w-full min-w-0 max-w-full rounded-md border border-border bg-surface px-3 text-sm sm:w-40"
         />
-        <Button size="sm" className="min-h-11" data-testid="calendar-open-primary" onClick={() => onOpen()}>
-          {contentOpenLabel(plan)}
-        </Button>
-        {plan.hasWork && plan.kind === "studio" ? (
-          <Button size="sm" className="min-h-11" variant="secondary" onClick={() => onOpen("copy")}>
-            文案
+        <div className="flex min-w-0 flex-wrap gap-2">
+          <Button size="sm" className="min-h-11" data-testid="calendar-open-primary" onClick={() => onOpen()}>
+            {contentOpenLabel(plan)}
           </Button>
-        ) : null}
-        {plan.hasWork ? (
-          <Button size="sm" className="min-h-11" variant="secondary" onClick={() => onOpen("preview")}>
-            IG 預覽
-          </Button>
-        ) : null}
-        {(item.status === "complete" || item.status === "published" || item.status === "scheduled") ? (
-          <Button size="sm" className="min-h-11" variant="ghost" asChild>
-            <Link to="/instagram" hash="learn">現場筆記</Link>
-          </Button>
-        ) : null}
+          {plan.hasWork && plan.kind === "studio" ? (
+            <Button size="sm" className="min-h-11" variant="secondary" onClick={() => onOpen("copy")}>
+              文案
+            </Button>
+          ) : null}
+          {plan.hasWork ? (
+            <Button size="sm" className="min-h-11" variant="secondary" data-testid="calendar-open-preview" onClick={() => onOpen("preview")}>
+              IG 預覽
+            </Button>
+          ) : null}
+          {(item.status === "complete" || item.status === "published" || item.status === "scheduled") ? (
+            <Button size="sm" className="min-h-11" variant="ghost" asChild>
+              <Link to="/instagram" hash="learn">現場筆記</Link>
+            </Button>
+          ) : null}
+        </div>
       </div>
     </div>
   );

@@ -47,7 +47,7 @@ export function EnvironmentCard() {
             只顯示有沒有官方金鑰或授權，不會把 secret 送到瀏覽器。沒有的服務保持不可用，不會用模擬檔案或假 Grok 文字頂替。
           </p>
         </div>
-        <Button className="min-h-11" variant="secondary" disabled={busy} onClick={() => void runProbe()}>
+        <Button className="min-h-11 w-full shrink-0 sm:w-auto" variant="secondary" disabled={busy} onClick={() => void runProbe()}>
           {busy ? "檢查中…" : "檢查這個環境"}
         </Button>
       </div>

@@ -130,7 +130,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
       <div className="flex h-app min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-4">
         <EmptyState
           icon={Layers}
-          title="找不到這個專案"
+          title="找不到這則網宣"
           description="它可能已被刪除，或還沒同步到此裝置。"
           action={
             <Button asChild variant="secondary">

@@ -709,7 +709,7 @@ export function inspectProject(pages: Artboard[], brand: BrandKit, copy: CopyDec
         check: "headline",
         severity: "fail",
         title: "沒有畫布",
-        location: "作品",
+        location: "網宣",
         detail: "這個尺寸還沒有頁面。",
         suggestion: "先產生一頁或套用企劃。",
         pageIndex: 0,

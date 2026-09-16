@@ -40,8 +40,10 @@ export function IgPreview({
   const brand = brands.find((item) => item.id === project?.brandId) ?? brands[0];
   const artboard = project ? activeArtboard(project) : undefined;
   const touchX = useRef<number | null>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const [overlayIndex, setOverlayIndex] = useState(0);
   const [previewSurface, setPreviewSurface] = useState<IgSurface>("feed");
+  const [frameWidth, setFrameWidth] = useState(300);
   const appliedSurface = useRef<string>("");
 
   useEffect(() => {
@@ -95,6 +97,16 @@ export function IgPreview({
   }, [artboard, brand]);
   const urls = useAssetUrls(assetIds);
 
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    const measure = () => setFrameWidth(Math.max(160, Math.floor(el.clientWidth)));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [project?.id, previewSurface]);
+
   if (!project || !brand || !artboard || !preview) {
     return (
       <div className="rounded-3xl bg-surface p-8 text-center shadow-[var(--shadow-border)]">
@@ -116,6 +128,11 @@ export function IgPreview({
   const hashtags = preview.hashtags;
   const meter = captionMeter(caption, hashtags);
   const folded = !story && meter.overPreview;
+  const captionBody = hashtags
+    .reduce((text, tag) => text.split(tag).join(""), caption)
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  const tagsLine = hashtags.join(" ");
 
   function applySurface(next: IgSurface) {
     applySurfaceTo(project, next);
@@ -131,14 +148,13 @@ export function IgPreview({
     setSlide(project.id, next);
   }
 
+  const canvasWidth = tall ? Math.min(224, frameWidth) : frameWidth;
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
-      <div className="mx-auto w-full max-w-sm">
+    <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,auto)_minmax(0,1fr)]">
+      <div className="mx-auto w-full min-w-0 max-w-sm">
         <div
-          className={cn(
-            "overflow-hidden bg-fg p-3 text-bg shadow-[var(--shadow-artboard)]",
-            story ? "rounded-3xl" : "rounded-3xl",
-          )}
+          className="overflow-hidden rounded-3xl bg-fg p-3 text-bg shadow-[var(--shadow-artboard)]"
           data-testid="ig-phone-preview"
           data-ig-format={project.activeFormatId}
           data-ig-surface={surface}
@@ -178,9 +194,12 @@ export function IgPreview({
               </div>
             </div>
           )}
-          <div className={cn("relative overflow-hidden rounded-xl bg-bg", tall ? "mx-auto max-w-56" : "")}>
-            <div data-testid="ig-preview-canvas">
-              <ArtboardView artboard={artboard} brand={brand} urls={urls} width={tall ? 224 : 300} />
+          <div
+            ref={frameRef}
+            className={cn("relative overflow-hidden rounded-xl bg-bg", tall ? "mx-auto w-full max-w-56" : "w-full")}
+          >
+            <div className="mx-auto w-fit max-w-full" data-testid="ig-preview-canvas">
+              <ArtboardView artboard={artboard} brand={brand} urls={urls} width={canvasWidth} />
             </div>
             {reels ? (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -215,24 +234,29 @@ export function IgPreview({
               <Heart className="size-5" aria-hidden />
               <MessageCircle className="size-5" aria-hidden />
               <Send className="size-5" aria-hidden />
-              <span className="sr-only">預覽沒有讚數或觀看次數</span>
+              <span className="sr-only">圖示不含數字</span>
             </div>
           )}
           {story ? null : (
             <div className="mt-3 max-h-40 overflow-y-auto px-1 pb-2 text-sm leading-6 text-bg">
               <p className="whitespace-pre-line" data-testid="ig-preview-caption">
                 <span className="font-medium">{handle} </span>
-                {folded ? `${caption.split(/\n/)[0]?.slice(0, 125)}… 更多` : caption}
+                {folded ? `${captionBody.split(/\n/)[0]?.slice(0, 125)}… 更多` : captionBody}
               </p>
+              {tagsLine ? (
+                <p className="mt-2 break-words text-xs leading-5 text-bg/75" data-testid="ig-preview-hashtags">
+                  {tagsLine}
+                </p>
+              ) : null}
             </div>
           )}
         </div>
-        <p className="mt-3 text-center text-xs text-muted">
+        <p className="mt-3 text-center text-xs leading-5 text-muted">
           {reels
-            ? "這是這則網宣的 Reels 封面預覽，不是發文。沒有觀看次數，也不會上傳 Instagram。"
+            ? "這是這則網宣的 Reels 封面預覽，不是發文，也不會上傳 Instagram。"
             : story
-              ? "這是這則網宣的限動預覽，不是發文。沒有觀看次數。"
-              : "這是這則網宣的貼文預覽，不是發文。愛心圖示沒有讚數，也不會連到 Instagram 上傳。"}
+              ? "這是這則網宣的限動預覽，不是發文。"
+              : "這是這則網宣的貼文預覽，不是發文，也不會連到 Instagram 上傳。"}
         </p>
       </div>
       <div className="min-w-0 space-y-4">
@@ -258,7 +282,7 @@ export function IgPreview({
         ) : null}
         <div>
           <p className="text-xs text-muted">切換成轉換後的 Feed／Story／Reels</p>
-          <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1" data-testid="ig-preview-surfaces">
+          <div className="-mx-1 mt-2 flex flex-nowrap gap-2 overflow-x-auto px-1 pb-1" data-testid="ig-preview-surfaces">
             {IG_SURFACES.map((item) => (
               <button
                 key={item.id}
@@ -329,7 +353,7 @@ export function IgPreview({
         )}
         <Badge variant="default">這是預覽，不是發文</Badge>
         <p className="text-xs leading-5 text-muted">
-          畫面來自 Studio 畫布，文案來自這則網宣的 Caption。切換尺寸會套用 Feed／Story／Reels 轉換，不會發明讚數。
+          畫面來自 Studio 畫布，文案與 hashtag 來自這則網宣。切換尺寸會套用 Feed／Story／Reels 轉換，愛心只是圖示。
         </p>
       </div>
     </div>

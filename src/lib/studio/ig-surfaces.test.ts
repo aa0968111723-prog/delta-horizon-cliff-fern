@@ -81,7 +81,9 @@ function previewProject(patch: Partial<Project> = {}): Project {
 test("live preview prefers the caption they actually wrote, not a disconnected pack", () => {
   const preview = livePreviewCopy(previewProject(), "feed", 1);
   assert.match(preview.caption, /這是我剛改的貼文/);
+  assert.match(preview.caption, /#淡江禪學社/);
   assert.ok(preview.hashtags.includes("#淡江禪學社"));
+  assert.ok(preview.hashtags.includes("#淡江生活"));
   assert.doesNotMatch(preview.caption, /讚數|觀看次數|Insights/);
 });
 

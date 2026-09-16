@@ -19,8 +19,8 @@ function StudioIndex() {
     <main className="mx-auto flex w-full max-w-lg flex-col px-4 py-16">
       <EmptyState
         icon={PenTool}
-        title="還沒有可編輯的專案"
-        description="先從首頁建立作品，或用 AI 創作寫一份活動需求。"
+        title="還沒有可編輯的網宣"
+        description="先從首頁開始一則網宣，或用 AI 創作寫一份活動需求。"
         action={
           <div className="flex flex-wrap justify-center gap-2">
             <Button asChild>
