@@ -14,6 +14,7 @@ import {
   parseContainerId,
   parsePermalink,
   mediaInsightsUrl,
+  insightsKindFromMediaType,
   parseIgInsights,
   containerStatusUrl,
   parseContainerStatus,
@@ -78,7 +79,17 @@ test("parseIgUser reads professional account without tokens in payload", () => {
     mediaInsightsUrl("1789"),
     "https://graph.facebook.com/v21.0/1789/insights?metric=impressions,reach,saved,shares,plays",
   );
-  assert.doesNotMatch(mediaInsightsUrl("1789"), /access_token/);
+  assert.equal(
+    mediaInsightsUrl("1789", "story"),
+    "https://graph.facebook.com/v21.0/1789/insights?metric=impressions,reach,exits,replies",
+  );
+  assert.equal(
+    mediaInsightsUrl("1789", "reels"),
+    "https://graph.facebook.com/v21.0/1789/insights?metric=plays,reach,saved,shares",
+  );
+  assert.equal(insightsKindFromMediaType("REELS"), "reels");
+  assert.equal(insightsKindFromMediaType("STORY"), "story");
+  assert.doesNotMatch(mediaInsightsUrl("1789", "reels"), /access_token/);
   assert.deepEqual(
     parseIgInsights({
       data: [

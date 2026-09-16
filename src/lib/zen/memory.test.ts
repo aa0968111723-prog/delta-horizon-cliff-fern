@@ -48,6 +48,24 @@ test("official permalink turns published tea-party into Instagram memory", () =>
   assert.equal(memory.permalink, "https://www.instagram.com/p/tea1/");
 });
 
+test("published Reels memory points at the stored film, not only the cover", () => {
+  const memory = igMemoryFromSchedule({
+    id: "sch_reels",
+    projectId: "p1",
+    campaignId: "c1",
+    kind: "reels",
+    title: "Reels · 茶會",
+    scheduledAt: Date.parse("2026-09-17T19:00:00+08:00"),
+    publishedAt: Date.parse("2026-09-16T12:00:00+08:00"),
+    status: "published",
+    caption: "最近是不是很久沒有好好坐下來？",
+    imageAssetId: "asset_cover",
+    videoAssetId: "asset_film",
+  });
+  assert.equal(memory.kind, "reels");
+  assert.equal(memory.assetId, "asset_film");
+});
+
 test("stories and countdown publish as official Graph STORIES, Reels as REELS", () => {
   assert.equal(canGraphPublish("ig-post"), true);
   assert.equal(canGraphPublish("carousel"), true);

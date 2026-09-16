@@ -2,8 +2,9 @@ import { Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ASSET_DRAG_MIME, categoryLabel, sourceLabel, usageLabel } from "@/lib/studio/assets";
+import { ASSET_DRAG_MIME, categoryLabel, isVideoAsset, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import type { AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
+import { AssetMedia } from "@/components/shared/asset-media";
 import { cn } from "@/lib/utils";
 
 export function AssetCard({
@@ -40,11 +41,11 @@ export function AssetCard({
       <button type="button" onClick={onOpen} className="block w-full text-left" data-testid={`asset-open-${asset.id}`}>
         <div className="relative aspect-square bg-bg">
           {url && !broken ? (
-            <img
+            <AssetMedia
               src={url}
+              video={isVideoAsset(asset)}
               alt={asset.name}
               className="size-full object-cover"
-              draggable={false}
               onError={() => setBroken(true)}
             />
           ) : (

@@ -30,7 +30,7 @@ export const ASSET_CATEGORIES: {
   { id: "ai", label: "AI 生成", hint: "剛生出來的圖" },
   { id: "ig", label: "IG", hint: "曾發或預覽" },
   { id: "story-asset", label: "Story", hint: "限動畫面" },
-  { id: "reels", label: "Reels", hint: "封面與截幀" },
+  { id: "reels", label: "Reels", hint: "封面與短影音" },
   { id: "archive", label: "歷屆活動", hint: "舊檔可延伸" },
   { id: "illustration", label: "插圖", hint: "手繪與裝飾" },
   { id: "icon", label: "圖示", hint: "小標、符號" },
@@ -61,10 +61,19 @@ export function usageLabel(status: AssetUsageStatus) {
   return "未使用";
 }
 
+export function isVideoAsset(asset: { kind?: string; mime?: string }) {
+  return asset.kind === "video" || (asset.mime ?? "").startsWith("video/");
+}
+
 export function kindFromCategory(category: AssetCategory): AssetKind {
   if (category === "logo") return "logo";
   if (category === "background") return "pattern";
   return "image";
+}
+
+export function kindFromMime(mime: string | undefined, category: AssetCategory, kind?: AssetKind): AssetKind {
+  if (kind === "video" || (mime ?? "").startsWith("video/")) return "video";
+  return kind ?? kindFromCategory(category);
 }
 
 export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
@@ -73,6 +82,7 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
   }
   if (raw.kind === "logo") return "logo";
   if (raw.kind === "pattern") return "background";
+  if ((raw.mime ?? "").startsWith("video/") || raw.kind === "video") return "reels";
   const tags = (raw.tags ?? []).join(" ").toLowerCase();
   const name = (raw.name ?? "").toLowerCase();
   const blob = `${tags} ${name}`;
@@ -85,6 +95,7 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
   if (/插圖|illustration|handdrawn/.test(blob)) return "illustration";
   if (/圖示|icon|badge/.test(blob)) return "icon";
   if (/logo|標誌/.test(blob)) return "logo";
+  if (/reels|短影音/.test(blob)) return "reels";
   if (/生成|ai generated/.test(blob)) return "ai";
   return "photo";
 }
@@ -94,7 +105,7 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
   return {
     id: raw.id,
     name: raw.name,
-    kind: raw.kind ?? kindFromCategory(category),
+    kind: kindFromMime(raw.mime, category, raw.kind),
     category,
     mime: raw.mime ?? "image/jpeg",
     width: raw.width ?? 0,
@@ -132,7 +143,7 @@ export function createGeneratedAsset(input: {
   return migrateAsset({
     id: input.id,
     name: input.name,
-    kind: kindFromCategory(input.category ?? "icon"),
+    kind: kindFromMime(input.mime, input.category ?? "icon"),
     category: input.category ?? "icon",
     mime: input.mime,
     width: input.width,

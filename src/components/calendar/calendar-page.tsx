@@ -14,6 +14,8 @@ import { uid } from "@/lib/studio/ids";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
+import { AssetMedia } from "@/components/shared/asset-media";
+import { previewMediaId } from "@/lib/ai/reels-asset";
 import { ScheduleEditor } from "@/components/calendar/schedule-editor";
 
 type View = "month" | "week" | "agenda";
@@ -27,7 +29,9 @@ export function CalendarPage() {
   const upsertSchedule = useStudio((s) => s.upsertSchedule);
   const publishSchedule = useStudio((s) => s.publishSchedule);
   const setCreateOpen = useUi((s) => s.setCreateOpen);
-  const urls = useAssetUrls(schedule.map((item) => item.imageAssetId).filter((id): id is string => Boolean(id)));
+  const urls = useAssetUrls(
+    schedule.flatMap((item) => [item.imageAssetId, item.videoAssetId]).filter((id): id is string => Boolean(id)),
+  );
   const [cursor, setCursor] = useState(() => new Date());
   const [view, setView] = useState<View>("agenda");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -167,19 +171,21 @@ export function CalendarPage() {
                         <p className="truncate">
                           {contentKindLabel(item.kind)} · {item.title}
                         </p>
-                        {view !== "month" && item.imageAssetId && urls[item.imageAssetId] ? (
-                          <img
-                            src={urls[item.imageAssetId]}
+                        {view !== "month" && previewMediaId(item) && urls[previewMediaId(item)!] ? (
+                          <AssetMedia
+                            src={urls[previewMediaId(item)!]}
+                            video={Boolean(item.videoAssetId && previewMediaId(item) === item.videoAssetId)}
                             alt=""
-                            data-testid="schedule-thumb"
+                            testId="schedule-thumb"
                             className="mt-1 size-10 rounded-lg object-cover"
                           />
                         ) : null}
-                        {view === "month" && item.imageAssetId && urls[item.imageAssetId] ? (
-                          <img
-                            src={urls[item.imageAssetId]}
+                        {view === "month" && previewMediaId(item) && urls[previewMediaId(item)!] ? (
+                          <AssetMedia
+                            src={urls[previewMediaId(item)!]}
+                            video={Boolean(item.videoAssetId && previewMediaId(item) === item.videoAssetId)}
                             alt=""
-                            data-testid="schedule-thumb"
+                            testId="schedule-thumb"
                             className="mt-1 size-6 rounded-md object-cover"
                           />
                         ) : null}
@@ -227,11 +233,12 @@ export function CalendarPage() {
                   isDue(item) && "ring-1 ring-amber/40",
                 )}
               >
-                {item.imageAssetId && urls[item.imageAssetId] ? (
-                  <img
-                    src={urls[item.imageAssetId]}
+                {previewMediaId(item) && urls[previewMediaId(item)!] ? (
+                  <AssetMedia
+                    src={urls[previewMediaId(item)!]}
+                    video={Boolean(item.videoAssetId && previewMediaId(item) === item.videoAssetId)}
                     alt=""
-                    data-testid="schedule-thumb"
+                    testId="schedule-thumb"
                     className="size-14 shrink-0 rounded-xl object-cover"
                   />
                 ) : null}

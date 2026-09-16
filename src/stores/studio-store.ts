@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { buildCampaignBoards, copyForCarouselPage } from "@/lib/ai/apply";
 import { adaptArtboard, adaptPages, copyFromArtboard } from "@/lib/studio/adapt";
-import { migrateAsset, fitPlacedAsset } from "@/lib/studio/assets";
+import { migrateAsset, fitPlacedAsset, isVideoAsset } from "@/lib/studio/assets";
 import { createEmptyBrand, migrateBrand } from "@/lib/studio/brand";
 import { MAX_PLAN_VERSIONS, migrateBrief, migratePlan, migratePlanVersions } from "@/lib/studio/brief";
 import {
@@ -299,6 +299,7 @@ function migrateScheduleItem(raw: ScheduleItem): ScheduleItem {
     caption: raw.caption ?? seed?.caption ?? "",
     hashtags: raw.hashtags ?? seed?.hashtags ?? [],
     imageAssetId: raw.imageAssetId ?? seed?.imageAssetId,
+    videoAssetId: raw.videoAssetId,
   };
 }
 
@@ -314,6 +315,7 @@ function migrateCampaign(raw: ClubCampaign): ClubCampaign {
   return {
     ...raw,
     waves: (raw.waves ?? []).map(migrateWave),
+    videoAssetId: raw.videoAssetId,
   };
 }
 
@@ -437,6 +439,7 @@ export const useStudio = create<StudioState>()(
         const project = s.projects.find((p) => p.id === projectId);
         const asset = s.assets.find((a) => a.id === assetId);
         if (!project || !asset) return false;
+        if (isVideoAsset(asset)) return false;
         const brand = brandById(s.brands, project.brandId);
         const format = formatById(project.activeFormatId);
         const size = fitPlacedAsset(asset, format.width * 0.72, format.height * 0.55);
@@ -547,6 +550,7 @@ export const useStudio = create<StudioState>()(
           cta: input.cta ?? "來坐一下",
           signupUrl: input.signupUrl ?? "",
           imageAssetId: input.imageAssetId ?? null,
+          videoAssetId: input.videoAssetId,
           assetIds: input.assetIds ?? [],
           waves: input.waves ?? [],
           createdAt: Date.now(),

@@ -144,7 +144,7 @@ export type BrandKit = {
   updatedAt: number;
 };
 
-export type AssetKind = "image" | "logo" | "pattern";
+export type AssetKind = "image" | "logo" | "pattern" | "video";
 
 export type AssetCategory =
   | "photo"
@@ -526,6 +526,7 @@ export type ClubCampaign = {
   cta: string;
   signupUrl: string;
   imageAssetId: string | null;
+  videoAssetId?: string;
   assetIds: string[];
   waves: CampaignWave[];
   canvaDesignId?: string;
@@ -548,6 +549,7 @@ export type ScheduleItem = {
   hashtags?: string[];
   mediaUrl?: string;
   imageAssetId?: string;
+  videoAssetId?: string;
   permalink?: string;
   igMediaId?: string;
   canvaDesignId?: string;

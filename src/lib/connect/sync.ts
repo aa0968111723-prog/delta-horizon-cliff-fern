@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { IgMemoryPost, RemoteFile } from "@/lib/studio/types";
 import { driveContainsQuery, igPostsMatchingQuery, remoteMatchesQuery } from "@/lib/zen/search";
 import { driveQueryEscape } from "./escape";
-import { mediaInsightsUrl, parseIgInsights } from "./instagram-graph";
+import { mediaInsightsUrl, parseIgInsights, insightsKindFromMediaType } from "./instagram-graph";
 import { accessTokenFor, writeBundle } from "./tokens";
 
 type SyncResult = {
@@ -91,8 +91,8 @@ type IgMedia = {
   comments_count?: number;
 };
 
-async function igInsights(token: string, mediaId: string) {
-  const res = await fetch(`${mediaInsightsUrl(mediaId)}&access_token=${encodeURIComponent(token)}`);
+async function igInsights(token: string, mediaId: string, kind: "feed" | "story" | "reels" = "feed") {
+  const res = await fetch(`${mediaInsightsUrl(mediaId, kind)}&access_token=${encodeURIComponent(token)}`);
   if (!res.ok) return {};
   return parseIgInsights(await res.json());
 }
@@ -126,7 +126,7 @@ async function listInstagram(
   const files: RemoteFile[] = [];
   for (const post of json.data ?? []) {
     const stats =
-      opts?.insights === false ? {} : await igInsights(token, post.id).catch(() => ({} as Record<string, number>));
+      opts?.insights === false ? {} : await igInsights(token, post.id, insightsKindFromMediaType(post.media_type)).catch(() => ({} as Record<string, number>));
     const date = post.timestamp ? post.timestamp.slice(0, 10) : "";
     const caption = post.caption || "IG 貼文";
     posts.push({

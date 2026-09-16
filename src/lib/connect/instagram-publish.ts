@@ -192,9 +192,9 @@ async function readPermalink(mediaId: string, token: string) {
   }
 }
 
-async function readInsights(mediaId: string, token: string) {
+async function readInsights(mediaId: string, token: string, kind: "feed" | "story" | "reels" = "feed") {
   try {
-    const url = new URL(mediaInsightsUrl(mediaId));
+    const url = new URL(mediaInsightsUrl(mediaId, kind));
     url.searchParams.set("access_token", token);
     return parseIgInsights(await graphJson(url.toString()));
   } catch {
@@ -244,7 +244,7 @@ export const publishInstagramMedia = createServerFn({ method: "POST" })
           return { ok: false, reason: "api", note: "Reels 還在轉檔，請稍後再試。" };
         }
         const permalink = await readPermalink(mediaId, bundle.accessToken);
-        const insights = await readInsights(mediaId, bundle.accessToken);
+        const insights = await readInsights(mediaId, bundle.accessToken, "reels");
         const hostedNote = hostedVideo.hostedBy === "drive" ? "影片已進 Google Drive「禪光發布」，" : "";
         return {
           ok: true,
@@ -303,7 +303,7 @@ export const publishInstagramMedia = createServerFn({ method: "POST" })
         return { ok: false, reason: "api", note: "IG 發布沒有回傳編號。可能還在轉檔，請稍後再試。" };
       }
       const permalink = story ? undefined : await readPermalink(mediaId, bundle.accessToken);
-      const insights = await readInsights(mediaId, bundle.accessToken);
+      const insights = await readInsights(mediaId, bundle.accessToken, story ? "story" : "feed");
       const hostedNote =
         hosted.hostedBy === "drive"
           ? "主視覺已進 Google Drive「禪光發布」，"

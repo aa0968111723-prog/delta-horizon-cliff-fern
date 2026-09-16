@@ -21,7 +21,7 @@ export function igMemoryFromSchedule(item: ScheduleItem, now = Date.now()): IgMe
     mediaUrl: item.mediaUrl,
     source: graph ? "instagram" : "local",
     projectId: item.projectId ?? undefined,
-    assetId: item.imageAssetId,
+    assetId: item.kind === "reels" ? item.videoAssetId ?? item.imageAssetId : item.imageAssetId,
     analysis: graph
       ? "官方發布後寫進過去 IG，下次生成會學這則的 Hook 與畫面。"
       : "這則已發布，下次生成會當成自己的 IG 記憶。",

@@ -1,15 +1,20 @@
 import { Button } from "@/components/ui/button";
+import { AssetMedia } from "@/components/shared/asset-media";
 import type { IgMemoryPost, ScheduleItem } from "@/lib/studio/types";
 import { feelLabel, type PostFeel } from "@/lib/zen/feel";
 import { isDue } from "@/lib/zen/schedule";
+import { previewMediaId } from "@/lib/ai/reels-asset";
 import { contentKindLabel } from "@/lib/studio/content";
+import { Link } from "@tanstack/react-router";
 
 export function IgFeedPreview({
   handle,
   upcoming,
   stories,
+  reels,
   memory,
   urls,
+  videoIds,
   publishingId,
   postedId,
   onPublish,
@@ -19,8 +24,10 @@ export function IgFeedPreview({
   handle: string;
   upcoming: ScheduleItem[];
   stories: ScheduleItem[];
+  reels: ScheduleItem[];
   memory: IgMemoryPost[];
   urls: Record<string, string>;
+  videoIds: string[];
   publishingId: string | null;
   postedId?: string;
   onPublish: (item: ScheduleItem) => void;
@@ -29,9 +36,11 @@ export function IgFeedPreview({
 }) {
   const feedUpcoming = upcoming.filter((item) => item.kind === "ig-post" || item.kind === "carousel");
   const nextUp = feedUpcoming[0];
+  const nextReel = reels[0];
   const orderedMemory = postedId
     ? [...memory.filter((post) => post.id === postedId), ...memory.filter((post) => post.id !== postedId)]
     : memory;
+  const videoSet = new Set(videoIds);
 
   return (
     <section className="mt-8">
@@ -60,6 +69,7 @@ export function IgFeedPreview({
         <ul className="mt-3 space-y-5">
           {orderedMemory.slice(0, 6).map((post, index) => {
             const src = post.assetId ? urls[post.assetId] : post.mediaUrl;
+            const isFilm = Boolean(post.assetId && videoSet.has(post.assetId));
             return (
               <li key={post.id} className="rounded-2xl bg-bg p-2">
                 <button type="button" className="w-full text-left" onClick={() => onSelect(post.id)}>
@@ -68,7 +78,15 @@ export function IgFeedPreview({
                     {post.feel ? ` · ${feelLabel(post.feel)}` : ""}
                   </p>
                   {src ? (
-                    <img src={src} alt="" className="mt-2 aspect-square w-full rounded-xl object-cover" />
+                    <AssetMedia
+                      src={src}
+                      video={isFilm}
+                      className={
+                        isFilm
+                          ? "mt-2 aspect-[9/16] w-full rounded-xl object-cover"
+                          : "mt-2 aspect-square w-full rounded-xl object-cover"
+                      }
+                    />
                   ) : (
                     <div className="mt-2 rounded-xl bg-surface-2 p-3 text-sm">{post.caption}</div>
                   )}
@@ -118,6 +136,45 @@ export function IgFeedPreview({
           ) : null}
         </ul>
       </div>
+
+      {nextReel ? (
+        <div className="mx-auto mt-8 w-full max-w-[18rem]" data-testid="ig-reels-preview">
+          <h3 className="text-sm font-medium">Reels Preview</h3>
+          <p className="mt-1 text-xs text-muted">9:16 短影音。編成後在這裡看，再排入 Calendar。</p>
+          <div className="mt-3 overflow-hidden rounded-[1.75rem] bg-surface p-2 shadow-[var(--shadow-artboard)]">
+            {previewMediaId(nextReel) && urls[previewMediaId(nextReel)!] ? (
+              <AssetMedia
+                src={urls[previewMediaId(nextReel)!]}
+                video={Boolean(nextReel.videoAssetId && videoSet.has(nextReel.videoAssetId))}
+                controls
+                className="aspect-[9/16] w-full rounded-[1.4rem]"
+                testId="ig-reels-film"
+              />
+            ) : (
+              <div className="flex aspect-[9/16] items-end rounded-[1.4rem] bg-surface-2 p-4 text-sm">{nextReel.title}</div>
+            )}
+            <p className="mt-2 px-1 text-xs text-muted">{isDue(nextReel) ? "現在可以發" : "即將"} · Reels</p>
+            <p className="mt-1 line-clamp-2 px-1 text-sm">{nextReel.caption || nextReel.title}</p>
+            {nextReel.videoAssetId ? (
+              <Button
+                className="mt-2 min-h-11 w-full"
+                size="sm"
+                disabled={publishingId === nextReel.id}
+                data-testid="ig-reels-publish"
+                onClick={() => onPublish(nextReel)}
+              >
+                發布到 IG
+              </Button>
+            ) : (
+              <Button className="mt-2 min-h-11 w-full" size="sm" variant="secondary" asChild>
+                <Link to="/create" search={{ mode: "reels", idea: nextReel.caption || nextReel.title }}>
+                  編成短影音
+                </Link>
+              </Button>
+            )}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -1,4 +1,5 @@
 import { encodeReelsFromPng } from "@/lib/ai/reels-encode";
+import { saveReelsFilm, videoBase64FromAsset } from "@/lib/ai/reels-persist";
 import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
 import { pullCanvaDesign } from "@/lib/connect/canva";
 import { canvaSize } from "@/lib/connect/canva-format";
@@ -49,7 +50,7 @@ async function pngFromBase64(base64: string, mime: string, format: PublishFormat
 async function pngFromAsset(assetId: string | undefined, format: PublishFormat) {
   if (!assetId) return undefined;
   const blob = await getAssetBlob(assetId);
-  if (!blob) return undefined;
+  if (!blob || blob.type.startsWith("video/")) return undefined;
   return pngFromBase64(bytesToBase64(new Uint8Array(await blob.arrayBuffer())), blob.type || "image/png", format);
 }
 
@@ -152,23 +153,27 @@ export async function runPublishItem(item: ScheduleItem): Promise<PublishItemRes
   const { slides, imageUrl } = await collectSlides(item, format);
   let videoBase64: string | undefined;
   if (format === "reels") {
-    if (!slides[0]) {
-      return persistMarkedPublish(
-        item,
-        await withInsights({ note: "這則 Reels 還沒有畫面。腳本已複製，可在 IG App 發。", marked: true }),
-      );
+    videoBase64 = await videoBase64FromAsset(item.videoAssetId);
+    if (!videoBase64) {
+      if (!slides[0]) {
+        return persistMarkedPublish(
+          item,
+          await withInsights({ note: "這則 Reels 還沒有畫面。腳本已複製，可在 IG App 發。", marked: true }),
+        );
+      }
+      const encoded = await encodeReelsFromPng(slides[0], pickReelsScript(item), item.caption || item.title);
+      if (!encoded) {
+        return persistMarkedPublish(
+          item,
+          await withInsights({
+            note: "這台瀏覽器還不能編成 Reels 影片。腳本已複製，可在 IG App 發。",
+            marked: true,
+          }),
+        );
+      }
+      await saveReelsFilm(encoded, { eventName: item.title, campaignId: item.campaignId });
+      videoBase64 = encoded.base64;
     }
-    const encoded = await encodeReelsFromPng(slides[0], pickReelsScript(item), item.caption || item.title);
-    if (!encoded) {
-      return persistMarkedPublish(
-        item,
-        await withInsights({
-          note: "這台瀏覽器還不能編成 Reels 影片。腳本已複製，可在 IG App 發。",
-          marked: true,
-        }),
-      );
-    }
-    videoBase64 = encoded.base64;
   }
   const result = await publishInstagramMedia({
     data: {

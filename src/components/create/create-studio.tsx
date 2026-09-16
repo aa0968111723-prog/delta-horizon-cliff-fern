@@ -799,6 +799,7 @@ export function CreateStudio() {
       signupUrl,
       waves,
       imageAssetId: assetId ?? existing?.imageAssetId ?? null,
+      videoAssetId: existing?.videoAssetId,
       canvaDesignId: lastCanva?.designId ?? existing?.canvaDesignId,
       canvaEditUrl: lastCanva?.editUrl ?? existing?.canvaEditUrl,
     };
@@ -856,6 +857,7 @@ export function CreateStudio() {
         hashtags: nextPlan.hashtags,
         imageAssetId: assetId,
         mediaUrl: undefined,
+        ...(pack.kind === "reels" && created.videoAssetId ? { videoAssetId: created.videoAssetId } : {}),
       });
     }
   }
@@ -1460,7 +1462,13 @@ export function CreateStudio() {
       ) : null}
 
       {plan?.reelsScript ? (
-        <ReelsBoard script={plan.reelsScript} eventName={eventName || plan.campaignName} onSchedule={() => saveCampaignAndWaves()} />
+        <ReelsBoard
+          script={plan.reelsScript}
+          eventName={eventName || plan.campaignName}
+          campaignId={campaign?.id}
+          posterAssetId={lastImage?.assetId ?? campaign?.imageAssetId ?? undefined}
+          onSchedule={() => saveCampaignAndWaves()}
+        />
       ) : null}
 
       {campaign?.waves.length ? (

@@ -18,6 +18,8 @@ import { soonestScheduled } from "@/lib/zen/schedule";
 import { igHookAnalysis } from "@/lib/zen/review";
 import { useStudio } from "@/stores/studio-store";
 import type { ScheduleItem } from "@/lib/studio/types";
+import { previewMediaId } from "@/lib/ai/reels-asset";
+import { AssetMedia } from "@/components/shared/asset-media";
 
 export function InstagramCenter() {
   const navigate = useNavigate();
@@ -42,7 +44,9 @@ export function InstagramCenter() {
   const urls = useAssetUrls(assets.map((a) => a.id));
   const gridProjects = projects.filter((p) => p.activeFormatId.startsWith("feed") || p.contentKind === "carousel");
   const upcoming = soonestScheduled(schedule, 12);
-  const stories = upcoming.filter((item) => item.kind === "story" || item.kind === "countdown" || item.kind === "reels");
+  const stories = upcoming.filter((item) => item.kind === "story" || item.kind === "countdown");
+  const reels = upcoming.filter((item) => item.kind === "reels");
+  const videoIds = assets.filter((asset) => asset.kind === "video" || asset.mime.startsWith("video/")).map((asset) => asset.id);
   const post = igMemory.find((p) => p.id === selected);
 
   const dna = useMemo(
@@ -134,8 +138,10 @@ export function InstagramCenter() {
         handle={brand?.handle ?? "@tamkang.zen"}
         upcoming={upcoming}
         stories={stories}
+        reels={reels}
         memory={igMemory}
         urls={urls}
+        videoIds={videoIds}
         publishingId={publishingId}
         postedId={postedId}
         onPublish={(item) => void publishItem(item)}
@@ -198,7 +204,12 @@ export function InstagramCenter() {
                 className="aspect-square w-full overflow-hidden bg-surface-2"
               >
                 {postItem.assetId && urls[postItem.assetId] ? (
-                  <img src={urls[postItem.assetId]} alt="" className="size-full object-cover" />
+                  <AssetMedia
+                    src={urls[postItem.assetId]}
+                    video={videoIds.includes(postItem.assetId)}
+                    alt=""
+                    className="size-full object-cover"
+                  />
                 ) : postItem.mediaUrl ? (
                   <img src={postItem.mediaUrl} alt="" className="size-full object-cover" />
                 ) : (
@@ -268,11 +279,12 @@ export function InstagramCenter() {
                 data-testid="ig-upcoming-row"
                 className="flex gap-3 rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]"
               >
-                {item.imageAssetId && urls[item.imageAssetId] ? (
-                  <img
-                    src={urls[item.imageAssetId]}
+                {previewMediaId(item) && urls[previewMediaId(item)!] ? (
+                  <AssetMedia
+                    src={urls[previewMediaId(item)!]}
+                    video={Boolean(item.videoAssetId && videoIds.includes(item.videoAssetId))}
                     alt=""
-                    data-testid="schedule-thumb"
+                    testId="schedule-thumb"
                     className="size-16 shrink-0 rounded-xl object-cover"
                   />
                 ) : null}

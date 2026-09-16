@@ -11,7 +11,7 @@ export const CONTENT_KINDS: { id: ContentKind; label: string; hint: string }[] =
   { id: "ig-post", label: "IG 貼文", hint: "單張主視覺" },
   { id: "carousel", label: "Carousel", hint: "多頁說完一件事" },
   { id: "story", label: "Story", hint: "3–5 則限動" },
-  { id: "reels", label: "Reels", hint: "短影音腳本與封面" },
+  { id: "reels", label: "Reels", hint: "短影音腳本與影片" },
   { id: "threads", label: "Threads", hint: "短文延續" },
   { id: "line", label: "LINE", hint: "社團群組宣傳圖" },
   { id: "poster", label: "海報", hint: "活動主視覺" },

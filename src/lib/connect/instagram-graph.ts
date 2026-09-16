@@ -87,8 +87,20 @@ export function parsePermalink(json: unknown): string | null {
   return permalink && permalink.startsWith("http") ? permalink : null;
 }
 
-export function mediaInsightsUrl(mediaId: string) {
-  return `${IG_GRAPH}/${mediaId}/insights?metric=impressions,reach,saved,shares,plays`;
+export function mediaInsightsMetrics(kind: "feed" | "story" | "reels" = "feed") {
+  if (kind === "story") return "impressions,reach,exits,replies";
+  if (kind === "reels") return "plays,reach,saved,shares";
+  return "impressions,reach,saved,shares,plays";
+}
+
+export function mediaInsightsUrl(mediaId: string, kind: "feed" | "story" | "reels" = "feed") {
+  return `${IG_GRAPH}/${mediaId}/insights?metric=${mediaInsightsMetrics(kind)}`;
+}
+
+export function insightsKindFromMediaType(type?: string): "feed" | "story" | "reels" {
+  if (type === "STORY") return "story";
+  if (type === "VIDEO" || type === "REELS") return "reels";
+  return "feed";
 }
 
 export function parseIgInsights(json: unknown): Record<string, number> {

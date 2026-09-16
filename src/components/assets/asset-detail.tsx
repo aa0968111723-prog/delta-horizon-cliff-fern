@@ -12,13 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { ASSET_CATEGORIES, sourceLabel, usageLabel } from "@/lib/studio/assets";
-import { kindFromCategory } from "@/lib/studio/assets";
+import { ASSET_CATEGORIES, isVideoAsset, kindFromMime, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { bytesToBase64 } from "@/lib/studio/bytes";
 import { analyzeStudioImage } from "@/lib/ai/image-studio";
 import { tagsFromVision } from "@/lib/zen/vision-tags";
 import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
+import { AssetMedia } from "@/components/shared/asset-media";
 import { useStudio } from "@/stores/studio-store";
 
 export function AssetDetailSheet({
@@ -62,6 +62,10 @@ export function AssetDetailSheet({
   async function analyze() {
     setBusy(true);
     try {
+      if (isVideoAsset(current)) {
+        toast.error("短影音請用「加入創作」延伸，不必拆成單張分析。");
+        return;
+      }
       let blob = await getAssetStorage().get(current.id);
       if (!blob && current.seedSrc) {
         const res = await fetch(current.seedSrc);
@@ -113,7 +117,7 @@ export function AssetDetailSheet({
         <div className="flex gap-3">
           <div className="size-24 overflow-hidden rounded-xl bg-bg">
             {url ? (
-              <img src={url} alt="" className="size-full object-cover" />
+              <AssetMedia src={url} video={isVideoAsset(asset)} alt="" className="size-full object-cover" />
             ) : (
               <div className="flex size-full items-center justify-center text-xs text-muted">無預覽</div>
             )}
@@ -164,7 +168,7 @@ export function AssetDetailSheet({
           <Button variant="secondary" disabled={busy} onClick={() => void analyze()}>
             {busy ? "分析中…" : "AI 分析／標籤"}
           </Button>
-          <Button onClick={place} disabled={!lastProjectId} variant="secondary">
+          <Button onClick={place} disabled={!lastProjectId || isVideoAsset(current)} variant="secondary">
             放到目前畫布
           </Button>
         </div>
@@ -185,7 +189,7 @@ export function AssetDetailSheet({
             value={asset.category}
             onValueChange={(v) => {
               const category = v as AssetCategory;
-              updateAsset(asset.id, { category, kind: kindFromCategory(category) });
+              updateAsset(asset.id, { category, kind: kindFromMime(asset.mime, category, asset.kind) });
             }}
           >
             <SelectTrigger>
