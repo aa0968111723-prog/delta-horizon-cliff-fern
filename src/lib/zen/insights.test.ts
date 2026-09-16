@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analysisFromInsights, dnaPromptIdea, igDnaBlock, learnFromPosts, nextCreateHint, recentPostedNotes, scorePost, whyPostWorked } from "./insights.ts";
+import { analysisFromInsights, dnaPromptIdea, igDnaBlock, learnAfterPublish, learnFromPosts, nextCreateHint, recentPostedNotes, scorePost, whyPostWorked } from "./insights.ts";
 import { SEED_IG_POSTS } from "./memory.ts";
 import { systemPrompt } from "./voice.ts";
 
@@ -131,4 +131,29 @@ test("analysisFromInsights reports official numbers and does not invent reach", 
   assert.match(live, /觸及 400/);
   assert.match(live, /收藏 9/);
   assert.match(live, /問句 Hook/);
+});
+
+test("learnAfterPublish uses the studio post without inventing reach", async () => {
+  const { publishedToMemory } = await import("./publish-memory.ts");
+  const now = Date.parse("2026-09-16T21:00:00+08:00");
+  const { post } = publishedToMemory({
+    now,
+    campaigns: [],
+    item: {
+      id: "wave_tea_tease_learn",
+      title: "預告 · 開學茶會",
+      contentKind: "knowledge",
+      status: "published",
+      scheduledAt: now - 86_400_000,
+      publishedAt: now,
+      projectId: null,
+      campaignId: "camp_tea",
+      captionPreview: "來坐一下，不用先懂禪。",
+    },
+  });
+  const line = learnAfterPublish([post, ...SEED_IG_POSTS], now);
+  assert.match(line, /還沒有觸及/);
+  assert.match(line, /來坐一下/);
+  assert.match(line, /生活或互動/);
+  assert.doesNotMatch(line, /觸及 0/);
 });

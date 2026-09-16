@@ -29,12 +29,13 @@ import { canvaDraftNotes, canvaPresetForFormat } from "@/lib/zen/canva-draft";
 import type { FormatId } from "@/lib/studio/types";
 import { uid } from "@/lib/studio/ids";
 import { hitFromIgPost } from "@/lib/zen/from-hit";
-import { dnaPromptIdea, igDnaBlock, learnFromPosts, nextCreateHint, recentPostedNotes } from "@/lib/zen/insights";
+import { dnaPromptIdea, igDnaBlock, learnAfterPublish, learnFromPosts, nextCreateHint, recentPostedNotes } from "@/lib/zen/insights";
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
 import { COPY_STYLES, captionFromCopyStyle, completeCopyVariants, matchingCopyStyle } from "@/lib/zen/voice";
 import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatIdForContentKind, formatScript, packWithCaption, previewContentKind } from "@/lib/zen/convert";
-import { isWaveScheduleItem, schedulePreviewAssetId, placeScheduleItems, dueScheduleItems, scheduleItemForPreview } from "@/lib/zen/schedule";
+import { buildLayout } from "@/lib/studio/layout";
+import { isWaveScheduleItem, previewBindForSchedule, schedulePreviewAssetId, placeScheduleItems, dueScheduleItems, scheduleItemForPreview, wrapOverlayHeadline } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -99,7 +100,17 @@ export function InstagramCenter() {
     ];
     return [...new Set(ids)];
   }, [assets, igPosts, due, upcoming, campaigns, lastVisualAssetId, lastSequence, sequences]);
-  const urls = useAssetUrls(previewIds);
+  const blobUrls = useAssetUrls(previewIds);
+  const urls = useMemo(() => {
+    const next = { ...blobUrls };
+    for (const asset of assets) {
+      if (!next[asset.id] && asset.seedSrc) next[asset.id] = asset.seedSrc;
+    }
+    for (const seed of SEED_ASSETS) {
+      if (!next[seed.id] && seed.seedSrc) next[seed.id] = seed.seedSrc;
+    }
+    return next;
+  }, [blobUrls, assets]);
   const [tab, setTab] = useState<Tab>(igView);
   const [active, setActive] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -116,6 +127,8 @@ export function InstagramCenter() {
   const brand = brands[0];
   const learned = useMemo(() => learnFromPosts(igPosts), [igPosts]);
   const createHint = useMemo(() => nextCreateHint(igPosts), [igPosts]);
+  const justLearned = igPosts.find((post) => post.id.startsWith("ig_studio_"));
+  const learnedLine = useMemo(() => (justLearned ? learnAfterPublish(igPosts) : ""), [justLearned, igPosts]);
   const filmstrip = useMemo(() => {
     if (previewFormat === "story") {
       return sequences.find((row) => row.kind === "story") ?? (lastSequence?.kind === "story" ? lastSequence : null);
@@ -143,6 +156,14 @@ export function InstagramCenter() {
     if (opened) return opened.contentKind;
     return previewContentKind(previewFormat, sequences);
   }, [previewScheduleId, schedule, previewFormat, sequences]);
+  const openedSlot = useMemo(
+    () => schedule.find((item) => item.id === previewScheduleId),
+    [schedule, previewScheduleId],
+  );
+  const previewBind = useMemo(
+    () => (openedSlot ? previewBindForSchedule(openedSlot, campaigns) : null),
+    [openedSlot, campaigns],
+  );
   const previewSlot = useMemo(
     () =>
       scheduleItemForPreview({
@@ -162,6 +183,26 @@ export function InstagramCenter() {
     projects.find((p) => pagesOf(p, previewFormat).length) ??
     projects[0];
   const previewPages = previewProject ? pagesOf(previewProject, previewFormat) : [];
+  const overlayBoard = useMemo(() => {
+    if (!previewBind?.overlay || !brand) return null;
+    return buildLayout(
+      previewFormat,
+      {
+        eyebrow: previewBind.campaignName ?? "",
+        headline: wrapOverlayHeadline(previewBind.headline),
+        subhead: previewBind.campaignName ?? "",
+        body: "",
+        cta: "",
+        handle: brand.handle,
+        caption: previewBind.caption,
+        hashtags: [],
+        altText: previewBind.headline,
+      },
+      brand,
+      "product",
+      { imageAssetId: previewBind.assetId ?? undefined },
+    );
+  }, [previewBind, brand, previewFormat]);
   const alreadyOnCalendar = Boolean(previewSlot);
   const previewCopyVariants = useMemo(
     () => (lastPack ? completeCopyVariants(lastPack.copy) : []),
@@ -176,6 +217,7 @@ export function InstagramCenter() {
     return formatScript(convertFromPlan(overlayPack.plan), previewFormat, previewProject?.contentKind);
   }, [overlayPack, previewFormat, previewProject?.contentKind]);
   const previewAssetId =
+    (previewBind?.overlay ? previewBind.assetId : null) ??
     lastVisualAssetId ??
     filmstrip?.assetIds[previewProject?.slideIndex ?? 0] ??
     filmstrip?.assetIds[0] ??
@@ -196,10 +238,10 @@ export function InstagramCenter() {
 
   useEffect(() => {
     setPreviewFormat(igFormat);
-    if (igView !== "preview" || !lastProjectId) return;
+    if (igView !== "preview" || !lastProjectId || previewBind?.overlay) return;
     ensureArtboard(lastProjectId, igFormat);
     setActiveFormat(lastProjectId, igFormat);
-  }, [igFormat, lastProjectId, igView]);
+  }, [igFormat, lastProjectId, igView, previewBind?.overlay]);
 
   useEffect(() => {
     const opened = schedule.find((item) => item.id === previewScheduleId);
@@ -225,6 +267,10 @@ export function InstagramCenter() {
   function bindPreviewFormat(id: FormatId) {
     setPreviewFormat(id);
     setIgFormat(id);
+    if (previewBind?.overlay) {
+      setIgPreview(previewBind.assetId, id);
+      return;
+    }
     const kind = previewContentKind(id, sequences);
     const seqKind = kind === "ig-post" ? "post" : kind;
     const match =
@@ -354,7 +400,7 @@ export function InstagramCenter() {
   }
 
   function persistCaption(next: string) {
-    if (previewProject) {
+    if (previewProject && !previewBind?.overlay) {
       ensureArtboard(previewProject.id, previewFormat);
       setActiveFormat(previewProject.id, previewFormat);
       setCopy(previewProject.id, { caption: next });
@@ -582,6 +628,11 @@ export function InstagramCenter() {
         <p className="mt-2 text-sm" data-testid="ig-next-hint">
           {createHint.line}
         </p>
+        {justLearned ? (
+          <p className="mt-2 text-sm text-dusk" data-testid="ig-learned">
+            {learnedLine}
+          </p>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
           <Button size="sm" disabled={dnaBusy} onClick={() => void writeFromDna()}>
             {dnaBusy ? "寫作中…" : "用這個 DNA 寫新文案"}
@@ -747,7 +798,14 @@ export function InstagramCenter() {
           </div>
           <div className="mt-4 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
             <div className="min-w-0 overflow-hidden rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-artboard)]">
-              {previewPages[previewProject?.slideIndex ?? 0] && brand ? (
+              {overlayBoard && brand ? (
+                <div data-testid="preview-slot-visual">
+                  <p className="mb-2 text-xs text-muted">
+                    {previewBind?.campaignName ?? "這則排程"}的畫面
+                  </p>
+                  <ArtboardView artboard={overlayBoard} brand={brand} urls={urls} width={280} />
+                </div>
+              ) : previewPages[previewProject?.slideIndex ?? 0] && brand ? (
                 <ArtboardView
                   artboard={previewPages[previewProject?.slideIndex ?? 0]!}
                   brand={brand}
@@ -759,7 +817,7 @@ export function InstagramCenter() {
               ) : (
                 <p className="py-16 text-center text-xs text-muted">還沒有這個尺寸的預覽，先去創作一則。</p>
               )}
-              {filmstrip && filmstrip.assetIds.length > 1 ? (
+              {!previewBind?.overlay && filmstrip && filmstrip.assetIds.length > 1 ? (
                 <div className="mt-3 hidden w-full min-w-0 overflow-x-auto overscroll-x-contain lg:block">
                   <SuiteFilmstrip
                     filmstrip={filmstrip}
@@ -775,7 +833,7 @@ export function InstagramCenter() {
               ) : null}
             </div>
             <div className="order-first min-w-0 space-y-3 lg:order-none">
-              {lastPack && lastVisualAssetId ? (
+              {!previewBind?.overlay && lastPack && lastVisualAssetId ? (
                 <div className="min-w-0 overflow-hidden rounded-2xl bg-bg p-3" data-testid="preview-after-suite">
                   <div className="flex min-w-0 gap-3">
                     {previewImageSrc ? (
@@ -843,8 +901,50 @@ export function InstagramCenter() {
                   ) : null}
                 </div>
               ) : null}
+              {previewBind?.overlay ? (
+                <div className="min-w-0 overflow-hidden rounded-2xl bg-bg p-3" data-testid="preview-slot-path">
+                  <p className="text-sm font-medium">這則排程的畫面</p>
+                  <p className="mt-1 text-xs text-muted">
+                    這張就是{previewBind.campaignName ?? "這則"}的主視覺，不是上一檔活動。
+                  </p>
+                  {previewSlot ? (
+                    <p className="mt-1 text-xs text-muted" data-testid="preview-slot-kind">
+                      這則會發成{CONTENT_KIND_LABEL[previewSlot.contentKind]}
+                      {previewSlot.status === "published" ? " · 已發布" : ""}
+                    </p>
+                  ) : null}
+                  <div className="mt-3 flex min-w-0 flex-col gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      data-testid="preview-canva"
+                      disabled={canvaBusy}
+                      onClick={() => void sendPreviewToCanva()}
+                    >
+                      {canvaBusy ? "送出中…" : "送到 Canva 微調"}
+                    </Button>
+                    <PublishIgButton
+                      caption={caption}
+                      imageSrc={previewImageSrc}
+                      onPublished={() => rememberPreviewPublished()}
+                    />
+                    {alreadyOnCalendar ? (
+                      <Button size="sm" variant="ghost" asChild>
+                        <Link to="/calendar">已排進日曆</Link>
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="secondary" onClick={scheduleCurrent} disabled={!caption.trim()}>
+                        排進日曆
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={rememberPreviewPublished} disabled={!caption.trim()}>
+                      寫進過去 IG
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
               <p className="text-sm font-medium">Caption</p>
-              {previewCopyVariants.length ? (
+              {previewCopyVariants.length && !previewBind?.overlay ? (
                 <div className="flex min-w-0 flex-wrap gap-2" data-testid="preview-copy-styles">
                   {previewCopyVariants.map((variant) => {
                     const styleId = COPY_STYLES.find((row) => row.label === variant.style)?.id ?? variant.style;
@@ -875,7 +975,7 @@ export function InstagramCenter() {
               <Button size="sm" onClick={saveCaption} disabled={!previewProject && !previewSlot}>
                 更新文案
               </Button>
-              {lastPack ? (
+              {lastPack && !previewBind?.overlay ? (
                 <>
                   <div className="rounded-2xl bg-bg p-3" data-testid="preview-student-review">
                     <p className="text-xs text-muted">淡江學生視角</p>
@@ -919,7 +1019,7 @@ export function InstagramCenter() {
                   </div>
                 </>
               ) : null}
-              {!lastPack || !lastVisualAssetId ? (
+              {(!lastPack || !lastVisualAssetId) && !previewBind?.overlay ? (
                 <>
                   <Button
                     size="sm"
@@ -949,7 +1049,7 @@ export function InstagramCenter() {
                   </Button>
                 </>
               ) : null}
-              {previewScript ? (
+              {previewScript && !previewBind?.overlay ? (
                 <FormatScriptPanel
                   script={previewScript}
                   busyId={beatBusy}

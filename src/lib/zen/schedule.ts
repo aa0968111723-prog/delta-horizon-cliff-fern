@@ -1,7 +1,7 @@
 import { proposeVisualDirections } from "../ai/image-directions.ts";
 import { uid } from "../studio/ids.ts";
-import type { ContentKind, ProjectStatus } from "../studio/types.ts";
-import { convertFromPlan } from "./convert.ts";
+import type { ContentKind, FormatId, ProjectStatus } from "../studio/types.ts";
+import { convertFromPlan, firstCaptionLine, formatIdForContentKind } from "./convert.ts";
 import { applyStudentRewrite } from "./review.ts";
 import { daysUntil } from "./season.ts";
 import type { ClubCampaign, CampaignType, CampaignWave, CreativePack, ScheduleItem, WaveKind } from "./types.ts";
@@ -408,6 +408,43 @@ export function schedulePreviewAssetId(
     return campaign.relatedAssetIds.find((id) => id !== campaign.coverAssetId) ?? campaign.coverAssetId;
   }
   return campaign.coverAssetId;
+}
+
+export type PreviewBind = {
+  formatId: FormatId;
+  assetId: string | null;
+  headline: string;
+  caption: string;
+  projectId: string | null;
+  campaignId: string | null;
+  campaignName: string | null;
+  overlay: boolean;
+};
+
+export function wrapOverlayHeadline(text: string) {
+  const clean = text.replace(/\s+/g, " ").trim();
+  const cut = clean.search(/[，,？?！!]/);
+  if (cut > 2 && cut < clean.length - 1) {
+    return `${clean.slice(0, cut + 1)}\n${clean.slice(cut + 1)}`;
+  }
+  return clean;
+}
+
+export function previewBindForSchedule(item: ScheduleItem, campaigns: ClubCampaign[]): PreviewBind {
+  const campaign = item.campaignId ? campaigns.find((row) => row.id === item.campaignId) : undefined;
+  const caption = (item.captionPreview || campaign?.tagline || item.title).trim();
+  const headline = firstCaptionLine(caption) || campaign?.name || item.title;
+  const projectId = item.projectId ?? item.sequence?.projectId ?? campaign?.projectIds[0] ?? null;
+  return {
+    formatId: formatIdForContentKind(item.contentKind),
+    assetId: schedulePreviewAssetId(item, campaigns),
+    headline,
+    caption,
+    projectId,
+    campaignId: item.campaignId,
+    campaignName: campaign?.name ?? null,
+    overlay: !item.projectId && !item.sequence,
+  };
 }
 
 export function isIgDueKind(kind: string) {

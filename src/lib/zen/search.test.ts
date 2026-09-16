@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { SEED_MEMORY } from "./memory.ts";
 import { creativeSearch, expandCreativeQuery, groupSearchHits, knowledgeFromHits, searchCreativeKnowledge, searchTerms } from "./search.ts";
-import { applyConvertedSlot, applyPackToWaves, contentKindForWave, copyKindForWave, dueScheduleItems, emptyCampaign, fillKeptWaveRows, mergeSuiteIntoSchedule, nextWaveAngle, nextWaveVisual, packWithDirection, pickFocusDay, preferSuiteSchedule, projectForKeptWave, rhythmHint, scheduleItemForPreview, scheduleItemsFromCampaign, schedulePreviewAssetId, shiftScheduleDay, spreadSchedule, suggestWaves, suiteCoversWave, upcomingScheduleItems, waveOffsets } from "./schedule.ts";
+import { applyConvertedSlot, applyPackToWaves, contentKindForWave, copyKindForWave, dueScheduleItems, emptyCampaign, fillKeptWaveRows, mergeSuiteIntoSchedule, nextWaveAngle, nextWaveVisual, packWithDirection, pickFocusDay, preferSuiteSchedule, previewBindForSchedule, projectForKeptWave, rhythmHint, scheduleItemForPreview, scheduleItemsFromCampaign, schedulePreviewAssetId, shiftScheduleDay, spreadSchedule, suggestWaves, suiteCoversWave, upcomingScheduleItems, waveOffsets, wrapOverlayHeadline } from "./schedule.ts";
 import { canvaDraftNotes, canvaDraftTitle, canvaPresetForAspect, canvaPresetForKind } from "./canva-draft.ts";
 import { convertFromPlan, CONVERT_TARGETS, aspectForTarget, briefFlagsForTarget, captionForTarget, contentKindForFormat, convertTargetForFormat } from "./convert.ts";
 import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
@@ -552,6 +552,65 @@ test("schedulePreviewAssetId uses campaign cover and related thumbs", () => {
     ),
     "asset_p1",
   );
+});
+
+test("previewBindForSchedule overlays a wave onto its campaign visual, not leftover art", () => {
+  const tea = emptyCampaign({
+    id: "camp_tea",
+    name: "開學茶會",
+    tagline: "來坐一下，不用先懂禪。",
+    coverAssetId: "asset_tea_night",
+    relatedAssetIds: ["asset_tea_night", "asset_campus"],
+    projectIds: ["proj_welcome_tea"],
+  });
+  const light = emptyCampaign({
+    id: "camp_light",
+    name: "浮游禪光",
+    tagline: "最近是不是很久沒有好好坐下來？",
+    coverAssetId: "asset_trilight",
+    projectIds: ["proj_floating_light"],
+  });
+  const item: ScheduleItem = {
+    id: "sch_wave_tea",
+    title: "預告 · 開學茶會",
+    contentKind: "knowledge",
+    status: "idea",
+    scheduledAt: 1,
+    publishedAt: null,
+    projectId: null,
+    campaignId: tea.id,
+    captionPreview: "來坐一下，不用先懂禪。",
+  };
+  const bind = previewBindForSchedule(item, [light, tea]);
+  assert.equal(bind.overlay, true);
+  assert.equal(bind.assetId, "asset_tea_night");
+  assert.equal(bind.headline, "來坐一下，不用先懂禪。");
+  assert.equal(bind.projectId, "proj_welcome_tea");
+  assert.equal(bind.formatId, "feed-portrait");
+  assert.equal(bind.campaignName, "開學茶會");
+  assert.doesNotMatch(bind.headline, /很久沒有好好坐下來/);
+  assert.equal(wrapOverlayHeadline(bind.headline), "來坐一下，\n不用先懂禪。");
+});
+
+test("previewBindForSchedule keeps a suite sequence on its own project", () => {
+  const bind = previewBindForSchedule(
+    {
+      id: "sch_car",
+      title: "主視覺",
+      contentKind: "carousel",
+      status: "scheduled",
+      scheduledAt: 1,
+      publishedAt: null,
+      projectId: "proj_car",
+      campaignId: "camp_light",
+      captionPreview: "最近是不是很久沒有好好坐下來？",
+      sequence: { kind: "carousel", labels: ["1"], assetIds: ["asset_p1"], projectId: "proj_car" },
+    },
+    [],
+  );
+  assert.equal(bind.overlay, false);
+  assert.equal(bind.assetId, "asset_p1");
+  assert.equal(bind.projectId, "proj_car");
 });
 
 test("applyStudentRewrite swaps the first sentence", () => {

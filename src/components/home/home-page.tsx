@@ -22,7 +22,7 @@ import { APP_NAME, APP_TAGLINE, CLUB_SHORT } from "@/lib/zen/club";
 import { hitFromIgPost } from "@/lib/zen/from-hit";
 import { isCreateQuery } from "@/lib/zen/from-idea";
 import { composeMemoryNotes } from "@/lib/zen/ingest";
-import { learnFromPosts, nextCreateHint, whyPostWorked } from "@/lib/zen/insights";
+import { learnAfterPublish, learnFromPosts, nextCreateHint, whyPostWorked } from "@/lib/zen/insights";
 import { inspirationCreateNotes, inspirationFeed, kindFromInspiration } from "@/lib/zen/inspiration";
 import { creativeSearch, groupSearchHits, type SearchHit } from "@/lib/zen/search";
 import { daysUntil, formatMd, seasonContext } from "@/lib/zen/season";
@@ -161,8 +161,7 @@ export function HomePage() {
               </p>
               {justLearned ? (
                 <p className="mt-2 text-sm text-dusk" data-testid="home-learned">
-                  剛寫進過去 IG：{(justLearned.hook || "").replace(/[。．.!?！？]+$/u, "")}
-                  。下次生成會避開連續招生。
+                  {learnAfterPublish(igPosts)}
                 </p>
               ) : null}
               {dueAll.length ? (

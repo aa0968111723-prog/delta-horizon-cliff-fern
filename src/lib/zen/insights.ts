@@ -132,6 +132,19 @@ export function analysisFromInsights(post: {
   return `官方 Insights：觸及 ${post.reach}、收藏 ${post.saves}、讚 ${post.likes}、留言 ${post.comments}。${why}`;
 }
 
+export function learnAfterPublish(posts: IgMemoryPost[], now = Date.now()) {
+  const hint = nextCreateHint(posts, now);
+  const latest = [...posts]
+    .filter((post) => post.id.startsWith("ig_studio_"))
+    .sort((a, b) => b.postedAt - a.postedAt)[0];
+  if (!latest) return hint.line;
+  const metrics =
+    latest.reach > 0
+      ? `這則觸及 ${latest.reach}、收藏 ${latest.saves}。`
+      : "官方 Insights 還沒有觸及，先用 Hook 與內容方向學習。";
+  return `${metrics}${hint.line}`;
+}
+
 export function nextCreateHint(posts: IgMemoryPost[] = SEED_IG_POSTS, now = Date.now()) {
   const learned = learnFromPosts(posts);
   const recent = recentPostedNotes(posts, now);

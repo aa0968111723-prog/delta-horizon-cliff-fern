@@ -5,13 +5,15 @@ import { toast } from "sonner";
 import { openScheduledPreview } from "@/components/create/open-preview";
 import { PublishIgButton } from "@/components/instagram/publish-button";
 import { Button } from "@/components/ui/button";
+import { nextCreateHint } from "@/lib/zen/insights";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
 import type { ScheduleItem } from "@/lib/zen/types";
 import { useCreative } from "@/stores/creative-store";
 
 export function rememberDueSlot(itemId: string) {
   useCreative.getState().markPublished(itemId);
-  toast.success("已寫進過去 IG，下次生成會參考這則");
+  const hint = nextCreateHint(useCreative.getState().igPosts);
+  toast.success(`已寫進過去 IG。${hint.line}`);
 }
 
 export function DueSlotActions({

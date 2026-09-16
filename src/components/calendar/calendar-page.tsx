@@ -5,7 +5,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { PublishIgButton } from "@/components/instagram/publish-button";
 import { openScheduledPreview } from "@/components/create/open-preview";
-import { DueSlotActions } from "@/components/instagram/due-slot";
+import { DueSlotActions, rememberDueSlot } from "@/components/instagram/due-slot";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -173,7 +173,6 @@ export function CalendarPage() {
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
   const patchSchedule = useCreative((s) => s.patchSchedule);
   const duplicateSchedule = useCreative((s) => s.duplicateSchedule);
-  const markPublished = useCreative((s) => s.markPublished);
   const [cursor, setCursor] = useState(new Date(2026, 8, 16));
   const [mode, setMode] = useState<Mode>("month");
   const [quickTitle, setQuickTitle] = useState("");
@@ -537,19 +536,13 @@ export function CalendarPage() {
                             urls,
                             assets.find((asset) => asset.id === schedulePreviewAssetId(item, campaigns))?.seedSrc,
                           )}
-                          onPublished={() => {
-                            markPublished(item.id);
-                            toast.success("已寫進過去 IG，下次生成會參考這則");
-                          }}
+                          onPublished={() => rememberDueSlot(item.id)}
                         />
                         <Button
                           size="sm"
                           variant="ghost"
                           data-testid="due-remember"
-                          onClick={() => {
-                            markPublished(item.id);
-                            toast.success("已寫進過去 IG，下次生成會參考這則");
-                          }}
+                          onClick={() => rememberDueSlot(item.id)}
                         >
                           寫進過去 IG
                         </Button>
