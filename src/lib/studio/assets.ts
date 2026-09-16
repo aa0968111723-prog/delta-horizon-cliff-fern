@@ -111,6 +111,12 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
   };
 }
 
+const ASSET_SOURCE_IDS: AssetSourceKind[] = ["upload", "seed", "generated", "drive", "canva", "instagram"];
+
+function isAssetSource(v: unknown): v is AssetSourceKind {
+  return typeof v === "string" && ASSET_SOURCE_IDS.includes(v as AssetSourceKind);
+}
+
 export function createGeneratedAsset(input: {
   id: string;
   name: string;
@@ -165,7 +171,11 @@ function collectFromBoard(board: Artboard | undefined, ids: Set<string>) {
   }
 }
 
-export function collectUsedAssetIds(projects: Project[], brands: BrandKit[]): Set<string> {
+export function collectUsedAssetIds(
+  projects: Project[],
+  brands: BrandKit[],
+  covers: { coverAssetId?: string | null; reels?: { assetId?: string | null }[] }[] = [],
+): Set<string> {
   const ids = new Set<string>();
   for (const project of projects) {
     for (const board of Object.values(project.artboards)) collectFromBoard(board, ids);
@@ -176,6 +186,13 @@ export function collectUsedAssetIds(projects: Project[], brands: BrandKit[]): Se
   for (const brand of brands) {
     if (brand.logoAssetId) ids.add(brand.logoAssetId);
     for (const logo of brand.logos ?? []) ids.add(logo.assetId);
+    if (brand.memory?.mascotAssetId) ids.add(brand.memory.mascotAssetId);
+  }
+  for (const row of covers) {
+    if (row.coverAssetId) ids.add(row.coverAssetId);
+    for (const beat of row.reels ?? []) {
+      if (beat.assetId) ids.add(beat.assetId);
+    }
   }
   return ids;
 }

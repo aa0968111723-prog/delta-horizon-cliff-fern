@@ -48,6 +48,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const setAssistantOpen = useUi((s) => s.setAssistantOpen);
   const current = activeKey(pathname);
+  const inStudio = current === "studio";
 
   function hrefFor(item: (typeof SIDE_NAV)[number]) {
     if (item.match === "studio" && lastProjectId) {
@@ -64,7 +65,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="flex h-14 items-center justify-center font-display text-lg tracking-tight"
           aria-label="禪作所首頁"
         >
-          禪
+          <span className="flex size-9 items-center justify-center rounded-full bg-night text-night-fg shadow-[var(--shadow-glow)]">
+            <span className="size-3 rounded-full bg-[image:linear-gradient(135deg,var(--color-glow-amber),var(--color-glow-teal),var(--color-glow-lavender))]" />
+          </span>
         </Link>
         <nav className="flex flex-1 flex-col gap-1 p-2">
           {SIDE_NAV.map((item) => {
@@ -76,11 +79,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 to={dest.to}
                 params={"params" in dest ? dest.params : undefined}
                 className={cn(
-                  "flex min-h-12 flex-col items-center justify-center gap-1 rounded-md text-xs transition-colors",
-                  active ? "bg-surface-2 text-fg" : "text-muted hover:bg-surface-2 hover:text-fg",
+                  "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[11px] transition-colors",
+                  active ? "bg-accent/10 text-accent" : "text-muted hover:bg-surface-2 hover:text-fg",
                 )}
               >
-                <item.icon className="size-4" />
+                <item.icon className="size-[18px]" />
                 {item.label}
               </Link>
             );

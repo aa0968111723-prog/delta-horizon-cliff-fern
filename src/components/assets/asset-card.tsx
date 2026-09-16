@@ -15,6 +15,7 @@ export function AssetCard({
   onFavorite,
   onDelete,
   onPlace,
+  onCreate,
 }: {
   asset: AssetMeta;
   url?: string;
@@ -24,6 +25,7 @@ export function AssetCard({
   onFavorite: () => void;
   onDelete?: () => void;
   onPlace?: () => void;
+  onCreate?: () => void;
 }) {
   const [broken, setBroken] = useState(false);
   const referenceOnly = !url && asset.width === 0 && !asset.seedSrc;

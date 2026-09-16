@@ -14,7 +14,7 @@ export const SEED_BEANS_ID = "asset_beans";
 const SEED_TIME = Date.parse("2026-09-01T00:00:00+08:00");
 
 export const SEED_ASSETS: AssetMeta[] = [
-  {
+  seedAsset({
     id: SEED_LOGO_ID,
     name: "日食標誌",
     kind: "logo",
@@ -89,7 +89,7 @@ export const SEED_BRAND: BrandKit = {
     { id: "c4", hex: "#B85C38", role: "accent", label: "赤陶" },
     { id: "c5", hex: "#2C1810", role: "ink", label: "墨" },
   ],
-  fontDisplay: "Noto Serif TC",
+  fontDisplay: "Noto Sans TC",
   fontBody: "Noto Sans TC",
   logoAssetId: SEED_LOGO_ID,
   logos: [
@@ -132,6 +132,10 @@ export const SEED_BRAND: BrandKit = {
   updatedAt: SEED_TIME,
 };
 
+/* ------------------------------------------------------------------ */
+/* 示範活動：浮游禪光                                                     */
+/* ------------------------------------------------------------------ */
+
 const copy = {
   eyebrow: "SEPTEMBER SINGLE ORIGIN",
   headline: "衣索比亞\n水洗耶加雪菲",
@@ -146,10 +150,7 @@ const copy = {
 };
 
 function stabilize(layers: Layer[], prefix: string): Layer[] {
-  return layers.map((layer, index) => ({
-    ...layer,
-    id: `${prefix}${index}`,
-  }));
+  return layers.map((layer, index) => ({ ...layer, id: `${prefix}${index}` }));
 }
 
 export function createSeedProject(): Project {
@@ -159,7 +160,7 @@ export function createSeedProject(): Project {
   });
   page1.layers = stabilize(page1.layers, "seed_ly_");
   page1.role = "cover";
-  page1.templateId = "product";
+  page1.templateId = "editorial";
 
   const page2 = buildLayout(
     "feed-portrait",
@@ -244,9 +245,9 @@ export function createSeedProject(): Project {
     SEED_BRAND,
     "offer",
   );
-  page5.layers = stabilize(page5.layers, "seed_p5_ly_");
-  page5.role = "cta";
-  page5.templateId = "offer";
+  page4.layers = stabilize(page4.layers, "seed_p4_ly_");
+  page4.role = "cta";
+  page4.templateId = "offer";
 
   const page6 = buildLayout(
     "feed-portrait",
@@ -381,7 +382,7 @@ export function createSeedProject(): Project {
     createdAt: now,
     updatedAt: now,
     brandId: SEED_BRAND_ID,
-    templateId: "product",
+    templateId: "editorial",
     activeFormatId: "feed-portrait",
     status: "complete",
     brief,
@@ -397,7 +398,7 @@ export function createSeedProject(): Project {
     snapshots: [
       {
         id: "snap_seed_v1",
-        name: "初稿 · 六頁輪播",
+        name: "初稿 · 四頁輪播",
         createdAt: now,
         kind: "manual",
         formatId: "feed-portrait",
@@ -437,7 +438,7 @@ export function createSeedDraft(): Project {
     createdAt: now,
     updatedAt: now,
     brandId: SEED_BRAND_ID,
-    templateId: "offer",
+    templateId: "quote",
     activeFormatId: "story",
     status: "idea",
     brief: migrateBrief({
@@ -467,5 +468,316 @@ export function createSeedDraft(): Project {
     exports: [],
   };
 }
+
+export const SEED_CONTENTS: ContentItem[] = [
+  {
+    id: "content_floating_kv",
+    campaignId: SEED_CAMPAIGN_ID,
+    type: "carousel",
+    status: "done",
+    title: "浮游禪光 · 主視覺輪播",
+    copy: {
+      tone: "normal",
+      hook: copy.headline.replace("\n", ""),
+      body: copy.caption.split("\n").slice(2).join("\n"),
+      cta: copy.cta,
+      hashtags: copy.hashtags,
+    },
+    variants: [],
+    imagePrompt:
+      "Tamkang University lantern-lined path at night, one warm lamp glowing, soft three-color glow (amber, teal, lavender), empty space in the lower third for text, photographic, film grain, no text, no religious symbols, Instagram 4:5",
+    visualDirection: "夜晚宮燈大道的一盞燈，三色光暈，下方留白。",
+    carousel: localCarousel(SEED_CAMPAIGN_CTX, seedCopyDraft),
+    storyFrames: [],
+    reels: [],
+    threads: localThreads(SEED_CAMPAIGN_CTX, seedCopyDraft),
+    line: localLine(SEED_CAMPAIGN_CTX, seedCopyDraft),
+    review: null,
+    sources: [
+      { kind: "library", label: "素材庫 / 淡江 宮燈大道 夜", refId: SEED_CAMPUS_ID },
+      { kind: "brand", label: "Brand Memory / 三色光、龜龜" },
+    ],
+    projectId: SEED_PROJECT_ID,
+    coverAssetId: SEED_CAMPUS_ID,
+    scheduledAt: Date.parse("2026-09-17T20:00:00+08:00"),
+    publishedAt: null,
+    metrics: null,
+    createdAt: SEED_TIME,
+    updatedAt: SEED_TIME,
+    generatedBy: "live",
+  },
+  {
+    id: "content_midterm_story",
+    campaignId: null,
+    type: "story",
+    status: "drafting",
+    title: "期中前 · 先給自己五分鐘",
+    copy: {
+      tone: "short",
+      hook: "先給自己五分鐘",
+      body: "報告寫到一半，突然不知道自己在幹嘛。\n週三晚上見。",
+      cta: "週三晚上見",
+      hashtags: ["#淡江大學禪學社"],
+    },
+    variants: [],
+    imagePrompt: "",
+    visualDirection: "三色光底 + 一行字",
+    carousel: [],
+    storyFrames: [],
+    reels: [],
+    threads: "",
+    line: "",
+    review: null,
+    sources: [{ kind: "brand", label: "Brand Memory / 三色光" }],
+    projectId: SEED_DRAFT_ID,
+    coverAssetId: SEED_GLOW_ID,
+    scheduledAt: null,
+    publishedAt: null,
+    metrics: null,
+    createdAt: Date.parse("2026-09-12T10:00:00+08:00"),
+    updatedAt: Date.parse("2026-09-12T10:00:00+08:00"),
+    generatedBy: null,
+  },
+  {
+    id: "content_welcome_recap",
+    campaignId: null,
+    type: "recap",
+    status: "published",
+    title: "迎新茶會 · 回顧",
+    copy: {
+      tone: "warm",
+      hook: "謝謝昨天來的每一個人。",
+      body: "有人是一個人來的，有人拉了室友。\n燈很暗，茶很熱，大家都沒有很會說話，但沒關係。\n下一次是 9/24 浮游禪光，一樣不用報名。",
+      cta: "下次見",
+      hashtags: ["#淡江大學禪學社", "#淡江", "#迎新", "#茶會"],
+    },
+    variants: [],
+    imagePrompt: "",
+    visualDirection: "現場照片三張 + 一句謝謝",
+    carousel: [],
+    storyFrames: [],
+    reels: [],
+    threads: "",
+    line: "",
+    review: null,
+    sources: [{ kind: "instagram", label: "Instagram / 2026-09-11" }],
+    projectId: null,
+    coverAssetId: SEED_TAMSUI_ID,
+    scheduledAt: Date.parse("2026-09-11T21:00:00+08:00"),
+    publishedAt: Date.parse("2026-09-11T21:05:00+08:00"),
+    metrics: { reach: 1260, likes: 143, comments: 12, saves: 31, shares: 18, views: 0, clicks: 22, syncedAt: SEED_TIME },
+    createdAt: Date.parse("2026-09-11T20:00:00+08:00"),
+    updatedAt: Date.parse("2026-09-11T21:05:00+08:00"),
+    generatedBy: "live",
+  },
+  {
+    id: "content_class_life",
+    campaignId: null,
+    type: "ig-post",
+    status: "published",
+    title: "週三社課 · 生活",
+    copy: {
+      tone: "life",
+      hook: "宿舍很熱鬧，但你有點想安靜一下。",
+      body: "每週三晚上，B302 燈會調暗一點。\n沒有點名，遲到也沒關係。坐著就好。",
+      cta: "週三晚上見",
+      hashtags: ["#淡江大學禪學社", "#淡江", "#社課", "#慢下來"],
+    },
+    variants: [],
+    imagePrompt: "",
+    visualDirection: "宿舍窗邊的一盞燈",
+    carousel: [],
+    storyFrames: [],
+    reels: [],
+    threads: "",
+    line: "",
+    review: null,
+    sources: [{ kind: "instagram", label: "Instagram / 2026-09-03" }],
+    projectId: null,
+    coverAssetId: SEED_GLOW_ID,
+    scheduledAt: Date.parse("2026-09-03T20:00:00+08:00"),
+    publishedAt: Date.parse("2026-09-03T20:02:00+08:00"),
+    metrics: { reach: 890, likes: 97, comments: 8, saves: 41, shares: 9, views: 0, clicks: 11, syncedAt: SEED_TIME },
+    createdAt: Date.parse("2026-09-03T18:00:00+08:00"),
+    updatedAt: Date.parse("2026-09-03T20:02:00+08:00"),
+    generatedBy: "live",
+  },
+  {
+    id: "content_knowledge_sit",
+    campaignId: null,
+    type: "knowledge",
+    status: "published",
+    title: "靜坐不是把腦清空",
+    copy: {
+      tone: "student",
+      hook: "靜坐不是把腦清空。",
+      body: "第一次來的人常問：我腦中一直在講話怎麼辦。\n可以講話。就讓它講。你只是先坐著。",
+      cta: "",
+      hashtags: ["#淡江大學禪學社", "#淡江", "#靜坐", "#第一次也可以"],
+    },
+    variants: [],
+    imagePrompt: "",
+    visualDirection: "留白 + 一行字",
+    carousel: [],
+    storyFrames: [],
+    reels: [],
+    threads: "",
+    line: "",
+    review: null,
+    sources: [{ kind: "instagram", label: "Instagram / 2026-08-27" }],
+    projectId: null,
+    coverAssetId: SEED_MASCOT_ID,
+    scheduledAt: Date.parse("2026-08-27T20:00:00+08:00"),
+    publishedAt: Date.parse("2026-08-27T20:10:00+08:00"),
+    metrics: { reach: 1540, likes: 188, comments: 21, saves: 76, shares: 24, views: 0, clicks: 6, syncedAt: SEED_TIME },
+    createdAt: Date.parse("2026-08-27T12:00:00+08:00"),
+    updatedAt: Date.parse("2026-08-27T20:10:00+08:00"),
+    generatedBy: "live",
+  },
+  {
+    id: "content_member_one",
+    campaignId: null,
+    type: "member-story",
+    status: "published",
+    title: "社員故事 · 大一",
+    copy: {
+      tone: "warm",
+      hook: "我第一次來，是因為室友臨時不去。",
+      body: "大一上，什麼社團都試過，都很吵。\n那天我一個人走到 B302，燈很暗，有人遞給我一杯茶。\n沒有人問我是哪一系的。",
+      cta: "下次見",
+      hashtags: ["#淡江大學禪學社", "#淡江", "#社員故事"],
+    },
+    variants: [],
+    imagePrompt: "",
+    visualDirection: "側臉或手的局部",
+    carousel: [],
+    storyFrames: [],
+    reels: [],
+    threads: "",
+    line: "",
+    review: null,
+    sources: [{ kind: "instagram", label: "Instagram / 2026-08-20" }],
+    projectId: null,
+    coverAssetId: SEED_TAMSUI_ID,
+    scheduledAt: Date.parse("2026-08-20T21:00:00+08:00"),
+    publishedAt: Date.parse("2026-08-20T21:04:00+08:00"),
+    metrics: { reach: 1102, likes: 164, comments: 19, saves: 52, shares: 31, views: 0, clicks: 14, syncedAt: SEED_TIME },
+    createdAt: Date.parse("2026-08-20T16:00:00+08:00"),
+    updatedAt: Date.parse("2026-08-20T21:04:00+08:00"),
+    generatedBy: "live",
+  },
+  {
+    id: "content_recruit_soft",
+    campaignId: null,
+    type: "ig-post",
+    status: "published",
+    title: "社博後 · 不是招生",
+    copy: {
+      tone: "humor",
+      hook: "大學生活很自由，但你最近真的有比較快樂嗎？",
+      body: "社博攤位很吵，我們攤位很安靜，有點對不起隔壁。\n如果你那天有拿走一杯茶，週三晚上還在。",
+      cta: "直接來就好",
+      hashtags: ["#淡江大學禪學社", "#淡江", "#社博", "#迎新"],
+    },
+    variants: [],
+    imagePrompt: "",
+    visualDirection: "攤位角落、龜龜",
+    carousel: [],
+    storyFrames: [],
+    reels: [],
+    threads: "",
+    line: "",
+    review: null,
+    sources: [{ kind: "instagram", label: "Instagram / 2026-09-08" }],
+    projectId: null,
+    coverAssetId: SEED_CAMPUS_ID,
+    scheduledAt: Date.parse("2026-09-08T19:30:00+08:00"),
+    publishedAt: Date.parse("2026-09-08T19:35:00+08:00"),
+    metrics: { reach: 2104, likes: 231, comments: 27, saves: 44, shares: 16, views: 0, clicks: 38, syncedAt: SEED_TIME },
+    createdAt: Date.parse("2026-09-08T12:00:00+08:00"),
+    updatedAt: Date.parse("2026-09-08T19:35:00+08:00"),
+    generatedBy: "live",
+  },
+  {
+    id: "content_floating_reels",
+    campaignId: SEED_CAMPAIGN_ID,
+    type: "reels",
+    status: "drafting",
+    title: "浮游禪光 · 20 秒 Reels",
+    copy: {
+      tone: "life",
+      hook: "最近是不是很久沒有好好坐下來？",
+      body: "9/24（三）19:00 B302，浮游禪光。燈調暗，坐墊放好。不用報名，直接來。",
+      cta: "直接來就好",
+      hashtags: ["#淡江大學禪學社", "#淡江", "#浮游禪光", "#慢下來"],
+    },
+    variants: [],
+    imagePrompt:
+      "Vertical 9:16 Instagram Reels cover of Tamkang University lantern-lined path at night, one warm lamp, soft three-color glow, tiny turtle mascot in the corner, no text, no watermark, no religious symbols",
+    visualDirection: "前三秒質問字幕，中段社辦門口，結尾時間地點卡。",
+    carousel: [],
+    storyFrames: [],
+    reels: [
+      { from: 0, to: 3, visual: "手機畫面：凌晨 1:47，滑 IG。", caption: "最近是不是很久沒有好好坐下來？", voiceover: "", transition: "硬切", assetHint: "自拍手機畫面", assetId: null },
+      { from: 3, to: 7, visual: "覺生圖書館空鏡，燈還亮著。", caption: "課表排滿了，人也認識了一些", voiceover: "有時候不是想睡，是停不下來。", transition: "慢推", assetHint: "校園夜景素材", assetId: SEED_CAMPUS_ID },
+      { from: 7, to: 12, visual: "B302 門口，燈亮著，有人推門。", caption: "浮游禪光", voiceover: "有一個地方，去了不用做什麼。", transition: "跟拍", assetHint: "社辦 / 教室照片", assetId: null },
+      { from: 12, to: 17, visual: "茶杯、坐墊、學生放鬆的側臉。", caption: "一個晚上，一杯茶", voiceover: "不用會打坐，不用信什麼。", transition: "疊化", assetHint: "歷屆活動照片", assetId: SEED_TAMSUI_ID },
+      { from: 17, to: 20, visual: "純色卡：時間地點 + 龜龜。", caption: "9/24（三）19:00｜B302", voiceover: "直接來就好", transition: "定格", assetHint: "龜龜 + 三色光", assetId: SEED_MASCOT_ID },
+    ],
+    threads: "",
+    line: "",
+    review: null,
+    sources: [
+      { kind: "brand", label: "Brand Memory / 淡江禪學社" },
+      { kind: "library", label: "素材庫 / 宮燈大道", refId: SEED_CAMPUS_ID },
+    ],
+    projectId: null,
+    coverAssetId: SEED_CAMPUS_ID,
+    scheduledAt: Date.parse("2026-09-21T20:00:00+08:00"),
+    publishedAt: null,
+    metrics: null,
+    createdAt: SEED_TIME,
+    updatedAt: SEED_TIME,
+    generatedBy: "mock",
+  },
+  {
+    id: "content_reels_stop",
+    campaignId: null,
+    type: "reels",
+    status: "published",
+    title: "先給自己五分鐘",
+    copy: {
+      tone: "short",
+      hook: "先給自己五分鐘",
+      body: "報告寫到一半，突然不知道自己在幹嘛。週三晚上，B302 燈會調暗一點。",
+      cta: "週三晚上見",
+      hashtags: ["#淡江大學禪學社", "#淡江", "#慢下來"],
+    },
+    variants: [],
+    imagePrompt: "",
+    visualDirection: "宿舍窗邊的一盞燈，9:16",
+    carousel: [],
+    storyFrames: [],
+    reels: [
+      { from: 0, to: 3, visual: "筆電螢幕，游標停在空白頁。", caption: "先給自己五分鐘", voiceover: "", transition: "硬切", assetHint: "宿舍桌面", assetId: null },
+      { from: 3, to: 7, visual: "走廊很吵，門關上。", caption: "外面很熱鬧", voiceover: "", transition: "慢推", assetHint: "宿舍走廊", assetId: null },
+      { from: 7, to: 12, visual: "三色光底，一行字。", caption: "坐著就好", voiceover: "不用會什麼。", transition: "疊化", assetHint: "三色光", assetId: SEED_GLOW_ID },
+      { from: 12, to: 17, visual: "茶杯特寫。", caption: "週三晚上 B302", voiceover: "", transition: "跟拍", assetHint: "茶杯", assetId: null },
+      { from: 17, to: 20, visual: "龜龜在角落。", caption: "一個人來也可以", voiceover: "週三晚上見", transition: "定格", assetHint: "龜龜", assetId: SEED_MASCOT_ID },
+    ],
+    threads: "",
+    line: "",
+    review: null,
+    sources: [{ kind: "instagram", label: "Instagram / 2026-09-05" }],
+    projectId: null,
+    coverAssetId: SEED_GLOW_ID,
+    scheduledAt: Date.parse("2026-09-05T21:00:00+08:00"),
+    publishedAt: Date.parse("2026-09-05T21:04:00+08:00"),
+    metrics: { reach: 980, likes: 76, comments: 9, saves: 48, shares: 22, views: 4120, clicks: 8, syncedAt: SEED_TIME },
+    createdAt: Date.parse("2026-09-05T18:00:00+08:00"),
+    updatedAt: Date.parse("2026-09-05T21:04:00+08:00"),
+    generatedBy: "live",
+  },
+];
 
 export const SEED_PROJECT = createSeedProject();

@@ -3,6 +3,7 @@ import { uid } from "./ids.ts";
 import type {
   BrandMemory,
   BrandKit,
+  BrandMemory,
   BrandRules,
   ImageStyle,
   LogoUsage,

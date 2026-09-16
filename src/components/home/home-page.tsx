@@ -71,8 +71,9 @@ const QUICK_STARTS: {
 
 export function HomePage() {
   const navigate = useNavigate();
-  const projects = useStudio((s) => s.projects);
-  const brands = useStudio((s) => s.brands);
+  const hydrated = useStudio((s) => s.hydrated);
+  const campaigns = useStudio((s) => s.campaigns);
+  const contents = useStudio((s) => s.contents);
   const assets = useStudio((s) => s.assets);
   const contentItems = useCreative((s) => s.contentItems);
   const campaign = useCreative((s) => s.campaigns[0]);
@@ -307,5 +308,26 @@ export function HomePage() {
         </ul>
       </section>
     </main>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl bg-surface-2 py-2">
+      <dt className="text-[10px] text-muted">{label}</dt>
+      <dd className="text-sm font-medium tabular-nums">{value.toLocaleString()}</dd>
+    </div>
+  );
+}
+
+function EmptyRow({ icon: Icon, text, action }: { icon: LucideIcon; text: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-surface/70 px-4 py-4 text-sm text-muted shadow-[var(--shadow-border)]">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-subtle">
+        <Icon className="size-4" />
+      </span>
+      <span className="flex-1">{text}</span>
+      {action ? <span className="text-sm font-medium text-accent">{action}</span> : null}
+    </div>
   );
 }

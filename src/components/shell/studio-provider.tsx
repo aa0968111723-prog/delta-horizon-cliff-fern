@@ -16,10 +16,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           useConnectionStore.persist.rehydrate(),
         ]);
       } finally {
-        if (!cancelled) {
-          useStudio.getState().setHydrated(true);
-          useCreative.getState().setHydrated(true);
-        }
+        if (!cancelled) useStudio.getState().setHydrated(true);
         const assets = useStudio.getState().assets;
         void Promise.all(
           assets.map(async (asset) => {

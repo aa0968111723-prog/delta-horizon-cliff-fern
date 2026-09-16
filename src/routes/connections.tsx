@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ConnectionCenter } from "@/components/connections/connection-center";
+import { ConnectionsPage } from "@/components/connections/connections-page";
 
 export const Route = createFileRoute("/connections")({
   component: ConnectionCenter,

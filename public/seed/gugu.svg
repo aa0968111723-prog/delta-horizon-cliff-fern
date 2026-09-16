@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" width="240" height="200">
+  <defs>
+    <radialGradient id="shell" cx="0.4" cy="0.35" r="0.8">
+      <stop offset="0" stop-color="#9BD0BF"/>
+      <stop offset="1" stop-color="#3E7C6F"/>
+    </radialGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#F2B56B"/>
+      <stop offset="0.5" stop-color="#7FB7A8"/>
+      <stop offset="1" stop-color="#C9B8E8"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="120" cy="178" rx="78" ry="9" fill="#2B2B36" opacity="0.08"/>
+  <!-- legs -->
+  <ellipse cx="66" cy="152" rx="18" ry="12" fill="#7FB7A8"/>
+  <ellipse cx="172" cy="152" rx="18" ry="12" fill="#7FB7A8"/>
+  <!-- shell -->
+  <path d="M46 150 C40 96 74 62 120 62 C166 62 200 96 194 150 Z" fill="url(#shell)"/>
+  <path d="M120 74 L146 96 L136 130 L104 130 L94 96 Z" fill="#FFF6E9" opacity="0.35"/>
+  <path d="M60 128 L88 100" stroke="#FFF6E9" stroke-width="4" stroke-linecap="round" opacity="0.45"/>
+  <path d="M180 128 L152 100" stroke="#FFF6E9" stroke-width="4" stroke-linecap="round" opacity="0.45"/>
+  <!-- shell rim -->
+  <path d="M42 150 Q120 168 198 150" fill="none" stroke="#2B2B36" stroke-width="6" stroke-linecap="round" opacity="0.6"/>
+  <!-- head -->
+  <ellipse cx="196" cy="116" rx="30" ry="26" fill="#9BD0BF"/>
+  <circle cx="204" cy="110" r="4.5" fill="#2B2B36"/>
+  <path d="M198 124 Q206 130 214 124" fill="none" stroke="#2B2B36" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="214" cy="118" r="5" fill="#F2B56B" opacity="0.5"/>
+  <!-- three lights -->
+  <circle cx="86" cy="42" r="8" fill="#F2B56B"/>
+  <circle cx="120" cy="30" r="8" fill="#7FB7A8"/>
+  <circle cx="154" cy="42" r="8" fill="#C9B8E8"/>
+  <path d="M86 42 Q120 22 154 42" fill="none" stroke="url(#glow)" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+</svg>

@@ -50,11 +50,13 @@ import { useStudio } from "@/stores/studio-store";
 
 type FilterId = "all" | AssetCategory | "favorite";
 
-export function AssetLibrary() {
+export function AssetLibrary({ initialAssetId, initialCategory }: { initialAssetId?: string; initialCategory?: string } = {}) {
   const navigate = useNavigate();
   const assets = useStudio((s) => s.assets);
   const brands = useStudio((s) => s.brands);
   const projects = useStudio((s) => s.projects);
+  const campaigns = useStudio((s) => s.campaigns);
+  const contents = useStudio((s) => s.contents);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const addAsset = useStudio((s) => s.addAsset);
   const removeAsset = useStudio((s) => s.removeAsset);
@@ -63,22 +65,27 @@ export function AssetLibrary() {
   const createFromTemplate = useStudio((s) => s.createFromTemplate);
   const fileRef = useRef<HTMLInputElement>(null);
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<FilterId>("all");
+  const [filter, setFilter] = useState<FilterId>(
+    initialCategory && ASSET_CATEGORIES.some((c) => c.id === initialCategory) ? (initialCategory as FilterId) : "all",
+  );
   const [source, setSource] = useState<"all" | AssetSourceKind>("all");
   const [usageFilter, setUsageFilter] = useState<"all" | "in-use" | "used" | "unused">("all");
   const [uploadCategory, setUploadCategory] = useState<AssetCategory>("photo");
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(initialAssetId ?? null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [dropOver, setDropOver] = useState(false);
 
-  const usedIds = useMemo(() => collectUsedAssetIds(projects, brands), [projects, brands]);
+  const usedIds = useMemo(
+    () => collectUsedAssetIds(projects, brands, [...campaigns, ...contents]),
+    [projects, brands, campaigns, contents],
+  );
   const brand = brands[0];
 
   const filtered = useMemo(() => {
     return assets.filter((asset) => {
-      if (!matchesAssetQuery(asset, q)) return false;
+      if (!matchesAssetQuery(asset, q) && !(asset.insight?.summary ?? "").toLowerCase().includes(q.trim().toLowerCase())) return false;
       if (source !== "all" && asset.source !== source) return false;
       const usage = assetUsageStatus(asset, usedIds);
       if (usageFilter !== "all" && usage !== usageFilter) return false;
@@ -222,7 +229,7 @@ export function AssetLibrary() {
           if (e.dataTransfer.files.length) void onFiles(e.dataTransfer.files);
         }}
       >
-        <p>把圖片拖到這裡。JPG / PNG / WebP / GIF / SVG，單檔上限 8 MB。</p>
+        <p>把圖片拖到這裡：活動照、歷屆海報、IG 截圖、社員照、校園與淡水照。JPG / PNG / WebP / GIF / SVG，單檔 8 MB。</p>
         <div className="mx-auto mt-3 flex max-w-xs items-center gap-2">
           <span className="text-xs">上傳分類</span>
           <Select value={uploadCategory} onValueChange={(v) => setUploadCategory(v as AssetCategory)}>
@@ -376,6 +383,12 @@ export function AssetLibrary() {
                 onFavorite={() => toggleFavorite(asset.id)}
                 onDelete={() => setPendingDelete(asset.id)}
                 onPlace={lastProjectId ? () => place(asset) : undefined}
+                onCreate={() =>
+                  void navigate({
+                    to: "/create",
+                    search: { mode: "photo", idea: `用素材「${asset.name}」` },
+                  })
+                }
               />
             </li>
           ))}

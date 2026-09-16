@@ -73,6 +73,49 @@ export function AssetDetailSheet({
   if (!asset) return null;
   const current = asset;
 
+  async function analyze() {
+    if (!brand) return;
+    setAnalyzing(true);
+    try {
+      const blob = await getAssetBlob(current.id);
+      const dataUrl = blob && blob.size < 4_500_000 ? await blobToDataUrl(blob) : undefined;
+      const res = await analyzeZenImage({
+        data: { brandContext: brandMemoryContext(brand).slice(0, 3000), imageDataUrl: dataUrl, fileName: current.name, hints: current.tags.join("、") },
+      });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      const insight: AssetInsight = {
+        summary: res.insight.summary,
+        subjects: res.insight.subjects,
+        palette: res.insight.palette,
+        mood: res.insight.mood,
+        studentFit: res.insight.studentFit,
+        brandFit: res.insight.brandFit,
+        stopPower: res.insight.stopPower,
+        warnings: res.insight.warnings,
+        suggestions: res.insight.suggestions,
+        analyzedAt: Date.now(),
+        source: res.source,
+      };
+      updateAsset(current.id, {
+        insight,
+        tags: [...new Set([...current.tags, ...res.insight.tags])],
+        licenseNotes: current.licenseNotes || (res.insight.extendPrompt ? `延伸 Prompt：${res.insight.extendPrompt}` : ""),
+      });
+      toast.success(res.source === "live" ? "AI 看完了" : "已用本機推斷加上標籤（AI 視覺連線後會真的看圖）");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  function useInCreate(mode: "photo" | "story" | "carousel" | "reels") {
+    const hint = current.insight?.summary ?? current.name;
+    onOpenChange(false);
+    void navigate({ to: "/create", search: { mode, idea: `用素材「${current.name}」：${hint.slice(0, 80)}` } });
+  }
+
   function patch<K extends keyof AssetMeta>(key: K, value: AssetMeta[K]) {
     updateAsset(current.id, { [key]: value });
   }
@@ -230,6 +273,52 @@ export function AssetDetailSheet({
               <p className="mt-1">最近 {new Date(asset.lastUsedAt).toLocaleString("zh-TW")}</p>
             ) : null}
           </div>
+        </div>
+        <div className="rounded-2xl bg-glow-card p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium">AI 怎麼看這張</p>
+            <Button size="sm" variant="secondary" className="rounded-full" onClick={() => void analyze()} disabled={analyzing}>
+              {analyzing ? <RefreshCw className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+              {asset.insight ? "重新分析" : "AI 分析"}
+            </Button>
+          </div>
+          {asset.insight ? (
+            <div className="mt-2 text-xs">
+              <p className="text-sm leading-relaxed">{asset.insight.summary}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {asset.insight.palette.slice(0, 5).map((hex, i) => (
+                  <span key={`${hex}-${i}`} className="size-4 rounded-full ring-2 ring-surface" style={{ backgroundColor: hex }} />
+                ))}
+                <span className="text-muted">
+                  {asset.insight.mood} · 學生感 {Math.round(asset.insight.studentFit)} · 品牌感 {Math.round(asset.insight.brandFit)} · 停留感 {Math.round(asset.insight.stopPower)}
+                </span>
+              </div>
+              {asset.insight.suggestions.length ? (
+                <ul className="mt-2 space-y-0.5 text-muted">
+                  {asset.insight.suggestions.map((sug, i) => (
+                    <li key={i}>· {sug}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-muted">分析畫面內容、色彩、構圖、學生感、品牌感、停留感，並自動加標籤。</p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <Button size="sm" className="rounded-full" onClick={() => useInCreate("photo")}>
+              加入創作
+            </Button>
+            <Button size="sm" variant="ghost" className="rounded-full" onClick={() => useInCreate("story")}>
+              做成限動
+            </Button>
+            <Button size="sm" variant="ghost" className="rounded-full" onClick={() => useInCreate("carousel")}>
+              做成 Carousel
+            </Button>
+            <Button size="sm" variant="ghost" className="rounded-full" onClick={() => useInCreate("reels")}>
+              Reels 封面
+            </Button>
+          </div>
+          {asset.externalRef ? <p className="mt-2 text-[11px] text-subtle">來源：{asset.externalRef.label ?? asset.externalRef.provider}</p> : null}
         </div>
         <div>
           <Label className="mb-1.5 block">名稱</Label>

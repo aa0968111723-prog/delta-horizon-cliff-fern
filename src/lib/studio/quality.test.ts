@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyQaFixToPages } from "./quality-fix.ts";
+import { emptyBrandMemory } from "./brand.ts";
 import { inspectProject } from "./quality.ts";
 import type { Artboard, BrandKit, CopyDeck, TextLayer } from "./types.ts";
 
@@ -31,6 +32,7 @@ const brand: BrandKit = {
   imageStyle: { mood: "", lighting: "", paletteHint: "", composition: "", do: "", dont: "" },
   rules: { noCompetitorMarks: false, noWatermark: false, noLowRes: false, notes: "" },
   boilerplate: { cta: "到店手沖", disclaimer: "", hashtags: [], captionClose: "" },
+  memory: emptyBrandMemory(),
   updatedAt: 1,
 };
 
