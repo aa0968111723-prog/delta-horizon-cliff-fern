@@ -17,6 +17,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { countdownLabel, formatCampaignDate, nextCampaign, sortByUpcoming } from "@/lib/studio/campaign";
+import { localTodayIdeas } from "@/lib/studio/ideas";
 import { contentKindLabel } from "@/lib/studio/status";
 import type { Campaign, CampaignWave } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -109,7 +110,8 @@ export function HomePage() {
   const suggestion =
     todaysWave?.hook ||
     focus?.painPoint ||
-    HOOK_PATTERNS[0].example;
+    localTodayIdeas()[0]?.hook ||
+    "第一次來，會經歷什麼？";
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
