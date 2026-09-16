@@ -39,7 +39,7 @@ export const generateCreativePack = createServerFn({ method: "POST" })
       studentContext: data.audience,
       foundCount: Math.max(data.foundCount ?? 0, live.sources.length, sources.length),
       citedSources: sources,
-      directions: plan.visualDirections,
+      directions: plan.visualDirections ?? [],
       plan,
       copy: applyStudentRewrite({
         hook: plan.hook,

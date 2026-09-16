@@ -59,7 +59,7 @@ test("materializeCampaignFromPack fills waves without owners", () => {
       studentContext: "淡江大學學生",
       foundCount: 3,
       citedSources: [],
-      directions: plan.visualDirections,
+      directions: plan.visualDirections ?? [],
       plan,
       copy: {
         hook: plan.hook,
@@ -130,7 +130,7 @@ test("formatSuitePlan sequences carousel, story, and reels instead of reusing th
     studentContext: "淡江大學學生",
     foundCount: 3,
     citedSources: [],
-    directions: plan.visualDirections,
+    directions: plan.visualDirections ?? [],
     plan,
     copy: {
       hook: plan.hook,
@@ -220,7 +220,7 @@ test("materializeCampaignFromPack reuses floating light date", () => {
       studentContext: "淡江大學學生",
       foundCount: 3,
       citedSources: [],
-      directions: plan.visualDirections,
+      directions: plan.visualDirections ?? [],
       plan,
       copy: {
         hook: plan.hook,

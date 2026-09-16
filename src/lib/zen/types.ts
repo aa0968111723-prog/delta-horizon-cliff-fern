@@ -1,4 +1,4 @@
-import type { CampaignPlan, CitedSource, ContentKind, ProjectStatus, StudentReview } from "../studio/types.ts";
+import type { CampaignPlan, CitedSource, ContentKind, ProjectStatus, StudentReview, VisualDirection } from "../studio/types.ts";
 
 export type CampaignType =
   | "tea"
@@ -136,7 +136,7 @@ export type CreativePack = {
   studentContext: string;
   foundCount: number;
   citedSources: CitedSource[];
-  directions: CampaignPlan["visualDirections"];
+  directions: VisualDirection[];
   plan: CampaignPlan;
   copy: CopyPack;
 };

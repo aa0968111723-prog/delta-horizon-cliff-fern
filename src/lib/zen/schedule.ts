@@ -249,6 +249,27 @@ export function contentKindForWave(kind: WaveKind): ContentKind {
   return "ig-post";
 }
 
+export function packWithDirection(pack: CreativePack, directionId?: string): CreativePack {
+  if (!directionId || pack.directions.length === 0) return pack;
+  const picked = pack.directions.find((direction) => direction.id === directionId);
+  if (!picked) return pack;
+  return { ...pack, directions: [picked, ...pack.directions.filter((direction) => direction.id !== directionId)] };
+}
+
+export function projectForKeptWave(
+  kind: WaveKind,
+  projects: Partial<Record<string, string | null | undefined>>,
+): string | null {
+  if (kind === "recap") return projects.carousel || projects["ig-post"] || projects.reels || null;
+  if (kind === "countdown") return projects.story || projects["ig-post"] || null;
+  if (kind === "tease" || kind === "reason") return projects["ig-post"] || projects.carousel || null;
+  return projects["ig-post"] || null;
+}
+
+export function isKeptRhythmWave(kind: WaveKind) {
+  return kind === "tease" || kind === "reason" || kind === "countdown" || kind === "recap";
+}
+
 export function previewForWave(kind: WaveKind, pack: CreativePack): string {
   const copy = applyStudentRewrite(pack.copy);
   const converted = convertFromPlan(pack.plan);
@@ -267,19 +288,56 @@ export function previewForWave(kind: WaveKind, pack: CreativePack): string {
   return `昨天晚上。${copy.hook}`;
 }
 
-export function applyPackToWaves(campaign: ClubCampaign, pack: CreativePack): ClubCampaign {
-  const copy = applyStudentRewrite(pack.copy);
+export function applyPackToWaves(campaign: ClubCampaign, pack: CreativePack, directionId?: string): ClubCampaign {
+  const aligned = packWithDirection(pack, directionId);
+  const copy = applyStudentRewrite(aligned.copy);
+  const withCopy = { ...aligned, copy };
   return {
     ...campaign,
     updatedAt: Date.now(),
     tagline: copy.hook || campaign.tagline,
     waves: campaign.waves.map((wave) => ({
       ...wave,
-      copyPreview: previewForWave(wave.kind, { ...pack, copy }),
+      copyPreview: previewForWave(wave.kind, withCopy),
       status: wave.status === "published" || wave.status === "done" ? wave.status : "creating",
-      notes: wave.kind === "key-visual" ? pack.directions?.[0]?.imagePrompt || wave.notes : wave.notes,
+      notes: wave.kind === "key-visual" ? withCopy.directions?.[0]?.imagePrompt || wave.notes : wave.notes,
     })),
   };
+}
+
+export function fillKeptWaveRows(input: {
+  items: ScheduleItem[];
+  campaign: ClubCampaign;
+  pack: CreativePack;
+  directionId?: string;
+  projects: Partial<Record<string, string | null | undefined>>;
+}): { items: ScheduleItem[]; campaign: ClubCampaign } {
+  const packed = applyPackToWaves(input.campaign, input.pack, input.directionId);
+  const campaign: ClubCampaign = {
+    ...packed,
+    waves: packed.waves.map((wave) => {
+      if (wave.status === "published" || wave.status === "done") return wave;
+      if (!isKeptRhythmWave(wave.kind)) return wave;
+      return {
+        ...wave,
+        status: "scheduled",
+        projectId: wave.projectId || projectForKeptWave(wave.kind, input.projects),
+      };
+    }),
+  };
+  const byId = new Map(campaign.waves.map((wave) => [`sch_${wave.id}`, wave]));
+  const items = input.items.map((item) => {
+    if (item.campaignId !== campaign.id || !isWaveScheduleItem(item) || item.status === "published") return item;
+    const wave = byId.get(item.id);
+    if (!wave) return item;
+    return {
+      ...item,
+      captionPreview: wave.copyPreview || item.captionPreview,
+      status: wave.status,
+      projectId: item.projectId || wave.projectId,
+    };
+  });
+  return { items, campaign };
 }
 
 export function scheduleItemsFromCampaign(

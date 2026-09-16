@@ -87,6 +87,7 @@ type CreativeState = {
   sequences: VisualSequence[];
   igView: IgView;
   igFormat: FormatId;
+  previewScheduleId: string | null;
   searchQuery: string;
   createIntent: CreateIntent | null;
   driveFolderQuery: string;
@@ -100,6 +101,7 @@ type CreativeState = {
   setIgView: (igView: IgView) => void;
   setIgFormat: (igFormat: FormatId) => void;
   setIgPreview: (assetId: string | null, formatId?: FormatId) => void;
+  setPreviewSchedule: (id: string | null) => void;
   upsertCampaign: (campaign: ClubCampaign) => void;
   patchCampaign: (id: string, patch: Partial<ClubCampaign>) => void;
   removeCampaign: (id: string) => void;
@@ -133,6 +135,7 @@ export const useCreative = create<CreativeState>()(
       sequences: [],
       igView: "grid",
       igFormat: "feed-portrait",
+      previewScheduleId: null,
       searchQuery: "",
       createIntent: null,
       driveFolderQuery: "淡江禪學社",
@@ -173,6 +176,7 @@ export const useCreative = create<CreativeState>()(
           igView: assetId ? "preview" : "grid",
           ...(formatId ? { igFormat: formatId } : {}),
         }),
+      setPreviewSchedule: (previewScheduleId) => set({ previewScheduleId }),
       upsertCampaign: (campaign) =>
         set((s) => {
           const exists = s.campaigns.some((c) => c.id === campaign.id);

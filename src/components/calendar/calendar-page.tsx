@@ -258,6 +258,11 @@ export function CalendarPage() {
                   {isWaveScheduleItem(item) ? " · 節奏" : ""}
                 </p>
                 <p className="text-sm font-medium">{item.title}</p>
+                {item.captionPreview ? (
+                  <p className="mt-1 line-clamp-2 text-sm text-muted" data-testid="schedule-caption">
+                    {item.captionPreview}
+                  </p>
+                ) : null}
                 {item.sequence && item.sequence.assetIds.length > 1 ? (
                   <p className="text-xs text-muted">{item.sequence.assetIds.length} 張畫面</p>
                 ) : null}

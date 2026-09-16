@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { SEED_MEMORY } from "./memory.ts";
 import { creativeSearch, expandCreativeQuery, groupSearchHits, knowledgeFromHits, searchCreativeKnowledge, searchTerms } from "./search.ts";
-import { applyPackToWaves, contentKindForWave, copyKindForWave, emptyCampaign, mergeSuiteIntoSchedule, nextWaveAngle, nextWaveVisual, preferSuiteSchedule, rhythmHint, scheduleItemsFromCampaign, schedulePreviewAssetId, spreadSchedule, suggestWaves, suiteCoversWave, waveOffsets } from "./schedule.ts";
+import { applyPackToWaves, contentKindForWave, copyKindForWave, emptyCampaign, fillKeptWaveRows, mergeSuiteIntoSchedule, nextWaveAngle, nextWaveVisual, packWithDirection, preferSuiteSchedule, projectForKeptWave, rhythmHint, scheduleItemsFromCampaign, schedulePreviewAssetId, spreadSchedule, suggestWaves, suiteCoversWave, waveOffsets } from "./schedule.ts";
 import { canvaDraftNotes, canvaDraftTitle, canvaPresetForAspect, canvaPresetForKind } from "./canva-draft.ts";
 import { convertFromPlan, CONVERT_TARGETS, aspectForTarget, briefFlagsForTarget, captionForTarget, contentKindForFormat, convertTargetForFormat } from "./convert.ts";
 import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
@@ -612,7 +612,7 @@ test("applyPackToWaves fills every wave without owners", () => {
     studentContext: "淡江大學學生",
     foundCount: 3,
     citedSources: [],
-    directions: plan.visualDirections,
+    directions: plan.visualDirections ?? [],
     plan,
     copy: {
       hook: plan.hook,
@@ -641,6 +641,120 @@ test("applyPackToWaves fills every wave without owners", () => {
   assert.ok(next.waves.every((wave) => (wave.copyPreview ?? "").length > 0));
   assert.ok(next.tagline.includes("休息") || next.tagline.includes("坐好"));
   assert.ok(next.waves.every((wave) => !("assignee" in wave)));
+});
+
+test("fillKeptWaveRows writes copy and reuses suite projects on leftover rhythm waves", () => {
+  const plan = buildMockPlan({
+    eventName: "茶會",
+    schedule: "9/24 19:30",
+    location: "淡江大學淡水校園",
+    product: "茶會",
+    offer: "",
+    audience: "淡江大學學生",
+    goal: "awareness",
+    features: "茶",
+    style: "空氣",
+    notes: "",
+    wantPost: true,
+    wantStory: true,
+    wantCarousel: true,
+    wantReels: true,
+    brandName: "淡江大學禪學社",
+    handle: "@tkuzen",
+    voice: "",
+    doSay: "",
+    dontSay: "",
+    forbiddenWords: [],
+  });
+  const pack = {
+    campaignName: plan.campaignName,
+    insight: plan.insight,
+    studentContext: "淡江大學學生",
+    foundCount: 3,
+    citedSources: [],
+    directions: plan.visualDirections ?? [],
+    plan,
+    copy: {
+      hook: plan.hook,
+      body: plan.captions[0]?.text ?? "",
+      cta: plan.cta,
+      hashtags: plan.hashtags,
+      variants: plan.captions,
+      studentReview: plan.studentReview ?? {
+        wouldStop: "",
+        understandable: "",
+        tooReligious: "",
+        tooSerious: "",
+        tooLiterary: "",
+        tooAi: "",
+        tooLong: "",
+        knowsWhat: "",
+        knowsWhenWhere: "",
+        wouldBringFriend: "可以找朋友一起來。",
+        knowsSignup: "",
+        notes: [],
+        rewriteHook: "最近是不是連休息都覺得有罪惡感？",
+      },
+    },
+  };
+  const picked = packWithDirection(pack, "dir_b").directions?.at(0);
+  assert.ok(picked);
+  assert.equal(picked.id, "dir_b");
+  const waves = suggestWaves({ date: "2026-09-24", type: "tea", name: "茶會" });
+  const campaign = emptyCampaign({ id: "camp_tea", name: "茶會", date: "2026-09-24", waves });
+  const merged = mergeSuiteIntoSchedule(scheduleItemsFromCampaign(campaign, "creating"), [
+    {
+      id: "sch_suite_post",
+      title: "IG Post · 茶會",
+      contentKind: "ig-post",
+      status: "scheduled",
+      scheduledAt: Date.parse("2026-09-18T20:00:00+08:00"),
+      publishedAt: null,
+      projectId: "p-post",
+      campaignId: "camp_tea",
+      captionPreview: "post",
+    },
+    {
+      id: "sch_suite_car",
+      title: "Carousel · 茶會",
+      contentKind: "carousel",
+      status: "scheduled",
+      scheduledAt: Date.parse("2026-09-20T20:00:00+08:00"),
+      publishedAt: null,
+      projectId: "p-car",
+      campaignId: "camp_tea",
+      captionPreview: "car",
+    },
+    {
+      id: "sch_suite_story",
+      title: "Story · 茶會",
+      contentKind: "story",
+      status: "scheduled",
+      scheduledAt: Date.parse("2026-09-19T20:00:00+08:00"),
+      publishedAt: null,
+      projectId: "p-story",
+      campaignId: "camp_tea",
+      captionPreview: "story",
+    },
+  ]);
+  const filled = fillKeptWaveRows({
+    items: merged,
+    campaign,
+    pack,
+    directionId: "dir_b",
+    projects: { "ig-post": "p-post", carousel: "p-car", story: "p-story" },
+  });
+  const tease = filled.items.find((item) => item.title.startsWith("預告"));
+  const recap = filled.items.find((item) => item.title.startsWith("昨天晚上"));
+  const countdown = filled.items.find((item) => item.title.startsWith("倒數"));
+  assert.ok((tease?.captionPreview ?? "").length > 4);
+  assert.equal(tease?.projectId, "p-post");
+  assert.equal(tease?.status, "scheduled");
+  assert.equal(recap?.projectId, "p-car");
+  assert.equal(countdown?.projectId, "p-story");
+  assert.equal(projectForKeptWave("tease", { "ig-post": "p-post" }), "p-post");
+  assert.equal(filled.campaign.waves.find((wave) => wave.kind === "key-visual")?.notes, picked.imagePrompt);
+  assert.equal(filled.campaign.waves.find((wave) => wave.kind === "tease")?.status, "scheduled");
 });
 
 test("nextWaveAngle and nextWaveVisual rotate without owners", () => {

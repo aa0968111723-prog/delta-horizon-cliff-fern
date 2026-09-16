@@ -48,6 +48,7 @@ export function InstagramCenter() {
   const lastSequence = useCreative((s) => s.lastSequence);
   const sequences = useCreative((s) => s.sequences);
   const lastPack = useCreative((s) => s.lastPack);
+  const previewScheduleId = useCreative((s) => s.previewScheduleId);
   const setIgFormat = useCreative((s) => s.setIgFormat);
   const setIgPreview = useCreative((s) => s.setIgPreview);
   const patchCampaign = useCreative((s) => s.patchCampaign);
@@ -142,8 +143,13 @@ export function InstagramCenter() {
   }, [igFormat, lastProjectId, igView]);
 
   useEffect(() => {
+    const opened = schedule.find((item) => item.id === previewScheduleId);
+    if (opened?.captionPreview) {
+      setCaption(opened.captionPreview);
+      return;
+    }
     if (previewProject) setCaption(previewProject.copy.caption || previewProject.copy.headline);
-  }, [previewProject?.id, previewProject?.copy.caption, previewProject?.copy.headline]);
+  }, [previewScheduleId, schedule, previewProject?.id, previewProject?.copy.caption, previewProject?.copy.headline]);
 
   async function analyze() {
     if (!post) return;

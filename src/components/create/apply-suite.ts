@@ -3,7 +3,7 @@ import { applyVisualDirection } from "@/components/create/apply-visual";
 import { uid } from "@/lib/studio/ids";
 import { tonightAt } from "@/lib/zen/convert";
 import { formatSuitePlan } from "@/lib/zen/from-idea";
-import { mergeSuiteIntoSchedule } from "@/lib/zen/schedule";
+import { applyPackToWaves, fillKeptWaveRows, mergeSuiteIntoSchedule } from "@/lib/zen/schedule";
 import type { CreativePack, ScheduleItem, VisualSequence } from "@/lib/zen/types";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -128,18 +128,32 @@ export async function applyFormatSuite(input: {
       0,
       8,
     );
+    const projects: Partial<Record<string, string>> = {};
+    for (const item of pending) {
+      if (item.projectId) projects[item.contentKind] = item.projectId;
+    }
+    const current = campaignId ? state.campaigns.find((campaign) => campaign.id === campaignId) : null;
+    const filled = current
+      ? fillKeptWaveRows({
+          items: slotted,
+          campaign: current,
+          pack: input.pack,
+          directionId: input.directionId,
+          projects,
+        })
+      : null;
     return {
       lastVisualAssetId: preferred?.assetIds[0] ?? firstAssetId ?? state.lastVisualAssetId,
       lastSequence: preferred ?? state.lastSequence,
       sequences: nextSequences,
       igView: firstAssetId ? "preview" : state.igView,
       ...(firstFormatId ? { igFormat: preferred ? "feed-portrait" : firstFormatId } : {}),
-      schedule: slotted,
+      schedule: filled?.items ?? slotted,
       campaigns: campaignId
         ? state.campaigns.map((campaign) =>
             campaign.id === campaignId
               ? {
-                  ...campaign,
+                  ...(filled?.campaign ?? applyPackToWaves(campaign, input.pack, input.directionId)),
                   coverAssetId: generatedIds.carousel ?? generatedIds.post ?? campaign.coverAssetId,
                   relatedAssetIds: [...new Set([...assetIds, ...campaign.relatedAssetIds])].slice(0, 8),
                   projectIds: [
