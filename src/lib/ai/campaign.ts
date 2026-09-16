@@ -20,14 +20,23 @@ export type AiStatus = {
   detail: string;
 };
 
-function extractJson(text: string): unknown {
-  const trimmed = text.trim();
-  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const raw = fence ? fence[1] : trimmed;
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("模型未回傳 JSON");
-  return JSON.parse(raw.slice(start, end + 1));
+function asContentKind(value: string): ContentKind {
+  const allowed: ContentKind[] = [
+    "ig-post",
+    "carousel",
+    "story",
+    "reels",
+    "threads",
+    "line",
+    "poster",
+    "recap",
+    "member-story",
+    "countdown",
+    "qa",
+    "poll",
+    "knowledge",
+  ];
+  return allowed.includes(value as ContentKind) ? (value as ContentKind) : "ig-post";
 }
 
 function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: CampaignPlan["source"]): CampaignPlan {
@@ -89,15 +98,15 @@ export function describeAdapter(available: boolean): AiStatus {
     return {
       available: true,
       adapter: "live",
-      label: "已連線 AI 企劃",
-      detail: "會依品牌規範與活動需求生成結構化企劃，再套進專案與畫布。",
+      label: "AI 創作已連線",
+      detail: "會依淡江禪學社品牌記憶與學生情境，生成文案、方向與畫布企劃。",
     };
   }
   return {
     available: false,
     adapter: "mock",
-    label: "本機企劃草案",
-    detail: "目前沒有連到 AI 服務。按下生成會用本機規則寫一版可編輯、可套用的草案，不是線上模型回覆。",
+    label: "本機創作草案",
+    detail: "目前沒有連到 AI。按下生成會用社團規則寫一版可編輯草案，不是線上模型回覆。",
   };
 }
 
@@ -111,7 +120,8 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
     return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
 
-  const forbidden = data.forbiddenWords.filter(Boolean).join("、") || "無";
+  const ctx = studentContext();
+  const forbidden = data.forbiddenWords.filter(Boolean).join("、") || "誠摯邀請您、蒞臨、限時瘋搶";
   const deliverables = [
     data.wantPost ? "單張貼文" : null,
     data.wantCarousel ? "輪播" : null,
@@ -137,7 +147,7 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
 圖片風格：${data.imageStyle || "夜色、留白、空氣感"}
 吉祥物與燈光：讀品牌記憶裡的龜龜、三色光。
 
-活動名稱：${data.eventName}
+活動：${data.eventName}
 時間：${data.schedule || "未填"}
 地點：${data.location || "淡江大學淡水校園"}
 內容：${data.product || data.eventName}
@@ -178,6 +188,7 @@ cta 2-6 字。`;
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
+    signal: AbortSignal.timeout(18_000),
     body: JSON.stringify({
       model: "grok-4.5",
       temperature: 0.7,
@@ -228,5 +239,11 @@ export const generateCampaignPlan = createServerFn({ method: "POST" })
     if (!hasKey || data.forceMock) {
       return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
     }
-    return generateLive(data);
+    try {
+      const live = await generateLive(data);
+      if (live.ok) return live;
+      return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
+    } catch {
+      return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
+    }
   });

@@ -14,7 +14,6 @@ import { CreateLaunchSheet } from "@/components/create/create-sheet";
 import { SaveIndicator } from "@/components/shared/save-indicator";
 import { APP_NAME } from "@/lib/zen/club";
 import { cn } from "@/lib/utils";
-import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 import { useState } from "react";
 
@@ -47,8 +46,8 @@ function activeKey(pathname: string): NavId {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const lastProjectId = useStudio((s) => s.lastProjectId);
-  const setAssistantOpen = useUi((s) => s.setAssistantOpen);
+  const setCreateOpen = useUi((s) => s.setCreateOpen);
+  const setSearchOpen = useUi((s) => s.setSearchOpen);
   const current = activeKey(pathname);
   const [createOpen, setCreateOpen] = useState(false);
   const navigate = useNavigate();
@@ -84,7 +83,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="flex size-11 items-center justify-center rounded-xl text-muted hover:bg-surface-2 hover:text-fg"
             aria-label="打開畫布"
           >
-            <Sparkles className="size-4" />
+            <Plus className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="flex size-11 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-fg"
+            aria-label="搜尋素材"
+          >
+            <span className="text-sm">尋</span>
           </button>
           <SaveIndicator />
         </div>
