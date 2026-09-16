@@ -23,7 +23,8 @@ export function InstagramCenter() {
   const [active, setActive] = useState<IgMemoryPost | null>(null);
   const [live, setLive] = useState<IgMemoryPost[]>([]);
   const brand = brands[0];
-  const preview = projects.find((p) => p.contentKind === "carousel") ?? projects[0];
+  const lastProjectId = useStudio((s) => s.lastProjectId);
+  const preview = projects.find((p) => p.id === lastProjectId) ?? projects[0];
   const artboard = preview ? pagesOf(preview)[preview.slideIndex ?? 0] : undefined;
   const urls = useAssetUrls(
     preview

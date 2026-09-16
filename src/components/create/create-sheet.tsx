@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { QUICK_STARTS } from "@/lib/club/quick-starts";
+import { handoffFromQuickStart, QUICK_STARTS } from "@/lib/club/quick-starts";
+import { writeHandoff } from "@/lib/create/handoff";
 import { useCreative } from "@/stores/creative-store";
 import { useUi } from "@/stores/ui-store";
 
@@ -58,7 +59,8 @@ export function CreateSheet() {
                       return;
                     }
                     if (action.to === "/create") {
-                      void navigate({ to: "/create", search: { tab: action.tab ?? "image" } });
+                      writeHandoff(handoffFromQuickStart(action));
+                      void navigate({ to: "/create", search: { tab: action.tab ?? "campaign" } });
                     } else {
                       void navigate({ to: action.to });
                     }
@@ -75,7 +77,7 @@ export function CreateSheet() {
           className="mt-4 w-full"
           onClick={() => {
             setCreateOpen(false);
-            void navigate({ to: "/assistant" });
+            void navigate({ to: "/create", search: { tab: "campaign" } });
           }}
         >
           <Plus className="size-4" />

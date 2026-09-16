@@ -21,3 +21,9 @@ test("parseHandoff prefers JSON payload and still accepts zen-idea", () => {
 test("parseHandoff returns null when empty", () => {
   assert.equal(parseHandoff(null, null), null);
 });
+
+test("parseHandoff keeps autoRun so homepage can start IdeaFlow", () => {
+  const parsed = parseHandoff(JSON.stringify({ idea: "浮游禪光", tab: "campaign", autoRun: true }), null);
+  assert.equal(parsed?.autoRun, true);
+  assert.equal(parsed?.tab, "campaign");
+});

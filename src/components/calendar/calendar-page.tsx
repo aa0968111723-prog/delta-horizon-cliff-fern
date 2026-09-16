@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { writeHandoff } from "@/lib/create/handoff";
 import { CONTENT_KIND_META, CONTENT_STATUS_META } from "@/lib/studio/status";
 import type { ContentKind } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -144,7 +145,27 @@ export function CalendarPage() {
                   {row.status === "published" ? "改回已排程" : "標記已發布"}
                 </Button>
                 <Button size="sm" variant="ghost" asChild>
-                  <Link to="/create" search={{ tab: "copy" }}>AI 延伸</Link>
+                  <Link
+                    to="/create"
+                    search={{ tab: "campaign" }}
+                    onClick={() =>
+                      writeHandoff({
+                        idea: row.title,
+                        tab: "campaign",
+                        convertKind:
+                          row.contentKind === "story" ||
+                          row.contentKind === "carousel" ||
+                          row.contentKind === "reels" ||
+                          row.contentKind === "ig-post"
+                            ? row.contentKind
+                            : undefined,
+                        autoRun: true,
+                        sourceLabel: `排程 / ${row.title}`,
+                      })
+                    }
+                  >
+                    AI 延伸
+                  </Link>
                 </Button>
               </div>
             </li>

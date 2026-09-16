@@ -3,20 +3,15 @@ import { format as formatDate } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { Images, Plus, Search, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 import { NewProjectDialog } from "@/components/dashboard/new-project-dialog";
 import { ProjectCard } from "@/components/shared/project-card";
 import { SectionHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { generateCampaignPlan } from "@/lib/ai/campaign";
-import { toBriefInput } from "@/lib/ai/payload";
-import { FEATURED_EVENT } from "@/lib/club/memory";
-import { lessonPrompt } from "@/lib/club/insights";
-import { QUICK_STARTS } from "@/lib/club/quick-starts";
-import { buildCampaignRhythm } from "@/lib/club/schedule";
+import { FEATURED_EVENT, featuredCampaignIdea } from "@/lib/club/memory";
+import { handoffFromQuickStart, QUICK_STARTS } from "@/lib/club/quick-starts";
 import { formatDaysUntil, studentContext } from "@/lib/club/season";
-import { emptyBrief } from "@/lib/studio/brief";
+import { writeHandoff } from "@/lib/create/handoff";
 import { CONTENT_KIND_META, contentStatusOf } from "@/lib/studio/status";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -27,75 +22,37 @@ export function HomePage() {
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
-  const createProject = useStudio((s) => s.createProject);
-  const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const campaigns = useCreative((s) => s.campaigns);
   const schedule = useCreative((s) => s.schedule);
   const igPosts = useCreative((s) => s.igPosts);
-  const setWaves = useCreative((s) => s.setWaves);
-  const setDirections = useCreative((s) => s.setDirections);
-  const attachProject = useCreative((s) => s.attachProject);
   const setCreateOpen = useUi((s) => s.setCreateOpen);
   const setSearchOpen = useUi((s) => s.setSearchOpen);
   const setLastSearch = useCreative((s) => s.setLastSearch);
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
   const ctx = studentContext();
   const featured = campaigns.find((c) => c.id === FEATURED_EVENT.id) ?? campaigns[0];
-  const brand = brands[0];
 
   const urls = useAssetUrls(assets.map((a) => a.id));
   const recent = useMemo(() => [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6), [projects]);
   const upcoming = [...schedule].sort((a, b) => a.plannedAt - b.plannedAt).filter((row) => row.status !== "published").slice(0, 4);
   const strong = [...igPosts].sort((a, b) => (b.metrics?.saves ?? 0) - (a.metrics?.saves ?? 0))[0];
 
-  async function generateFeatured() {
-    if (!brand || !featured) return;
-    setBusy(true);
-    try {
-      const brief = {
-        ...emptyBrief(),
-        eventName: featured.name,
-        product: featured.name,
-        schedule: `${featured.date} ${featured.time}`,
+  function startFeatured() {
+    if (!featured) return;
+    writeHandoff({
+      idea: featuredCampaignIdea({
+        ...FEATURED_EVENT,
+        name: featured.name,
+        date: featured.date,
+        time: featured.time,
         location: featured.location,
-        audience: "淡江大學學生，尤其剛到淡水、想找一個能坐下的晚上的人",
-        features: featured.description,
-        notes: featured.oneLiner,
-        style: "學生生活感，不要宗教",
-        deliverables: { post: true, story: true, carousel: true, reels: true },
-      };
-      const result = await generateCampaignPlan({
-        data: toBriefInput(brief, brand, { igLessons: lessonPrompt(igPosts) }),
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      const project = createProject({
-        name: result.plan.campaignName,
-        brandId: brand.id,
-        formatId: "feed-portrait",
-        brief,
-        templateId: result.plan.templateId,
-      });
-      applyCampaignPlan(project.id, result.plan, brief);
-      attachProject(featured.id, project.id);
-      setWaves(
-        featured.id,
-        result.plan.waves?.length
-          ? result.plan.waves
-          : buildCampaignRhythm({ eventDate: featured.date, eventType: featured.type || featured.name }),
-        { syncCalendar: true },
-      );
-      if (result.plan.directions?.length) setDirections(featured.id, result.plan.directions);
-      toast.success(result.adapter === "mock" ? "已用社團規則寫好一版，可接著改" : "已生成文案、輪播與腳本");
-      void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "生成失敗");
-    } finally {
-      setBusy(false);
-    }
+        oneLiner: featured.oneLiner || FEATURED_EVENT.oneLiner,
+      }),
+      tab: "campaign",
+      autoRun: true,
+      sourceLabel: `活動 / ${featured.name}`,
+    });
+    void navigate({ to: "/create", search: { tab: "campaign" } });
   }
 
   return (
@@ -132,9 +89,9 @@ export function HomePage() {
                 <h2 className="mt-2 max-w-xl font-display text-2xl md:text-4xl">「{featured.oneLiner}」</h2>
                 <p className="mt-3 text-sm text-muted">AI 建議做成 IG Carousel · {featured.location}</p>
               </div>
-              <Button size="lg" className="h-12 rounded-full px-6" disabled={busy} onClick={() => void generateFeatured()}>
+              <Button size="lg" className="h-12 rounded-full px-6" data-testid="home-featured-create" onClick={startFeatured}>
                 <Sparkles className="size-4" />
-                {busy ? "正在生成…" : "AI 幫我創作"}
+                AI 幫我創作
               </Button>
             </div>
             <p className="mt-4 text-xs text-subtle">會一次產出 IG 文案、圖片 Prompt、主視覺方向、Carousel、Story、Threads、Reels Script。</p>
@@ -151,12 +108,13 @@ export function HomePage() {
                 className="shrink-0 rounded-full"
                 onClick={() => {
                   if (item.openSearch) {
-                    setLastSearch(item.id === "canva" ? "茶會 Canva" : "以前晚上的茶會照片");
+                    setLastSearch(item.id === "canva" ? "找以前茶會 Canva" : "找以前晚上的茶會照片");
                     setSearchOpen(true);
                     return;
                   }
                   if (item.to === "/create") {
-                    void navigate({ to: "/create", search: { tab: item.tab ?? "image" } });
+                    writeHandoff(handoffFromQuickStart(item));
+                    void navigate({ to: "/create", search: { tab: item.tab ?? "campaign" } });
                     return;
                   }
                   void navigate({ to: item.to });

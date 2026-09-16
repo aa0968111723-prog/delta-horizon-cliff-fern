@@ -8,7 +8,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { CONVERT_TARGETS, convertPlan } from "@/lib/convert/pack";
 import { COPY_INTENTS, COPY_TONES, generateCopyPack, type CopyPack } from "@/lib/copy/generate";
 import { applyStudentReviewToPack } from "@/lib/copy/review";
-import { readHandoff, type CreateHandoff, type CreateTab } from "@/lib/create/handoff";
+import { consumeHandoff, type CreateHandoff, type CreateTab } from "@/lib/create/handoff";
 import { generateImageDirections, generateStudioImage, IMAGE_ASPECTS } from "@/lib/image/studio";
 import { analyzeImage, type VisionReport } from "@/lib/vision/analyze";
 import { compactDataUrl, loadAssetDataUrl } from "@/lib/vision/media";
@@ -34,19 +34,19 @@ export function CreateHub({ initialTab = "campaign" }: { initialTab?: CreateTab 
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const projects = useStudio((s) => s.projects);
   const [tab, setTab] = useState<CreateTab>(initialTab);
-  const [bridge, setBridge] = useState<CreateHandoff>({});
+  const [bridge, setBridge] = useState<CreateHandoff>(() => consumeHandoff() ?? {});
 
   useEffect(() => {
     setTab(initialTab);
   }, [initialTab]);
 
   useEffect(() => {
-    const next = readHandoff();
+    const next = consumeHandoff();
     if (next) {
       setBridge(next);
       if (next.tab) setTab(next.tab);
     }
-  }, []);
+  }, [initialTab]);
 
   const lastPlan = projects.find((item) => item.id === lastProjectId)?.plan;
 
@@ -99,7 +99,7 @@ export function CreateHub({ initialTab = "campaign" }: { initialTab?: CreateTab 
       <div className="mt-6 rounded-3xl bg-surface p-4 shadow-[var(--shadow-border)] sm:p-6">
         {tab === "campaign" ? (
           <div className="space-y-8">
-            <IdeaFlow seedIdea={bridge.idea} seedConvertKind={bridge.convertKind} />
+            <IdeaFlow seedIdea={bridge.idea} seedConvertKind={bridge.convertKind} seedAutoRun={bridge.autoRun} />
             <details className="rounded-2xl bg-bg px-4 py-3">
               <summary className="cursor-pointer text-sm text-muted">需要填完整活動欄位再生成</summary>
               <div className="mt-4">

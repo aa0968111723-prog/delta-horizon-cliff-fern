@@ -29,6 +29,10 @@ export const FEATURED_EVENT = {
   signupUrl: "",
 };
 
+export function featuredCampaignIdea(event = FEATURED_EVENT) {
+  return `${event.oneLiner}\n${event.name}｜${event.date} ${event.time}｜${event.location}`;
+}
+
 export const IG_DNA = {
   palette: ["亞麻紙色", "苔綠", "淡水暮光", "三色光（青／暖／玫瑰）"],
   activities: ["茶會", "社課", "浮游禪光", "迎新", "夜間靜坐體驗"],

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseIdea } from "./idea.ts";
-import { searchMemory } from "./memory.ts";
+import { featuredCampaignIdea, searchMemory } from "./memory.ts";
 
 const FROM = new Date("2026-09-16T12:00:00+08:00");
 
@@ -21,6 +21,12 @@ test("parseIdea keeps 浮游禪光 and explicit dates", () => {
   assert.equal(parsed.eventName, "浮游禪光");
   assert.equal(parsed.searchQuery, "浮游禪光");
   assert.equal(parsed.date, "2026-09-24");
+});
+
+test("featured campaign idea still parses as 浮游禪光", () => {
+  const parsed = parseIdea(featuredCampaignIdea(), FROM);
+  assert.equal(parsed.eventName, "浮游禪光");
+  assert.match(parsed.raw, /最近是不是很久沒有好好坐下來？/);
 });
 
 test("tea idea search query finds Drive, Canva, and IG memory", () => {

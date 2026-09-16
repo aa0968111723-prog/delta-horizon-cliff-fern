@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/input";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { IgThumb } from "@/components/create/ig-thumb";
 import { generateCampaignPlan } from "@/lib/ai/campaign";
+import { takeAutoRun } from "@/lib/create/handoff";
 import { applyStudentReviewToPlan } from "@/lib/copy/review";
 import { toBriefInput } from "@/lib/ai/payload";
 import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, notesFromHits, summarizeFound } from "@/lib/club/compose";
@@ -32,9 +33,11 @@ type Phase = "idea" | "research" | "directions" | "pack";
 export function IdeaFlow({
   seedIdea,
   seedConvertKind,
+  seedAutoRun,
 }: {
   seedIdea?: string;
   seedConvertKind?: ContentKind;
+  seedAutoRun?: boolean;
 } = {}) {
   const navigate = useNavigate();
   const brands = useStudio((s) => s.brands);
@@ -79,15 +82,22 @@ export function IdeaFlow({
     if (seedConvertKind) setPackKind(seedConvertKind);
   }, [seedIdea, seedConvertKind]);
 
+  useEffect(() => {
+    if (!takeAutoRun(seedAutoRun)) return;
+    void research(seedIdea || idea);
+    // Intentionally once per consumed handoff.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedAutoRun, seedIdea]);
+
   const converted = plan ? convertPlan(plan, packKind) : null;
   const thumb = heroUrl || hits[0]?.thumb || "/seed/tea.svg";
 
-  async function research() {
+  async function research(raw = idea, autoPack = Boolean(seedAutoRun)) {
     if (!brand) {
       toast.error("請先在品牌中心確認淡江禪學社品牌。");
       return;
     }
-    const parsed = parseIdea(idea);
+    const parsed = parseIdea(raw);
     setBusy(true);
     setPhase("research");
     setPicked(null);
@@ -113,6 +123,10 @@ export function IdeaFlow({
       setPlan(nextPlan);
       setPhase("directions");
       setStatus(summarizeFound(search.groups).line + "。根據過去內容生成 3 個方向。");
+      if (autoPack && nextPlan.directions?.[0]) {
+        setStatus(summarizeFound(search.groups).line + "。已依第一個方向做成完整宣傳，可再換方向。");
+        await packDirection(nextPlan, nextPlan.directions[0], foundHits, raw);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "創作失敗");
       setPhase("idea");
@@ -121,84 +135,96 @@ export function IdeaFlow({
     }
   }
 
+  async function packDirection(
+    currentPlan: CampaignPlan,
+    direction: CreativeDirection,
+    currentHits = hits,
+    raw = idea,
+  ) {
+    if (!brand) return;
+    const parsed = parseIdea(raw);
+    const reviewed = applyStudentReviewToPlan(applyPickedDirection(currentPlan, direction));
+    const nextPlan = reviewed.plan;
+    const brief = briefFromIdea(parsed, notesFromHits(parsed, currentHits));
+    const existing = campaigns.find((item) => item.name === parsed.eventName);
+    const campaign = upsertCampaign({
+      id: existing?.id,
+      name: parsed.eventName,
+      type: parsed.eventType,
+      date: parsed.date,
+      time: parsed.time,
+      location: parsed.location,
+      oneLiner: nextPlan.hook,
+      description: nextPlan.concept,
+      theme: nextPlan.visualTheme,
+      studentPain: nextPlan.insight,
+      cta: nextPlan.cta,
+    });
+    const projectNext = createProject({
+      name: nextPlan.campaignName,
+      brandId: brand.id,
+      formatId: "feed-portrait",
+      brief,
+      templateId: nextPlan.templateId,
+    });
+    applyCampaignPlan(projectNext.id, nextPlan, brief);
+    setLastProjectId(projectNext.id);
+    attachProject(campaign.id, projectNext.id);
+    if (nextPlan.waves?.length) setWaves(campaign.id, nextPlan.waves, { syncCalendar: true });
+    if (nextPlan.directions?.length) setDirections(campaign.id, nextPlan.directions);
+    setPlan(nextPlan);
+    setPicked(direction);
+    setProjectId(projectNext.id);
+    setCampaignId(campaign.id);
+    setPhase("pack");
+    await paintHero(direction, nextPlan, raw);
+    toast.success("已生成主視覺、文案與多模態內容，並依淡江學生視角改過一輪");
+  }
+
   async function pickDirection(direction: CreativeDirection) {
     if (!plan || !brand) return;
-    const parsed = parseIdea(idea);
     setBusy(true);
     try {
-      const reviewed = applyStudentReviewToPlan(applyPickedDirection(plan, direction));
-      const nextPlan = reviewed.plan;
-      const brief = briefFromIdea(parsed, notesFromHits(parsed, hits));
-      const existing = campaigns.find((item) => item.name === parsed.eventName);
-      const campaign = upsertCampaign({
-        id: existing?.id,
-        name: parsed.eventName,
-        type: parsed.eventType,
-        date: parsed.date,
-        time: parsed.time,
-        location: parsed.location,
-        oneLiner: nextPlan.hook,
-        description: nextPlan.concept,
-        theme: nextPlan.visualTheme,
-        studentPain: nextPlan.insight,
-        cta: nextPlan.cta,
-      });
-      const projectNext = createProject({
-        name: nextPlan.campaignName,
-        brandId: brand.id,
-        formatId: "feed-portrait",
-        brief,
-        templateId: nextPlan.templateId,
-      });
-      applyCampaignPlan(projectNext.id, nextPlan, brief);
-      setLastProjectId(projectNext.id);
-      attachProject(campaign.id, projectNext.id);
-      if (nextPlan.waves?.length) setWaves(campaign.id, nextPlan.waves, { syncCalendar: true });
-      if (nextPlan.directions?.length) setDirections(campaign.id, nextPlan.directions);
-      setPlan(nextPlan);
-      setPicked(direction);
-      setProjectId(projectNext.id);
-      setCampaignId(campaign.id);
-      setPhase("pack");
-      toast.success("已生成主視覺方向與多模態內容，並依淡江學生視角改過一輪");
+      await packDirection(plan, direction);
     } finally {
       setBusy(false);
     }
+  }
+
+  async function paintHero(direction: CreativeDirection, currentPlan = plan, raw = idea) {
+    const result = await generateStudioImage({
+      data: {
+        prompt: direction.imagePrompt,
+        headline: direction.headline || currentPlan?.hook,
+        eventName: parseIdea(raw).eventName,
+      },
+    });
+    const url = result.urls[0];
+    if (!url) return;
+    setHeroUrl(url);
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const id = uid("asset");
+    await getAssetStorage().put(id, blob);
+    const format = formatById("feed-portrait");
+    addAsset(
+      createGeneratedAsset({
+        id,
+        name: `${direction.name} · ${parseIdea(raw).eventName}`,
+        mime: blob.type || "image/png",
+        width: format.width,
+        height: format.height,
+        category: "poster",
+        tags: ["AI生成", direction.name, parseIdea(raw).eventName],
+      }),
+    );
   }
 
   async function renderHero() {
     if (!picked) return;
     setBusy(true);
     try {
-      const result = await generateStudioImage({
-        data: {
-          prompt: picked.imagePrompt,
-          headline: picked.headline || plan?.hook,
-          eventName: parseIdea(idea).eventName,
-        },
-      });
-      const url = result.urls[0];
-      if (!url) {
-        toast.error("圖片暫時無法生成");
-        return;
-      }
-      setHeroUrl(url);
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const id = uid("asset");
-      await getAssetStorage().put(id, blob);
-      const format = formatById("feed-portrait");
-      addAsset(
-        createGeneratedAsset({
-          id,
-          name: `${picked.name} · ${parseIdea(idea).eventName}`,
-          mime: blob.type || "image/png",
-          width: format.width,
-          height: format.height,
-          category: "poster",
-          tags: ["AI生成", picked.name, parseIdea(idea).eventName],
-        }),
-      );
+      await paintHero(picked);
       toast.success("主視覺已存進素材庫 · 來源：AI Generated");
     } finally {
       setBusy(false);
