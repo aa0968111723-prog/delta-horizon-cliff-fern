@@ -29,7 +29,7 @@ function studentDriveDetail(drive: {
   }
   const raw = `${drive.detail ?? ""} ${drive.message ?? ""}`;
   if (drive.loginRequired || /access-token|inbound request|connector/i.test(raw)) {
-    return "需要授權，但這個環境沒有登入連結。不會顯示 Continue with Grok，也不會放模擬檔案。";
+    return "需要授權，但沒有登入連結。";
   }
   return drive.detail || drive.message || "Google Drive 尚未在此環境提供。";
 }
