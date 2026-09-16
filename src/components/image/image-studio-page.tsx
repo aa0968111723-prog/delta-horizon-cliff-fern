@@ -20,7 +20,7 @@ import {
 import { directionLookOf, directionLookSvg, directionPosterSvg, encodeUtf8Base64, licenseFromLook } from "@/lib/ai/poster";
 import { createCanvaDesign } from "@/lib/connect/canva";
 import { canvaRemoteFromDesign } from "@/lib/connect/canva-format";
-import { searchDriveLive } from "@/lib/connect/sync";
+import { gatherCreativeHits } from "@/lib/zen/gather-hits";
 import { createSearchFromHit } from "@/lib/studio/create-search";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
 import { persistGeneratedImage } from "@/lib/studio/raster";
@@ -32,7 +32,7 @@ import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
 import { ideaStudioHook } from "@/lib/zen/studio-hook";
 import { composeMemoryHint } from "@/lib/zen/memory-hook";
-import { searchCreative, groupCreativeHits, type CreativeHit } from "@/lib/zen/search";
+import { groupCreativeHits, sourceLabelOf, type CreativeHit } from "@/lib/zen/search";
 import { loadSourceEmbed, pickSourceRefs, sourceCreditFromHits, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import type { CopyPack, FormatId, StudentReview, VisualDirection } from "@/lib/studio/types";
@@ -62,12 +62,10 @@ export function ImageStudioPage() {
   const addAsset = useStudio((s) => s.addAsset);
   const updateAsset = useStudio((s) => s.updateAsset);
   const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
-  const upsertIgMemory = useStudio((s) => s.upsertIgMemory);
   const brands = useStudio((s) => s.brands);
   const igMemory = useStudio((s) => s.igMemory);
   const campaigns = useStudio((s) => s.campaigns);
   const assets = useStudio((s) => s.assets);
-  const remoteFiles = useStudio((s) => s.remoteFiles);
   const dna = useMemo(
     () => clubCreativeDna({ brand: brands[0], igMemory, campaigns, assets }),
     [brands, igMemory, campaigns, assets],
@@ -118,28 +116,8 @@ export function ImageStudioPage() {
   }
 
   async function gatherHits(query: string) {
-    let remotes = remoteFiles;
-    try {
-      const live = await searchDriveLive({ data: { query: query.slice(0, 80) || "茶會" } });
-      if (live.igPosts?.length) upsertIgMemory(live.igPosts);
-      if (live.files.length) {
-        upsertRemoteFiles(live.files);
-        const map = new Map(remotes.map((row) => [row.id, row]));
-        for (const file of live.files) map.set(file.id, file);
-        remotes = [...map.values()];
-      }
-      setLiveNote(live.note);
-    } catch {
-      /* keep local index */
-    }
-    const hits = searchCreative({
-      query,
-      assets: useStudio.getState().assets,
-      projects: useStudio.getState().projects,
-      campaigns: useStudio.getState().campaigns,
-      igMemory: useStudio.getState().igMemory,
-      remoteFiles: remotes,
-    });
+    const { hits, note } = await gatherCreativeHits(query);
+    setLiveNote(note);
     setFound(hits.slice(0, 12));
     return hits;
   }
@@ -681,12 +659,4 @@ export function ImageStudioPage() {
       </section>
     </main>
   );
-}
-
-function sourceLabelOf(source: string) {
-  if (source === "drive") return "Google Drive";
-  if (source === "canva") return "Canva";
-  if (source === "instagram") return "Instagram";
-  if (source === "generated") return "AI Generated";
-  return "本機／品牌記憶";
 }

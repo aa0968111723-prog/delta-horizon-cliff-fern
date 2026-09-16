@@ -14,7 +14,7 @@ import {
   type InspirationCard,
 } from "@/lib/zen/inspiration";
 import { ideaStudioHook } from "@/lib/zen/studio-hook";
-import { groupCreativeHits, type CreativeHit } from "@/lib/zen/search";
+import { groupCreativeHits, sourceLabelOf, type CreativeHit } from "@/lib/zen/search";
 import { loadSourceEmbed, sourceCreditFromHits } from "@/lib/zen/source-style";
 import { directionLookSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
 import { createSearchFromHit } from "@/lib/studio/create-search";
@@ -203,12 +203,4 @@ export function InspirationPage() {
       </section>
     </main>
   );
-}
-
-function sourceLabelOf(source: string) {
-  if (source === "drive") return "Google Drive";
-  if (source === "canva") return "Canva";
-  if (source === "instagram") return "Instagram";
-  if (source === "generated") return "AI Generated";
-  return "本機／品牌記憶";
 }

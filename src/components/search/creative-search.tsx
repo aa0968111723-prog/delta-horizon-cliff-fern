@@ -3,9 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { searchDriveLive } from "@/lib/connect/sync";
+import { gatherCreativeHits } from "@/lib/zen/gather-hits";
 import { createSearchFromHit, isStudioHit } from "@/lib/studio/create-search";
-import { searchCreative, groupCreativeHits, type CreativeHit } from "@/lib/zen/search";
+import { groupCreativeHits, searchCreative, sourceLabelOf, type CreativeHit } from "@/lib/zen/search";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
@@ -18,8 +18,6 @@ export function CreativeSearch() {
   const campaigns = useStudio((s) => s.campaigns);
   const igMemory = useStudio((s) => s.igMemory);
   const remoteFiles = useStudio((s) => s.remoteFiles);
-  const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
-  const upsertIgMemory = useStudio((s) => s.upsertIgMemory);
   const [q, setQ] = useState("");
   const [liveNote, setLiveNote] = useState("");
 
@@ -39,16 +37,10 @@ export function CreativeSearch() {
       return;
     }
     const timer = window.setTimeout(() => {
-      void searchDriveLive({ data: { query } })
-        .then((live) => {
-          if (live.igPosts?.length) upsertIgMemory(live.igPosts);
-          if (live.files.length) upsertRemoteFiles(live.files);
-          setLiveNote(live.note);
-        })
-        .catch(() => undefined);
+      void gatherCreativeHits(query).then(({ note }) => setLiveNote(note));
     }, 420);
     return () => window.clearTimeout(timer);
-  }, [q, open, upsertRemoteFiles, upsertIgMemory]);
+  }, [q, open]);
 
   function openHit(hit: CreativeHit, action: "create" | "source") {
     if (action === "source" && hit.url) {
@@ -80,7 +72,7 @@ export function CreativeSearch() {
         <div className="max-h-[70dvh] overflow-y-auto p-3">
           {Object.entries(groups).map(([source, list]) => (
             <section key={source} className="mb-4">
-              <h3 className="mb-2 text-xs tracking-[0.14em] text-muted uppercase">{sourceLabel(source)}</h3>
+              <h3 className="mb-2 text-xs tracking-[0.14em] text-muted uppercase">{sourceLabelOf(source)}</h3>
               <ul className="space-y-1">
                 {list.map((hit) => (
                   <li key={hit.id}>
@@ -93,7 +85,7 @@ export function CreativeSearch() {
                       <button type="button" onClick={() => openHit(hit, "create")} className="min-w-0 flex-1 text-left">
                         <p className="truncate text-sm">{hit.title}</p>
                         <p className="truncate text-xs text-muted">
-                          {sourceLabel(hit.source)} · {hit.subtitle}
+                          {sourceLabelOf(hit.source)} · {hit.subtitle}
                         </p>
                       </button>
                       <button
@@ -131,12 +123,4 @@ export function CreativeSearch() {
       </DialogContent>
     </Dialog>
   );
-}
-
-function sourceLabel(source: string) {
-  if (source === "drive") return "Google Drive";
-  if (source === "canva") return "Canva";
-  if (source === "instagram") return "Instagram";
-  if (source === "generated") return "AI Generated";
-  return "本機創作";
 }

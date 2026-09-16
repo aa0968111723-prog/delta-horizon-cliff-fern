@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Images, Star, Upload } from "lucide-react";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AssetCard } from "@/components/assets/asset-card";
 import { AssetDetailSheet } from "@/components/assets/asset-detail";
@@ -45,6 +45,7 @@ import { previewTemplate, TEMPLATE_STARTERS } from "@/lib/studio/templates";
 import type { AssetCategory, AssetMeta, AssetSourceKind, RemoteFile } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { createSearchFromHit } from "@/lib/studio/create-search";
+import { gatherCreativeHits } from "@/lib/zen/gather-hits";
 import { remoteMatchesQuery, hitFromRemote } from "@/lib/zen/search";
 import { useStudio } from "@/stores/studio-store";
 
@@ -74,6 +75,7 @@ export function AssetLibrary() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [dropOver, setDropOver] = useState(false);
+  const [liveNote, setLiveNote] = useState("");
 
   const usedIds = useMemo(() => collectUsedAssetIds(projects, brands), [projects, brands]);
   const brand = brands[0];
@@ -100,6 +102,19 @@ export function AssetLibrary() {
   }, [assets, q, filter, source, usageFilter, usedIds]);
 
   const urls = useAssetUrls(assets.map((a) => a.id));
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const query = q.trim();
+    if (query.length < 2) {
+      setLiveNote("");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void gatherCreativeHits(query).then(({ note }) => setLiveNote(note));
+    }, 420);
+    return () => window.clearTimeout(timer);
+  }, [q, hydrated]);
   const counts = useMemo(() => {
     const map: Record<string, number> = { all: assets.length, favorite: assets.filter((a) => a.favorite).length };
     for (const cat of ASSET_CATEGORIES) {
@@ -187,7 +202,7 @@ export function AssetLibrary() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10" data-testid="assets-ready">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-nav md:px-8 md:py-10" data-testid="assets-ready">
       <PageHeader
         kicker="創作素材"
         title="AI Creative Library"
@@ -266,6 +281,7 @@ export function AssetLibrary() {
 
       <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center">
         <Input
+          data-testid="assets-search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="找以前晚上的茶會照片、龜龜、浮游禪光…"
@@ -297,6 +313,12 @@ export function AssetLibrary() {
         </Select>
         <p className="text-xs text-subtle tabular-nums">{filter === "template" ? TEMPLATE_STARTERS.length : filtered.length} 件</p>
       </div>
+      {liveNote || q.trim().length >= 2 ? (
+        <p className="mt-2 text-xs text-muted" data-testid="assets-found-note">
+          {q.trim().length >= 2 ? `找到 ${remotes.length + filtered.length} 個相關素材。` : ""}
+          {liveNote ? ` ${liveNote.replace(/[。.]+\s*$/, "")}。` : ""}
+        </p>
+      ) : null}
 
       <div className="-mx-4 mt-4 flex gap-1 overflow-x-auto px-4 pb-1">
         <FilterChip active={filter === "all"} onClick={() => setFilter("all")} count={counts.all}>
@@ -361,7 +383,7 @@ export function AssetLibrary() {
       {filter === "all" || source === "drive" || source === "canva" || source === "instagram"
         ? remotes.length
           ? (
-        <section className="mt-8">
+        <section className="mt-8" data-testid="assets-remotes">
           <h2 className="mb-3 text-sm font-medium">連接中的素材</h2>
           <p className="mb-3 text-xs text-muted">Google Drive、Canva、Instagram。點一下就能拿去創作。</p>
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -498,7 +520,7 @@ function RemoteAssetRow({ file, onCreate }: { file: RemoteFile; onCreate: () => 
           {label}
         </span>
       )}
-      <button type="button" onClick={onCreate} className="min-w-0 flex-1 text-left">
+      <button type="button" data-testid="asset-remote-into-create" onClick={onCreate} className="min-w-0 flex-1 text-left">
         <p className="truncate text-sm">{file.name}</p>
         <p className="truncate text-xs text-muted">
           {label} · {file.summary}

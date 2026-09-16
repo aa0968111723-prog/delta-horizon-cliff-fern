@@ -99,6 +99,14 @@ export type CreativeHit = {
   url?: string;
 };
 
+export function sourceLabelOf(source: string) {
+  if (source === "drive") return "Google Drive";
+  if (source === "canva") return "Canva";
+  if (source === "instagram") return "Instagram";
+  if (source === "generated") return "AI Generated";
+  return "本機／品牌記憶";
+}
+
 export function hitFromRemote(file: RemoteFile, score = 99): CreativeHit {
   const source = file.provider;
   return {
@@ -112,6 +120,46 @@ export function hitFromRemote(file: RemoteFile, score = 99): CreativeHit {
     thumbnail: file.thumbnail,
     url: file.url,
   };
+}
+
+export type GatherPreferred = { remoteId?: string | null; assetId?: string | null };
+
+/** Keep the file the user tapped at the front, even if the live query ranked it lower. */
+export function pinPreferredHits(
+  hits: CreativeHit[],
+  preferred: GatherPreferred | undefined,
+  remotes: RemoteFile[],
+  assets: AssetMeta[],
+): CreativeHit[] {
+  const next = [...hits];
+  if (preferred?.remoteId) {
+    const remote = remotes.find((file) => file.id === preferred.remoteId);
+    if (remote && !next.some((hit) => hit.remoteId === remote.id)) {
+      next.unshift(hitFromRemote(remote));
+    }
+  }
+  if (preferred?.assetId) {
+    const asset = assets.find((item) => item.id === preferred.assetId);
+    if (asset && !next.some((hit) => hit.assetId === asset.id)) {
+      const source =
+        asset.source === "generated"
+          ? "generated"
+          : asset.source === "drive" || asset.source === "canva" || asset.source === "instagram"
+            ? asset.source
+            : "local";
+      next.unshift({
+        id: `asset:${asset.id}`,
+        source,
+        title: asset.name,
+        subtitle: "來源素材",
+        kind: "素材",
+        score: 99,
+        assetId: asset.id,
+        thumbnail: asset.seedSrc,
+      });
+    }
+  }
+  return next;
 }
 
 const WEIGHT: Record<CreativeHit["source"], number> = {

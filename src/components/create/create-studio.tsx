@@ -17,7 +17,7 @@ import { toBriefInput } from "@/lib/ai/payload";
 import { createCanvaDesign, pullCanvaDesign } from "@/lib/connect/canva";
 import { canvaRemoteFromDesign } from "@/lib/connect/canva-format";
 import { runPublishItem } from "@/lib/connect/publish-item";
-import { searchDriveLive } from "@/lib/connect/sync";
+import { gatherCreativeHits } from "@/lib/zen/gather-hits";
 import { emptyBrief, migrateBrief } from "@/lib/studio/brief";
 import { getAssetBlob, hydrateSeedAsset, putAssetBlob } from "@/lib/studio/assets-idb";
 import { canvaHeroAssetId } from "@/lib/studio/calendar-search";
@@ -36,7 +36,7 @@ import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction";
 import { researchInspiration } from "@/lib/zen/inspiration";
 import { convertedScheduledAt, skipConvertedIgPost, rhythmHint } from "@/lib/zen/rhythm";
-import { searchCreative, groupCreativeHits, hitFromRemote, igSearchHookBlock, type CreativeHit } from "@/lib/zen/search";
+import { groupCreativeHits, igSearchHookBlock, sourceLabelOf, type CreativeHit } from "@/lib/zen/search";
 import { loadSourceEmbed, pickSourceRefs, sourceCreditFromHits, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import {
@@ -110,7 +110,6 @@ export function CreateStudio() {
   const projects = useStudio((s) => s.projects);
   const campaigns = useStudio((s) => s.campaigns);
   const igMemory = useStudio((s) => s.igMemory);
-  const remoteFiles = useStudio((s) => s.remoteFiles);
   const calendar = useStudio((s) => s.schedule);
   const createProject = useStudio((s) => s.createProject);
   const updateProject = useStudio((s) => s.updateProject);
@@ -121,7 +120,6 @@ export function CreateStudio() {
   const publishSchedule = useStudio((s) => s.publishSchedule);
   const addAsset = useStudio((s) => s.addAsset);
   const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
-  const upsertIgMemory = useStudio((s) => s.upsertIgMemory);
   const updateAsset = useStudio((s) => s.updateAsset);
   const brand = brands[0];
   const learning = useMemo(() => learnFromIg(igMemory), [igMemory]);
@@ -288,45 +286,11 @@ export function CreateStudio() {
   }, [lastImage]);
 
   async function gatherHits(query: string) {
-    let remotes = remoteFiles;
-    try {
-      const live = await searchDriveLive({ data: { query: query.slice(0, 80) || "茶會" } });
-      if (live.igPosts?.length) upsertIgMemory(live.igPosts);
-      if (live.files.length) {
-        upsertRemoteFiles(live.files);
-        const map = new Map(remotes.map((row) => [row.id, row]));
-        for (const file of live.files) map.set(file.id, file);
-        remotes = [...map.values()];
-      }
-      setLiveNote(live.note);
-    } catch {
-      /* keep local index */
-    }
-    const hits = searchCreative({
-      query,
-      assets,
-      projects,
-      campaigns,
-      igMemory: useStudio.getState().igMemory,
-      remoteFiles: remotes,
+    const { hits, note } = await gatherCreativeHits(query, {
+      remoteId: search.remote,
+      assetId: search.asset,
     });
-    const remote = search.remote ? remotes.find((file) => file.id === search.remote) : undefined;
-    if (remote && !hits.some((hit) => hit.remoteId === remote.id)) {
-      hits.unshift(hitFromRemote(remote));
-    }
-    const sourceAsset = search.asset ? assets.find((item) => item.id === search.asset) : undefined;
-    if (sourceAsset && !hits.some((hit) => hit.assetId === sourceAsset.id)) {
-      hits.unshift({
-        id: `asset:${sourceAsset.id}`,
-        source: sourceAsset.source === "generated" ? "generated" : "local",
-        title: sourceAsset.name,
-        subtitle: "來源素材",
-        kind: "素材",
-        score: 99,
-        assetId: sourceAsset.id,
-        thumbnail: sourceAsset.seedSrc,
-      });
-    }
+    setLiveNote(note);
     setFound(hits.slice(0, 12));
     return hits;
   }
@@ -2003,14 +1967,6 @@ function posterPayloadFromDirection(
 
 function sourceLine(hit: CreativeHit) {
   return sourceLabelOf(hit.source);
-}
-
-function sourceLabelOf(source: string) {
-  if (source === "drive") return "Google Drive";
-  if (source === "canva") return "Canva";
-  if (source === "instagram") return "Instagram";
-  if (source === "generated") return "AI Generated";
-  return "本機／品牌記憶";
 }
 
 function looksFromCampaign(created: ClubCampaign): Partial<Record<CampaignWaveKind, string>> {

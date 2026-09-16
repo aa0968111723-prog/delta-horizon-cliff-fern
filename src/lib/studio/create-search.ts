@@ -1,5 +1,11 @@
+import { guessEventName } from "../zen/dates.ts";
 import { hookLine } from "../zen/insights.ts";
 import type { CreativeHit } from "../zen/search.ts";
+
+/** Drive / Canva filenames stay pinned; the spoken idea is the event, not「2025 茶會現場」. */
+export function spokenIdeaFromFile(title: string) {
+  return guessEventName(title) || title;
+}
 
 export type CreateSearch = {
   mode?: string;
@@ -31,10 +37,10 @@ export function createSearchFromHit(hit: CreativeHit): CreateSearch {
     return createSearchParams({ mode: "campaign", idea: hit.title, campaign: hit.campaignId });
   }
   if (hit.source === "canva" && hit.remoteId) {
-    return createSearchParams({ mode: "from-canva", idea: hit.title, remote: hit.remoteId });
+    return createSearchParams({ mode: "from-canva", idea: spokenIdeaFromFile(hit.title), remote: hit.remoteId });
   }
   if (hit.source === "drive" && hit.remoteId) {
-    return createSearchParams({ mode: "from-drive", idea: hit.title, remote: hit.remoteId });
+    return createSearchParams({ mode: "from-drive", idea: spokenIdeaFromFile(hit.title), remote: hit.remoteId });
   }
   if (hit.source === "instagram") {
     return createSearchParams({

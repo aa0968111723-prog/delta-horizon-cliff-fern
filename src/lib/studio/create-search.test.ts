@@ -37,11 +37,15 @@ function hit(partial: Partial<CreativeHit> & Pick<CreativeHit, "source" | "title
 test("createSearchFromHit pins the Drive / Canva file, not just the filename", () => {
   assert.deepEqual(
     createSearchFromHit(hit({ source: "drive", title: "2025 茶會現場", remoteId: "drv_tea_2025" })),
-    { mode: "from-drive", idea: "2025 茶會現場", remote: "drv_tea_2025" },
+    { mode: "from-drive", idea: "茶會", remote: "drv_tea_2025" },
   );
   assert.deepEqual(
     createSearchFromHit(hit({ source: "canva", title: "茶會 IG 主視覺", remoteId: "canva_tea" })),
-    { mode: "from-canva", idea: "茶會 IG 主視覺", remote: "canva_tea" },
+    { mode: "from-canva", idea: "茶會", remote: "canva_tea" },
+  );
+  assert.deepEqual(
+    createSearchFromHit(hit({ source: "drive", title: "浮游禪光企劃", remoteId: "drv_plan_light" })),
+    { mode: "from-drive", idea: "浮游禪光", remote: "drv_plan_light" },
   );
 });
 

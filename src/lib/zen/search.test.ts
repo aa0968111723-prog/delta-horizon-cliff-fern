@@ -8,6 +8,7 @@ import {
   driveContainsQuery,
   igPostsMatchingQuery,
   igSearchHookBlock,
+  pinPreferredHits,
   searchCreative,
   searchTokens,
 } from "./search.ts";
@@ -177,4 +178,23 @@ test("igSearchHookBlock puts the matching live caption first so this kit learns 
   ]);
   assert.equal(hookFromMemoryHint(hint), "可以自己來？");
   assert.match(hint, /這次搜到的 IG：可以自己來？/);
+});
+
+test("pinPreferredHits keeps the tapped Drive file first", () => {
+  const hits = pinPreferredHits(
+    searchCreative({
+      query: "茶會",
+      assets: [turtle],
+      projects: [],
+      campaigns: [],
+      igMemory: [],
+      remoteFiles: [teaDrive, teaCanva],
+    }),
+    { remoteId: "drv_tea_2025" },
+    [teaDrive, teaCanva],
+    [turtle],
+  );
+  assert.equal(hits[0]?.remoteId, "drv_tea_2025");
+  const pinnedTurtle = pinPreferredHits([], { assetId: "asset_turtle" }, [], [turtle]);
+  assert.equal(pinnedTurtle[0]?.assetId, "asset_turtle");
 });

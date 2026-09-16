@@ -1,9 +1,12 @@
 import { searchDriveLive } from "@/lib/connect/sync";
-import { searchCreative, type CreativeHit } from "./search.ts";
+import { pinPreferredHits, searchCreative, type CreativeHit, type GatherPreferred } from "./search.ts";
 import { useStudio } from "@/stores/studio-store";
 
 /** Live Drive / Canva / IG when connected, then brand memory. Never scrape. */
-export async function gatherCreativeHits(query: string): Promise<{ hits: CreativeHit[]; note: string }> {
+export async function gatherCreativeHits(
+  query: string,
+  preferred?: GatherPreferred,
+): Promise<{ hits: CreativeHit[]; note: string }> {
   const store = useStudio.getState();
   let remotes = store.remoteFiles;
   let note = "";
@@ -21,13 +24,18 @@ export async function gatherCreativeHits(query: string): Promise<{ hits: Creativ
     note = "改搜本機與品牌記憶。";
   }
   const s = useStudio.getState();
-  const hits = searchCreative({
-    query,
-    assets: s.assets,
-    projects: s.projects,
-    campaigns: s.campaigns,
-    igMemory: s.igMemory,
-    remoteFiles: remotes,
-  });
+  const hits = pinPreferredHits(
+    searchCreative({
+      query,
+      assets: s.assets,
+      projects: s.projects,
+      campaigns: s.campaigns,
+      igMemory: s.igMemory,
+      remoteFiles: remotes,
+    }),
+    preferred,
+    remotes,
+    s.assets,
+  );
   return { hits: hits.slice(0, 12), note };
 }

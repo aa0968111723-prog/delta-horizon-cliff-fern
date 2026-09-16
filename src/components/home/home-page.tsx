@@ -2,21 +2,24 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { ArrowRight, Images, Sparkles } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { calendarSearchFromScheduled, calendarSearchParams } from "@/lib/studio/calendar-search";
 import { contentKindLabel } from "@/lib/studio/content";
+import { createSearchParams } from "@/lib/studio/create-search";
 import { academicBeat, academicBeatLabel, daysUntil } from "@/lib/zen/context";
 import { formatTaipeiClock } from "@/lib/zen/dates";
+import { gatherCreativeHits } from "@/lib/zen/gather-hits";
 import { ideaFromInspiration, inspirationForBeat } from "@/lib/zen/inspiration";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { feelLabel, type PostFeel } from "@/lib/zen/feel";
 import { awaitingFeel, hookLine, learnFromIg } from "@/lib/zen/insights";
 import { recommendCampaign, recommendHook, isEventCampaign } from "@/lib/zen/recommend";
 import { isDue, homeScheduled } from "@/lib/zen/schedule";
+import { sourceLabelOf, type CreativeHit } from "@/lib/zen/search";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 import { ProjectCard } from "@/components/shared/project-card";
@@ -38,6 +41,11 @@ export function HomePage() {
 
   const upcoming = useMemo(() => recommendCampaign(campaigns), [campaigns]);
   const days = upcoming ? daysUntil(upcoming.date) : null;
+  const [found, setFound] = useState<CreativeHit[]>([]);
+  const foundClub = useMemo(
+    () => found.filter((hit) => hit.source === "drive" || hit.source === "canva" || hit.source === "instagram"),
+    [found],
+  );
   const pieceIds = useMemo(
     () => campaigns.filter((row) => !isEventCampaign(row)).map((row) => row.id),
     [campaigns],
@@ -62,6 +70,18 @@ export function HomePage() {
   const heroProject = projects.find((p) => p.campaignId === upcoming?.id) ?? projects[0];
   const board = heroProject?.artboards[heroProject.activeFormatId];
   const hydrated = useStudio((s) => s.hydrated);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const query = upcoming?.name || "茶會";
+    let cancelled = false;
+    void gatherCreativeHits(query).then(({ hits }) => {
+      if (!cancelled) setFound(hits);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, upcoming?.id, upcoming?.name]);
 
   if (!hydrated) {
     return <LoadingState label="讀取禪光…" />;
@@ -109,6 +129,55 @@ export function HomePage() {
                 </span>
               </p>
               <p className="mt-2 text-sm text-accent-fg/75">IG Carousel · 讓淡江學生覺得這跟自己有關</p>
+              {found.length ? (
+                <div className="mt-3" data-testid="home-found-sources">
+                  <p className="text-sm text-accent-fg/80">
+                    找到 {found.length} 個相關素材 · 根據過去內容生成 3 個方向
+                  </p>
+                  {foundClub.length ? (
+                    <ul className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                      {foundClub.slice(0, 6).map((hit) => {
+                        const thumb = hit.thumbnail || (hit.assetId ? urls[hit.assetId] : undefined);
+                        return (
+                          <li key={hit.id} className="shrink-0">
+                            <button
+                              type="button"
+                              data-testid="home-found-chip"
+                              className="flex max-w-[11rem] items-center gap-2 rounded-2xl bg-bg/15 px-2 py-1.5 text-left"
+                              onClick={() => {
+                                void navigate({
+                                  to: "/create",
+                                  search: createSearchParams({
+                                    mode: "campaign",
+                                    idea: upcoming.name,
+                                    campaign: upcoming.id,
+                                    remote: hit.remoteId,
+                                    asset: hit.assetId,
+                                  }),
+                                });
+                              }}
+                            >
+                              {thumb ? (
+                                <img src={thumb} alt="" className="size-10 shrink-0 rounded-lg object-cover" />
+                              ) : (
+                                <span className="size-10 shrink-0 rounded-lg bg-bg/20" />
+                              )}
+                              <span className="min-w-0">
+                                <span className="block truncate text-[11px] text-accent-fg/70">
+                                  {sourceLabelOf(hit.source)}
+                                </span>
+                                <span className="block truncate text-xs">{hit.title}</span>
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-accent-fg/70">正在找自己的 Drive、Canva、IG…</p>
+              )}
               <Button
                 className="mt-4 min-h-11 bg-surface text-fg hover:bg-surface-2 sm:mt-6"
                 onClick={() => {
@@ -359,7 +428,15 @@ export function HomePage() {
         <ul className="grid grid-cols-3 gap-2 sm:grid-cols-6">
           {assets.slice(0, 6).map((asset) => (
             <li key={asset.id} className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
-              <Link to="/assets" className="block">
+              <Link
+                to="/create"
+                search={{
+                  mode: "from-image",
+                  asset: asset.id,
+                  idea: `延續「${asset.name}」的風格，做新的活動，不要複製舊作品。`,
+                }}
+                className="block"
+              >
                 <div className="aspect-square bg-bg">
                   {urls[asset.id] ? (
                     <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" />
