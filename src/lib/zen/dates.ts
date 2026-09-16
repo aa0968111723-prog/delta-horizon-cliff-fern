@@ -9,7 +9,32 @@ export function parseEventDate(text: string, now = new Date()): string {
   if (md) {
     return `${now.getFullYear()}-${md[1].padStart(2, "0")}-${md[2].padStart(2, "0")}`;
   }
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const relative = relativeEventDate(text, now);
+  if (relative) return relative;
+  return formatIsoDate(now);
+}
+
+function relativeEventDate(text: string, now: Date): string | null {
+  const d = new Date(now);
+  if (/今天|今日/.test(text)) return formatIsoDate(d);
+  if (/明天/.test(text)) {
+    d.setDate(d.getDate() + 1);
+    return formatIsoDate(d);
+  }
+  if (/後天/.test(text)) {
+    d.setDate(d.getDate() + 2);
+    return formatIsoDate(d);
+  }
+  if (/下週|下周|下星期|下個禮拜/.test(text)) {
+    d.setDate(d.getDate() + 7);
+    return formatIsoDate(d);
+  }
+  if (/這週|本週|這周|這個禮拜/.test(text)) return formatIsoDate(d);
+  return null;
+}
+
+function formatIsoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function guessEventName(text: string): string {
@@ -26,4 +51,11 @@ export function parseEventTime(text: string, fallback = "19:00"): string {
   if (range) return `${range[1]}–${range[2]}`;
   const one = text.match(/(\d{1,2}:\d{2})/);
   return one?.[1] ?? fallback;
+}
+
+/** Prefill the time field from spoken copy like「下週有一場茶會」. */
+export function defaultScheduleText(idea: string, now = new Date()): string {
+  const date = parseEventDate(idea, now);
+  const time = parseEventTime(idea);
+  return `${date.replaceAll("-", "/")} ${time}`;
 }

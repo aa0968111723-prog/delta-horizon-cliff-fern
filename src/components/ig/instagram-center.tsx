@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { PageHeader } from "@/components/shared/page-header";
+import { LoadingState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { publishInstagramMedia } from "@/lib/connect/instagram-publish";
@@ -20,6 +21,7 @@ import type { ScheduleItem } from "@/lib/studio/types";
 
 export function InstagramCenter() {
   const navigate = useNavigate();
+  const hydrated = useStudio((s) => s.hydrated);
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
   const igMemory = useStudio((s) => s.igMemory);
@@ -90,8 +92,12 @@ export function InstagramCenter() {
     }
   }
 
+  if (!hydrated) {
+    return <LoadingState label="讀取 IG…" />;
+  }
+
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-10" data-testid="ig-ready">
       <PageHeader
         kicker="Instagram"
         title="IG 是產品出口"
@@ -213,11 +219,15 @@ export function InstagramCenter() {
         ) : null}
       </section>
 
-      <section className="mt-8">
+      <section className="mt-8" data-testid="ig-upcoming-list">
         <h2 className="text-sm font-medium">即將發布</h2>
         <ul className="mt-3 space-y-2">
           {upcoming.slice(0, 6).map((item) => (
-              <li key={item.id} className="flex gap-3 rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]">
+              <li
+                key={item.id}
+                data-testid="ig-upcoming-row"
+                className="flex gap-3 rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]"
+              >
                 {item.imageAssetId && urls[item.imageAssetId] ? (
                   <img
                     src={urls[item.imageAssetId]}

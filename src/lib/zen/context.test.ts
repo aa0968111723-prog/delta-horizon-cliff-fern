@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { academicBeat, daysUntil, studentSituation, zenSystemPrompt } from "./context.ts";
-import { parseEventDate, parseEventTime } from "./dates.ts";
+import { parseEventDate, parseEventTime, defaultScheduleText } from "./dates.ts";
 import { studentReviewOf } from "./review.ts";
 import { searchCreative } from "./search.ts";
 import { ideaFromInspiration, INSPIRATION, inspirationForBeat } from "./inspiration.ts";
@@ -194,6 +194,12 @@ test("inspirationForBeat puts 開學季 friend-seat first, not a random swipe", 
 test("parseEventDate reads 2026/09/24 19:00", () => {
   assert.equal(parseEventDate("2026/09/24 19:00"), "2026-09-24");
   assert.equal(parseEventTime("2026/09/24 19:00"), "19:00");
+});
+
+test("parseEventDate reads 下週 as seven days later, not today", () => {
+  const now = new Date("2026-09-16T10:00:00+08:00");
+  assert.equal(parseEventDate("下週有一場茶會", now), "2026-09-23");
+  assert.equal(defaultScheduleText("下週有一場茶會", now), "2026/09/23 19:00");
 });
 
 test("studentReview flags 誠摯邀請 as too formal", () => {

@@ -17,6 +17,7 @@ import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 import { ProjectCard } from "@/components/shared/project-card";
 import { SectionHeader } from "@/components/shared/page-header";
+import { LoadingState } from "@/components/shared/empty-state";
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -49,9 +50,14 @@ export function HomePage() {
   const urls = useAssetUrls(assets.map((a) => a.id));
   const heroProject = projects.find((p) => p.campaignId === upcoming?.id) ?? projects[0];
   const board = heroProject?.artboards[heroProject.activeFormatId];
+  const hydrated = useStudio((s) => s.hydrated);
+
+  if (!hydrated) {
+    return <LoadingState label="讀取禪光…" />;
+  }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10" data-testid="home-ready">
       <p className="text-xs tracking-[0.2em] text-muted uppercase">淡江大學禪學社</p>
       <p className="mt-2 text-xs text-subtle">{academicBeatLabel(academicBeat())} · 一人完成網宣</p>
       <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl">今天可以創作什麼？</h1>
@@ -213,7 +219,12 @@ export function HomePage() {
                 <Link to="/create" search={{ mode: "from-image", asset: asset.id, idea: `延續「${asset.name}」` }} className="block">
                   <div className="aspect-square bg-bg">
                     {urls[asset.id] ? (
-                      <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" />
+                      <img
+                        src={urls[asset.id]}
+                        alt={asset.name}
+                        data-testid="home-generated-thumb"
+                        className="size-full object-cover"
+                      />
                     ) : (
                       <div className="flex size-full items-center justify-center text-xs text-muted">{asset.name}</div>
                     )}

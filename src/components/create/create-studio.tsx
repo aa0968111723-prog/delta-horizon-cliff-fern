@@ -22,7 +22,7 @@ import { persistGeneratedImage } from "@/lib/studio/raster";
 import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById, FORMATS } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
-import { parseEventDate, parseEventTime, guessEventName } from "@/lib/zen/dates";
+import { parseEventDate, parseEventTime, guessEventName, defaultScheduleText } from "@/lib/zen/dates";
 import { DEFAULT_AUDIENCE, academicBeat } from "@/lib/zen/context";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
@@ -96,8 +96,8 @@ export function CreateStudio() {
   const urls = useAssetUrls(assets.map((a) => a.id));
 
   const [idea, setIdea] = useState(search.idea || "下週有一場茶會");
-  const [eventName, setEventName] = useState(guessEventName(search.idea || ""));
-  const [schedule, setSchedule] = useState("2026/09/24 19:00");
+  const [eventName, setEventName] = useState(guessEventName(search.idea || "下週有一場茶會"));
+  const [schedule, setSchedule] = useState(() => defaultScheduleText(search.idea || "下週有一場茶會"));
   const [location, setLocation] = useState("淡江大學淡水校園 · 禪學社");
   const [signupUrl, setSignupUrl] = useState("");
   const [studentPain, setStudentPain] = useState("開學後行程變滿，休息會心虛。");
@@ -156,6 +156,8 @@ export function CreateStudio() {
       setDescription(existing.description);
       setTheme(existing.theme);
       if (existing.date) setSchedule(`${existing.date.replaceAll("-", "/")} ${existing.time}`.trim());
+    } else if (search.idea) {
+      setSchedule(defaultScheduleText(search.idea));
     }
   }, [search.idea]);
 
@@ -532,7 +534,7 @@ export function CreateStudio() {
     opts?: { silent?: boolean },
   ) {
     const name = eventName.trim() || guessEventName(`${idea} ${nextPlan?.campaignName ?? ""}`) || nextPlan?.campaignName || "未命名活動";
-    const date = parseEventDate(schedule);
+    const date = parseEventDate(`${schedule} ${idea}`);
     const type = eventKindFromText(`${name} ${idea}`);
     const waves = suggestWaves({ date, type, name }, new Date(), { recentKinds });
     const created = createCampaign({
@@ -576,7 +578,7 @@ export function CreateStudio() {
   }
 
   function scheduleConverted(nextPlan: CampaignPlan, created: ClubCampaign, projectId: string | null = null, assetId = lastImage?.assetId) {
-    const date = parseEventDate(schedule);
+    const date = parseEventDate(`${schedule} ${idea}`);
     const when = Date.parse(`${date}T19:00:00+08:00`);
     for (const pack of KINDS.map((kind) => convertPlan(nextPlan, kind))) {
       const scheduledAt = Number.isNaN(when) ? Date.now() : when + offsetDaysForConvertedKind(pack.kind) * 86_400_000;
@@ -671,7 +673,7 @@ export function CreateStudio() {
   }
 
   function schedulePack(pack: ConvertedPack) {
-    const date = parseEventDate(schedule);
+    const date = parseEventDate(`${schedule} ${idea}`);
     const when = Date.parse(`${date}T19:00:00+08:00`);
     const scheduledAt = Number.isNaN(when)
       ? Date.now()
@@ -920,47 +922,6 @@ export function CreateStudio() {
         </section>
       ) : null}
 
-      {found.length ? (
-        <section className="mt-8" data-testid="found-sources">
-          <h2 className="text-sm font-medium">找到 {found.length} 個相關素材</h2>
-          <p className="mt-1 text-xs text-muted">
-            可釘選給 AI 當風格參考。來源會標出來。
-            {Object.entries(foundGroups)
-              .map(([source, list]) => `${sourceLabelOf(source)} ${list.length}`)
-              .join(" · ")}
-          </p>
-          {Object.entries(foundGroups).map(([source, list]) => (
-            <div key={source} className="mt-3">
-              <h3 className="text-xs tracking-[0.14em] text-muted uppercase">{sourceLabelOf(source)}</h3>
-              <ul className="mt-2 space-y-2">
-                {list.map((hit) => {
-                  const pinnedHit = pinned.some((row) => row.id === hit.id);
-                  const thumb = hit.thumbnail || (hit.assetId ? urls[hit.assetId] : undefined);
-                  return (
-                    <li key={hit.id} className="flex items-center gap-3 rounded-2xl bg-surface px-3 py-2 text-sm shadow-[var(--shadow-border)]">
-                      {thumb ? (
-                        <img src={thumb} alt="" data-testid="found-thumb" className="size-12 shrink-0 rounded-xl object-cover" />
-                      ) : (
-                        <span className="size-12 shrink-0 rounded-xl bg-surface-2" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate">{hit.title}</p>
-                        <p className="mt-1 truncate text-xs text-muted">
-                          {sourceLine(hit)} · {hit.subtitle}
-                        </p>
-                      </div>
-                      <Button size="sm" variant={pinnedHit ? "default" : "secondary"} onClick={() => togglePin(hit)}>
-                        {pinnedHit ? "已參考" : "加入參考"}
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </section>
-      ) : null}
-
       {packs.length ? (
         <section className="mt-8">
           <h2 className="text-sm font-medium">IG Copy</h2>
@@ -1078,6 +1039,47 @@ export function CreateStudio() {
             toast.success(`已套用「${draft.title}」文案`);
           }}
         />
+      ) : null}
+
+      {found.length ? (
+        <section className="mt-8" data-testid="found-sources">
+          <h2 className="text-sm font-medium">找到 {found.length} 個相關素材</h2>
+          <p className="mt-1 text-xs text-muted">
+            可釘選給 AI 當風格參考。來源會標出來。
+            {Object.entries(foundGroups)
+              .map(([source, list]) => `${sourceLabelOf(source)} ${list.length}`)
+              .join(" · ")}
+          </p>
+          {Object.entries(foundGroups).map(([source, list]) => (
+            <div key={source} className="mt-3">
+              <h3 className="text-xs tracking-[0.14em] text-muted uppercase">{sourceLabelOf(source)}</h3>
+              <ul className="mt-2 space-y-2">
+                {list.map((hit) => {
+                  const pinnedHit = pinned.some((row) => row.id === hit.id);
+                  const thumb = hit.thumbnail || (hit.assetId ? urls[hit.assetId] : undefined);
+                  return (
+                    <li key={hit.id} className="flex items-center gap-3 rounded-2xl bg-surface px-3 py-2 text-sm shadow-[var(--shadow-border)]">
+                      {thumb ? (
+                        <img src={thumb} alt="" data-testid="found-thumb" className="size-12 shrink-0 rounded-xl object-cover" />
+                      ) : (
+                        <span className="size-12 shrink-0 rounded-xl bg-surface-2" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate">{hit.title}</p>
+                        <p className="mt-1 truncate text-xs text-muted">
+                          {sourceLine(hit)} · {hit.subtitle}
+                        </p>
+                      </div>
+                      <Button size="sm" variant={pinnedHit ? "default" : "secondary"} onClick={() => togglePin(hit)}>
+                        {pinnedHit ? "已參考" : "加入參考"}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </section>
       ) : null}
 
       <p className="mt-8 text-xs text-subtle">來源會標成 Google Drive / Canva / Instagram / AI Generated。沒連接時先用品牌記憶與本機素材。</p>
