@@ -1,6 +1,7 @@
 import { completeCarouselPages } from "@/lib/studio/carousel";
 import { createServerFn } from "@tanstack/react-start";
 import type { CampaignPlan, TemplateId } from "@/lib/studio/types";
+import { extractJsonObject, grokAvailable, grokChat } from "./grok";
 import { buildMockPlan } from "./mock";
 import { BriefInputSchema, PlanJsonSchema, type BriefInput } from "./schema";
 
@@ -20,13 +21,7 @@ export type AiStatus = {
 };
 
 function extractJson(text: string): unknown {
-  const trimmed = text.trim();
-  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const raw = fence ? fence[1] : trimmed;
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("模型未回傳 JSON");
-  return JSON.parse(raw.slice(start, end + 1));
+  return extractJsonObject(text);
 }
 
 function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: CampaignPlan["source"]): CampaignPlan {
@@ -90,12 +85,11 @@ export function describeAdapter(available: boolean): AiStatus {
 }
 
 export const getCampaignAiStatus = createServerFn({ method: "POST" }).handler(async (): Promise<AiStatus> => {
-  return describeAdapter(Boolean(process.env.XAI_API_KEY));
+  return describeAdapter(grokAvailable());
 });
 
 async function generateLive(data: BriefInput): Promise<PlanResult> {
-  const apiKey = process.env.XAI_API_KEY;
-  if (!apiKey) {
+  if (!grokAvailable()) {
     return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
 
@@ -148,38 +142,26 @@ headline 可含換行 \\n，最多兩行，每行不超過 10 個中文。
 eyebrow 用英文或短中文，不超過 22 字。
 cta 2-6 字。
 文案避免禁用詞，不要「限時瘋搶／錯過就沒有」。
-concept 是宣傳核心概念（2-3 句）。visualTheme 是視覺主題。`;
+concept 是宣傳核心概念（2-3 句）。visualTheme 是視覺主題。
+若品牌是淡江禪學社：語氣像學長姐聊天，禁止宗教說教、佛學專有名詞與 AI 罐頭金句。`;
 
-  const res = await fetch("https://api.x.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "grok-4.5",
-      temperature: 0.6,
-      max_tokens: 4096,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: "You are a senior Instagram campaign planner for Taiwan brands. Reply with a single JSON object only.",
-        },
-        { role: "user", content: prompt },
-      ],
-    }),
+  const chat = await grokChat({
+    system:
+      "You are a senior Instagram campaign planner for Taiwan student clubs. Reply with a single JSON object only. Traditional Chinese. No religious preaching.",
+    user: prompt,
+    maxTokens: 3200,
+    temperature: 0.6,
   });
 
-  if (!res.ok) {
-    return { ok: false, error: `企劃服務暫時無法使用（${res.status}）。可改用本機草案。`, adapter: "live" };
+  if (!chat.ok) {
+    return {
+      ok: false,
+      error: chat.capped ? chat.error : `企劃服務暫時無法使用。可改用本機草案。`,
+      adapter: "live",
+    };
   }
 
-  const body = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const text = body.choices?.[0]?.message?.content ?? "";
-  const plan = planFromModel(text);
+  const plan = planFromModel(chat.text);
   if (!plan) {
     return { ok: false, error: "AI 回傳無法解析。可再試一次，或改用本機草案。", adapter: "live" };
   }
@@ -202,7 +184,7 @@ function parseBriefInput(input: unknown) {
 export const generateCampaignPlan = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseBriefInput(input))
   .handler(async ({ data }): Promise<PlanResult> => {
-    const hasKey = Boolean(process.env.XAI_API_KEY);
+    const hasKey = grokAvailable();
     if (!hasKey || data.forceMock) {
       return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
     }

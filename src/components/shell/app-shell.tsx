@@ -1,7 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  Download,
-  FolderKanban,
+  CalendarDays,
+  Compass,
+  Instagram,
   PenTool,
   Sparkles,
   SwatchBook,
@@ -14,19 +15,19 @@ import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
-const NAV: { to: string; label: string; icon: LucideIcon; match: "home" | "assistant" | "studio" | "brand" | "export" }[] = [
-  { to: "/", label: "首頁", icon: FolderKanban, match: "home" },
-  { to: "/assistant", label: "AI 創作", icon: Sparkles, match: "assistant" },
+const NAV: { to: string; label: string; icon: LucideIcon; match: "home" | "calendar" | "studio" | "instagram" | "brand" }[] = [
+  { to: "/", label: "首頁", icon: Compass, match: "home" },
+  { to: "/calendar", label: "日曆", icon: CalendarDays, match: "calendar" },
   { to: "/studio", label: "畫布", icon: PenTool, match: "studio" },
-  { to: "/brand", label: "品牌記憶", icon: SwatchBook, match: "brand" },
-  { to: "/export", label: "排程輸出", icon: Download, match: "export" },
+  { to: "/instagram", label: "IG", icon: Instagram, match: "instagram" },
+  { to: "/brand", label: "品牌", icon: SwatchBook, match: "brand" },
 ];
 
 function activeKey(pathname: string) {
   if (pathname.startsWith("/studio")) return "studio";
-  if (pathname.startsWith("/assistant")) return "assistant";
+  if (pathname.startsWith("/calendar") || pathname.startsWith("/export")) return "calendar";
+  if (pathname.startsWith("/instagram")) return "instagram";
   if (pathname.startsWith("/brand") || pathname.startsWith("/assets")) return "brand";
-  if (pathname.startsWith("/export")) return "export";
   return "home";
 }
 
@@ -40,9 +41,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (item.match === "studio" && lastProjectId) {
       return { to: "/studio/$projectId" as const, params: { projectId: lastProjectId } };
     }
-    if (item.match === "export" && lastProjectId) {
-      return { to: "/export" as const };
-    }
     return { to: item.to };
   }
 
@@ -51,7 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="sticky top-0 hidden h-dvh w-[4.5rem] shrink-0 flex-col border-r border-border bg-surface lg:flex">
         <Link
           to="/"
-          className="flex h-14 items-center justify-center font-display text-base font-bold tracking-tight text-primary"
+          className="flex h-14 items-center justify-center font-display text-base font-bold tracking-tight text-accent"
           aria-label="淡江禪學社首頁"
         >
           禪
@@ -114,7 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </nav>
       </div>
-      {current !== "assistant" && current !== "studio" ? (
+      {current !== "studio" ? (
         <button
           type="button"
           onClick={() => setAssistantOpen(true)}

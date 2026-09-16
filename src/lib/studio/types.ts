@@ -142,6 +142,8 @@ export type AssetMeta = {
   favorite: boolean;
   lastUsedAt: number | null;
   useCount: number;
+  attribution?: string;
+  analysisNotes?: string;
 };
 
 export type Background = {

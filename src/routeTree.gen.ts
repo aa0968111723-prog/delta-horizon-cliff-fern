@@ -13,7 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AssetsRouteImport } from './routes/assets'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as BrandRouteImport } from './routes/brand'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as ExportRouteImport } from './routes/export'
+import { Route as InstagramRouteImport } from './routes/instagram'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as StudioIndexRouteImport } from './routes/studio.index'
 import { Route as StudioProjectIdRouteImport } from './routes/studio.$projectId'
@@ -38,9 +40,19 @@ const BrandRoute = BrandRouteImport.update({
   path: '/brand',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExportRoute = ExportRouteImport.update({
   id: '/export',
   path: '/export',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstagramRoute = InstagramRouteImport.update({
+  id: '/instagram',
+  path: '/instagram',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudioRoute = StudioRouteImport.update({
@@ -64,7 +76,9 @@ export interface FileRoutesByFullPath {
   '/assets': typeof AssetsRoute
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
+  '/calendar': typeof CalendarRoute
   '/export': typeof ExportRoute
+  '/instagram': typeof InstagramRoute
   '/studio': typeof StudioRouteWithChildren
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio/': typeof StudioIndexRoute
@@ -74,7 +88,9 @@ export interface FileRoutesByTo {
   '/assets': typeof AssetsRoute
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
+  '/calendar': typeof CalendarRoute
   '/export': typeof ExportRoute
+  '/instagram': typeof InstagramRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio': typeof StudioIndexRoute
 }
@@ -84,7 +100,9 @@ export interface FileRoutesById {
   '/assets': typeof AssetsRoute
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
+  '/calendar': typeof CalendarRoute
   '/export': typeof ExportRoute
+  '/instagram': typeof InstagramRoute
   '/studio': typeof StudioRouteWithChildren
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio/': typeof StudioIndexRoute
@@ -96,7 +114,9 @@ export interface FileRouteTypes {
     | '/assets'
     | '/assistant'
     | '/brand'
+    | '/calendar'
     | '/export'
+    | '/instagram'
     | '/studio'
     | '/studio/$projectId'
     | '/studio/'
@@ -106,7 +126,9 @@ export interface FileRouteTypes {
     | '/assets'
     | '/assistant'
     | '/brand'
+    | '/calendar'
     | '/export'
+    | '/instagram'
     | '/studio/$projectId'
     | '/studio'
   id:
@@ -115,7 +137,9 @@ export interface FileRouteTypes {
     | '/assets'
     | '/assistant'
     | '/brand'
+    | '/calendar'
     | '/export'
+    | '/instagram'
     | '/studio'
     | '/studio/$projectId'
     | '/studio/'
@@ -126,7 +150,9 @@ export interface RootRouteChildren {
   AssetsRoute: typeof AssetsRoute
   AssistantRoute: typeof AssistantRoute
   BrandRoute: typeof BrandRoute
+  CalendarRoute: typeof CalendarRoute
   ExportRoute: typeof ExportRoute
+  InstagramRoute: typeof InstagramRoute
   StudioRoute: typeof StudioRouteWithChildren
 }
 
@@ -160,11 +186,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BrandRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/export': {
       id: '/export'
       path: '/export'
       fullPath: '/export'
       preLoaderRoute: typeof ExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/instagram': {
+      id: '/instagram'
+      path: '/instagram'
+      fullPath: '/instagram'
+      preLoaderRoute: typeof InstagramRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio': {
@@ -209,7 +249,9 @@ const rootRouteChildren: RootRouteChildren = {
   AssetsRoute: AssetsRoute,
   AssistantRoute: AssistantRoute,
   BrandRoute: BrandRoute,
+  CalendarRoute: CalendarRoute,
   ExportRoute: ExportRoute,
+  InstagramRoute: InstagramRoute,
   StudioRoute: StudioRouteWithChildren,
 }
 export const routeTree = rootRouteImport

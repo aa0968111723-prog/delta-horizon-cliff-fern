@@ -32,6 +32,8 @@ export const SEED_ASSETS: AssetMeta[] = [
     favorite: true,
     lastUsedAt: SEED_TIME,
     useCount: 2,
+    attribution: "社團自有標誌",
+    analysisNotes: "",
   },
   {
     id: SEED_CUP_ID,
@@ -51,6 +53,8 @@ export const SEED_ASSETS: AssetMeta[] = [
     favorite: true,
     lastUsedAt: SEED_TIME,
     useCount: 1,
+    attribution: "Google Drive／2025 茶會紀錄",
+    analysisNotes: "",
   },
   {
     id: SEED_BEANS_ID,
@@ -70,6 +74,8 @@ export const SEED_ASSETS: AssetMeta[] = [
     favorite: false,
     lastUsedAt: Date.parse("2026-09-03T10:00:00+08:00"),
     useCount: 1,
+    attribution: "淡江校園實景／宮燈教室",
+    analysisNotes: "",
   },
 ];
 

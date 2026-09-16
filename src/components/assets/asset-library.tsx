@@ -176,7 +176,7 @@ export function AssetLibrary() {
       <PageHeader
         kicker="品牌資產"
         title="素材庫"
-        description="依分類管理活動照片、人物、背景、插圖、圖示、Logo 與歷史素材。搜尋、收藏、刪除，或拖到編輯器畫布。"
+        description="標籤、出處、分析與生成相似。檔案存在這個瀏覽器，可拖到畫布。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="assets" />

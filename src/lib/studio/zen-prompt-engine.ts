@@ -71,9 +71,50 @@ export type MultimodalConversionResult = {
   };
 };
 
+export type CreativeWaveContext = {
+  topic: string;
+  date?: string;
+  location?: string;
+  studentPain?: string;
+  cta?: string;
+  details?: string;
+};
+
+function topicHints(topic: string) {
+  const t = topic.trim();
+  const midterm = /期中|考試|報告|deadline/i.test(t);
+  const commute = /通勤|克難坡|捷運|紅線/i.test(t);
+  const rain = /下雨|雨季|淡水雨/i.test(t);
+  const freshman = /新生|迎新|大一|交友|孤單/i.test(t);
+  const tea = /茶會|浮游禪光|熱茶/i.test(t);
+  return { midterm, commute, rain, freshman, tea, raw: t || "淡江迎新茶會" };
+}
+
 export function generateZenVisualDirections(topic: string, details?: string): ZenVisualDirection[] {
-  const baseTopic = topic.trim() || "淡江迎新茶會";
-  
+  const hints = topicHints(topic);
+  const baseTopic = hints.raw;
+  const keepClassic = hints.tea || /好好坐下來/.test(baseTopic);
+  const subA = details?.trim() || (keepClassic ? "開學第三週 · 淡江活動中心 · 迎新茶會" : `${baseTopic.slice(0, 18)} · 淡江禪學社`);
+  const headlineA = keepClassic
+    ? "最近是不是\n很久沒有好好坐下來？"
+    : hints.midterm
+      ? "報告寫到一半\n要不要先深呼吸？"
+      : hints.commute
+        ? "爬完克難坡\n給自己一杯熱的"
+        : hints.rain
+          ? "淡水又下雨了\n心也跟著濕答答？"
+          : "最近是不是\n很久沒有好好坐下來？";
+  const headlineB = keepClassic
+    ? "有時候需要的不是答案\n只是一個安靜的晚上"
+    : hints.midterm
+      ? "分數以外\n你還好嗎"
+      : "有時候需要的不是答案\n只是一個安靜的晚上";
+  const headlineC = keepClassic
+    ? "大學生活很自由\n但你最近真的有快樂嗎？"
+    : hints.freshman
+      ? "剛到淡水\n還在找自己的角落嗎？"
+      : "大學生活很自由\n但你最近真的有快樂嗎？";
+
   return [
     {
       id: "direction-a",
@@ -87,8 +128,8 @@ export function generateZenVisualDirections(topic: string, details?: string): Ze
       composition: "畫面下半三分之一大留白放置大標題，上半部為手捧冒著熱氣陶杯特寫，背後有柔和晨曦光斑與微縮龜龜插畫。",
       typography: "思源宋體粗體大標，搭配思源黑體簡約副標，字距加寬營造呼吸空氣感。",
       imagePrompt: "A cozy aesthetic photography, hands holding a warm handcrafted ceramic tea cup with gentle steam, soft natural morning sunlight casting warm golden rays, Tamkang University campus blurred background, calm and healing mood, modern Japanese-Taiwanese zen minimalist editorial style, 35mm film photography, 8k resolution, no words, no religious symbols.",
-      headline: "最近是不是\n很久沒有好好坐下來？",
-      subhead: "開學第三週 · 淡江活動中心 · 迎新茶會",
+      headline: headlineA,
+      subhead: subA,
       atmosphere: "明亮、溫暖、日常生活感、像朋友在身旁陪伴",
       aspectRatio: "4:5",
     },
@@ -104,8 +145,8 @@ export function generateZenVisualDirections(topic: string, details?: string): Ze
       composition: "中心微光光暈擴散，微光映照在平靜水面或木質地板，右下角點綴禪學社小龜龜守護者，標題置中對齊。",
       typography: "乾淨簡練的無襯線黑體（Noto Sans TC），局部關鍵字使用暖金亮色強調。",
       imagePrompt: "A serene night scene of Tamkang, dark twilight blue evening sky with gentle rain reflections, a soft subtle glowing floating light sphere illuminating a minimal wooden desk, tranquil aesthetic, meditation peaceful atmosphere, artistic cinematic lighting, minimal 3D soft shadows, deep calming blue and warm light accents, high quality digital photography.",
-      headline: "有時候需要的不是答案\n只是一個安靜的晚上",
-      subhead: "浮游禪光 · 探索屬於你的內在空間",
+      headline: headlineB,
+      subhead: keepClassic ? "浮游禪光 · 探索屬於你的內在空間" : `${baseTopic.slice(0, 16)} · 給自己一個晚上`,
       atmosphere: "安靜、深邃、專注、整理情緒",
       aspectRatio: "4:5",
     },
@@ -121,8 +162,8 @@ export function generateZenVisualDirections(topic: string, details?: string): Ze
       composition: "趣味扁平 2.5D 插畫風格，龜龜盤腿坐在課本堆與打瞌睡的日常中，自帶放鬆笑點，留白俐落。",
       typography: "微圓角的可愛手寫黑體，標題大字率高，在 IG Feed 上第一眼停留感強烈。",
       imagePrompt: "Cute whimsical minimal flat vector illustration of a calm tiny zen turtle character sitting peacefully, modern pastel campus life elements, soft mint green and beige warm palette, playful contemporary editorial illustration for university students, joyful and stress-relief vibes, clean layout, no clutter.",
-      headline: "大學生活很自由\n但你最近真的有快樂嗎？",
-      subhead: "爬完克難坡喘口氣 · 來禪學社聊聊天",
+      headline: headlineC,
+      subhead: keepClassic ? "爬完克難坡喘口氣 · 來禪學社聊聊天" : "爬完克難坡喘口氣 · 來禪學社坐坐",
       atmosphere: "幽默、親民、校園感、可愛無壓",
       aspectRatio: "1:1",
     },
@@ -329,4 +370,33 @@ export function convertContentMultimodal(input: {
       ],
     },
   };
+}
+
+export type LocalCreativeWave = {
+  directions: ZenVisualDirection[];
+  conversion: MultimodalConversionResult;
+  audit: StudentPerspectiveAudit;
+};
+
+export function buildLocalCreativeWave(ctx: CreativeWaveContext): LocalCreativeWave {
+  const topic = ctx.topic.trim() || "淡江禪學社活動";
+  const details = [ctx.date, ctx.location, ctx.studentPain, ctx.cta, ctx.details].filter(Boolean).join(" · ");
+  const directions = generateZenVisualDirections(topic, details || undefined);
+  const selected = directions[0];
+  const conversion = convertContentMultimodal({
+    topic,
+    headline: selected.headline,
+    caption: "",
+    date: ctx.date,
+    location: ctx.location,
+  });
+  if (ctx.cta) conversion.igPost.cta = ctx.cta;
+  const audit = auditStudentPerspective({
+    headline: selected.headline,
+    caption: conversion.igPost.caption,
+    cta: conversion.igPost.cta,
+    location: ctx.location,
+    time: ctx.date,
+  });
+  return { directions, conversion, audit };
 }

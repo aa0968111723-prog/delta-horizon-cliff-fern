@@ -27,6 +27,8 @@ interface CampaignState {
   
   searchCreativeSources: (query: string, filterSource?: string) => CreativeSourceItem[];
   addCreativeSource: (item: Omit<CreativeSourceItem, "id">) => CreativeSourceItem;
+  updateCreativeSource: (id: string, patch: Partial<CreativeSourceItem>) => void;
+  tagCreativeSource: (id: string, tags: string[]) => void;
 }
 
 export const useCampaignStore = create<CampaignState>()(
@@ -126,9 +128,8 @@ export const useCampaignStore = create<CampaignState>()(
             c.id === id
               ? {
                   ...c,
-                  status: "connected",
+                  status: c.status === "demo" ? "demo" : "connected",
                   lastSyncedAt: Date.now(),
-                  itemCount: c.itemCount + Math.floor(Math.random() * 3) + 1,
                 }
               : c
           ),
@@ -158,9 +159,23 @@ export const useCampaignStore = create<CampaignState>()(
         set((state) => ({ creativeSources: [item, ...state.creativeSources] }));
         return item;
       },
+
+      updateCreativeSource: (id, patch) => {
+        set((state) => ({
+          creativeSources: state.creativeSources.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+        }));
+      },
+
+      tagCreativeSource: (id, tags) => {
+        set((state) => ({
+          creativeSources: state.creativeSources.map((item) =>
+            item.id === id ? { ...item, tags: [...new Set(tags.map((t) => t.trim()).filter(Boolean))] } : item,
+          ),
+        }));
+      },
     }),
     {
-      name: "tamkang-zen-campaigns-v1",
+      name: "tamkang-zen-campaigns-v2",
     }
   )
 );

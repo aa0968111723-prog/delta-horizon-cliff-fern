@@ -77,6 +77,7 @@ test("campaign-seed contains default Tamkang Zen Club campaigns and connections"
   assert.equal(DEFAULT_CAMPAIGNS[0].name, "09/24 浮游禪光");
   assert.equal(DEFAULT_SCHEDULED_POSTS[0].campaignId, "camp_floating_light_0924");
   assert.equal(DEFAULT_CONNECTIONS.length, 3);
+  assert.ok(DEFAULT_CONNECTIONS.every((c) => c.status === "demo"));
   assert.ok(DEFAULT_CONNECTIONS.some((c) => c.id === "google-drive"));
   assert.ok(DEFAULT_CONNECTIONS.some((c) => c.id === "canva"));
   assert.ok(DEFAULT_CONNECTIONS.some((c) => c.id === "instagram"));

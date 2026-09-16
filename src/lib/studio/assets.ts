@@ -90,6 +90,8 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
     favorite: Boolean(raw.favorite),
     lastUsedAt: raw.lastUsedAt ?? null,
     useCount: raw.useCount ?? 0,
+    attribution: raw.attribution ?? "",
+    analysisNotes: raw.analysisNotes ?? "",
   };
 }
 
@@ -122,7 +124,7 @@ export function createGeneratedAsset(input: {
 export function matchesAssetQuery(asset: AssetMeta, query: string) {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  const blob = [asset.name, asset.category, categoryLabel(asset.category), asset.licenseNotes, ...(asset.tags ?? [])]
+  const blob = [asset.name, asset.category, categoryLabel(asset.category), asset.licenseNotes, asset.licenseOwner, asset.attribution, ...(asset.tags ?? [])]
     .join(" ")
     .toLowerCase();
   return q.split(/\s+/).every((part) => blob.includes(part));

@@ -54,6 +54,7 @@ export function GlobalCreativeSearchModal({ open, onOpenChange, onSelectAsset }:
               onChange={(e) => setQuery(e.target.value)}
               placeholder="搜尋素材、照片、Canva、IG 歷史，例如：找以前晚上的茶會照片、找有龜龜的素材..."
               className="pl-9 bg-surface-2 text-sm"
+              data-testid="global-search-input"
               autoFocus
             />
           </div>

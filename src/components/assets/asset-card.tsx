@@ -64,6 +64,7 @@ export function AssetCard({
             <p className="truncate text-sm font-medium">{asset.name}</p>
             <p className="truncate text-xs text-muted">
               {categoryLabel(asset.category)} · {sourceLabel(asset.source)}
+              {asset.attribution ? ` · ${asset.attribution}` : ""}
             </p>
           </div>
           <Button

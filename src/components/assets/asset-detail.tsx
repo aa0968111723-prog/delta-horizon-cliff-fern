@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -11,9 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { analyzeCreativeAsset } from "@/lib/ai/zen-creative";
+import { applyCreativeToStudio } from "@/lib/studio/apply-creative";
 import { ASSET_CATEGORIES, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import { kindFromCategory } from "@/lib/studio/assets";
+import { useCampaignStore } from "@/lib/studio/campaign-store";
 import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
+import { buildLocalCreativeWave } from "@/lib/studio/zen-prompt-engine";
 import { useStudio } from "@/stores/studio-store";
 
 export function AssetDetailSheet({
@@ -36,6 +41,8 @@ export function AssetDetailSheet({
   const placeAsset = useStudio((s) => s.placeAsset);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
+  const addCreativeSource = useCampaignStore((s) => s.addCreativeSource);
+  const [analyzing, setAnalyzing] = useState(false);
 
   if (!asset) return null;
   const current = asset;
@@ -57,6 +64,57 @@ export function AssetDetailSheet({
     toast.success(`已放入「${current.name}」`);
     onOpenChange(false);
     void navigate({ to: "/studio/$projectId", params: { projectId: lastProjectId } });
+  }
+
+  async function analyze() {
+    setAnalyzing(true);
+    try {
+      const result = await analyzeCreativeAsset({
+        data: { name: current.name, category: current.category, tags: current.tags },
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      const extraTags = result.analysis.detectedElements.slice(0, 6);
+      updateAsset(current.id, {
+        analysisNotes: result.analysis.contentSummary,
+        tags: [...new Set([...current.tags, ...extraTags])],
+        attribution: current.attribution || current.licenseOwner || "素材庫",
+      });
+      toast.success(result.adapter === "live" ? "已用 Grok 看過這張圖" : "已完成本機視覺分析");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "分析失敗");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  function generateSimilar() {
+    const wave = buildLocalCreativeWave({
+      topic: `延續「${current.name}」的光線與留白`,
+      details: current.analysisNotes || current.tags.join("、"),
+    });
+    addCreativeSource({
+      source: "ai-generated",
+      title: `相似視覺 · ${current.name}`,
+      subtitle: current.attribution || current.licenseOwner || "素材庫延伸",
+      thumbnailUrl: current.seedSrc || "/seed/cup.jpg",
+      category: "AI 生成",
+      tags: ["相似", ...current.tags.slice(0, 4)],
+      date: new Date().toISOString().slice(0, 10),
+      meta: { fromAssetId: current.id, imagePrompt: wave.directions[0].imagePrompt },
+    });
+    const { projectId } = applyCreativeToStudio({
+      topic: `延續素材「${current.name}」`,
+      direction: wave.directions[0],
+      conversion: wave.conversion,
+      source: "mock",
+      schedule: false,
+    });
+    onOpenChange(false);
+    toast.success("已生成同風格方向並套上畫布");
+    void navigate({ to: "/studio/$projectId", params: { projectId } });
   }
 
   return (
@@ -136,13 +194,30 @@ export function AssetDetailSheet({
           <Input
             value={asset.licenseOwner}
             onChange={(e) => patch("licenseOwner", e.target.value)}
-            placeholder="例如：日食咖啡、攝影師姓名"
+            placeholder="例如：淡江禪學社、茶會紀錄"
           />
         </div>
+        <div>
+          <Label className="mb-1.5 block">出處標註</Label>
+          <Input
+            value={asset.attribution ?? ""}
+            onChange={(e) => patch("attribution", e.target.value)}
+            placeholder="Google Drive／2025 茶會、Canva 母模板、實拍"
+          />
+        </div>
+        {asset.analysisNotes ? (
+          <p className="rounded-lg bg-surface-2 p-2.5 text-xs text-muted">{asset.analysisNotes}</p>
+        ) : null}
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
         <div className="flex flex-wrap gap-2 pb-4">
           <Button onClick={place} disabled={!lastProjectId}>
             放到目前畫布
+          </Button>
+          <Button variant="secondary" data-testid="analyze-asset" disabled={analyzing} onClick={() => void analyze()}>
+            {analyzing ? "分析中…" : "分析圖片"}
+          </Button>
+          <Button variant="outline" data-testid="generate-similar" onClick={generateSimilar}>
+            生成相似並套用
           </Button>
           <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}
