@@ -174,9 +174,9 @@ export function HomePage() {
                 </Button>
               </div>
             </div>
-            <div className="flex items-center justify-center bg-bg p-6 pb-20 md:pb-6">
+            <div className="flex items-center justify-center bg-bg p-4 md:p-6">
               {featuredBoard && brand ? (
-                <ArtboardView artboard={featuredBoard} brand={brand} urls={urls} width={220} />
+                <ArtboardView artboard={featuredBoard} brand={brand} urls={urls} width={180} />
               ) : (
                 <div className="aspect-4/5 w-40 rounded-2xl bg-linear-to-b from-surface-2 to-bg" />
               )}

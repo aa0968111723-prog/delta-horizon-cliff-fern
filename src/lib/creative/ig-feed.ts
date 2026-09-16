@@ -60,9 +60,12 @@ export function coverFromSourceRefs(refs?: SourceRef[]) {
 export function publishCoverFromRefs(refs?: SourceRef[], extraAssetId?: string | null) {
   const cover = coverFromSourceRefs(refs);
   const extra = extraAssetId?.trim();
+  const extraOk = Boolean(extra && !extra.startsWith("http") && !extra.startsWith("data:"));
   const assetIds =
-    extra && !extra.startsWith("http") && !extra.startsWith("data:") && !cover.assetIds.includes(extra)
-      ? [extra, ...cover.assetIds]
+    extraOk && extra && !cover.assetIds.includes(extra)
+      ? cover.assetIds.length
+        ? [...cover.assetIds, extra]
+        : [extra]
       : cover.assetIds;
   return { imageUrl: cover.mediaUrl, assetIds };
 }

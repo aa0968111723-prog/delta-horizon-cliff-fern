@@ -145,7 +145,7 @@ test("publish cover prefers the Canva asset over a data URL", () => {
     ],
     "asset_board",
   );
-  assert.deepEqual(cover.assetIds, ["asset_board", "asset_canva_1"]);
+  assert.deepEqual(cover.assetIds, ["asset_canva_1", "asset_board"]);
   assert.equal(cover.imageUrl, undefined);
 });
 

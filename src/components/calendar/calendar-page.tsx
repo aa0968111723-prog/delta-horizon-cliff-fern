@@ -428,7 +428,11 @@ function ItemActions({
         </Button>
       ) : null}
       <IgPreviewLink projectId={item.projectId} />
-      {item.kind !== "event" && item.status !== "published" ? (
+      {item.status === "published" ? (
+        <span className="self-center text-xs text-subtle" data-published-memory="">
+          已進 Content Memory
+        </span>
+      ) : item.kind !== "event" ? (
         <PublishButton
           campaignId={item.campaignId}
           waveId={item.waveId}
