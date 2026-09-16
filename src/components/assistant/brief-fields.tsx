@@ -44,7 +44,7 @@ export function BriefFields({ brief, onChange, compact }: Props) {
             const eventName = e.target.value;
             onChange({ eventName, product: brief.product || eventName });
           }}
-          placeholder="例如：九月單品・耶加雪菲"
+          placeholder="例如：09/24 浮游禪光 迎新茶會"
         />
       </Field>
 
@@ -53,14 +53,14 @@ export function BriefFields({ brief, onChange, compact }: Props) {
           <Input
             value={brief.schedule}
             onChange={(e) => onChange({ schedule: e.target.value })}
-            placeholder="例如：9/12–9/30"
+            placeholder="例如：09/24 (四) 18:30"
           />
         </Field>
         <Field label="地點">
           <Input
             value={brief.location}
             onChange={(e) => onChange({ location: e.target.value })}
-            placeholder="門市、線上或城市"
+            placeholder="淡江學生活動中心、B304 或草坪"
           />
         </Field>
       </div>
@@ -69,7 +69,7 @@ export function BriefFields({ brief, onChange, compact }: Props) {
         <Input
           value={brief.audience}
           onChange={(e) => onChange({ audience: e.target.value })}
-          placeholder="誰會停下來看這則"
+          placeholder="例如：開學感到疲累的大一新生、通勤克難坡的淡江同學"
         />
       </Field>
 
@@ -77,7 +77,7 @@ export function BriefFields({ brief, onChange, compact }: Props) {
         <Textarea
           value={brief.features}
           onChange={(e) => onChange({ features: e.target.value })}
-          placeholder="最多三件要被記住的事"
+          placeholder="三色光靜心、熱茶慢步調、無宗教說教、放鬆聊天"
           className={compact ? "min-h-20" : undefined}
         />
       </Field>
@@ -86,25 +86,25 @@ export function BriefFields({ brief, onChange, compact }: Props) {
         <Input
           value={brief.style}
           onChange={(e) => onChange({ style: e.target.value })}
-          placeholder="例如：沉靜、留白、不叫賣"
+          placeholder="例如：生活感、晨曦暖光、留白呼吸感、懂學生心境"
         />
       </Field>
 
       {compact ? null : (
-        <Field label="優惠（選填）">
+        <Field label="亮點/席位（選填）">
           <Input
             value={brief.offer}
             onChange={(e) => onChange({ offer: e.target.value })}
-            placeholder="期間限定、到店禮"
+            placeholder="免費一人席或朋友席、主頁表單預約"
           />
         </Field>
       )}
 
-      <Field label="補充">
+      <Field label="補充與反宗教說教指示">
         <Textarea
           value={brief.notes}
           onChange={(e) => onChange({ notes: e.target.value })}
-          placeholder="語氣、禁用、必須出現的資訊"
+          placeholder="避開宗教神話詞彙，語氣像淡江學長姐在咖啡香中陪伴聊聊"
           className={compact ? "min-h-20" : undefined}
         />
       </Field>

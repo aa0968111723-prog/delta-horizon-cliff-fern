@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { Calendar, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { canvasToBlob, collectArtboardAssetIds, downloadBlob, renderArtboardToCanvas } from "@/lib/studio/export-png";
@@ -9,6 +10,7 @@ import { uid } from "@/lib/studio/ids";
 import { pagesOf } from "@/lib/studio/layers";
 import type { Artboard, BrandKit, Project } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
+import { useCampaignStore } from "@/lib/studio/campaign-store";
 
 async function loadImages(ids: string[]): Promise<Record<string, HTMLImageElement>> {
   const map: Record<string, HTMLImageElement> = {};
@@ -43,6 +45,7 @@ export function ExportPanel({
   artboard: Artboard;
 }) {
   const recordExport = useStudio((s) => s.recordExport);
+  const addScheduledPost = useCampaignStore((s) => s.addScheduledPost);
   const [scale, setScale] = useState<1 | 2 | 3>(2);
   const [type, setType] = useState<"image/png" | "image/jpeg">("image/png");
   const [busy, setBusy] = useState(false);
@@ -167,6 +170,40 @@ export function ExportPanel({
         }}
       >
         複製貼文文案
+      </Button>
+      <Button
+        variant="outline"
+        className="w-full gap-1.5 text-xs border-primary/40 text-primary hover:bg-primary/5"
+        onClick={() => {
+          const contentType =
+            pages.length > 1
+              ? "carousel"
+              : format.id === "story"
+              ? "story"
+              : format.id === "reels-cover"
+              ? "reels"
+              : "ig-post";
+
+          addScheduledPost({
+            projectId: project.id,
+            title: project.name,
+            contentType,
+            status: "scheduled",
+            scheduledAt: new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 16).replace("T", " "),
+            hook: project.copy.headline.replace("\n", " "),
+            caption: project.copy.caption,
+            hashtags: project.copy.hashtags,
+            cta: project.copy.cta,
+            visualDirection: `${format.name} · ${brand.name}`,
+            slidesCount: pages.length,
+            sourceKind: "brand-memory",
+            sourceRef: `Studio 畫布 / ${project.name}`,
+          });
+          toast.success(`已將「${project.name}」排入社團內容日曆！`);
+        }}
+      >
+        <Calendar className="size-3.5" />
+        排入社團內容日曆
       </Button>
       {project.copy.altText ? (
         <p className="text-xs text-muted">Alt：{project.copy.altText}</p>
