@@ -71,3 +71,17 @@ test("formal invitations never become the home hook", () => {
   assert.doesNotMatch(hook, /誠摯邀請/);
   assert.equal(recommendHook({ oneLiner: "敬邀蒞臨" }, "誠摯邀請您"), HOOK_EXAMPLES[0]);
 });
+
+test("a learned-Hook piece does not steal 今天推薦 from the tea-party", () => {
+  const piece = {
+    id: "camp_hook",
+    name: "可以自己來？",
+    type: "other",
+    date: "2026-09-16",
+    oneLiner: "可以自己來？",
+    updatedAt: TEA_UPDATED + 9_000,
+  };
+  const hit = recommendCampaign([seed, tea, piece], NOW);
+  assert.equal(hit?.id, "camp_tea");
+  assert.equal(hit?.name, "茶會");
+});

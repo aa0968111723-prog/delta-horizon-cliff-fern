@@ -90,7 +90,7 @@ export function HomePage() {
           <div className="grid gap-4 p-5 md:grid-cols-[1.2fr_0.8fr] md:p-8">
             <div>
               <p className="text-xs tracking-[0.18em] uppercase text-accent-fg/70">今天推薦創作</p>
-              <p className="mt-3 font-display text-3xl md:text-4xl">
+              <p className="mt-3 font-display text-3xl md:text-4xl" data-testid="home-recommend-name">
                 {format(new Date(`${upcoming.date}T00:00:00`), "MM/dd", { locale: zhTW })} {upcoming.name}
               </p>
               <p className="mt-2 text-sm text-accent-fg/80">

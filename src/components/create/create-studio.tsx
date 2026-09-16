@@ -841,13 +841,14 @@ export function CreateStudio() {
       idea,
       planName: nextPlan?.campaignName,
     });
+    const asPiece = !shouldReopenCampaign(search.mode, search.campaign) && !typedEventName();
     const date = parseEventDate(`${schedule} ${idea}`);
     const type = eventKindFromText(`${name} ${idea}`);
     const existing =
       (search.campaign ? campaigns.find((row) => row.id === search.campaign) : undefined) ??
       campaigns.find((row) => row.name === name && row.date === date) ??
       (campaign && campaign.name === name ? campaign : undefined);
-    const fresh = suggestWaves({ date, type, name }, new Date(), { recentKinds });
+    const fresh = asPiece ? [] : suggestWaves({ date, type, name }, new Date(), { recentKinds });
     const waves = mergeCampaignWaves(existing?.waves, fresh).map((wave) => ({
       ...wave,
       imageAssetId: wave.imageAssetId ?? assetId,
@@ -900,7 +901,7 @@ export function CreateStudio() {
     }
     setCampaign(created);
     if (!opts?.silent) {
-      toast.success("活動與節奏已進月曆");
+      toast.success(asPiece ? "這篇已進月曆，沒有另開一場活動。" : "活動與節奏已進月曆");
       toast.message(rhythmHint(recentKinds));
     }
     return created;
@@ -1587,8 +1588,15 @@ export function CreateStudio() {
                 改這句，月曆用這版
               </Button>
               <p className="mt-3 text-xs text-muted" data-testid="kit-campaign-name">
-                已建立 {campaign.name}，節奏含 {campaign.waves.map((w) => waveLabel(w.kind)).join("、") || "預熱到回顧"}。
+                {campaign.waves.length
+                  ? `已建立 ${campaign.name}，節奏含 ${campaign.waves.map((w) => waveLabel(w.kind)).join("、")}。`
+                  : `已做成一篇「${campaign.name}」：IG、Carousel、限動、Reels、Threads、LINE。`}
               </p>
+              {!campaign.waves.length ? (
+                <p className="sr-only" data-testid="kit-piece">
+                  一篇內容
+                </p>
+              ) : null}
               {lastCanva || campaign.canvaEditUrl ? (
                 <p className="mt-2 text-xs text-muted" data-testid="canva-source">
                   來源：Canva / {lastCanva?.title || campaign.name}
