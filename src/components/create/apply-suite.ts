@@ -3,7 +3,7 @@ import { applyVisualDirection } from "@/components/create/apply-visual";
 import { uid } from "@/lib/studio/ids";
 import { tonightAt } from "@/lib/zen/convert";
 import { formatSuitePlan } from "@/lib/zen/from-idea";
-import { placeScheduleItems } from "@/lib/zen/schedule";
+import { mergeSuiteIntoSchedule } from "@/lib/zen/schedule";
 import type { CreativePack, ScheduleItem, VisualSequence } from "@/lib/zen/types";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -123,7 +123,7 @@ export async function applyFormatSuite(input: {
   }
 
   useCreative.setState((state) => {
-    const slotted = placeScheduleItems(state.schedule, pending);
+    const slotted = mergeSuiteIntoSchedule(state.schedule, pending);
     const nextSequences = [...remembered, ...state.sequences.filter((row) => !remembered.some((item) => item.kind === row.kind))].slice(
       0,
       8,
@@ -134,7 +134,7 @@ export async function applyFormatSuite(input: {
       sequences: nextSequences,
       igView: firstAssetId ? "preview" : state.igView,
       ...(firstFormatId ? { igFormat: preferred ? "feed-portrait" : firstFormatId } : {}),
-      schedule: [...slotted, ...state.schedule.filter((row) => !slotted.some((item) => item.id === row.id))],
+      schedule: slotted,
       campaigns: campaignId
         ? state.campaigns.map((campaign) =>
             campaign.id === campaignId
@@ -145,7 +145,7 @@ export async function applyFormatSuite(input: {
                   projectIds: [
                     ...new Set([
                       ...campaign.projectIds,
-                      ...slotted.map((item) => item.projectId).filter((id): id is string => Boolean(id)),
+                      ...pending.map((item) => item.projectId).filter((id): id is string => Boolean(id)),
                     ]),
                   ],
                   updatedAt: Date.now(),

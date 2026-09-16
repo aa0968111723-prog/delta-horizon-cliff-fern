@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { SEED_MEMORY } from "./memory.ts";
 import { creativeSearch, expandCreativeQuery, groupSearchHits, knowledgeFromHits, searchCreativeKnowledge, searchTerms } from "./search.ts";
-import { applyPackToWaves, contentKindForWave, copyKindForWave, emptyCampaign, nextWaveAngle, nextWaveVisual, rhythmHint, scheduleItemsFromCampaign, schedulePreviewAssetId, suggestWaves, waveOffsets } from "./schedule.ts";
+import { applyPackToWaves, contentKindForWave, copyKindForWave, emptyCampaign, mergeSuiteIntoSchedule, nextWaveAngle, nextWaveVisual, preferSuiteSchedule, rhythmHint, scheduleItemsFromCampaign, schedulePreviewAssetId, suggestWaves, suiteCoversWave, waveOffsets } from "./schedule.ts";
 import { canvaDraftNotes, canvaDraftTitle, canvaPresetForAspect, canvaPresetForKind } from "./canva-draft.ts";
 import { convertFromPlan, CONVERT_TARGETS, aspectForTarget, briefFlagsForTarget, captionForTarget, contentKindForFormat, convertTargetForFormat } from "./convert.ts";
 import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
@@ -377,6 +377,104 @@ test("scheduleItemsFromCampaign maps waves without owners", () => {
   assert.equal(items.find((row) => row.title.startsWith("為什麼來"))?.contentKind, "member-story");
   assert.ok(items.every((row) => row.campaignId === "camp_x"));
   assert.ok(items.every((row) => !("assignee" in row) && !("reviewer" in row)));
+});
+
+test("preferSuiteSchedule drops unpublished wave placeholders covered by the format suite", () => {
+  const waves = suggestWaves({ date: "2026-09-24", type: "tea", name: "茶會" });
+  const campaign = emptyCampaign({
+    id: "camp_tea",
+    name: "茶會",
+    date: "2026-09-24",
+    waves,
+  });
+  const waveItems = scheduleItemsFromCampaign(campaign, "creating");
+  const suite = [
+    {
+      id: "sch_suite_post",
+      title: "IG Post · 茶會",
+      contentKind: "ig-post" as const,
+      status: "scheduled" as const,
+      scheduledAt: Date.parse("2026-09-18T20:00:00+08:00"),
+      publishedAt: null,
+      projectId: "p1",
+      campaignId: "camp_tea",
+      captionPreview: "坐好",
+    },
+    {
+      id: "sch_suite_car",
+      title: "Carousel · 茶會",
+      contentKind: "carousel" as const,
+      status: "scheduled" as const,
+      scheduledAt: Date.parse("2026-09-20T20:00:00+08:00"),
+      publishedAt: null,
+      projectId: "p2",
+      campaignId: "camp_tea",
+      captionPreview: "坐好",
+      sequence: { kind: "carousel" as const, projectId: "p2", assetIds: ["a"], labels: ["1"] },
+    },
+    {
+      id: "sch_suite_story",
+      title: "Story · 茶會",
+      contentKind: "story" as const,
+      status: "scheduled" as const,
+      scheduledAt: Date.parse("2026-09-19T20:00:00+08:00"),
+      publishedAt: null,
+      projectId: "p3",
+      campaignId: "camp_tea",
+      captionPreview: "坐好",
+    },
+  ];
+  const next = preferSuiteSchedule([...waveItems, ...suite]);
+  const titles = next.map((item) => item.title);
+  assert.ok(titles.includes("IG Post · 茶會"));
+  assert.ok(titles.includes("Carousel · 茶會"));
+  assert.ok(titles.includes("Story · 茶會"));
+  assert.equal(titles.some((title) => title.startsWith("主視覺")), false);
+  assert.equal(titles.some((title) => title.startsWith("先被看見")), false);
+  assert.equal(titles.some((title) => title.startsWith("活動介紹")), false);
+  assert.equal(titles.some((title) => title.startsWith("今晚")), false);
+  assert.ok(titles.some((title) => title.startsWith("預告")));
+  assert.ok(titles.some((title) => title.startsWith("為什麼來")));
+  assert.ok(titles.some((title) => title.startsWith("倒數")));
+  assert.ok(titles.some((title) => title.startsWith("昨天晚上")));
+  const onlyWaves = preferSuiteSchedule(waveItems);
+  assert.equal(onlyWaves.length, 8);
+  const published = waveItems.map((item) =>
+    item.title.startsWith("先被看見") ? { ...item, status: "published" as const } : item,
+  );
+  const keptPublished = preferSuiteSchedule([...published, ...suite]);
+  assert.ok(keptPublished.some((item) => item.title.startsWith("先被看見") && item.status === "published"));
+  assert.equal(suiteCoversWave("camp_tea", "emotion", next), true);
+  assert.equal(suiteCoversWave("camp_tea", "tease", next), false);
+
+  const infoNight = Date.parse("2026-09-19T20:00:00+08:00");
+  const merged = mergeSuiteIntoSchedule(waveItems, [
+    {
+      id: "sch_suite_post",
+      title: "IG Post · 茶會",
+      contentKind: "ig-post",
+      status: "scheduled",
+      scheduledAt: Date.parse("2026-09-16T20:00:00+08:00"),
+      publishedAt: null,
+      projectId: "p1",
+      campaignId: "camp_tea",
+      captionPreview: "坐好",
+    },
+    {
+      id: "sch_suite_car",
+      title: "Carousel · 茶會",
+      contentKind: "carousel",
+      status: "scheduled",
+      scheduledAt: infoNight,
+      publishedAt: null,
+      projectId: "p2",
+      campaignId: "camp_tea",
+      captionPreview: "坐好",
+    },
+  ]);
+  const carousel = merged.find((item) => item.id === "sch_suite_car");
+  assert.equal(carousel?.scheduledAt, infoNight);
+  assert.equal(merged.some((item) => item.title.startsWith("活動介紹")), false);
 });
 
 test("waveOffsets compress when the event is soon and recruit starts earlier", () => {

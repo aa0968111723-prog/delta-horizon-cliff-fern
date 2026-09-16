@@ -129,6 +129,54 @@ export function rhythmHint(items: { contentKind: string }[]) {
   return "宣傳 → 生活 → 互動 → 活動 → 知識 → 故事 → 倒數，讓節奏自然。";
 }
 
+export function isWaveScheduleItem(item: { id: string; sequence?: { assetIds: string[] } | null }) {
+  return item.id.startsWith("sch_wave") && !item.sequence;
+}
+
+export function suiteCoversWave(campaignId: string, waveKind: WaveKind, items: ScheduleItem[]): boolean {
+  const kind = contentKindForWave(waveKind);
+  return items.some(
+    (item) => item.campaignId === campaignId && !isWaveScheduleItem(item) && item.contentKind === kind,
+  );
+}
+
+export function preferSuiteSchedule(items: ScheduleItem[]): ScheduleItem[] {
+  const groups = new Map<string, ScheduleItem[]>();
+  const loose: ScheduleItem[] = [];
+  for (const item of items) {
+    if (!item.campaignId) {
+      loose.push(item);
+      continue;
+    }
+    const rows = groups.get(item.campaignId) ?? [];
+    rows.push(item);
+    groups.set(item.campaignId, rows);
+  }
+  const next: ScheduleItem[] = [...loose];
+  for (const rows of groups.values()) {
+    const suite = rows.filter((item) => !isWaveScheduleItem(item));
+    if (!suite.length) {
+      next.push(...rows);
+      continue;
+    }
+    const suiteKinds = new Set(suite.map((item) => item.contentKind));
+    const keptWaves = rows.filter((item) => {
+      if (!isWaveScheduleItem(item)) return true;
+      if (item.status === "published") return true;
+      return !suiteKinds.has(item.contentKind);
+    });
+    next.push(...keptWaves);
+  }
+  return next;
+}
+
+export function mergeSuiteIntoSchedule(existing: ScheduleItem[], pending: ScheduleItem[]): ScheduleItem[] {
+  const pendingIds = new Set(pending.map((item) => item.id));
+  const preview = preferSuiteSchedule([...pending, ...existing.filter((row) => !pendingIds.has(row.id))]);
+  const remaining = preview.filter((row) => !pendingIds.has(row.id));
+  return [...placeScheduleItems(remaining, pending), ...remaining];
+}
+
 export const WAVE_ANGLES: Record<WaveKind, string[]> = {
   tease: ["先講生活，還沒講活動名", "用淡水晚上當入口", "用開學課表當入口"],
   emotion: ["連休息都有罪惡感", "大學很自由但快樂嗎", "需要的不是答案只是一個晚上"],

@@ -4,7 +4,7 @@ import type { FormatId } from "@/lib/studio/types";
 import { uid } from "@/lib/studio/ids";
 import { SEED_CAMPUS_ID, SEED_CUP_ID, SEED_DRAFT_ID, SEED_LIGHT_ID, SEED_PROJECT_ID } from "@/lib/studio/seed";
 import { SEED_CAMPAIGN_ID, SEED_CONNECTIONS, SEED_IG_POSTS, SEED_MEMORY, SEED_TEA_ID } from "@/lib/zen/memory";
-import { emptyCampaign, scheduleItemsFromCampaign, suggestWaves } from "@/lib/zen/schedule";
+import { emptyCampaign, preferSuiteSchedule, scheduleItemsFromCampaign, suggestWaves } from "@/lib/zen/schedule";
 import { publishedToMemory } from "@/lib/zen/publish-memory";
 import type {
   CampaignWave,
@@ -69,7 +69,7 @@ function seedCampaigns(): ClubCampaign[] {
 }
 
 function seedSchedule(campaigns: ClubCampaign[]): ScheduleItem[] {
-  return campaigns.flatMap((camp) => scheduleItemsFromCampaign(camp));
+  return preferSuiteSchedule(campaigns.flatMap((camp) => scheduleItemsFromCampaign(camp)));
 }
 
 type IgView = "grid" | "preview" | "calendar";
@@ -181,7 +181,10 @@ export const useCreative = create<CreativeState>()(
             : [campaign, ...s.campaigns];
           const extra = scheduleItemsFromCampaign(campaign);
           const extraIds = new Set(extra.map((item) => item.id));
-          const schedule = [...extra, ...s.schedule.filter((item) => !extraIds.has(item.id))];
+          const schedule = preferSuiteSchedule([
+            ...extra,
+            ...s.schedule.filter((item) => !extraIds.has(item.id)),
+          ]);
           return { campaigns, schedule };
         }),
       patchCampaign: (id, patch) =>
@@ -206,9 +209,8 @@ export const useCreative = create<CreativeState>()(
       upsertSchedule: (item) =>
         set((s) => {
           const exists = s.schedule.some((row) => row.id === item.id);
-          return {
-            schedule: exists ? s.schedule.map((row) => (row.id === item.id ? item : row)) : [item, ...s.schedule],
-          };
+          const next = exists ? s.schedule.map((row) => (row.id === item.id ? item : row)) : [item, ...s.schedule];
+          return { schedule: preferSuiteSchedule(next) };
         }),
       markPublished: (id) => {
         const item = get().schedule.find((row) => row.id === id);
@@ -283,7 +285,7 @@ export const useCreative = create<CreativeState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 5,
+      version: 6,
       migrate: (persisted) => {
         const row = (persisted ?? {}) as {
           campaigns: ClubCampaign[];
@@ -316,7 +318,7 @@ export const useCreative = create<CreativeState>()(
             : [];
         return {
           campaigns: row.campaigns,
-          schedule: row.schedule,
+          schedule: preferSuiteSchedule(row.schedule ?? []),
           igPosts: row.igPosts,
           memory: row.memory,
           connections: row.connections,

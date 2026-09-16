@@ -27,7 +27,7 @@ import { dnaPromptIdea, igDnaBlock, learnFromPosts, recentPostedNotes } from "@/
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
 import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatIdForContentKind, formatScript } from "@/lib/zen/convert";
-import { schedulePreviewAssetId, placeScheduleItems } from "@/lib/zen/schedule";
+import { isWaveScheduleItem, schedulePreviewAssetId, placeScheduleItems } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -71,6 +71,7 @@ export function InstagramCenter() {
       [...schedule]
         .filter((item) => item.status !== "published")
         .filter((item) => ["ig-post", "carousel", "story", "reels", "threads"].includes(item.contentKind))
+        .filter((item) => !isWaveScheduleItem(item))
         .sort((a, b) => a.scheduledAt - b.scheduledAt),
     [schedule],
   );

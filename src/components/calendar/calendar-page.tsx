@@ -14,7 +14,7 @@ import type { ContentKind } from "@/lib/studio/types";
 import { copyKindForContent } from "@/lib/zen/convert";
 import { igDnaBlock } from "@/lib/zen/insights";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
-import { placeScheduleItems, rhythmHint } from "@/lib/zen/schedule";
+import { isWaveScheduleItem, placeScheduleItems, rhythmHint } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 
@@ -248,9 +248,14 @@ export function CalendarPage() {
           {[...schedule]
             .sort((a, b) => a.scheduledAt - b.scheduledAt)
             .map((item) => (
-              <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+              <li
+                key={item.id}
+                data-testid={isWaveScheduleItem(item) ? "schedule-wave" : "schedule-suite"}
+                className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]"
+              >
                 <p className="text-xs text-muted">
                   {format(item.scheduledAt, "M/d（EE）HH:mm", { locale: zhTW })} · {CONTENT_KIND_LABEL[item.contentKind]}
+                  {isWaveScheduleItem(item) ? " · 節奏" : ""}
                 </p>
                 <p className="text-sm font-medium">{item.title}</p>
                 {item.sequence && item.sequence.assetIds.length > 1 ? (
@@ -338,9 +343,13 @@ export function CalendarPage() {
                     <li
                       key={item.id}
                       draggable
+                      data-testid={isWaveScheduleItem(item) ? "schedule-wave" : "schedule-suite"}
                       onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", item.id)}
                       onClick={() => setEditingId(item.id)}
-                      className="truncate rounded-md bg-bg px-1 py-0.5 text-[10px]"
+                      className={cn(
+                        "truncate rounded-md px-1 py-0.5 text-[10px]",
+                        isWaveScheduleItem(item) ? "bg-bg/70 text-muted" : "bg-bg",
+                      )}
                     >
                       {item.title}
                     </li>

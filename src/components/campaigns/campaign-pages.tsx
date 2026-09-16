@@ -22,6 +22,7 @@ import {
   nextWaveAngle,
   nextWaveVisual,
   suggestWaves,
+  suiteCoversWave,
 } from "@/lib/zen/schedule";
 import { formatMd } from "@/lib/zen/season";
 import { useCreative } from "@/stores/creative-store";
@@ -179,6 +180,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   const upsertCampaign = useCreative((s) => s.upsertCampaign);
   const lastPack = useCreative((s) => s.lastPack);
   const setLastPack = useCreative((s) => s.setLastPack);
+  const schedule = useCreative((s) => s.schedule);
   const igPosts = useCreative((s) => s.igPosts);
   const memory = useCreative((s) => s.memory);
   const [busy, setBusy] = useState(false);
@@ -345,10 +347,20 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
         </section>
       ) : null}
       <ol className="mt-8 space-y-2">
-        {campaign.waves.map((wave) => (
-          <li key={wave.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+        {campaign.waves.map((wave) => {
+          const covered = suiteCoversWave(campaign.id, wave.kind, schedule) && wave.status !== "published";
+          return (
+          <li
+            key={wave.id}
+            className={`rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)] ${covered ? "opacity-70" : ""}`}
+          >
             <p className="text-xs text-muted">{new Date(wave.scheduledAt).toLocaleString("zh-TW")}</p>
             <p className="text-sm font-medium">{wave.title}</p>
+            {covered ? (
+              <p className="mt-1 text-xs text-muted" data-testid="wave-covered">
+                日曆上已有套件這格，這波先收起來
+              </p>
+            ) : null}
             {wave.copyPreview ? <p className="mt-2 text-sm leading-relaxed">{wave.copyPreview}</p> : null}
             {wave.notes ? <p className="mt-1 text-xs text-muted">{wave.notes}</p> : null}
             <div className="mt-2 flex flex-wrap gap-2">
@@ -455,7 +467,8 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
             </Button>
             </div>
           </li>
-        ))}
+          );
+        })}
       </ol>
     </main>
   );
