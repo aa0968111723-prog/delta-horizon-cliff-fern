@@ -25,7 +25,7 @@ import { dnaPromptIdea, igDnaBlock, learnFromPosts } from "@/lib/zen/insights";
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
 import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatIdForContentKind, formatScript } from "@/lib/zen/convert";
-import { schedulePreviewAssetId } from "@/lib/zen/schedule";
+import { schedulePreviewAssetId, placeScheduleItems } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -53,6 +53,7 @@ export function InstagramCenter() {
   const setConnection = useCreative((s) => s.setConnection);
   const igStatus = useCreative((s) => s.connections.find((c) => c.id === "instagram")?.status);
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
+  const markPublished = useCreative((s) => s.markPublished);
   const projects = useStudio((s) => s.projects);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const setLastProjectId = useStudio((s) => s.setLastProjectId);
@@ -66,6 +67,7 @@ export function InstagramCenter() {
   const upcoming = useMemo(
     () =>
       [...schedule]
+        .filter((item) => item.status !== "published")
         .filter((item) => ["ig-post", "carousel", "story", "reels", "threads"].includes(item.contentKind))
         .sort((a, b) => a.scheduledAt - b.scheduledAt),
     [schedule],
@@ -221,7 +223,7 @@ export function InstagramCenter() {
         toast.error(result.error);
         return;
       }
-      upsertSchedule({
+    upsertSchedule({
         id: uid("sch"),
         title: result.pack.hook,
         contentKind: "ig-post",
@@ -257,18 +259,21 @@ export function InstagramCenter() {
         ? campaigns.find((row) => row.name === lastPack.campaignName || lastPack.campaignName.includes(row.name))?.id ??
           null
         : null;
-    upsertSchedule({
-      id: uid("sch"),
-      title: (lastPack?.copy.hook || previewProject?.name || "今晚").slice(0, 48),
-      contentKind: previewProject?.contentKind ?? contentKindForFormat(previewFormat),
-      status: "scheduled",
-      scheduledAt: tonightAt(0),
-      publishedAt: null,
-      projectId: previewProject?.id ?? lastSequence?.projectId ?? null,
-      campaignId,
-      captionPreview: previewScript && previewScript.kind !== "post" ? previewScript.rows.map((row) => `${row.kicker} ${row.title}`).join("\n") : caption,
-      sequence: lastSequence && lastSequence.kind === (previewScript?.kind ?? "") ? lastSequence : undefined,
-    });
+    const [placed] = placeScheduleItems(schedule, [
+      {
+        id: uid("sch"),
+        title: (lastPack?.copy.hook || previewProject?.name || "今晚").slice(0, 48),
+        contentKind: previewProject?.contentKind ?? contentKindForFormat(previewFormat),
+        status: "scheduled",
+        scheduledAt: tonightAt(0),
+        publishedAt: null,
+        projectId: previewProject?.id ?? lastSequence?.projectId ?? null,
+        campaignId,
+        captionPreview: previewScript && previewScript.kind !== "post" ? previewScript.rows.map((row) => `${row.kicker} ${row.title}`).join("\n") : caption,
+        sequence: lastSequence && lastSequence.kind === (previewScript?.kind ?? "") ? lastSequence : undefined,
+      },
+    ]);
+    if (placed) upsertSchedule(placed);
     if (campaignId && lastVisualAssetId) {
       const campaign = campaigns.find((row) => row.id === campaignId);
       if (campaign) {
@@ -277,8 +282,45 @@ export function InstagramCenter() {
         });
       }
     }
-    toast.success("已排進日曆（今晚）");
+    toast.success("已排進日曆（避開已有的活動廣告夜）");
     void navigate({ to: "/calendar" });
+  }
+
+  function rememberPreviewPublished() {
+    const campaignId =
+      lastPack?.campaignName
+        ? campaigns.find((row) => row.name === lastPack.campaignName || lastPack.campaignName.includes(row.name))?.id ??
+          null
+        : null;
+    const existing = schedule.find(
+      (item) =>
+        item.status !== "published" &&
+        (item.projectId === previewProject?.id || item.sequence?.projectId === lastSequence?.projectId),
+    );
+    if (existing) {
+      markPublished(existing.id);
+      toast.success("已寫進過去 IG，下次生成會參考這則");
+      setTab("grid");
+      setIgView("grid");
+      return;
+    }
+    const id = uid("sch");
+    upsertSchedule({
+      id,
+      title: (lastPack?.copy.hook || previewProject?.name || "IG").slice(0, 48),
+      contentKind: previewProject?.contentKind ?? contentKindForFormat(previewFormat),
+      status: "scheduled",
+      scheduledAt: Date.now(),
+      publishedAt: null,
+      projectId: previewProject?.id ?? lastSequence?.projectId ?? null,
+      campaignId,
+      captionPreview: caption,
+      sequence: lastSequence,
+    });
+    markPublished(id);
+    toast.success("已寫進過去 IG");
+    setTab("grid");
+    setIgView("grid");
   }
 
   async function makeAllVisuals() {
@@ -578,7 +620,10 @@ export function InstagramCenter() {
               <Button size="sm" variant="secondary" onClick={scheduleCurrent} disabled={!caption.trim()}>
                 排進日曆
               </Button>
-              <PublishIgButton caption={caption} />
+              <PublishIgButton caption={caption} onPublished={() => rememberPreviewPublished()} />
+              <Button size="sm" variant="ghost" onClick={rememberPreviewPublished} disabled={!caption.trim()}>
+                寫進過去 IG
+              </Button>
               {previewScript ? (
                 <FormatScriptPanel
                   script={previewScript}

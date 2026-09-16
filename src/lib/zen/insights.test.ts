@@ -17,6 +17,7 @@ test("igDnaBlock tells the model to use club IG not generic brand templates", ()
   assert.match(block, /IG DNA/);
   assert.match(block, /不要套一般品牌模板/);
   assert.match(block, /晚上見/);
+  assert.match(block, /最近發過/);
 });
 
 test("systemPrompt injects IG DNA for copy campaign and image", () => {
@@ -35,6 +36,7 @@ test("systemPrompt injects Creative Memory notes for copy", () => {
 
 test("dnaPromptIdea asks for a new post not a copy", () => {
   assert.match(dnaPromptIdea(), /不要複製舊文/);
+  assert.match(dnaPromptIdea(), /最近發過/);
 });
 
 test("learnFromPosts compares question hooks against announcements", () => {

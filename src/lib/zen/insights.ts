@@ -64,6 +64,21 @@ export function learnFromPosts(posts: IgMemoryPost[] = SEED_IG_POSTS) {
   };
 }
 
+export function recentPostedNotes(posts: IgMemoryPost[], now = Date.now()) {
+  const ranked = [...posts].sort((a, b) => b.postedAt - a.postedAt).slice(0, 6);
+  if (!ranked.length) return "最近還沒發新內容。";
+  const line = `最近發過：${ranked.map((post) => `${post.hook || post.caption.split("\n")[0]}（${post.mediaType}）`).join("／")}`;
+  const fresh = ranked.filter((post) => now - post.postedAt < 21 * 86_400_000);
+  const look = fresh.length ? fresh : ranked.slice(0, 3);
+  const promos = look.filter(
+    (post) => post.mediaType === "carousel" || /招生|本週社課|誠摯|活動名/.test(`${post.hook}\n${post.caption}`),
+  );
+  if ((fresh.length >= 2 && promos.length >= 2) || (fresh.length === 0 && promos.length >= 2)) {
+    return `${line}。已經連續活動向，下一則改生活或互動。`;
+  }
+  return line;
+}
+
 export function igDnaBlock(posts: IgMemoryPost[] = SEED_IG_POSTS) {
   const learned = learnFromPosts(posts);
   return `Zen Club IG DNA（優先參考自己的 IG，不要套一般品牌模板）：
@@ -79,11 +94,12 @@ Hashtag：${IG_DNA.hashtags.join(" ")}
 收藏較高的 Hook：${learned.winningHooks.join("／")}
 較有效：${learned.whatWorks}
 較無效：${learned.whatFails}
-避開這些開場：${learned.losingHooks.join("／")}`;
+避開這些開場：${learned.losingHooks.join("／")}
+${recentPostedNotes(posts)}`;
 }
 
 export function dnaPromptIdea(posts: IgMemoryPost[] = SEED_IG_POSTS) {
   const learned = learnFromPosts(posts);
   const hook = learned.winningHooks[0] || "最近是不是很久沒有好好坐下來？";
-  return `延續我們 IG 裡有效的語氣，寫一篇新內容。不要複製舊文。參考 Hook：「${hook}」。先讓淡江學生覺得在講他，再帶活動。`;
+  return `延續我們 IG 裡有效的語氣，寫一篇新內容。不要複製舊文。參考 Hook：「${hook}」。${recentPostedNotes(posts)} 先讓淡江學生覺得在講他，再帶活動。`;
 }

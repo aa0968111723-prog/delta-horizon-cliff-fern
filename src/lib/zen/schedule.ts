@@ -88,8 +88,41 @@ export function waveTitle(kind: WaveKind, name: string) {
   return map[kind];
 }
 
+export function isPromoKind(kind: string) {
+  return kind === "ig-post" || kind === "carousel" || kind === "poster";
+}
+
+function dayKey(ts: number) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+export function placeScheduleItems(existing: ScheduleItem[], pending: ScheduleItem[]): ScheduleItem[] {
+  const taken = new Map<string, string[]>();
+  for (const row of existing) {
+    if (row.status === "published") continue;
+    const key = dayKey(row.scheduledAt);
+    taken.set(key, [...(taken.get(key) ?? []), row.contentKind]);
+  }
+  const placed: ScheduleItem[] = [];
+  for (const item of pending) {
+    let ts = item.scheduledAt;
+    for (let step = 0; step < 14; step += 1) {
+      const kinds = taken.get(dayKey(ts)) ?? [];
+      const promoClash = isPromoKind(item.contentKind) && kinds.some(isPromoKind);
+      const sameKind = kinds.includes(item.contentKind);
+      if (!promoClash && !sameKind) break;
+      ts += 86_400_000;
+    }
+    placed.push({ ...item, scheduledAt: ts });
+    const key = dayKey(ts);
+    taken.set(key, [...(taken.get(key) ?? []), item.contentKind]);
+  }
+  return placed;
+}
+
 export function rhythmHint(items: { contentKind: string }[]) {
-  const ads = items.filter((i) => i.contentKind === "ig-post" || i.contentKind === "carousel").length;
+  const ads = items.filter((i) => isPromoKind(i.contentKind)).length;
   if (ads >= 3) {
     return "連續活動廣告會讓帳號看起來一直在招生。下一則改生活、互動或社員故事。";
   }

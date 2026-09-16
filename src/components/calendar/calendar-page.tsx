@@ -14,7 +14,7 @@ import type { ContentKind } from "@/lib/studio/types";
 import { copyKindForContent } from "@/lib/zen/convert";
 import { igDnaBlock } from "@/lib/zen/insights";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
-import { rhythmHint } from "@/lib/zen/schedule";
+import { placeScheduleItems, rhythmHint } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 
@@ -49,6 +49,7 @@ export function CalendarPage() {
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
   const patchSchedule = useCreative((s) => s.patchSchedule);
   const duplicateSchedule = useCreative((s) => s.duplicateSchedule);
+  const markPublished = useCreative((s) => s.markPublished);
   const [cursor, setCursor] = useState(new Date(2026, 8, 16));
   const [mode, setMode] = useState<Mode>("month");
   const [quickTitle, setQuickTitle] = useState("");
@@ -87,18 +88,21 @@ export function CalendarPage() {
         toast.error(result.error);
         return;
       }
-      upsertSchedule({
-        id: uid("sch"),
-        title: result.pack.hook,
-        contentKind: item.contentKind === "ig-post" ? "story" : item.contentKind,
-        status: "idea",
-        scheduledAt: item.scheduledAt + 2 * 86_400_000,
-        publishedAt: null,
-        projectId: item.projectId,
-        campaignId: item.campaignId,
-        captionPreview: result.pack.body,
-      });
-      toast.success("已延伸一則，錯開兩天");
+      const [placed] = placeScheduleItems(schedule, [
+        {
+          id: uid("sch"),
+          title: result.pack.hook,
+          contentKind: item.contentKind === "ig-post" ? "story" : item.contentKind,
+          status: "idea",
+          scheduledAt: item.scheduledAt + 2 * 86_400_000,
+          publishedAt: null,
+          projectId: item.projectId,
+          campaignId: item.campaignId,
+          captionPreview: result.pack.body,
+        },
+      ]);
+      if (placed) upsertSchedule(placed);
+      toast.success("已延伸一則，錯開活動廣告夜");
     } finally {
       setExtendBusy(null);
     }
@@ -138,17 +142,20 @@ export function CalendarPage() {
           e.preventDefault();
           const title = quickTitle.trim();
           if (!title) return;
-          upsertSchedule({
-            id: uid("sch"),
-            title,
-            contentKind: quickKind,
-            status: "idea",
-            scheduledAt: new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 20).getTime(),
-            publishedAt: null,
-            projectId: null,
-            campaignId: null,
-            captionPreview: title,
-          });
+          const [placed] = placeScheduleItems(schedule, [
+            {
+              id: uid("sch"),
+              title,
+              contentKind: quickKind,
+              status: "idea",
+              scheduledAt: new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 20).getTime(),
+              publishedAt: null,
+              projectId: null,
+              campaignId: null,
+              captionPreview: title,
+            },
+          ]);
+          if (placed) upsertSchedule(placed);
           setQuickTitle("");
         }}
       >
@@ -280,16 +287,17 @@ export function CalendarPage() {
                     <>
                       <PublishIgButton
                         caption={item.captionPreview}
-                        onPublished={() =>
-                          patchSchedule(item.id, { status: "published", publishedAt: Date.now() })
-                        }
+                        onPublished={() => {
+                          markPublished(item.id);
+                          toast.success("已寫進過去 IG，下次生成會參考這則");
+                        }}
                       />
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                          patchSchedule(item.id, { status: "published", publishedAt: Date.now() });
-                          toast.success("已標記發布，沒有審核流程");
+                          markPublished(item.id);
+                          toast.success("已寫進過去 IG，沒有審核流程");
                         }}
                       >
                         標記已發布

@@ -5,6 +5,7 @@ import { uid } from "@/lib/studio/ids";
 import { SEED_CAMPUS_ID, SEED_CUP_ID, SEED_DRAFT_ID, SEED_LIGHT_ID, SEED_PROJECT_ID } from "@/lib/studio/seed";
 import { SEED_CAMPAIGN_ID, SEED_CONNECTIONS, SEED_IG_POSTS, SEED_MEMORY, SEED_TEA_ID } from "@/lib/zen/memory";
 import { emptyCampaign, scheduleItemsFromCampaign, suggestWaves } from "@/lib/zen/schedule";
+import { publishedToMemory } from "@/lib/zen/publish-memory";
 import type {
   CampaignWave,
   ClubCampaign,
@@ -104,6 +105,7 @@ type CreativeState = {
   removeCampaign: (id: string) => void;
   attachProject: (campaignId: string, projectId: string) => void;
   upsertSchedule: (item: ScheduleItem) => void;
+  markPublished: (id: string) => void;
   moveSchedule: (id: string, scheduledAt: number) => void;
   patchSchedule: (id: string, patch: Partial<ScheduleItem>) => void;
   duplicateSchedule: (id: string) => ScheduleItem | null;
@@ -178,7 +180,8 @@ export const useCreative = create<CreativeState>()(
             ? s.campaigns.map((c) => (c.id === campaign.id ? campaign : c))
             : [campaign, ...s.campaigns];
           const extra = scheduleItemsFromCampaign(campaign);
-          const schedule = [...extra, ...s.schedule.filter((item) => item.campaignId !== campaign.id)];
+          const extraIds = new Set(extra.map((item) => item.id));
+          const schedule = [...extra, ...s.schedule.filter((item) => !extraIds.has(item.id))];
           return { campaigns, schedule };
         }),
       patchCampaign: (id, patch) =>
@@ -207,6 +210,22 @@ export const useCreative = create<CreativeState>()(
             schedule: exists ? s.schedule.map((row) => (row.id === item.id ? item : row)) : [item, ...s.schedule],
           };
         }),
+      markPublished: (id) => {
+        const item = get().schedule.find((row) => row.id === id);
+        if (!item) return;
+        const publishedAt = Date.now();
+        const next: ScheduleItem = { ...item, status: "published", publishedAt };
+        const { post, memory } = publishedToMemory({
+          item: next,
+          campaigns: get().campaigns,
+          now: publishedAt,
+        });
+        set((s) => ({
+          schedule: s.schedule.map((row) => (row.id === id ? next : row)),
+          igPosts: [post, ...s.igPosts.filter((row) => row.id !== post.id)],
+          memory: [memory, ...s.memory.filter((row) => row.id !== memory.id)],
+        }));
+      },
       moveSchedule: (id, scheduledAt) =>
         set((s) => ({
           schedule: s.schedule.map((row) => (row.id === id ? { ...row, scheduledAt, status: row.status === "published" ? row.status : "scheduled" } : row)),

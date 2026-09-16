@@ -14,6 +14,7 @@ import {
   type ConvertTargetId,
 } from "@/lib/zen/convert";
 import { convertStaggerDays } from "@/lib/zen/from-idea";
+import { placeScheduleItems } from "@/lib/zen/schedule";
 import type { CreativePack } from "@/lib/zen/types";
 import { uid } from "@/lib/studio/ids";
 import { useCreative } from "@/stores/creative-store";
@@ -72,18 +73,21 @@ export function ConvertPanel({
     const target = CONVERT_TARGETS.find((row) => row.id === id)!;
     const visualId = useCreative.getState().lastVisualAssetId;
     const live = useCreative.getState().lastSequence;
-    upsertSchedule({
-      id: uid("sch"),
-      title: `${pack.copy.hook} · ${target.label}`,
-      contentKind: target.contentKind,
-      status: "scheduled",
-      scheduledAt: tonightAt(convertStaggerDays(id)),
-      publishedAt: null,
-      projectId: live?.kind === id ? live.projectId : null,
-      campaignId: campaignId ?? null,
-      captionPreview: captionForTarget(converted, id),
-      sequence: live?.kind === id ? live : undefined,
-    });
+    const [placed] = placeScheduleItems(useCreative.getState().schedule, [
+      {
+        id: uid("sch"),
+        title: `${pack.copy.hook} · ${target.label}`,
+        contentKind: target.contentKind,
+        status: "scheduled",
+        scheduledAt: tonightAt(convertStaggerDays(id)),
+        publishedAt: null,
+        projectId: live?.kind === id ? live.projectId : null,
+        campaignId: campaignId ?? null,
+        captionPreview: captionForTarget(converted, id),
+        sequence: live?.kind === id ? live : undefined,
+      },
+    ]);
+    if (placed) upsertSchedule(placed);
     if (campaignId && visualId) {
       const campaign = useCreative.getState().campaigns.find((row) => row.id === campaignId);
       if (campaign) {
