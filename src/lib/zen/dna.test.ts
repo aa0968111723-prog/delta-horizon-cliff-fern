@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { clubCreativeDna } from "./dna.ts";
-import { tagsFromVision } from "./vision-tags.ts";
+import { tagsFromVision, ideaFromVision } from "./vision-tags.ts";
 import { guessEventName } from "./dates.ts";
 import { proposedHook, studentReviewOf, tidyCopy } from "./review.ts";
 
@@ -96,6 +96,12 @@ test("tagsFromVision maps turtle night photos to searchable tags", () => {
   assert.ok(tags.includes("夜晚"));
   assert.ok(tags.includes("學生感"));
   assert.ok(tags.includes("可做限動"));
+});
+
+test("ideaFromVision keeps the image as style, not a copy job", () => {
+  const idea = ideaFromVision({ content: "茶會現場圍坐", colors: "暖紙色" }, "下週有一場茶會");
+  assert.match(idea, /茶會/);
+  assert.match(idea, /不要複製/);
 });
 
 test("guessEventName does not use a long hook as the campaign title", () => {

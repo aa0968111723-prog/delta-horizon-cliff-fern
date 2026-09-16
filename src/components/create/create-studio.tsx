@@ -1,16 +1,16 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { convertPlan, type ConvertedPack } from "@/lib/ai/convert";
 import { generateCampaignPlan, getCampaignAiStatus, describeAdapter, type AiStatus } from "@/lib/ai/campaign";
 import { generateCopyPacks } from "@/lib/ai/copy-studio";
-import { generateStudioImage, generateVisualDirections } from "@/lib/ai/image-studio";
+import { analyzeStudioImage, generateStudioImage, generateVisualDirections, type VisionAnalysis } from "@/lib/ai/image-studio";
 import { toBriefInput } from "@/lib/ai/payload";
 import { createCanvaDesign } from "@/lib/connect/canva";
 import { searchDriveLive } from "@/lib/connect/sync";
 import { emptyBrief, migrateBrief } from "@/lib/studio/brief";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
-import { blobFromBase64 } from "@/lib/studio/bytes";
+import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { parseEventDate, parseEventTime, guessEventName } from "@/lib/zen/dates";
@@ -19,6 +19,8 @@ import { clubCreativeDna } from "@/lib/zen/dna";
 import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction";
 import { offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
 import { searchCreative, type CreativeHit } from "@/lib/zen/search";
+import { pickSourceRefs, styleFromHits } from "@/lib/zen/source-style";
+import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import { suggestWaves, eventKindFromText, waveLabel, contentKindForWave } from "@/lib/zen/schedule";
 import type { CampaignPlan, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
 import { ReelsBoard } from "@/components/create/reels-board";
@@ -39,10 +41,10 @@ const MODE_HINT: Record<string, string> = {
   reels: "會寫 0–20 秒腳本。",
   campaign: "會建立活動，再生成完整宣傳節奏。",
   idea: "從一句話長出整套網宣。",
-  "from-image": "丟圖請到 Image Studio；這裡可先寫延伸文案。",
-  "from-drive": "會先搜品牌記憶裡的 Drive 索引。",
-  "from-canva": "會先找歷屆 Canva 版型當風格。",
-  "from-ig": "會先讀自己的 IG 語氣。",
+  "from-image": "丟圖後會理解畫面，再生成文案與三個方向。",
+  "from-drive": "會先搜歷屆 Drive，再生成完整宣傳。",
+  "from-canva": "會先找歷屆 Canva 當風格，不要複製舊作品。",
+  "from-ig": "會先讀自己的 IG 語氣，再寫下一篇。",
 };
 
 export function CreateStudio() {
@@ -61,6 +63,7 @@ export function CreateStudio() {
   const upsertSchedule = useStudio((s) => s.upsertSchedule);
   const addAsset = useStudio((s) => s.addAsset);
   const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
+  const updateAsset = useStudio((s) => s.updateAsset);
   const brand = brands[0];
   const memoryHint = clubCreativeDna({ brand, igMemory, campaigns, assets }).promptBlock;
   const recentKinds = calendar.slice(-4).map((item) => item.kind);
@@ -85,6 +88,8 @@ export function CreateStudio() {
   const [pinned, setPinned] = useState<CreativeHit[]>([]);
   const [pickedDirection, setPickedDirection] = useState<VisualDirection | null>(null);
   const [campaign, setCampaign] = useState<ClubCampaign | null>(null);
+  const [vision, setVision] = useState<VisionAnalysis | null>(null);
+  const autoRan = useRef(false);
 
   useEffect(() => {
     getCampaignAiStatus()
@@ -118,6 +123,19 @@ export function CreateStudio() {
     }
   }, [mode]);
 
+  useEffect(() => {
+    if (!status || !brand || autoRan.current) return;
+    const should =
+      mode === "from-drive" ||
+      mode === "from-canva" ||
+      mode === "from-ig" ||
+      (Boolean(search.idea) &&
+        (mode === "carousel" || mode === "campaign" || mode === "idea" || mode === "from-image"));
+    if (!should) return;
+    autoRan.current = true;
+    void runKit();
+  }, [status, brand]);
+
   async function gatherHits(query: string) {
     let remotes = remoteFiles;
     try {
@@ -137,8 +155,10 @@ export function CreateStudio() {
   }
 
   function sourceNotes(hits: CreativeHit[]) {
-    const refs = pinned.length ? pinned : hits.slice(0, 6);
-    return refs.map((h) => `${sourceLine(h)}/${h.title}`).join("、") || "品牌記憶";
+    const refs = pinned.length ? pinned : pickSourceRefs(mode, hits);
+    const picked = refs.length ? refs : hits.slice(0, 6);
+    const sources = picked.map((h) => `${sourceLine(h)}/${h.title}`).join("、") || "品牌記憶";
+    return `${sources}。${styleFromHits(picked)}`.slice(0, 400);
   }
 
   function togglePin(hit: CreativeHit) {
@@ -171,20 +191,23 @@ export function CreateStudio() {
     }
   }
 
-  async function runKit() {
+  async function runKit(ideaOverride?: string) {
     if (!brand) return;
-    const hits = await gatherHits(`${idea} ${eventName}`);
+    const workingIdea = ideaOverride ?? idea;
+    const hits = await gatherHits(`${workingIdea} ${eventName}`);
+    const refs = pinned.length ? pinned : pickSourceRefs(mode, hits);
+    if (!pinned.length && refs.length) setPinned(refs);
     setBusy(true);
     try {
       const brief = migrateBrief({
         ...emptyBrief(),
-        eventName: eventName || guessEventName(idea) || idea.slice(0, 20),
-        product: eventName || guessEventName(idea) || idea.slice(0, 20),
+        eventName: eventName || guessEventName(workingIdea) || workingIdea.slice(0, 20),
+        product: eventName || guessEventName(workingIdea) || workingIdea.slice(0, 20),
         schedule,
         location,
         audience: DEFAULT_AUDIENCE,
         goal: "traffic",
-        features: `${idea}\n一句介紹：${oneLiner}\n學生痛點：${studentPain}\n主題：${theme}`.slice(0, 400),
+        features: `${workingIdea}\n一句介紹：${oneLiner}\n學生痛點：${studentPain}\n主題：${theme}`.slice(0, 400),
         style: "生活感、夜晚、年輕",
         notes: `一人網宣。不要宗教語氣。${description ? `介紹：${description}。` : ""}參考來源：${sourceNotes(hits)}`.slice(0, 400),
         deliverables: { post: true, story: true, carousel: true, reels: true },
@@ -202,6 +225,51 @@ export function CreateStudio() {
       setReview(result.plan.studentReview ? ensureRewriteDiffers(result.plan.studentReview, result.plan.hook) : null);
       setPickedDirection(null);
       toast.success(result.adapter === "mock" ? "本機宣傳草案" : "已生成完整宣傳");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onImage(file: File) {
+    setBusy(true);
+    try {
+      const id = uid("asset");
+      await putAssetBlob(id, file);
+      addAsset({
+        id,
+        name: file.name.replace(/\.[^.]+$/, "") || "上傳圖片",
+        kind: "image",
+        category: "photo",
+        mime: file.type || "image/jpeg",
+        width: 0,
+        height: 0,
+        tags: ["上傳"],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        source: "upload",
+        licenseNotes: "來源：本機上傳",
+        licenseOwner: "禪光",
+        favorite: false,
+        lastUsedAt: Date.now(),
+        useCount: 0,
+      });
+      const buf = await file.arrayBuffer();
+      const b64 = bytesToBase64(new Uint8Array(buf));
+      if (b64.length > 1_800_000) {
+        toast.error("圖檔太大，請用較小的照片。");
+        return;
+      }
+      const result = await analyzeStudioImage({ data: { imageBase64: b64, mime: file.type } });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setVision(result.analysis);
+      updateAsset(id, { tags: tagsFromVision(result.analysis, ["上傳"]) });
+      const nextIdea = ideaFromVision(result.analysis, idea);
+      setIdea(nextIdea);
+      toast.success("已理解這張圖，接著生成文案與方向");
+      await runKit(nextIdea);
     } finally {
       setBusy(false);
     }
@@ -326,6 +394,27 @@ export function CreateStudio() {
     setCampaign(created);
     toast.success("活動與節奏已進月曆");
     toast.message(rhythmHint(recentKinds));
+    return created;
+  }
+
+  function scheduleAllFormats() {
+    const created = saveCampaignAndWaves();
+    const date = parseEventDate(schedule);
+    const when = Date.parse(`${date}T19:00:00+08:00`);
+    for (const pack of converted) {
+      const scheduledAt = Number.isNaN(when) ? Date.now() : when + offsetDaysForConvertedKind(pack.kind) * 86_400_000;
+      upsertSchedule({
+        id: uid("sch"),
+        projectId: null,
+        campaignId: created.id,
+        kind: pack.kind,
+        title: `${pack.title} · ${eventName || plan?.campaignName || idea.slice(0, 12)}`,
+        scheduledAt,
+        publishedAt: null,
+        status: "idea",
+      });
+    }
+    toast.success("IG／Story／Reels／Threads 已依節奏排進月曆");
   }
 
   async function sendToCanva() {
@@ -410,6 +499,20 @@ export function CreateStudio() {
         </p>
         <Label className="mt-4">你想做什麼</Label>
         <Textarea className="mt-2" value={idea} onChange={(e) => setIdea(e.target.value)} rows={3} />
+        <div className="mt-3">
+          <Field label="或從一張圖開始">
+            <Input
+              type="file"
+              accept="image/*"
+              disabled={busy}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void onImage(file);
+                e.target.value = "";
+              }}
+            />
+          </Field>
+        </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <Field label="活動名">
             <Input value={eventName} onChange={(e) => setEventName(e.target.value)} placeholder="浮游禪光、茶會…" />
@@ -452,13 +555,25 @@ export function CreateStudio() {
           <Button variant="secondary" disabled={busy} onClick={() => void runDirections()}>
             三個視覺方向
           </Button>
-          {mode === "image" || mode === "from-image" ? (
+          {mode === "image" ? (
             <Button variant="secondary" onClick={() => void navigate({ to: "/image" })}>
               打開 Image Studio
             </Button>
           ) : null}
         </div>
       </div>
+
+      {vision ? (
+        <section className="mt-8 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <h2 className="text-sm font-medium">圖片理解</h2>
+          <p className="mt-2 text-sm">{vision.content}</p>
+          <p className="mt-2 text-xs text-muted">學生感：{vision.studentFeel}</p>
+          <p className="text-xs text-muted">
+            太宗教？{vision.tooReligious ? "是" : "否"} · 太老氣？{vision.tooOld ? "是" : "否"} · 太 AI？{vision.tooAi ? "可能" : "還好"}
+          </p>
+          <p className="text-xs text-muted">符合淡江學生？{vision.fitsTamkang ? "接近" : "還要再生活一點"}</p>
+        </section>
+      ) : null}
 
       {found.length ? (
         <section className="mt-8">
@@ -570,6 +685,9 @@ export function CreateStudio() {
             <Button variant="secondary" onClick={saveCampaignAndWaves}>
               排入 Calendar
             </Button>
+            <Button variant="secondary" onClick={scheduleAllFormats}>
+              各平台都排進月曆
+            </Button>
             <Button variant="secondary" disabled={busy} onClick={() => void sendToCanva()}>
               送進 Canva
             </Button>
@@ -651,9 +769,13 @@ export function StudentReviewCard({
       <h2 className="text-sm font-medium">淡江學生視角</h2>
       <ul className="mt-2 space-y-1 text-sm text-muted">
         <li>會停下來嗎？{review.wouldStop}</li>
+        <li>看得懂嗎？{review.understandable}</li>
         <li>太宗教？{review.tooReligious}</li>
         <li>太嚴肅？{review.tooSerious}</li>
+        <li>太文青？{review.tooLiterary}</li>
         <li>太 AI？{review.tooAi}</li>
+        <li>太長？{review.tooLong}</li>
+        <li>知道這活動在幹嘛？{review.knowsWhat}</li>
         <li>知道時間地點嗎？{review.knowsWhenWhere}</li>
         <li>會找朋友嗎？{review.wouldBringFriend}</li>
         <li>知道怎麼報名嗎？{review.knowsHowToSignup}</li>

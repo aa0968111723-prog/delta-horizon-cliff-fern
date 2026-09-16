@@ -259,7 +259,7 @@ export function HomePage() {
               key={mode}
               variant="secondary"
               onClick={() => {
-                if (mode === "image" || mode === "from-image") {
+                if (mode === "image") {
                   void navigate({ to: "/image" });
                   return;
                 }

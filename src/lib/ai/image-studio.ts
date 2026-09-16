@@ -109,8 +109,16 @@ export function mockDirections(idea: string, eventName = ""): VisualDirection[] 
   ];
 }
 
+function parseIdeaInput(input: unknown) {
+  if (input && typeof input === "object" && "data" in input) {
+    const inner = (input as { data: unknown }).data;
+    if (inner && typeof inner === "object" && "idea" in inner) return IdeaInput.parse(inner);
+  }
+  return IdeaInput.parse(input);
+}
+
 export const generateVisualDirections = createServerFn({ method: "POST" })
-  .validator((input: unknown) => IdeaInput.parse(input))
+  .validator((input: unknown) => parseIdeaInput(input))
   .handler(async ({ data }): Promise<DirectionResult> => {
     const mock = mockDirections(data.idea, data.eventName);
     const apiKey = process.env.XAI_API_KEY;
@@ -146,15 +154,20 @@ export const generateVisualDirections = createServerFn({ method: "POST" })
     }
   });
 
+function parseImageGen(input: unknown) {
+  const schema = z.object({
+    prompt: z.string().min(8).max(1200),
+    format: z.enum(IMAGE_FORMAT_IDS).optional(),
+  });
+  if (input && typeof input === "object" && "data" in input) {
+    const inner = (input as { data: unknown }).data;
+    if (inner && typeof inner === "object" && "prompt" in inner) return schema.parse(inner);
+  }
+  return schema.parse(input);
+}
+
 export const generateStudioImage = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    z
-      .object({
-        prompt: z.string().min(8).max(1200),
-        format: z.enum(IMAGE_FORMAT_IDS).optional(),
-      })
-      .parse(input),
-  )
+  .validator((input: unknown) => parseImageGen(input))
   .handler(async ({ data }): Promise<ImageGenResult> => {
     const apiKey = process.env.XAI_API_KEY;
     if (!apiKey) return { ok: false, adapter: "mock", error: "圖片生成需要連線 AI。可先用視覺方向與本機素材。" };
@@ -190,10 +203,17 @@ export const generateStudioImage = createServerFn({ method: "POST" })
     return { ok: true, adapter: "live", imageBase64: buf.toString("base64"), mime: img.headers.get("content-type") || "image/png", prompt: data.prompt };
   });
 
+function parseVisionInput(input: unknown) {
+  const schema = z.object({ imageBase64: z.string().min(20).max(2_000_000), mime: z.string().max(40).optional() });
+  if (input && typeof input === "object" && "data" in input) {
+    const inner = (input as { data: unknown }).data;
+    if (inner && typeof inner === "object" && "imageBase64" in inner) return schema.parse(inner);
+  }
+  return schema.parse(input);
+}
+
 export const analyzeStudioImage = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    z.object({ imageBase64: z.string().min(20).max(2_000_000), mime: z.string().max(40).optional() }).parse(input),
-  )
+  .validator((input: unknown) => parseVisionInput(input))
   .handler(async ({ data }): Promise<VisionResult> => {
     const apiKey = process.env.XAI_API_KEY;
     const mock = {

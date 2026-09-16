@@ -194,7 +194,7 @@ export function AssetDetailSheet({
             {busy ? "分析中…" : "AI 分析／標籤"}
           </Button>
           <Button variant="secondary" asChild>
-            <Link to="/create" search={{ mode: "from-image", idea: asset.name }}>
+            <Link to="/create" search={{ mode: "from-image", idea: `延續「${asset.name}」的風格，做新的活動，不要複製舊作品。` }}>
               加入創作
             </Link>
           </Button>

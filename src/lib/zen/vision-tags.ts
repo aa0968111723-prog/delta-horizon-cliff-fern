@@ -35,3 +35,15 @@ export function tagsFromVision(analysis: VisionTagInput, extra: string[] = []): 
     return true;
   }).slice(0, 10);
 }
+
+export function ideaFromVision(analysis: VisionTagInput, seed = ""): string {
+  return [
+    seed || "延續這張圖，做新的淡江禪學社網宣。",
+    `畫面：${analysis.content}`,
+    analysis.colors ? `配色：${analysis.colors}` : "",
+    "不要複製舊作品。不要寺廟海報。讓淡江學生覺得這跟自己有關。",
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 400);
+}

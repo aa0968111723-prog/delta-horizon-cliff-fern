@@ -33,7 +33,7 @@ export function CreateSheet() {
 
   function go(mode: Exclude<CreateMode, null>) {
     setCreateOpen(false, mode);
-    if (mode === "image" || mode === "from-image") {
+    if (mode === "image") {
       void navigate({ to: "/image" });
       return;
     }
