@@ -78,6 +78,7 @@ test("post caption does not repeat the hook", () => {
   assert.ok(caption.startsWith(hook));
   const rest = caption.slice(hook.length);
   assert.equal(rest.split(hook).length, 1);
+  assert.equal((caption.match(new RegExp(converted.post.cta, "g")) ?? []).length <= 1, true);
 });
 
 test("carousel and story captions start with the student hook, not a page outline", () => {

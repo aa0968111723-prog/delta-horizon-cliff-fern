@@ -252,8 +252,11 @@ export function sequenceBeats(
 }
 
 function igCaption(converted: ConvertedFormats) {
-  const body = converted.post.body.replace(converted.post.hook, "").trim();
-  return [converted.post.hook, body, converted.post.cta].filter(Boolean).join("\n\n");
+  const hook = converted.post.hook;
+  const cta = converted.post.cta;
+  const body = converted.post.body.replace(hook, "").trim();
+  if (cta && body.includes(cta)) return [hook, body].filter(Boolean).join("\n\n");
+  return [hook, body, cta].filter(Boolean).join("\n\n");
 }
 
 export function captionForTarget(converted: ConvertedFormats, id: ConvertTargetId) {
