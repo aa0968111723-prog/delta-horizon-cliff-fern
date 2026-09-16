@@ -277,7 +277,7 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
       </div>
 
       {active ? (
-        <section className="mt-8 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+        <section className="mt-8 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]" data-ig-focus={focusProjectId || undefined}>
           <p className="text-xs text-muted">
             {active.origin === "upcoming" ? (active.scheduledAt ? "即將 · " : "預覽 · ") : ""}
             {active.origin === "published" || active.scheduledAt

@@ -20,6 +20,8 @@ export type LastCreateSession = {
   canvaEditUrl?: string | null;
   canvaDesignId?: string | null;
   canvaReturnAssetId?: string | null;
+  feedAssetId?: string | null;
+  storyAssetId?: string | null;
   savedAt: number;
 };
 
@@ -49,4 +51,12 @@ export function readLastSession(): LastCreateSession | null {
   } catch {
     return null;
   }
+}
+
+/** Mock 圖是 data URL，不能寫進 session；用素材庫 id 把主視覺接回來。 */
+export function heroAssetIdsFromSession(session: Pick<LastCreateSession, "feedAssetId" | "storyAssetId" | "canvaReturnAssetId">) {
+  return {
+    feed: session.feedAssetId || session.canvaReturnAssetId || null,
+    story: session.storyAssetId || null,
+  };
 }

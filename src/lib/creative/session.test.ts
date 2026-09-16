@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { LastCreateSession } from "./session.ts";
-import { readLastSession, sessionStillFresh, writeLastSession } from "./session.ts";
+import { readLastSession, sessionStillFresh, writeLastSession, heroAssetIdsFromSession } from "./session.ts";
 
 test("a saved pack is still there after a same-tab OAuth roundtrip", () => {
   const session = {
@@ -112,6 +112,43 @@ test("image-only posters remember they are not a full pack yet", () => {
   assert.equal(read?.posterOnly, true);
   assert.equal(read?.dirId, "dir_b");
   assert.equal(read?.imageSrc, "https://cdn.example.com/poster.png");
+});
+
+test("session remembers IndexedDB asset ids when the hero is a local blob", () => {
+  const memory = new Map<string, string>();
+  const fake = {
+    getItem: (key: string) => memory.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      memory.set(key, value);
+    },
+  };
+  (globalThis as { sessionStorage?: typeof fake }).sessionStorage = fake;
+  writeLastSession({
+    pack: { query: "我要宣傳茶會" },
+    posterOnly: true,
+    dirId: "dir_b",
+    copies: [],
+    tone: "student",
+    imageSrc: null,
+    aspect: "4:5",
+    feedAssetId: "asset_feed_1",
+    storyAssetId: "asset_story_1",
+    savedAt: Date.now(),
+  } as unknown as LastCreateSession);
+  const read = readLastSession();
+  assert.equal(read?.feedAssetId, "asset_feed_1");
+  assert.equal(read?.storyAssetId, "asset_story_1");
+  assert.deepEqual(heroAssetIdsFromSession(read!), {
+    feed: "asset_feed_1",
+    story: "asset_story_1",
+  });
+});
+
+test("Canva return asset can stand in for the feed hero", () => {
+  assert.deepEqual(
+    heroAssetIdsFromSession({ canvaReturnAssetId: "asset_canva_1" }),
+    { feed: "asset_canva_1", story: null },
+  );
 });
 
 test("session keeps the 9:16 cover next to the feed hero", () => {

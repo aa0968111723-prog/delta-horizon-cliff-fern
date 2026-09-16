@@ -30,8 +30,9 @@ import { annotateWavesFromPack, captionForPackKind, coverForKind, PACK_SCHEDULE_
 import { gatherStatusLine, searchCreative, selectSourcesForPack } from "@/lib/creative/search";
 import type { SearchHit } from "@/lib/creative/types";
 import type { CanvaLoopStep } from "@/lib/creative/session";
-import { readLastSession, writeLastSession } from "@/lib/creative/session";
+import { readLastSession, writeLastSession, heroAssetIdsFromSession, type LastCreateSession } from "@/lib/creative/session";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
+import { objectUrlForAsset } from "@/lib/studio/assets-idb";
 import { createGeneratedAsset, migrateAsset } from "@/lib/studio/assets";
 import { brandMemoryBlock } from "@/lib/studio/brand";
 import { emptyBrief } from "@/lib/studio/brief";
@@ -185,6 +186,49 @@ export function CreateStudio({
   const posterOnlyRef = useRef(false);
   packRef.current = pack;
   posterOnlyRef.current = posterOnly;
+
+  function persistSession(patch: Partial<LastCreateSession> & Pick<LastCreateSession, "pack">) {
+    writeLastSession({
+      pack: patch.pack,
+      posterOnly: patch.posterOnly ?? posterOnly,
+      dirId: patch.dirId !== undefined ? patch.dirId : dirId,
+      copies: patch.copies ?? copies,
+      tone: patch.tone ?? tone,
+      imageSrc: persistableImageSrc(patch.imageSrc !== undefined ? patch.imageSrc : imageSrc),
+      reelsCoverSrc: persistableImageSrc(
+        patch.reelsCoverSrc !== undefined ? patch.reelsCoverSrc : reelsCoverSrc,
+      ),
+      createdCampaignId: patch.createdCampaignId ?? createdCampaignId,
+      projectId: patch.projectId ?? studioProjectId,
+      aspect: patch.aspect ?? aspect,
+      feedAssetId: lastAsset.current.feed ?? null,
+      storyAssetId: lastAsset.current.story ?? null,
+      canvaKit: patch.canvaKit,
+      canvaStep: patch.canvaStep ?? canvaStep ?? undefined,
+      canvaEditUrl: patch.canvaEditUrl !== undefined ? patch.canvaEditUrl : canvaEditUrl,
+      canvaDesignId: patch.canvaDesignId !== undefined ? patch.canvaDesignId : canvaDesignId,
+      canvaReturnAssetId: patch.canvaReturnAssetId !== undefined ? patch.canvaReturnAssetId : canvaReturnAssetId,
+      savedAt: Date.now(),
+    });
+  }
+
+  function hydrateHeroFromSession(session: LastCreateSession) {
+    const heroes = heroAssetIdsFromSession(session);
+    if (heroes.feed) lastAsset.current.feed = heroes.feed;
+    if (heroes.story) lastAsset.current.story = heroes.story;
+    if (session.imageSrc) setImageSrc(session.imageSrc);
+    else if (heroes.feed) {
+      void objectUrlForAsset(heroes.feed).then((src) => {
+        if (src) setImageSrc(src);
+      });
+    }
+    if (session.reelsCoverSrc) setReelsCoverSrc(session.reelsCoverSrc);
+    else if (heroes.story) {
+      void objectUrlForAsset(heroes.story).then((src) => {
+        if (src) setReelsCoverSrc(src);
+      });
+    }
+  }
   const [pickedHits, setPickedHits] = useState<SearchHit[]>([]);
   const [gatherNote, setGatherNote] = useState("");
   const [simApplied, setSimApplied] = useState(false);
@@ -278,7 +322,7 @@ export function CreateStudio({
       if (chosen?.imagePrompt && !keepHero) {
         heroSrc = (await runImage(chosen.imagePrompt, aspect, { silent: true, keepBusy: true, directionId: keptId })) ?? heroSrc;
       }
-      writeLastSession({
+      persistSession({
         pack: nextPack,
         posterOnly: false,
         dirId: keptId,
@@ -289,7 +333,6 @@ export function CreateStudio({
         createdCampaignId,
         projectId: studioProjectId,
         aspect,
-        savedAt: Date.now(),
       });
       toast.success(chosen?.imagePrompt && !keepHero ? "完整宣傳與主視覺好了" : "完整宣傳好了");
       const campId = resolvedCampaignId;
@@ -369,8 +412,7 @@ export function CreateStudio({
         setDirId(session.dirId);
         setCopies(session.copies);
         setTone(session.tone);
-        if (session.imageSrc) setImageSrc(session.imageSrc);
-        if (session.reelsCoverSrc) setReelsCoverSrc(session.reelsCoverSrc);
+        hydrateHeroFromSession(session);
         if (session.createdCampaignId) setCreatedCampaignId(session.createdCampaignId);
         if (session.projectId) setStudioProjectId(session.projectId);
         if (session.aspect) setAspect(session.aspect);
@@ -524,7 +566,7 @@ export function CreateStudio({
             setCopies(next.copyVariants);
             setPosterOnly(true);
             posterOnlyRef.current = true;
-            writeLastSession({
+            persistSession({
               pack: next,
               posterOnly: true,
               dirId: opts?.directionId ?? dirId,
@@ -535,7 +577,6 @@ export function CreateStudio({
               createdCampaignId,
               projectId: studioProjectId,
               aspect: ratio,
-              savedAt: Date.now(),
             });
           }
         }
@@ -560,6 +601,8 @@ export function CreateStudio({
           ...session,
           imageSrc: persistableImageSrc(coverOnly ? session.imageSrc : result.src),
           reelsCoverSrc: persistableImageSrc(coverOnly || ratio === "9:16" ? result.src : session.reelsCoverSrc),
+          feedAssetId: lastAsset.current.feed ?? session.feedAssetId,
+          storyAssetId: lastAsset.current.story ?? session.storyAssetId,
           savedAt: Date.now(),
         });
       }
@@ -696,23 +739,12 @@ export function CreateStudio({
       hashtags: activeCopy?.hashtags ?? active.plan.hashtags,
     });
     setStudioProjectId(project.id);
-    const prevSession = readLastSession();
-    writeLastSession({
-      ...(prevSession ?? {
-        pack: active,
-        dirId,
-        copies,
-        tone,
-        imageSrc: persistableImageSrc(imageSrc),
-        aspect,
-        savedAt: Date.now(),
-      }),
+    persistSession({
       pack: active,
       posterOnly,
-      createdCampaignId: camp?.id ?? prevSession?.createdCampaignId,
+      createdCampaignId: camp?.id ?? createdCampaignId,
       projectId: project.id,
       reelsCoverSrc: persistableImageSrc(reelsCoverSrc),
-      savedAt: Date.now(),
     });
     const scheduledAt = scheduledAtFor(kind, camp?.date);
     const status = andSchedule ? "scheduled" : opts?.stay ? "done" : "creating";
@@ -924,22 +956,15 @@ export function CreateStudio({
       setCanvaStep(step);
       if (extra?.editUrl) setCanvaEditUrl(extra.editUrl);
       if (extra?.designId) setCanvaDesignId(extra.designId);
-      writeLastSession({
+      persistSession({
         pack: active,
         posterOnly,
-        dirId,
-        copies,
-        tone,
-        imageSrc: persistableImageSrc(imageSrc),
-        createdCampaignId,
         projectId: placed?.projectId ?? studioProjectId,
-        aspect,
         canvaKit: kit,
         canvaStep: step,
         canvaEditUrl: extra?.editUrl ?? canvaEditUrl,
         canvaDesignId: extra?.designId ?? canvaDesignId,
         canvaReturnAssetId,
-        savedAt: Date.now(),
       });
     };
     persist("kit");
@@ -983,6 +1008,8 @@ export function CreateStudio({
       assetId = uid("asset");
       await getAssetStorage().put(assetId, blob);
       setCanvaReturnAssetId(assetId);
+      if (aspect === "9:16") lastAsset.current.story = assetId;
+      else lastAsset.current.feed = assetId;
       addAsset(
         migrateAsset({
           id: assetId,
@@ -1018,21 +1045,12 @@ export function CreateStudio({
       createdAt: Date.now(),
     });
     setCanvaStep("returned");
-    writeLastSession({
+    persistSession({
       pack,
       posterOnly,
-      dirId,
-      copies,
-      tone,
       imageSrc: persistableImageSrc(src),
-      createdCampaignId,
-      projectId: studioProjectId,
-      aspect,
       canvaStep: "returned",
-      canvaEditUrl,
-      canvaDesignId,
       canvaReturnAssetId: assetId ?? null,
-      savedAt: Date.now(),
     });
     applyToStudio(false, { stay: true, silent: true, heroSource: "canva", heroSrc: src, heroAssetId: assetId });
     toast.success("Canva 畫面已回來，可以去 IG 預覽");
@@ -1072,21 +1090,10 @@ export function CreateStudio({
 
   async function connectCanvaAndReturn() {
     if (pack) {
-      writeLastSession({
+      persistSession({
         pack,
         posterOnly,
-        dirId,
-        copies,
-        tone,
-        imageSrc: persistableImageSrc(imageSrc),
-        createdCampaignId,
-        projectId: studioProjectId,
-        aspect,
         canvaStep: canvaStep ?? "need-connect",
-        canvaEditUrl,
-        canvaDesignId,
-        canvaReturnAssetId,
-        savedAt: Date.now(),
       });
     }
     const result = await startConnection({
@@ -1154,14 +1161,14 @@ export function CreateStudio({
   }
 
   return (
-    <main className={cn("mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10", imageSrc && pack ? "pb-36 lg:pb-20" : "pb-20")}>
+    <main className={cn("mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10", pack && (imageSrc || posterOnly) ? "pb-36 lg:pb-20" : "pb-20")}>
       <p className="text-xs tracking-[0.18em] text-muted uppercase">{mode === "image" ? "AI Image Studio" : "AI 創作台"}</p>
       <h1 className="mt-1 font-display text-3xl md:text-4xl">
-        {mode === "image" && imageSrc ? "這張可以接著發" : mode === "image" ? "先選一個視覺方向" : "把一句話變成整套網宣"}
+        {mode === "image" && (imageSrc || posterOnly) ? "這張可以接著發" : mode === "image" ? "先選一個視覺方向" : "把一句話變成整套網宣"}
       </h1>
       <p className="mt-2 text-sm text-muted">
         {mode === "image"
-          ? imageSrc
+          ? imageSrc || posterOnly
             ? "主視覺好了。可以送 Canva、看 IG Preview、排進月曆，或再做成完整宣傳。"
             : "先想活動、淡江學生、淡水、品牌色與龜龜，再給三個方向。不要直接生一張禪風海報。"
           : "文案、方向、Carousel、Story、Threads、Reels 會一起出來。不會出現 Agent 管理。"}
@@ -1310,7 +1317,7 @@ export function CreateStudio({
         />
       ) : null}
 
-      {pack && posterOnly && imageSrc ? (
+      {pack && posterOnly ? (
         <section className="mt-6 space-y-4" data-poster-loop="">
           <IgPhonePreview
             hook={pack.plan.hook}
@@ -1664,7 +1671,7 @@ export function CreateStudio({
         </section>
       ) : null}
 
-      {imageSrc && pack ? (
+      {pack && (imageSrc || posterOnly) ? (
         <div
           className="fixed inset-x-0 z-30 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur-sm lg:hidden"
           style={{ bottom: "var(--spacing-nav-safe)" }}
