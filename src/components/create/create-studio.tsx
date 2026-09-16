@@ -867,7 +867,7 @@ export function CreateStudio() {
             caption: row.caption,
             body: frames[row.index],
             hashtags: nextPlan.hashtags,
-            imageAssetId: prev?.imageAssetId ?? assetId,
+            imageAssetId: prev?.imageAssetId,
           });
         }
         continue;
