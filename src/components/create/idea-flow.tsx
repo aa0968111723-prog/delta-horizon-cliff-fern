@@ -257,6 +257,7 @@ export function IdeaFlow({
     });
     setLastPack(packed);
     setPhase("pack");
+    setStatus("已生成完整宣傳，並排入 Calendar。");
     toast.success("已生成主視覺、文案與多模態內容，並排入 Calendar");
     void ensurePublicRaster({
       pack: packed,
