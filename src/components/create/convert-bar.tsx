@@ -30,7 +30,7 @@ export function ConvertBar({
   return (
     <div className={cn("space-y-2", className)}>
       <p className="text-sm font-medium">做成其他型態</p>
-      <p className="text-xs text-muted">一則貼文可以變成輪播、限動、Threads、LINE 圖或 Reels，原本那則不會被蓋掉。</p>
+      <p className="text-xs text-muted">一則內容可以變成貼文、輪播、限動、Threads、LINE 圖或 Reels，原本那則不會被蓋掉。</p>
       <div className="flex flex-wrap gap-2">
         {CONVERT_TARGETS.filter((item) => item.id !== project.contentKind).map((item) => (
           <Button

@@ -160,7 +160,7 @@ export type AssetCategory =
   | "template"
   | "history";
 
-export type AssetSourceKind = "upload" | "seed" | "generated";
+export type AssetSourceKind = "upload" | "seed" | "generated" | "drive" | "canva" | "instagram";
 
 export type AssetUsageStatus = "in-use" | "used" | "unused";
 

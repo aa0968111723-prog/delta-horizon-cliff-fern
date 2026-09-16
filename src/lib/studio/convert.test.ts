@@ -18,7 +18,7 @@ const copy: CopyDeck = {
 test("convert targets cover the one-click formats", () => {
   assert.deepEqual(
     CONVERT_TARGETS.map((t) => t.id),
-    ["carousel", "story", "threads", "line", "reels"],
+    ["ig-post", "carousel", "story", "threads", "line", "reels"],
   );
 });
 
@@ -39,4 +39,10 @@ test("reels copy keeps a REELS eyebrow and a one-line headline", () => {
   const next = convertCopy(copy, "reels");
   assert.equal(next.eyebrow, "REELS");
   assert.equal(next.headline, "很久沒有");
+});
+
+test("ig-post convert keeps the original caption so a carousel can become a single post", () => {
+  const next = convertCopy(copy, "ig-post");
+  assert.ok(next.caption.includes("休息"));
+  assert.equal(next.headline, copy.headline);
 });

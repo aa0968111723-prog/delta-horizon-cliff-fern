@@ -213,11 +213,12 @@ function migrateAssetRecord(raw: AssetMeta): AssetMeta {
   if (!seed) return next;
   return {
     ...next,
+    seedSrc: next.seedSrc || seed.seedSrc,
     category: raw.category ?? seed.category,
     tags: next.tags.length ? next.tags : seed.tags,
     licenseNotes: next.licenseNotes || seed.licenseNotes,
     licenseOwner: next.licenseOwner || seed.licenseOwner,
-    source: next.source || seed.source,
+    source: seed.source,
     favorite: raw.favorite ?? seed.favorite,
   };
 }

@@ -1,5 +1,5 @@
 import { Star, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ASSET_DRAG_MIME, categoryLabel, sourceLabel, usageLabel } from "@/lib/studio/assets";
@@ -27,7 +27,16 @@ export function AssetCard({
   onPlace?: () => void;
   onCreate?: () => void;
 }) {
-  const [broken, setBroken] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const candidates = useMemo(() => {
+    const list = [asset.seedSrc, url].filter((value): value is string => Boolean(value));
+    return [...new Set(list)];
+  }, [asset.seedSrc, url]);
+  const src = candidates.find((value) => value !== failed);
+
+  useEffect(() => {
+    setFailed(null);
+  }, [asset.id]);
 
   return (
     <article
@@ -40,17 +49,17 @@ export function AssetCard({
     >
       <button type="button" onClick={onOpen} className="block w-full text-left">
         <div className="relative aspect-square bg-bg">
-          {url && !broken ? (
+          {src ? (
             <img
-              src={url}
+              src={src}
               alt={asset.name}
               className="size-full object-cover"
               draggable={false}
-              onError={() => setBroken(true)}
+              onError={() => setFailed(src)}
             />
           ) : (
             <div className="flex size-full items-center justify-center px-3 text-center text-xs text-muted">
-              {broken ? "預覽失敗" : "載入中"}
+              {failed ? "預覽失敗" : "載入中"}
             </div>
           )}
           <span className="absolute top-2 left-2">

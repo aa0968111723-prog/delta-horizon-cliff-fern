@@ -3,6 +3,7 @@ import type { ContentKind, CopyDeck } from "./types.ts";
 
 /** 一篇做好的內容可以一鍵變成這些型態。沒有審核流程，就是再做一則。 */
 export const CONVERT_TARGETS: { id: ContentKind; label: string; hint: string }[] = [
+  { id: "ig-post", label: "貼文", hint: "單張 4:5，封面就能發" },
   { id: "carousel", label: "輪播", hint: "拆成五頁把一件事講完" },
   { id: "story", label: "限動", hint: "三張：鉤子、資訊、行動" },
   { id: "threads", label: "Threads", hint: "純文字、更口語" },
@@ -24,6 +25,15 @@ function firstLines(text: string, n: number): string {
 }
 
 export function convertCopy(source: CopyDeck, kind: ContentKind): CopyDeck {
+  if (kind === "ig-post") {
+    return {
+      ...source,
+      headline: source.headline,
+      subhead: source.subhead,
+      body: firstLines(source.body, 3),
+      caption: source.caption || `${source.headline.replace(/\n/g, " ")}\n\n${source.body}`.trim(),
+    };
+  }
   if (kind === "threads") {
     return {
       ...source,

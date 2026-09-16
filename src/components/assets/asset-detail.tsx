@@ -56,6 +56,7 @@ export function AssetDetailSheet({
 
   if (!asset) return null;
   const current = asset;
+  const preview = url || current.seedSrc;
 
   function patch<K extends keyof AssetMeta>(key: K, value: AssetMeta[K]) {
     updateAsset(current.id, { [key]: value });
@@ -77,13 +78,13 @@ export function AssetDetailSheet({
   }
 
   async function analyze() {
-    if (!url) {
+    if (!preview) {
       toast.error("這張圖還沒載入，稍後再試。");
       return;
     }
     setBusy("analyze");
     try {
-      const imageUrl = await urlToDataUrl(url);
+      const imageUrl = await urlToDataUrl(preview);
       const res = await analyzeImage({
         data: {
           imageUrl,
@@ -174,8 +175,8 @@ export function AssetDetailSheet({
         <SheetTitle>{asset.name}</SheetTitle>
         <div className="flex gap-3">
           <div className="size-24 overflow-hidden rounded-xl bg-bg">
-            {url ? (
-              <img src={url} alt="" className="size-full object-cover" />
+            {preview ? (
+              <img src={preview} alt="" className="size-full object-cover" />
             ) : (
               <div className="flex size-full items-center justify-center text-xs text-muted">無預覽</div>
             )}
@@ -233,9 +234,9 @@ export function AssetDetailSheet({
           </div>
         </div>
 
-        {url ? (
+        {preview ? (
           <div className="rounded-2xl bg-surface-2/70 p-3">
-            <ImageRevisionBar imageUrl={url} sourceLabel={asset.name} />
+            <ImageRevisionBar imageUrl={preview} sourceLabel={asset.name} />
           </div>
         ) : null}
 

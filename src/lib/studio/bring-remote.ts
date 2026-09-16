@@ -15,7 +15,7 @@ export async function bringRemoteIntoLibrary(
     dataUrl: res.dataUrl,
     name: res.name || item.title,
     tags: [label, "遠端"],
-    source: "upload",
+    source: item.provider,
     notes: [`來自 ${label}：${item.title}`, item.href ?? res.href].filter(Boolean).join(" · "),
     licenseOwner: label,
   });

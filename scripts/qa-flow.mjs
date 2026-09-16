@@ -106,6 +106,15 @@ try {
     await expectText(name, needle);
   }
 
+  await page.goto(`${base}/assets`, { waitUntil: "networkidle" });
+  await expectText("示範素材龜龜", "龜龜");
+  await expectText("示範素材三色光", "三色光標誌");
+  const brokenPreviews = await page.getByText("預覽失敗").count();
+  record("示範素材沒有預覽失敗", brokenPreviews === 0, `有 ${brokenPreviews} 張預覽失敗`);
+  const seedImages = await page.locator("article img").count();
+  record("示範素材圖檔", seedImages >= 5, `只有 ${seedImages} 張圖`);
+  await page.screenshot({ path: `${prefix}-assets.png` });
+
   await page.goto(`${base}/calendar`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "依宣傳節奏排程" }).click();
   await page.waitForTimeout(800);

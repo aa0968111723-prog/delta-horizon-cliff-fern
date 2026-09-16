@@ -11,6 +11,9 @@ export const SOURCE_KIND_LABEL: Record<CreativeSourceKind, string> = {
 
 export function sourceKindFromAsset(asset: AssetMeta): CreativeSourceKind {
   if (asset.source === "generated") return "generated";
+  if (asset.source === "drive") return "drive";
+  if (asset.source === "canva") return "canva";
+  if (asset.source === "instagram") return "instagram";
   if (asset.tags.includes("Google Drive") || asset.licenseOwner === "Google Drive") return "drive";
   if (asset.tags.includes("Canva") || asset.licenseOwner === "Canva") return "canva";
   if (asset.tags.includes("Instagram") || asset.licenseOwner === "Instagram") return "instagram";

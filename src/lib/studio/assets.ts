@@ -34,7 +34,61 @@ export const ASSET_SOURCES: { id: AssetSourceKind; label: string }[] = [
   { id: "upload", label: "本機上傳" },
   { id: "seed", label: "示範素材" },
   { id: "generated", label: "AI 生成" },
+  { id: "drive", label: "Google Drive" },
+  { id: "canva", label: "Canva" },
+  { id: "instagram", label: "Instagram" },
 ];
+
+const ASSET_SOURCE_IDS = new Set<AssetSourceKind>(ASSET_SOURCES.map((item) => item.id));
+
+export function isAssetSourceKind(value: unknown): value is AssetSourceKind {
+  return typeof value === "string" && ASSET_SOURCE_IDS.has(value as AssetSourceKind);
+}
+
+/** 從標籤／權利人還原 Drive、Canva、IG，舊資料曾一律存成「本機上傳」。 */
+export function inferAssetSource(raw: Partial<AssetMeta>): AssetSourceKind {
+  if (raw.source === "generated") return "generated";
+  if (raw.source === "seed" || raw.seedSrc) return "seed";
+  if (isAssetSourceKind(raw.source) && raw.source !== "upload") return raw.source;
+  return inferRemoteOrUpload(raw);
+}
+
+function inferRemoteOrUpload(raw: Partial<AssetMeta>): AssetSourceKind {
+  const blob = `${(raw.tags ?? []).join(" ")} ${raw.licenseOwner ?? ""} ${raw.licenseNotes ?? ""}`;
+  if (/Google Drive/i.test(blob)) return "drive";
+  if (/\bCanva\b/i.test(blob)) return "canva";
+  if (/Instagram/i.test(blob)) return "instagram";
+  if (raw.source === "upload") return "upload";
+  return "upload";
+}
+
+/** 畫布／卡片預覽：示範素材直接用 public 路徑，不等 IndexedDB。 */
+export function previewUrlForAsset(
+  asset: Pick<AssetMeta, "seedSrc">,
+  blobUrl?: string | null,
+): string | undefined {
+  return asset.seedSrc || blobUrl || undefined;
+}
+
+export function mimeForAssetSrc(src: string, fallback = "image/png"): string {
+  if (/\.svg(\?|#|$)/i.test(src)) return "image/svg+xml";
+  if (/\.png(\?|#|$)/i.test(src)) return "image/png";
+  if (/\.webp(\?|#|$)/i.test(src)) return "image/webp";
+  if (/\.gif(\?|#|$)/i.test(src)) return "image/gif";
+  if (/\.jpe?g(\?|#|$)/i.test(src)) return "image/jpeg";
+  return fallback;
+}
+
+/** IndexedDB 裡若曾寫入 HTML 錯誤頁，就不能當圖片預覽。 */
+export function isDisplayableImageBlob(blob: Blob | undefined | null): boolean {
+  if (!blob || blob.size < 16) return false;
+  const type = (blob.type || "").toLowerCase();
+  if (!type) return true;
+  if (type.startsWith("image/")) return true;
+  if (type.includes("svg") || type === "application/xml" || type === "text/xml") return true;
+  if (type.includes("html") || type.includes("json") || type.startsWith("text/")) return false;
+  return false;
+}
 
 export function categoryLabel(id: AssetCategory) {
   return ASSET_CATEGORIES.find((item) => item.id === id)?.label ?? id;
@@ -91,7 +145,7 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
     createdAt: raw.createdAt ?? Date.now(),
     updatedAt: raw.updatedAt ?? raw.createdAt ?? Date.now(),
     seedSrc: raw.seedSrc,
-    source: raw.source === "seed" || raw.source === "generated" || raw.source === "upload" ? raw.source : "upload",
+    source: inferAssetSource(raw),
     licenseNotes: raw.licenseNotes ?? "",
     licenseOwner: raw.licenseOwner ?? "",
     favorite: Boolean(raw.favorite),
@@ -137,6 +191,7 @@ export function matchesAssetQuery(asset: AssetMeta, query: string) {
     asset.name,
     asset.category,
     categoryLabel(asset.category),
+    sourceLabel(asset.source),
     asset.licenseNotes,
     asset.insight?.summary ?? "",
     asset.insight?.captionIdea ?? "",

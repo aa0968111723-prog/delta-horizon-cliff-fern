@@ -1,7 +1,7 @@
 import { getAssetStorage } from "./asset-storage";
 import { createGeneratedAsset, migrateAsset } from "./assets";
 import { uid } from "./ids";
-import type { AssetMeta } from "./types";
+import type { AssetMeta, AssetSourceKind } from "./types";
 
 /** blob: 預覽網址不能送到伺服器，改版／讀圖前先轉成 data URL。 */
 export async function urlToDataUrl(url: string): Promise<string> {
@@ -22,7 +22,7 @@ export async function saveDataUrlAsAsset(input: {
   dataUrl: string;
   name: string;
   tags?: string[];
-  source: "generated" | "upload";
+  source: Exclude<AssetSourceKind, "seed">;
   notes?: string;
   licenseOwner?: string;
 }): Promise<AssetMeta> {
@@ -54,7 +54,7 @@ export async function saveDataUrlAsAsset(input: {
     tags: input.tags ?? [],
     createdAt: now,
     updatedAt: now,
-    source: "upload",
+    source: input.source,
     category: "photo",
     licenseNotes: input.notes ?? "本機上傳，供創作使用。",
     licenseOwner: input.licenseOwner ?? "本機上傳",
