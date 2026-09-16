@@ -15,6 +15,7 @@ import { formatBrandMemory } from "@/lib/studio/brand";
 import { buildIgDna, buildIgInsights, formatIgInsights, formatIgReading, igHistoryCaptions } from "@/lib/studio/ig-dna";
 import { clipSeed } from "@/lib/studio/sources";
 import { contentKindLabel } from "@/lib/studio/status";
+import { igFeedPostCount, igHighlights } from "@/lib/studio/ig-profile";
 import { cn } from "@/lib/utils";
 import { CLUB_HANDLE, CLUB_INTRO_SHORT, CLUB_NAME } from "@/lib/zen/club";
 import { useStudio } from "@/stores/studio-store";
@@ -37,6 +38,7 @@ export function InstagramCenter() {
   const igPosts = useMemo(() => remoteItems.filter((item) => item.provider === "instagram"), [remoteItems]);
   const urls = useAssetUrls(assets.map((a) => a.id));
   const [tab, setTab] = useState<Tab>("grid");
+  const [gridView, setGridView] = useState<"grid" | "feed">("grid");
   const [connection, setConnection] = useState<ConnectionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [readingBusy, setReadingBusy] = useState(false);
@@ -66,6 +68,8 @@ export function InstagramCenter() {
   );
   const dna = useMemo(() => buildIgDna(projects, brand, igPosts), [projects, brand, igPosts]);
   const insights = useMemo(() => buildIgInsights(igPosts), [igPosts]);
+  const highlights = useMemo(() => igHighlights(feed), [feed]);
+  const postCount = igFeedPostCount(projects);
   const connected = connection?.state === "connected";
   const reading = brand?.memory.igReading;
   const readingText = formatIgReading(reading);
@@ -118,18 +122,55 @@ export function InstagramCenter() {
         }
       />
 
-      {/* 帳號卡 */}
-      <section className="mt-6 flex items-center gap-4 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-        <span className="three-lights flex size-16 shrink-0 items-center justify-center rounded-full">
-          <Instagram className="size-6 text-accent-fg" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-medium">{CLUB_HANDLE}</p>
-          <p className="mt-0.5 text-xs text-muted">{CLUB_INTRO_SHORT}</p>
-          <p className="mt-1 text-xs text-subtle">
-            {feed.length} 則內容 · {projects.filter((p) => p.status === "published").length} 則已發布
-          </p>
+      {/* 帳號卡：像 IG 個人頁，追蹤數字沒連上就不編造 */}
+      <section className="mt-6 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <div className="flex items-center gap-4">
+          <span className="three-lights flex size-16 shrink-0 items-center justify-center rounded-full">
+            <Instagram className="size-6 text-accent-fg" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">{CLUB_HANDLE}</p>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-sm font-medium tabular-nums">{postCount}</p>
+                <p className="text-xs text-subtle">貼文</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium tabular-nums">—</p>
+                <p className="text-xs text-subtle">追蹤者</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium tabular-nums">—</p>
+                <p className="text-xs text-subtle">追蹤中</p>
+              </div>
+            </div>
+          </div>
         </div>
+        <p className="mt-3 text-sm font-medium">{CLUB_NAME}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted">{CLUB_INTRO_SHORT}</p>
+        <p className="mt-2 text-xs text-subtle">
+          {connected ? "已連接。追蹤人數要等同步回來才會顯示真實數字。" : "還沒連接 Instagram，追蹤人數不會用假數字填。"}
+        </p>
+        {highlights.length ? (
+          <ul className="mt-4 flex gap-3 overflow-x-auto pb-1">
+            {highlights.map((item) => (
+              <li key={item.id} className="w-14 shrink-0 text-center">
+                <Link
+                  to="/studio/$projectId"
+                  params={{ projectId: item.projectId }}
+                  className="flex flex-col items-center gap-1"
+                >
+                  <span className="three-lights flex size-14 items-center justify-center rounded-full shadow-[var(--shadow-border)]">
+                    <span className="text-xs text-accent-fg">{contentKindLabel(item.kind).slice(0, 2)}</span>
+                  </span>
+                  <span className="w-full truncate text-xs text-muted">{item.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-xs text-subtle">做成限動或 Reels 之後，這裡會出現精選圓圈。</p>
+        )}
       </section>
 
       <div className="mt-6 flex flex-wrap gap-1.5">
@@ -157,7 +198,34 @@ export function InstagramCenter() {
 
       {tab === "grid" ? (
         <section className="mt-6">
-          <SectionHeader title="版面預覽" hint="像 IG 一樣看整體是不是一致" />
+          <SectionHeader
+            title="版面預覽"
+            hint="像 IG 一樣看整體是不是一致"
+            action={
+              <div className="flex gap-1 rounded-full bg-surface-2 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setGridView("grid")}
+                  className={cn(
+                    "min-h-9 rounded-full px-3 text-xs",
+                    gridView === "grid" ? "bg-accent text-accent-fg" : "text-muted",
+                  )}
+                >
+                  網格
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGridView("feed")}
+                  className={cn(
+                    "min-h-9 rounded-full px-3 text-xs",
+                    gridView === "feed" ? "bg-accent text-accent-fg" : "text-muted",
+                  )}
+                >
+                  貼文
+                </button>
+              </div>
+            }
+          />
           {feed.length === 0 ? (
             <EmptyBlock
               text="還沒有可以放上版面的內容。做完一篇之後就會出現在這裡。"
@@ -170,7 +238,7 @@ export function InstagramCenter() {
                 </Button>
               }
             />
-          ) : (
+          ) : gridView === "grid" ? (
             <ul className="grid grid-cols-3 gap-1">
               {feed.map((project) => {
                 const board = project.artboards[project.activeFormatId];
@@ -193,6 +261,27 @@ export function InstagramCenter() {
                   </li>
                 );
               })}
+            </ul>
+          ) : (
+            <ul className="space-y-2">
+              {feed.map((project) => (
+                <li
+                  key={project.id}
+                  className="flex flex-wrap items-start justify-between gap-2 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{project.name}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-muted">
+                      {project.copy.caption || project.copy.headline}
+                    </p>
+                    <p className="mt-1 text-xs text-subtle">{contentKindLabel(project.contentKind)}</p>
+                  </div>
+                  <ExtendLink
+                    seed={project.copy.caption || project.copy.headline || project.name}
+                    kind={project.contentKind}
+                  />
+                </li>
+              ))}
             </ul>
           )}
         </section>

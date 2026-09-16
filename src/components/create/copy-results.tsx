@@ -53,6 +53,9 @@ export function CopyDraftCard({
         {draft.hashtags.length ? (
           <p className="text-xs break-words text-[var(--color-accent)]">{draft.hashtags.join(" ")}</p>
         ) : null}
+        {draft.altText?.trim() ? (
+          <p className="text-xs leading-relaxed text-subtle">無障礙：{draft.altText.trim()}</p>
+        ) : null}
 
         {issues.length ? (
           <ul className="space-y-1 rounded-xl bg-[color-mix(in_oklab,var(--color-warn)_10%,transparent)] p-2.5 text-xs text-muted">

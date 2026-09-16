@@ -3,52 +3,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { canvasToBlob, collectArtboardAssetIds, downloadBlob, renderArtboardToCanvas } from "@/lib/studio/export-png";
+import { loadArtboardImages } from "@/lib/studio/export-download";
+import { exportFilename } from "@/lib/studio/export-name";
 import { formatById } from "@/lib/studio/formats";
-import { getAssetBlob, hydrateSeedAsset } from "@/lib/studio/assets-idb";
-import { isDisplayableImageBlob, pickExportImageSource } from "@/lib/studio/assets";
 import { uid } from "@/lib/studio/ids";
 import { pagesOf } from "@/lib/studio/layers";
 import { igPostText, packStats, packLimit, threadsPostText } from "@/lib/studio/post-pack";
-import type { Artboard, AssetMeta, BrandKit, Project } from "@/lib/studio/types";
+import type { Artboard, BrandKit, Project } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
-
-function loadHtmlImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const el = new Image();
-    el.onload = () => resolve(el);
-    el.onerror = () => reject(new Error("圖片載入失敗"));
-    el.src = src;
-  });
-}
-
-async function loadImages(ids: string[], assets: AssetMeta[]): Promise<Record<string, HTMLImageElement>> {
-  const map: Record<string, HTMLImageElement> = {};
-  await Promise.all(
-    [...new Set(ids)].map(async (id) => {
-      const asset = assets.find((item) => item.id === id);
-      let blob = await getAssetBlob(id);
-      if ((!blob || !isDisplayableImageBlob(blob)) && asset?.seedSrc) {
-        try {
-          await hydrateSeedAsset(id, asset.seedSrc);
-          blob = await getAssetBlob(id);
-        } catch {
-          /* 還是可以退回 public 路徑 */
-        }
-      }
-      const source = pickExportImageSource(blob, asset?.seedSrc);
-      if (!source) return;
-      const url = source.kind === "blob" ? URL.createObjectURL(source.blob) : source.url;
-      try {
-        map[id] = await loadHtmlImage(url);
-      } catch {
-        /* 單張失敗不擋整張畫布匯出 */
-      } finally {
-        if (source.kind === "blob") URL.revokeObjectURL(url);
-      }
-    }),
-  );
-  return map;
-}
 
 export function ExportPanel({
   project,
@@ -71,12 +33,11 @@ export function ExportPanel({
   const pages = pagesOf(project, artboard.formatId);
 
   async function exportArtboard(target: Artboard, suffix: string) {
-    const images = await loadImages(collectArtboardAssetIds(target, brand), assets);
+    const images = await loadArtboardImages(collectArtboardAssetIds(target, brand), assets);
     const canvas = await renderArtboardToCanvas(target, brand, images, scale);
     const blob = await canvasToBlob(canvas, type, 0.95);
     const ext = type === "image/png" ? "png" : "jpg";
-    const safe = project.name.replace(/[\\/:*?"<>|]/g, "").slice(0, 40) || "export";
-    const filename = `${safe}-${format.short}${suffix}-${outW}x${outH}.${ext}`;
+    const filename = exportFilename(project.name, format.short, suffix, outW, outH, ext);
     downloadBlob(blob, filename);
     recordExport(project.id, {
       id: uid("exp"),
@@ -203,8 +164,19 @@ export function ExportPanel({
         複製 Threads 文案
       </Button>
       {project.copy.altText ? (
-        <p className="text-xs text-muted">Alt：{project.copy.altText}</p>
-      ) : null}
+        <Button
+          variant="secondary"
+          className="w-full"
+          onClick={async () => {
+            await navigator.clipboard.writeText(project.copy.altText);
+            toast.success("已複製無障礙說明");
+          }}
+        >
+          複製 Alt
+        </Button>
+      ) : (
+        <p className="text-xs text-subtle">還沒有無障礙說明。套用一版文案後會自動寫一句畫面描述。</p>
+      )}
     </div>
   );
 }

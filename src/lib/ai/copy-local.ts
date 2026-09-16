@@ -1,3 +1,4 @@
+import { localAltText } from "@/lib/studio/copy-alt";
 import { uid } from "@/lib/studio/ids";
 import type { CopyDraft, CopyTone, ReelsScript, StudentReview } from "@/lib/studio/types";
 import { AUDIENCE_SEGMENTS } from "@/lib/zen/audience";
@@ -137,13 +138,20 @@ function hashtagsFor(brief: CopyBriefLocal): string[] {
 
 /** 沒有 AI 時的本機草稿。刻意標成 mock，UI 要說清楚這不是線上模型的回覆。 */
 export function buildLocalCopyDraft(brief: CopyBriefLocal, tone: CopyTone): CopyDraft {
+  const hook = pickHook(brief, tone);
   return {
     id: uid("copy"),
     tone,
-    hook: pickHook(brief, tone),
+    hook,
     body: bodyFor(brief, tone),
     cta: brief.cta.trim() || CLUB_CTAS[0],
     hashtags: hashtagsFor(brief),
+    altText: localAltText({
+      hook,
+      eventName: brief.eventName,
+      schedule: brief.schedule,
+      location: brief.location,
+    }),
     createdAt: Date.now(),
     source: "mock",
   };

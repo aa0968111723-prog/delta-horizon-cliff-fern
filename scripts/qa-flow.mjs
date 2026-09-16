@@ -67,9 +67,15 @@ try {
   record("文案版本數量", draftCount >= 2, `只有 ${draftCount} 篇`);
   await page.screenshot({ path: `${prefix}-copy.png`, fullPage: false });
 
-  // 4. 學生視角檢查
-  await page.getByRole("button", { name: /學生視角檢查/ }).first().click();
-  await page.waitForSelector("text=淡江學生視角", { timeout: 30000 });
+  // 4. 學生視角：生成後會自動切換；沒出現再按一次
+  const autoReview = await page
+    .waitForSelector("text=淡江學生視角", { timeout: 30000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!autoReview) {
+    await page.getByRole("button", { name: /學生視角檢查/ }).first().click();
+    await page.waitForSelector("text=淡江學生視角", { timeout: 30000 });
+  }
   await expectText("學生視角", "會停下來的可能");
   await page.screenshot({ path: `${prefix}-review.png` });
 
@@ -87,7 +93,10 @@ try {
   await expectText("來源標示", "這則用到的來源");
   await expectText("完成這則", "這則完成了");
   await expectText("發文包", "複製發文文案");
+  await expectText("複製並下載", "複製並下載");
+  await expectText("下載圖", "下載圖");
   await expectText("做成全套", "一次做成全套");
+  await expectText("無障礙說明", "無障礙");
   await page.getByText("發這則").scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${prefix}-post-pack.png` });
   await page.getByRole("button", { name: /做成.*LINE/ }).evaluate((el) =>
@@ -215,6 +224,9 @@ try {
   await page.screenshot({ path: `${prefix}-from-image.png` });
 
   await page.goto(`${base}/instagram`, { waitUntil: "networkidle" });
+  await expectText("IG 個人頁", "追蹤者");
+  await expectText("IG 網格切換", "網格");
+  await expectText("IG 貼文切換", "貼文");
   await page.getByRole("button", { name: "IG DNA" }).evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );

@@ -438,6 +438,8 @@ export type CopyDraft = {
   body: string;
   cta: string;
   hashtags: string[];
+  /** IG 無障礙說明。舊草稿可能沒有。 */
+  altText?: string;
   createdAt: number;
   source: PlanSource;
 };

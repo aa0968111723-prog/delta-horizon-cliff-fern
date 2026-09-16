@@ -17,6 +17,7 @@ import { applyKindLayout, convertContent } from "@/lib/studio/convert";
 import { applyAssetToArtboard } from "@/lib/studio/reels-cover";
 import { sourceFromAsset } from "@/lib/studio/sources";
 import { emptyCopy, withBoilerplate } from "@/lib/studio/copy";
+import { copyFromDraft } from "@/lib/studio/copy-draft";
 import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
 import { uid, uniqueById } from "@/lib/studio/ids";
@@ -257,6 +258,7 @@ function migrateProject(raw: Project): Project {
     artboards,
     slides,
     slideIndex,
+    copy: { ...raw.copy, altText: raw.copy?.altText ?? "" },
     brief: migrateBrief(raw.brief),
     plan,
     planVersions: migratePlanVersions(raw.planVersions, plan),
@@ -561,15 +563,9 @@ export const useStudio = create<StudioState>()(
         const project = get().projects.find((p) => p.id === projectId);
         const draft = project?.copyDrafts.find((d) => d.id === draftId);
         if (!project || !draft) return;
-        const caption = [draft.hook, draft.body, draft.cta].filter(Boolean).join("\n\n");
-        get().setCopy(projectId, {
-          headline: draft.hook.slice(0, 24),
-          body: draft.body,
-          cta: draft.cta,
-        });
+        get().setCopy(projectId, copyFromDraft(project.copy, draft));
         get().updateProject(projectId, (p) => ({
           ...p,
-          copy: { ...p.copy, caption, hashtags: draft.hashtags.length ? draft.hashtags : p.copy.hashtags },
           status: p.status === "idea" ? "making" : p.status,
         }));
       },

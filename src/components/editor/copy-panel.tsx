@@ -62,6 +62,13 @@ export function CopyPanel({ project }: { project: Project }) {
           onChange={(e) => setCopy(project.id, { caption: e.target.value })}
         />
       </Field>
+      <Field label="無障礙說明（Alt）">
+        <Textarea
+          rows={3}
+          value={project.copy.altText ?? ""}
+          onChange={(e) => setCopy(project.id, { altText: e.target.value })}
+        />
+      </Field>
       <PostPackBar copy={project.copy} kind={project.contentKind} projectId={project.id} />
       <p className="text-xs leading-relaxed text-muted">{project.copy.hashtags.join(" ")}</p>
       <ContentFlowBar project={project} className="pt-2" />

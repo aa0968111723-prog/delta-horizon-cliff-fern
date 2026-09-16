@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { localAltText } from "@/lib/studio/copy-alt";
 import { uid } from "@/lib/studio/ids";
 import type { CopyDraft, CopyTone, ReelsScript, StudentReview } from "@/lib/studio/types";
 import { STUDENT_REVIEW_QUESTIONS } from "@/lib/zen/voice";
@@ -81,6 +82,7 @@ const CopyJsonSchema = z.object({
         body: z.string().catch(""),
         cta: z.string().catch(""),
         hashtags: z.array(z.string()).max(15).catch([]),
+        altText: z.string().max(240).catch(""),
       }),
     )
     .max(6)
@@ -118,11 +120,12 @@ export const generateIgCopy = createServerFn({ method: "POST" })
       "",
       `請寫 ${data.tones.length} 個版本，語氣分別是：${data.tones.map((t) => `${t}(${toneLabel(t)})`).join("、")}`,
       "",
-      "輸出 JSON：{drafts:[{tone,hook,body,cta,hashtags[]}]}",
+      "輸出 JSON：{drafts:[{tone,hook,body,cta,hashtags[],altText}]}",
       "hook 是第一句，一句話，最多 30 個字，要讓淡江學生覺得「這在講我」。",
       "body 是 IG 內文，用 \\n 分段，2-4 段，短版只要 1-2 段。有活動就一定要寫清楚時間、地點、怎麼參加。",
       "cta 4-10 個字，用社團自己的口氣。",
       "hashtags 6-8 個，要含 #淡江大學 與社團標籤，不要塞滿。",
+      "altText 是給視障同學聽的畫面說明，一句話，講畫面裡有什麼、標題寫什麼、時間地點。不要寫成行銷文案。",
       data.imageUrl ? "有附一張圖：先看畫面裡的人、光、地方，再寫文案。不要描述成「一張海報」。" : "",
     ]
       .filter(Boolean)
@@ -148,6 +151,14 @@ export const generateIgCopy = createServerFn({ method: "POST" })
           body: d.body.trim(),
           cta: d.cta.trim() || data.cta || "來坐一下",
           hashtags: d.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)),
+          altText:
+            d.altText.trim() ||
+            localAltText({
+              hook: d.hook,
+              eventName: data.eventName,
+              schedule: data.schedule,
+              location: data.location,
+            }),
           createdAt: Date.now(),
           source: "live" as const,
         }));

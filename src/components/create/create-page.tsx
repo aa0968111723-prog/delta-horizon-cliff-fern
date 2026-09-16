@@ -152,6 +152,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const [reelsBusy, setReelsBusy] = useState(false);
   const [imageSourceAssetId, setImageSourceAssetId] = useState<string | null>(search.asset ?? null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const reviewSeq = useRef(0);
   const autofillRan = useRef(false);
   const visualsRan = useRef(false);
   const reelsRan = useRef(false);
@@ -240,6 +241,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       if (!res.ok) toast.warning(res.error);
       else if (res.adapter === "local") toast.info("目前是本機草稿，可以直接編輯。");
       const first = res.drafts[0];
+      let appliedId: string | undefined;
       if (
         first &&
         shouldAutoApplyArrivalDraft(search, {
@@ -248,8 +250,11 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           hasCaption: Boolean(linkedProject?.copy.caption?.trim()),
         })
       ) {
-        commitDraft(first, { quiet: true, extras: res.drafts.filter((item) => item.id !== first.id) });
+        appliedId = commitDraft(first, { quiet: true, extras: res.drafts.filter((item) => item.id !== first.id) }) ?? undefined;
         toast.success("已套用第一版到畫面，可改選其他語氣。");
+      }
+      if (first) {
+        void runReview(first, { projectId: appliedId ?? linkedProject?.id });
       }
       resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch {
@@ -341,7 +346,8 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, campaign, directions.length, idea, eventName, search.seed, search.campaignId, search.contentId, search.from, search.asset, search.kind, search.step]);
 
-  async function runReview(draft: CopyDraft) {
+  async function runReview(draft: CopyDraft, opts?: { projectId?: string }) {
+    const seq = ++reviewSeq.current;
     setReviewBusy(true);
     try {
       const res = await reviewAsStudent({
@@ -358,12 +364,16 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           insightsText: insightsText || undefined,
         },
       });
+      if (seq !== reviewSeq.current) return;
       setReview(res.review);
+      const pid = opts?.projectId ?? linkedProject?.id;
+      if (pid) setStudentReview(pid, res.review);
       if (!res.ok) toast.warning(res.error);
     } catch {
+      if (seq !== reviewSeq.current) return;
       toast.error("檢查時出錯了，再試一次。");
     } finally {
-      setReviewBusy(false);
+      if (seq === reviewSeq.current) setReviewBusy(false);
     }
   }
 
@@ -978,7 +988,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           {reviewBusy ? (
             <p className="mt-3 flex items-center gap-2 text-xs text-muted">
               <Loader2 className="size-3.5 animate-spin" />
-              正在用淡江學生的視角重看一次…
+              文案好了，正在用淡江學生的視角重看一次…
             </p>
           ) : null}
         </section>
