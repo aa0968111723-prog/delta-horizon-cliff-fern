@@ -55,6 +55,15 @@ export function isCampaignWaveTitle(title?: string) {
   return Boolean(title && /^(預熱|情緒共鳴|主視覺|活動介紹|參加理由|倒數|當日提醒|活動回顧)( ·|$)/.test(title));
 }
 
+export function isCountdownStillItem(item: { kind: string; title?: string }) {
+  if (item.kind === "countdown") return true;
+  return item.kind === "story" && isCampaignWaveTitle(item.title) && /^(倒數|當日提醒)/.test(item.title || "");
+}
+
+export function countdownStillLine(item: { kind: string; title?: string }) {
+  return item.kind === "countdown" || /^倒數/.test(item.title || "") ? "明天晚上，淡水。" : "今晚有位子。";
+}
+
 export function storyRowsForFrames(
   existing: Array<{
     id: string;

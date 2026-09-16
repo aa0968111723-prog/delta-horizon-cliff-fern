@@ -81,6 +81,15 @@ export function previewMediaId(item: {
   return item.imageAssetId;
 }
 
+export function reelsPreviewReady(
+  item: { kind: string; videoAssetId?: string; imageAssetId?: string } | undefined,
+  urls: Record<string, string>,
+) {
+  if (!item || item.kind !== "reels") return false;
+  const id = previewMediaId(item);
+  return Boolean(id && urls[id]);
+}
+
 export function memoryAssetId(item: Pick<ScheduleItem, "kind" | "videoAssetId" | "imageAssetId">) {
   return previewMediaId(item);
 }

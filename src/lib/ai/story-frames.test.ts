@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { attachStoryAssets, storyFrameLines, storyPosterInput, storyRowsForFrames } from "./story-frames.ts";
+import { attachStoryAssets, countdownStillLine, isCountdownStillItem, storyFrameLines, storyPosterInput, storyRowsForFrames } from "./story-frames.ts";
 import { directionPosterSvg } from "./poster.ts";
 
 test("tea-party stories are 3–5 student frames, first is the hook", () => {
@@ -69,4 +69,17 @@ test("storyRowsForFrames skip 當日提醒 so converted frames stay their own 9:
   );
   assert.equal(rows[0]?.existingId, "s1");
   assert.equal(rows[1]?.existingId, undefined);
+});
+
+test("countdown and 當日提醒 are the 9:16 stills that are not converted Story frames", () => {
+  assert.equal(isCountdownStillItem({ kind: "countdown", title: "倒數 · 茶會" }), true);
+  assert.equal(isCountdownStillItem({ kind: "story", title: "當日提醒 · 茶會" }), true);
+  assert.equal(isCountdownStillItem({ kind: "story", title: "Story 1 · 茶會" }), false);
+  assert.equal(isCountdownStillItem({ kind: "carousel", title: "Carousel · 茶會" }), false);
+});
+
+test("countdown stills stay short and local, not a club invitation", () => {
+  assert.equal(countdownStillLine({ kind: "countdown", title: "倒數 · 茶會" }), "明天晚上，淡水。");
+  assert.equal(countdownStillLine({ kind: "story", title: "當日提醒 · 茶會" }), "今晚有位子。");
+  assert.doesNotMatch(countdownStillLine({ kind: "countdown" }), /誠摯邀請|負責人/);
 });

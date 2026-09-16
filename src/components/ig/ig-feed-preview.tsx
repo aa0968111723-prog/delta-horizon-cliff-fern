@@ -3,8 +3,8 @@ import { AssetMedia } from "@/components/shared/asset-media";
 import type { IgMemoryPost, ScheduleItem } from "@/lib/studio/types";
 import { feelLabel, type PostFeel } from "@/lib/zen/feel";
 import { isDue } from "@/lib/zen/schedule";
-import { previewMediaId } from "@/lib/ai/reels-asset";
 import { encodedCarouselIds } from "@/lib/ai/carousel-pages";
+import { previewMediaId, reelsPreviewReady } from "@/lib/ai/reels-asset";
 import { contentKindLabel } from "@/lib/studio/content";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -42,6 +42,7 @@ export function IgFeedPreview({
     upcoming.find((item) => item.kind === "carousel");
   const nextUp = feedUpcoming.find((item) => item.id !== nextCarousel?.id) ?? (nextCarousel ? undefined : feedUpcoming[0]);
   const nextReel = reels[0];
+  const showReels = reelsPreviewReady(nextReel, urls);
   const orderedMemory = postedId
     ? [...memory.filter((post) => post.id === postedId), ...memory.filter((post) => post.id !== postedId)]
     : memory;
@@ -49,7 +50,9 @@ export function IgFeedPreview({
 
   return (
     <section className="mt-8">
-      {nextReel ? (
+      {nextCarousel ? <CarouselPreview item={nextCarousel} urls={urls} publishingId={publishingId} onPublish={onPublish} /> : null}
+
+      {showReels && nextReel ? (
         <div className="mx-auto mb-8 w-full max-w-[12rem] sm:max-w-[16rem] md:max-w-[18rem]" data-testid="ig-reels-preview">
           <h2 className="text-sm font-medium">Reels Preview</h2>
           <p className="mt-1 text-xs text-muted">9:16 短影音。編成後在這裡看，再排入 Calendar。</p>
@@ -89,8 +92,6 @@ export function IgFeedPreview({
           </div>
         </div>
       ) : null}
-
-      {nextCarousel ? <CarouselPreview item={nextCarousel} urls={urls} publishingId={publishingId} onPublish={onPublish} /> : null}
 
       <h2 className="text-sm font-medium">Feed Preview</h2>
       <p className="mt-1 text-xs text-muted">像學生滑到的樣子。剛發布的在上面，可以標記會不會停。</p>

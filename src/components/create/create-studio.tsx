@@ -57,7 +57,7 @@ import { ReelsBoard } from "@/components/create/reels-board";
 import { ShareBoard } from "@/components/create/share-board";
 import { StoryBoard } from "@/components/create/story-board";
 import { storyFrameLines, storyPosterInput, storyRowsForFrames } from "@/lib/ai/story-frames";
-import { saveKitStills } from "@/lib/ai/kit-stills";
+import { saveKitStills, saveIgPreviewStills } from "@/lib/ai/kit-stills";
 import { WaveList } from "@/components/create/wave-list";
 import { StudentReviewCard } from "@/components/create/student-review-card";
 import { VisionCard } from "@/components/create/vision-card";
@@ -1147,16 +1147,18 @@ export function CreateStudio() {
           body: item.kind === "carousel" ? item.body : cleaned.body,
         });
       }
+      const previewOpts = {
+        eventName: eventName || next.campaignName,
+        campaignId: created.id,
+        projectId: project?.id ?? null,
+      };
+      await saveIgPreviewStills(next, previewOpts).catch(() => undefined);
       setBusy(false);
       toast.success("已用這個方向做出整套：主視覺、文案、Carousel、限動、Reels、Threads、LINE、月曆");
       requestAnimationFrame(() => {
         document.querySelector('[data-testid="kit-ready"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
       });
-      await saveKitStills(next, {
-        eventName: eventName || next.campaignName,
-        campaignId: created.id,
-        projectId: project?.id ?? null,
-      }).catch(() => undefined);
+      await saveKitStills(next, previewOpts, { skipPreview: true }).catch(() => undefined);
     } finally {
       setBusy(false);
     }

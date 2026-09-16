@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { attachReelsCover, attachReelsVideo, memoryAssetId, previewMediaId, reelsCoverAsset, reelsVideoAsset } from "./reels-asset.ts";
+import { attachReelsCover, attachReelsVideo, memoryAssetId, previewMediaId, reelsCoverAsset, reelsPreviewReady, reelsVideoAsset } from "./reels-asset.ts";
 import { reelsAtmosphereInput, directionPosterSvg } from "./poster.ts";
 
 test("reels video assets are 9:16 films in the creative library", () => {
@@ -68,6 +68,17 @@ test("Reels atmosphere still has no student headline burned in", () => {
   assert.doesNotMatch(svg, /可以自己來/);
   assert.doesNotMatch(svg, /誠摯邀請/);
   assert.doesNotMatch(svg, /<text[\s>]/);
+});
+
+test("IG Preview hides a tea-party Reels phone until the cover or film is ready", () => {
+  assert.equal(reelsPreviewReady({ kind: "reels" }, {}), false);
+  assert.equal(reelsPreviewReady({ kind: "reels", imageAssetId: "cover" }, {}), false);
+  assert.equal(reelsPreviewReady({ kind: "reels", imageAssetId: "cover" }, { cover: "blob:cover" }), true);
+  assert.equal(
+    reelsPreviewReady({ kind: "reels", videoAssetId: "film", imageAssetId: "cover" }, { film: "blob:film" }),
+    true,
+  );
+  assert.equal(reelsPreviewReady({ kind: "carousel", imageAssetId: "cover" }, { cover: "blob:cover" }), false);
 });
 
 test("IG Preview prefers the stored Reels film over the cover still", () => {
