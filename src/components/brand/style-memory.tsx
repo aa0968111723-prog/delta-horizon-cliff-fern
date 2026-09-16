@@ -1,4 +1,5 @@
 import { Palette, Sparkles, Trash2 } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
 export function StyleMemoryPanel() {
+  const navigate = useNavigate();
   const references = useConnectionStore((state) => state.styleReferences);
   const removeStyleReference = useConnectionStore((state) => state.removeStyleReference);
   const brand = useStudio((state) => state.brands[0]);
@@ -54,21 +56,25 @@ export function StyleMemoryPanel() {
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button
                   size="sm"
+                  className="min-h-11"
                   variant="secondary"
-                  onClick={() => setStylePrompt({
-                    title: item.title,
-                    collection: item.collection,
-                    notes: item.notes,
-                    provider: item.provider,
-                  })}
+                  onClick={() => {
+                    setStylePrompt({
+                      title: item.title,
+                      collection: item.collection,
+                      notes: item.notes,
+                      provider: item.provider,
+                    });
+                    void navigate({ to: "/assets" });
+                  }}
                 >
                   <Sparkles className="size-3.5" />
                   當成生成參考
                 </Button>
-                <Button size="sm" variant="secondary" onClick={() => absorb(item.id)}>
+                <Button size="sm" className="min-h-11" variant="secondary" onClick={() => absorb(item.id)}>
                   寫入規律
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => removeStyleReference(item.id)}>
+                <Button size="sm" className="min-h-11" variant="ghost" onClick={() => removeStyleReference(item.id)}>
                   <Trash2 className="size-3.5" />
                   移除
                 </Button>

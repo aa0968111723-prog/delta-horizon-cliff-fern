@@ -9,6 +9,7 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { AssetUploadError, decodeAssetImage } from "@/lib/studio/asset-upload";
 import { ASSET_DRAG_MIME, ASSET_CATEGORIES, kindFromCategory, matchesAssetQuery } from "@/lib/studio/assets";
+import { hasPlaceablePixels } from "@/lib/studio/drive-import";
 import { uid } from "@/lib/studio/ids";
 import type { AssetCategory } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -73,9 +74,17 @@ export function AssetTray({ projectId }: { projectId: string }) {
   }
 
   function place(assetId: string, name: string) {
+    const asset = assets.find((item) => item.id === assetId);
     const ok = placeAsset(projectId, assetId);
-    if (ok) toast.success(`已放入「${name}」`);
-    else toast.error("無法放到畫布");
+    if (ok) {
+      toast.success(`已放入「${name}」`);
+      return;
+    }
+    toast.error(
+      asset && !hasPlaceablePixels(asset)
+        ? "這是來源參考，沒有原圖像素，不能放到畫布。"
+        : "無法放到畫布",
+    );
   }
 
   return (

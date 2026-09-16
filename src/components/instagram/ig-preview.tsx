@@ -1,5 +1,5 @@
 import { Heart, MessageCircle, Play, Send } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,10 @@ export function IgPreview({ projectId }: { projectId?: string }) {
   const artboard = project ? activeArtboard(project) : undefined;
   const [captionTone, setCaptionTone] = useState<string>("學生版");
   const touchX = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (projectId) setSelectedId(projectId);
+  }, [projectId]);
 
   const assetIds = useMemo(() => {
     const ids: string[] = [];
@@ -218,7 +222,7 @@ export function IgPreview({ projectId }: { projectId?: string }) {
             </Select>
           </div>
         ) : (
-          <p className="text-sm text-muted">還沒有 Copy Pack。到 Studio 生成文案後，這裡會套上 Caption 與 hashtags。</p>
+          <p className="text-sm text-muted">還沒有 Copy Pack。到 AI 創作生成學生版文案後，這裡會套上 Caption 與 hashtags。</p>
         )}
         <Badge variant="default">這是預覽，不是發文</Badge>
         <p className="text-xs leading-5 text-muted">

@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
@@ -32,6 +32,7 @@ export function InstagramCenter() {
   const [canRequestInsights, setCanRequestInsights] = useState(false);
   const [tab, setTab] = useState("memory");
   const [query, setQuery] = useState("");
+  const locationHash = useRouterState({ select: (state) => state.location.hash });
 
   useEffect(() => {
     void (async () => {
@@ -77,9 +78,12 @@ export function InstagramCenter() {
       window.history.replaceState({}, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
     }
     if (params.get("tab")) setTab(params.get("tab") || "memory");
-    const hash = window.location.hash.replace("#", "");
-    if (["memory", "preview", "reels", "insights"].includes(hash)) setTab(hash);
   }, []);
+
+  useEffect(() => {
+    const hash = locationHash.replace("#", "");
+    if (["memory", "preview", "reels", "insights"].includes(hash)) setTab(hash);
+  }, [locationHash]);
 
   const visible = useMemo(() => {
     const needle = query.trim();
@@ -100,12 +104,19 @@ export function InstagramCenter() {
         <CreationLoop current={tab === "preview" ? "preview" : tab === "reels" ? "image" : "preview"} />
       </div>
 
-      <Tabs value={tab} onValueChange={setTab} className="mt-6">
+      <Tabs
+        value={tab}
+        onValueChange={(next) => {
+          setTab(next);
+          window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}#${next}`);
+        }}
+        className="mt-6"
+      >
         <TabsList className="h-auto min-h-11 w-full flex-wrap justify-start">
-          <TabsTrigger value="memory">內容記憶</TabsTrigger>
-          <TabsTrigger value="preview">IG 預覽</TabsTrigger>
-          <TabsTrigger value="reels">Reels</TabsTrigger>
-          <TabsTrigger value="insights">Insights</TabsTrigger>
+          <TabsTrigger value="memory" className="min-h-11">內容記憶</TabsTrigger>
+          <TabsTrigger value="preview" className="min-h-11">IG 預覽</TabsTrigger>
+          <TabsTrigger value="reels" className="min-h-11">Reels</TabsTrigger>
+          <TabsTrigger value="insights" className="min-h-11">Insights</TabsTrigger>
         </TabsList>
 
         <TabsContent value="memory" className="mt-5">

@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/select";
 import { CreationLoop } from "@/components/shared/creation-loop";
 import { describeAdapter, generateCampaignPlan, getCampaignAiStatus, type AiStatus } from "@/lib/ai/campaign";
+import { campaignToBrief } from "@/lib/creative/brief-from-campaign";
+import { memoryInjectionHints } from "@/lib/creative/memory";
 import { toBriefInput } from "@/lib/ai/payload";
 import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
 import { emptyBrief, formatsFromBrief, migrateBrief } from "@/lib/studio/brief";
@@ -47,19 +49,25 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
   const clearContentLink = useUi((s) => s.clearContentLink);
   const linkProject = useCreative((s) => s.linkProject);
   const campaigns = useCreative((s) => s.campaigns);
+  const activeCampaignId = useCreative((s) => s.activeCampaignId);
   const assets = useStudio((s) => s.assets);
   const styleReferences = useConnectionStore((s) => s.styleReferences);
   const instagramHashtags = hashtagsFromInstagramMemory(useConnectionStore((s) => s.instagramItems));
 
   const existing = projectId ? projects.find((p) => p.id === projectId) : undefined;
-  const [targetId, setTargetId] = useState<string>(existing?.id ?? "new");
+  const [targetId, setTargetId] = useState<string>(() => (useUi.getState().creativePreset ? "new" : (existing?.id ?? "new")));
   const [brandId, setBrandId] = useState(existing?.brandId ?? brands[0]?.id ?? "");
   const [formatId, setFormatId] = useState<FormatId>(existing?.activeFormatId ?? "feed-portrait");
-  const [name, setName] = useState(existing?.name ?? "");
-  const [brief, setBrief] = useState<Brief>(existing ? migrateBrief(existing.brief) : emptyBrief());
+  const [name, setName] = useState(() => useUi.getState().creativePreset?.eventName || existing?.name || "");
+  const [brief, setBrief] = useState<Brief>(() => {
+    const preset = useUi.getState().creativePreset;
+    if (preset) return migrateBrief({ ...emptyBrief(), ...preset });
+    if (existing) return migrateBrief(existing.brief);
+    return emptyBrief();
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [doneId, setDoneId] = useState<string | null>(existing?.plan ? existing.id : null);
+  const [doneId, setDoneId] = useState<string | null>(() => (useUi.getState().creativePreset ? null : (existing?.plan ? existing.id : null)));
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [liveFailed, setLiveFailed] = useState(false);
 
@@ -93,6 +101,20 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
     setName(preset.eventName);
     clearCreativePreset();
   }, [creativePreset, clearCreativePreset]);
+
+  useEffect(() => {
+    if (useUi.getState().creativePreset) return;
+    if (brief.eventName.trim() || brief.product.trim()) return;
+    const campaign = campaigns.find((item) => item.id === activeCampaignId) ?? campaigns[0];
+    if (!campaign) return;
+    const preset = migrateBrief({ ...emptyBrief(), ...campaignToBrief(campaign) });
+    setTargetId("new");
+    setDoneId(null);
+    setBrief(preset);
+    setName(preset.eventName);
+    // Only fill an empty form once — do not overwrite a student who clears the name.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function patchBrief(patch: Partial<Brief>) {
     setBrief((b) => ({ ...b, ...patch, deliverables: patch.deliverables ?? b.deliverables }));
@@ -198,6 +220,15 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
         <p className="text-sm font-medium">{status ? statusLabel.label : "正在確認企劃服務"}</p>
         <p className="mt-1 text-xs text-muted">
           {status ? statusLabel.detail : "先確認有沒有連到 AI，不會假裝已經連線。"}
+          {brand
+            ? ` 本次會帶入 Creative Memory：${memoryInjectionHints({
+                brand,
+                assets,
+                campaigns,
+                styleReferences,
+                instagramHashtags,
+              }).join("、") || "Brand Memory 預設校園情境"}。`
+            : ""}
         </p>
       </div>
 

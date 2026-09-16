@@ -21,6 +21,7 @@ type UiState = {
   stylePrompt: StylePrompt | null;
   setAssistantOpen: (open: boolean) => void;
   startCreative: (preset?: Partial<Brief>, contentLinkId?: string | null) => void;
+  primeCreative: (preset?: Partial<Brief>, contentLinkId?: string | null) => void;
   clearCreativePreset: () => void;
   clearContentLink: () => void;
   toggleAssistant: () => void;
@@ -41,6 +42,8 @@ export const useUi = create<UiState>((set) => ({
   setAssistantOpen: (open) => set({ assistantOpen: open }),
   startCreative: (creativePreset = {}, contentLinkId = null) =>
     set({ assistantOpen: true, creativePreset, contentLinkId }),
+  primeCreative: (creativePreset = {}, contentLinkId = null) =>
+    set({ creativePreset, contentLinkId }),
   clearCreativePreset: () => set({ creativePreset: null }),
   clearContentLink: () => set({ contentLinkId: null }),
   toggleAssistant: () => set((s) => ({ assistantOpen: !s.assistantOpen })),

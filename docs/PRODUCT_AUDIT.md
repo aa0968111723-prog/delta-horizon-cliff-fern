@@ -111,15 +111,15 @@
 
 | Phase | 產品能力 | 現況 | 尚未在這個環境證明的事 |
 | --- | --- | --- | --- |
-| 1–7 | 淡江語意、Campaign、Copy、多模態、Brand Memory、素材庫 | 單人創作主幹已在跑：首頁節奏、AI 創作、Studio、素材、Brand、Export。一人網宣流程（活動→文案→畫面→預覽→排程→匯出）已串在各頁。Copy／圖片／Campaign 生成會注入校園情境、近期活動、已分析素材、Canva 風格與 IG hashtags | 真實 xAI 圖片／Vision 依部署金鑰；跨裝置同步仍是本機 |
-| 8 Canva | 官方 Connect OAuth PKCE、搜尋／最近設計、metadata 風格摘要寫入 Brand Memory、Autofill 不假裝 | 已有 server-only secrets、unavailable 卡片、複製 brief、風格參考可寫入規律並進入下次生成 | 真實 Canva OAuth、真實設計列表、視覺像素分析、Enterprise Autofill |
+| 1–7 | 淡江語意、Campaign、Copy、多模態、Brand Memory、素材庫 | 單人創作主幹已在跑：首頁節奏、AI 創作、Studio、素材、Brand、Export。一人網宣流程（活動→文案→畫面→預覽→排程→匯出）會把目前活動寫進 AI 創作 Brief 與畫面想法。Copy／圖片／Campaign 生成會注入校園情境、近期活動、已分析素材、Canva 風格與 IG hashtags | 真實 xAI 圖片／Vision 依部署金鑰；跨裝置同步仍是本機 |
+| 8 Canva | 官方 Connect OAuth PKCE、搜尋／最近設計、metadata 風格摘要寫入 Brand Memory、Autofill 不假裝 | 已有 server-only secrets、unavailable 卡片、複製 brief、風格參考可寫入規律；「當成生成參考」會打開素材庫 Image Studio | 真實 Canva OAuth、真實設計列表、視覺像素分析、Enterprise Autofill |
 | 9 Instagram | Graph / Instagram Login OAuth PKCE + refresh、加密 httpOnly cookie | 已有官方授權 URL、nested token 解析、Insights 權限另開 | 真實 IG OAuth、真實貼文同步 |
 | 10 Creative Brain | 跨素材庫 + Drive + Canva + IG + Copy Pack + Brand Memory 搜尋 | 本機索引即時搜；校園情境／語氣／標語／畫面規則會被搜到；點記憶會打開 Brand Memory 該頁；已連接來源需使用者主動搜尋；Drive 僅在 loginRequired+loginUrl 顯示 Continue with Grok。Drive 檔案可「加入素材庫參考」，沒有原圖像素時不能放到畫布 | 真實 Drive／Canva／IG 回傳 |
 | 11 Calendar | 月／週／議程、改期、AI 節奏 | 手機 375–430 預設議程，可切本週；從節奏開 AI 會把該則內容連到新作品；已完成作品可去 IG 預覽 | — |
-| 12 IG Preview | Studio 畫面套進手機預覽 | 貼文／限動／Reels 框不同、Carousel 可滑、預設學生版 Caption、Reels 有播放示意、不顯示假讚數／觀看次數 | 不是發文 |
+| 12 IG Preview | Studio 畫面套進手機預覽 | 貼文／限動／Reels 框不同、Carousel 可滑、預設學生版 Caption、Reels 有播放示意、`#preview` 會打開預覽頁、不顯示假讚數／觀看次數 | 不是發文 |
 | 13 Reels | 腳本 + 9:16 封面 | 封面可進素材庫並放到 Studio Reels 封面；沒腳本時導去 Copy Studio；封面生成帶入 Creative Memory | 真實 AI 封面需 xAI；不能直接上傳 IG |
 | 14 Insights | 僅專業帳號授權後顯示 | 無 grant 時誠實 unavailable；有官方列才能寫入 Brand Memory | 真實 insights 數字 |
-| 15 Mobile | 375／390／430 | Brand Memory 單頁切換、流程條可橫滑、連接／Brand 導覽 tap ≥44px；需以瀏覽器再驗 | — |
+| 15 Mobile | 375／390／430 | Brand Memory 單頁切換、流程條可橫滑、連接／Brand／IG 分頁 tap ≥44px；需以瀏覽器再驗 | — |
 
 ## Phase 1 驗收
 

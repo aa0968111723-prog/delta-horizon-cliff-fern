@@ -1,8 +1,8 @@
-import { migrateBrief } from "@/lib/studio/brief";
-import type { BrandKit, Brief, AssetMeta } from "@/lib/studio/types";
-import { buildCreativeMemoryContext } from "@/lib/creative/memory";
-import type { Campaign } from "@/lib/creative/types";
-import type { BriefInput } from "./schema";
+import { migrateBrief } from "../studio/brief.ts";
+import type { AssetMeta, BrandKit, Brief } from "../studio/types.ts";
+import { buildCreativeMemoryContext } from "../creative/memory.ts";
+import type { Campaign } from "../creative/types.ts";
+import type { BriefInput } from "./schema.ts";
 
 export function toBriefInput(
   brief: Brief,

@@ -30,7 +30,9 @@ type CreativeState = {
   hydrated: boolean;
   campaigns: Campaign[];
   contentItems: ContentItem[];
+  activeCampaignId: string;
   setHydrated: (hydrated: boolean) => void;
+  setActiveCampaignId: (id: string) => void;
   createCampaign: (input: CampaignInput) => Campaign;
   updateCampaign: (id: string, patch: Partial<Campaign>) => void;
   generateRhythm: (campaignId: string) => ContentItem[];
@@ -54,7 +56,9 @@ export const useCreative = create<CreativeState>()(
       hydrated: false,
       campaigns: [SEED_CAMPAIGN],
       contentItems: seedItems,
+      activeCampaignId: SEED_CAMPAIGN.id,
       setHydrated: (hydrated) => set({ hydrated }),
+      setActiveCampaignId: (id) => set({ activeCampaignId: id }),
       createCampaign: (input) => {
         const now = Date.now();
         const campaign: Campaign = {
@@ -64,7 +68,10 @@ export const useCreative = create<CreativeState>()(
           createdAt: now,
           updatedAt: now,
         };
-        set((state) => ({ campaigns: [campaign, ...state.campaigns] }));
+        set((state) => ({
+          campaigns: [campaign, ...state.campaigns],
+          activeCampaignId: campaign.id,
+        }));
         return campaign;
       },
       updateCampaign: (id, patch) =>
@@ -128,11 +135,24 @@ export const useCreative = create<CreativeState>()(
     }),
     {
       name: "zen-creative-brain-v1",
-      version: 1,
+      version: 2,
       skipHydration: true,
+      migrate: (persisted) => {
+        const state = persisted as {
+          campaigns?: Campaign[];
+          contentItems?: ContentItem[];
+          activeCampaignId?: string;
+        };
+        return {
+          campaigns: state.campaigns ?? [SEED_CAMPAIGN],
+          contentItems: state.contentItems ?? seedItems,
+          activeCampaignId: state.activeCampaignId ?? state.campaigns?.[0]?.id ?? SEED_CAMPAIGN.id,
+        };
+      },
       partialize: (state) => ({
         campaigns: state.campaigns,
         contentItems: state.contentItems,
+        activeCampaignId: state.activeCampaignId,
       }),
     },
   ),

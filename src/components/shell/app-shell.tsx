@@ -91,7 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => setAssistantOpen(true)}
             className="flex size-11 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-fg"
-            aria-label="開啟 AI 助手"
+            aria-label="開啟 AI 創作"
           >
             <Sparkles className="size-4" />
           </button>

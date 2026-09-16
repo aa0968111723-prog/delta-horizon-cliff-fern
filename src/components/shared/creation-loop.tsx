@@ -1,6 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
+import { campaignToBrief } from "@/lib/creative/brief-from-campaign";
 import { cn } from "@/lib/utils";
+import { useCreative } from "@/stores/creative-store";
+import { useUi } from "@/stores/ui-store";
 
 export type CreationStep = "campaign" | "copy" | "image" | "preview" | "schedule" | "export";
 
@@ -32,6 +35,15 @@ export function CreationLoop({
   compact?: boolean;
 }) {
   const next = current ? NEXT[current] : { label: "從下一場活動開始", to: "/campaigns" as const };
+  const campaigns = useCreative((state) => state.campaigns);
+  const activeCampaignId = useCreative((state) => state.activeCampaignId);
+  const primeCreative = useUi((state) => state.primeCreative);
+  const campaign = campaigns.find((item) => item.id === activeCampaignId) ?? campaigns[0];
+
+  function handoffToCopy() {
+    if (!campaign) return;
+    primeCreative(campaignToBrief(campaign));
+  }
 
   return (
     <nav aria-label="一人網宣流程" className={cn("min-w-0", compact ? "" : "rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]")}>
@@ -46,6 +58,9 @@ export function CreationLoop({
               <Link
                 to={step.to}
                 hash={step.hash}
+                onClick={() => {
+                  if (step.id === "copy") handoffToCopy();
+                }}
                 className={cn(
                   "flex min-h-11 items-center rounded-full px-3 text-sm",
                   active ? "bg-accent text-accent-fg" : "bg-bg text-muted shadow-[var(--shadow-border)]",
@@ -62,6 +77,9 @@ export function CreationLoop({
       <Link
         to={next.to}
         hash={current ? NEXT[current].hash : undefined}
+        onClick={() => {
+          if (current === "campaign" || (!current && next.to === "/assistant")) handoffToCopy();
+        }}
         className="mt-3 inline-flex min-h-11 items-center text-sm text-accent"
       >
         {next.label}

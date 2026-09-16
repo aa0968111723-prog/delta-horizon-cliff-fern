@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { generateCreativeImage, getMultimodalStatus } from "@/lib/ai/multimodal";
+import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
 import { buildCreativeMemoryContext } from "@/lib/creative/memory";
 import { useCreative } from "@/stores/creative-store";
 import { base64ImageToBlob, prepareImageForAi } from "@/lib/studio/ai-image-client";
@@ -54,6 +55,7 @@ export function ReelsStudio({ projectId }: { projectId?: string }) {
                 assets,
                 campaigns,
                 styleReferences: useConnectionStore.getState().styleReferences,
+                instagramHashtags: hashtagsFromInstagramMemory(useConnectionStore.getState().instagramItems),
               })
             : undefined,
         },

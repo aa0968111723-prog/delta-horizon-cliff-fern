@@ -8,6 +8,7 @@ import { CreationLoop } from "@/components/shared/creation-loop";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { campaignToBrief } from "@/lib/creative/brief-from-campaign";
 import {
   agendaDays,
   campaignNameOf,
@@ -18,7 +19,6 @@ import {
   type CalendarView,
   weekGrid,
 } from "@/lib/creative/calendar";
-import { contentTypeDeliverables } from "@/lib/creative/rhythm";
 import type { ContentItem } from "@/lib/creative/types";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
@@ -71,16 +71,7 @@ export function ContentCalendar() {
   function createFrom(item: ContentItem) {
     const campaign = campaigns.find((row) => row.id === item.campaignId);
     if (!campaign) return;
-    startCreative({
-      eventName: campaign.name,
-      product: campaign.oneLiner || campaign.name,
-      schedule: `${campaign.eventDate} ${campaign.eventTime}`.trim(),
-      location: campaign.location,
-      audience: `淡江大學學生；這次優先回應：${campaign.studentPain}`,
-      features: [campaign.oneLiner, campaign.description].filter(Boolean).join("；"),
-      notes: `這一波內容：${item.title}。角度：${item.angle}`,
-      deliverables: contentTypeDeliverables(item.type),
-    }, item.id);
+    startCreative(campaignToBrief(campaign, item), item.id);
   }
 
   return (

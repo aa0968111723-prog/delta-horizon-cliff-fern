@@ -210,7 +210,11 @@ export function PlanResult({ projectId, onOpenEditor }: Props) {
                           size="sm"
                           variant="secondary"
                           onClick={() => {
-                            placeAsset(projectId, asset.id);
+                            const ok = placeAsset(projectId, asset.id);
+                            if (!ok) {
+                              toast.error(asset.width === 0 ? "這是來源參考，沒有原圖像素，不能放到畫布。" : "無法放到畫布");
+                              return;
+                            }
                             toast.success(`已把「${asset.name}」放到畫布`);
                           }}
                         >

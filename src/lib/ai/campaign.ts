@@ -127,11 +127,12 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
 圖片風格：${data.imageStyle || "無"}
 Creative Brain 記憶：
 ${data.brandMemory || "先說學生生活，再介紹活動；使用三色光與真實社員互動"}
+若記憶含校園情境、近期活動、Canva 風格或 IG hashtags，必須寫進 hook、insight 與 hashtags，不可做成通用心靈雞湯或電商促銷。
 
 活動名稱：${data.eventName}
 時間：${data.schedule || "未填"}
 地點：${data.location || "未填"}
-產品／內容：${data.product || data.eventName}
+活動內容：${data.product || data.eventName}
 參加誘因／報名方式：${data.offer || "無"}
 本次主要學生情境：${data.audience}
 目的：${data.goal}

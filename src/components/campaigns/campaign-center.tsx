@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { contentTypeDeliverables } from "@/lib/creative/rhythm";
+import { campaignToBrief } from "@/lib/creative/brief-from-campaign";
 import type {
   Campaign,
   ContentItem,
@@ -53,8 +53,14 @@ export function CampaignCenter() {
   const setContentStatus = useCreative((state) => state.setContentStatus);
   const setProjectStatus = useStudio((state) => state.setProjectStatus);
   const startCreative = useUi((state) => state.startCreative);
+  const setActiveCampaignId = useCreative((state) => state.setActiveCampaignId);
   const [selectedId, setSelectedId] = useState(campaigns[0]?.id ?? "");
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  function onCreated(id: string) {
+    setSelectedId(id);
+    setActiveCampaignId(id);
+  }
 
   const campaign = campaigns.find((item) => item.id === selectedId) ?? campaigns[0];
   const items = useMemo(
@@ -66,23 +72,7 @@ export function CampaignCenter() {
   );
 
   function campaignBrief(target: Campaign, item?: ContentItem) {
-    return {
-      eventName: target.name,
-      product: target.oneLiner || target.name,
-      schedule: `${target.eventDate} ${target.eventTime}`.trim(),
-      location: target.location,
-      audience: `淡江大學學生；這次優先回應：${target.studentPain}`,
-      features: [target.oneLiner, target.description].filter(Boolean).join("；"),
-      style: "自然、年輕、有淡江生活感；把禪轉譯成喘口氣、安定與認識自己",
-      notes: [
-        target.theme ? `活動主題：${target.theme}` : "",
-        item ? `這一波內容：${item.title}。角度：${item.angle}` : "請提出完整宣傳主軸與三個創意方向。",
-        target.registrationUrl ? `報名連結：${target.registrationUrl}` : "報名方式尚未填，文案不要假裝已提供。",
-      ].filter(Boolean).join("\n"),
-      deliverables: item
-        ? contentTypeDeliverables(item.type)
-        : { post: true, carousel: true, story: true, reels: true },
-    };
+    return campaignToBrief(target, item);
   }
 
   function createContent(item: ContentItem) {
@@ -101,7 +91,7 @@ export function CampaignCenter() {
           description="建立活動後，先安排一版宣傳節奏，再逐篇進入 AI 創作。"
           actions={<Button onClick={() => setDialogOpen(true)}><Plus className="size-4" />建立活動</Button>}
         />
-        <NewCampaignDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={setSelectedId} />
+        <NewCampaignDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={onCreated} />
         <div className="mt-8">
           <CreationLoop current="campaign" />
         </div>
@@ -130,7 +120,10 @@ export function CampaignCenter() {
           <button
             key={item.id}
             type="button"
-            onClick={() => setSelectedId(item.id)}
+            onClick={() => {
+              setSelectedId(item.id);
+              setActiveCampaignId(item.id);
+            }}
             className={cn(
               "min-h-11 shrink-0 rounded-full px-4 text-sm transition-colors",
               item.id === campaign.id
@@ -261,7 +254,7 @@ export function CampaignCenter() {
         </ol>
       </section>
 
-      <NewCampaignDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={setSelectedId} />
+      <NewCampaignDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={onCreated} />
     </main>
   );
 }

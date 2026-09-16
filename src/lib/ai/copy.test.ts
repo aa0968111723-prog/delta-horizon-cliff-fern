@@ -50,6 +50,16 @@ test("mock copy weaves Brand Memory campus context into the student voice", () =
   assert.match(pack.variants[0].hook, /下雨|淡水/);
 });
 
+test("mock copy skips a generic 課表 token and uses the next campus beat", () => {
+  const pack = buildMockCopyPack({
+    ...request,
+    studentPain: "最近有點滿",
+    hook: "",
+    brandMemory: "校園情境：課表、通勤、宿舍、人際與淡水天氣",
+  });
+  assert.match(pack.variants.find((item) => item.tone === "學生版")?.body ?? "", /通勤/);
+});
+
 test("copy avoids a formal invitation hook and includes club-specific hashtags", () => {
   const pack = buildMockCopyPack({ ...request, hook: "淡江大學禪學社誠摯邀請您" });
   assert.doesNotMatch(pack.variants[0].hook, /誠摯邀請/);

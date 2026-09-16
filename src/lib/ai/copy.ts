@@ -67,9 +67,10 @@ function eventFacts(data: CopyRequest) {
 }
 
 function campusFromMemory(brandMemory?: string) {
-  const line = brandMemory?.split("\n").find((row) => row.startsWith("校園情境："))?.slice("校園情境：".length);
-  const first = line?.split(/[、,；]/)[0]?.trim();
-  return first && first !== "課表" ? first : "";
+  const line = brandMemory?.split("\n").find((row) => row.startsWith("校園情境："))?.slice("校園情境：".length)?.trim();
+  if (!line) return "";
+  const parts = line.split(/[、,；]/).map((item) => item.trim()).filter(Boolean);
+  return parts.find((item) => item !== "課表") ?? parts[0] ?? "";
 }
 
 function naturalHook(data: CopyRequest) {
@@ -157,7 +158,7 @@ async function generateLive(data: CopyRequest): Promise<CopyPack> {
 variants 必須各有短版、一般版、感性版、學生版、生活版、幽默版，欄位 tone,hook,body,cta,hashtags。
 studentReview 必須逐題回答：會停下來嗎、看得懂嗎、是否太宗教／太嚴肅／太文青／太 AI／太長、時間地點是否清楚、會想找朋友嗎、知道怎麼報名嗎；欄位 question,pass,feedback。
 另外輸出 revisedCaption, threads, line, storyFrames(3–5), carouselPages(5–6), reelsScript(5 段，每段 timing,visual,subtitle,voiceover,transition,assetSuggestion)。
-Hook 不可用「淡江大學禪學社誠摯邀請您」。先連結課表、通勤、宿舍、人際、壓力或淡水生活，再進活動。`,
+Hook 不可用「淡江大學禪學社誠摯邀請您」。必須使用 brandMemory 裡的校園情境寫進 Hook 與學生版，近期 Campaign、Canva 風格與 IG hashtags 若有內容也要呼應。先連結課表、通勤、宿舍、人際、壓力或淡水生活，再進活動。不要寫優惠、限時瘋搶或電商促銷。`,
         },
       ],
     }),

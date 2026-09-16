@@ -12,7 +12,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { generateCreativeImage, getMultimodalStatus } from "@/lib/ai/multimodal";
+import { campaignImageIdea } from "@/lib/creative/brief-from-campaign";
 import { buildCreativeMemoryContext, memoryInjectionHints } from "@/lib/creative/memory";
+import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
 import { CreationLoop } from "@/components/shared/creation-loop";
 import { useCreative } from "@/stores/creative-store";
 import { base64ImageToBlob, prepareImageForAi } from "@/lib/studio/ai-image-client";
@@ -53,10 +55,13 @@ export function ImageStudio() {
   const brand = useStudio((state) => state.brands[0]);
   const assets = useStudio((state) => state.assets);
   const campaigns = useCreative((state) => state.campaigns);
+  const activeCampaignId = useCreative((state) => state.activeCampaignId);
   const styleReferences = useConnectionStore((state) => state.styleReferences);
+  const instagramHashtags = hashtagsFromInstagramMemory(useConnectionStore((state) => state.instagramItems));
   const stylePrompt = useUi((state) => state.stylePrompt);
   const setStylePrompt = useUi((state) => state.setStylePrompt);
   const [idea, setIdea] = useState("下週晚上的茶會，讓剛開學很忙的淡江學生下課後喘口氣");
+  const [ideaTouched, setIdeaTouched] = useState(false);
   const [directionId, setDirectionId] = useState<(typeof DIRECTIONS)[number]["id"]>("campus");
   const [aspectRatio, setAspectRatio] = useState<(typeof FORMATS)[number]["id"]>("4:5");
   const [available, setAvailable] = useState<boolean | null>(null);
@@ -70,8 +75,15 @@ export function ImageStudio() {
   useEffect(() => {
     if (!stylePrompt) return;
     setIdea(`${stylePrompt.title}。風格參考：${stylePrompt.provider}／${stylePrompt.collection}。${stylePrompt.notes}`);
+    setIdeaTouched(true);
     document.getElementById("image-studio")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [stylePrompt]);
+
+  useEffect(() => {
+    if (ideaTouched || stylePrompt) return;
+    const campaign = campaigns.find((item) => item.id === activeCampaignId) ?? campaigns[0];
+    if (campaign) setIdea(campaignImageIdea(campaign));
+  }, [activeCampaignId, campaigns, ideaTouched, stylePrompt]);
 
   useEffect(() => {
     let alive = true;
@@ -100,7 +112,13 @@ export function ImageStudio() {
           direction: direction.detail,
           aspectRatio,
           brandMemory: brand
-            ? buildCreativeMemoryContext({ brand, assets, campaigns, styleReferences })
+            ? buildCreativeMemoryContext({
+                brand,
+                assets,
+                campaigns,
+                styleReferences,
+                instagramHashtags,
+              })
             : undefined,
         },
       });
@@ -159,7 +177,7 @@ export function ImageStudio() {
           <p className="mt-2 max-w-md text-sm leading-6 text-accent-fg/70">
             不是只寫「禪風海報」。先選淡江學生會有感的視覺角度，再生成一張可放進 Studio 的主視覺。
             {brand
-              ? ` 本次會帶入：${memoryInjectionHints({ brand, assets, campaigns, styleReferences }).join("、") || "Brand Memory 預設校園情境"}。`
+              ? ` 本次會帶入：${memoryInjectionHints({ brand, assets, campaigns, styleReferences, instagramHashtags }).join("、") || "Brand Memory 預設校園情境"}。`
               : ""}
           </p>
           {stylePrompt ? (
@@ -174,7 +192,10 @@ export function ImageStudio() {
             <Textarea
               id="image-idea"
               value={idea}
-              onChange={(event) => setIdea(event.target.value)}
+              onChange={(event) => {
+                setIdeaTouched(true);
+                setIdea(event.target.value);
+              }}
               className="mt-2 min-h-28 border-accent-fg/15 bg-accent-fg/10 text-accent-fg placeholder:text-accent-fg/40"
               placeholder="例如：期中前的夜間茶會，讓通勤與住宿生都想找朋友一起來"
             />

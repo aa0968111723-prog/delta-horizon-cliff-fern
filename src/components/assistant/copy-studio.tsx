@@ -131,7 +131,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
             {memoryHashtags.length ? ` 已帶入 IG 內容記憶 hashtags：${memoryHashtags.slice(0, 5).join(" ")}` : ""}
           </p>
         </div>
-        <Button size="sm" disabled={busy} onClick={() => void generate()}>
+        <Button size="sm" className="min-h-11" disabled={busy} onClick={() => void generate()}>
           <Sparkles className="size-4" />
           {busy ? "生成中…" : pack ? "重新生成" : "生成 Copy Pack"}
         </Button>
@@ -146,7 +146,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
                 type="button"
                 onClick={() => applyTone(item.tone)}
                 className={cn(
-                  "min-h-10 shrink-0 rounded-full px-3 text-xs",
+                  "min-h-11 shrink-0 rounded-full px-3 text-xs",
                   item.tone === activeTone ? "bg-accent text-accent-fg" : "bg-surface text-muted shadow-[var(--shadow-border)]",
                 )}
               >
@@ -222,7 +222,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
                   <button
                     key={tag}
                     type="button"
-                    className="min-h-10 rounded-full bg-surface px-3 text-xs shadow-[var(--shadow-border)]"
+                    className="min-h-11 rounded-full bg-surface px-3 text-xs shadow-[var(--shadow-border)]"
                     onClick={() => {
                       const next = [...new Set([...(project.plan?.hashtags ?? []), tag])];
                       patchPlan(projectId, { hashtags: next });
