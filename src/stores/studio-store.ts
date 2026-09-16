@@ -43,6 +43,7 @@ import {
   SEED_SCHEDULE,
   createSeedDraft,
   createSeedProject,
+  migrateRemoteFile,
 } from "@/lib/studio/seed";
 import { templateById } from "@/lib/studio/templates";
 import type {
@@ -1279,7 +1280,7 @@ export const useStudio = create<StudioState>()(
           schedule: (p.schedule ?? current.schedule).map(migrateScheduleItem),
           connections: p.connections?.length ? p.connections : current.connections,
           igMemory: p.igMemory ?? current.igMemory,
-          remoteFiles: p.remoteFiles?.length ? p.remoteFiles : current.remoteFiles,
+          remoteFiles: (p.remoteFiles?.length ? p.remoteFiles : current.remoteFiles).map(migrateRemoteFile),
           lastProjectId: p.lastProjectId ?? projects[0]?.id ?? current.lastProjectId,
         };
       },
@@ -1306,7 +1307,7 @@ export const useStudio = create<StudioState>()(
           schedule: (state.schedule ?? SEED_SCHEDULE).map(migrateScheduleItem),
           connections: state.connections?.length ? state.connections : DEFAULT_CONNECTIONS,
           igMemory: state.igMemory ?? SEED_IG_MEMORY,
-          remoteFiles: state.remoteFiles?.length ? state.remoteFiles : SEED_REMOTE_FILES,
+          remoteFiles: (state.remoteFiles?.length ? state.remoteFiles : SEED_REMOTE_FILES).map(migrateRemoteFile),
           lastProjectId: state.lastProjectId ?? projects[0]?.id ?? null,
         };
       },

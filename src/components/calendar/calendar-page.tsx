@@ -4,6 +4,7 @@ import { zhTW } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
+import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { contentKindLabel, contentStatusLabel } from "@/lib/studio/content";
 import { uid } from "@/lib/studio/ids";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ export function CalendarPage() {
   const upsertSchedule = useStudio((s) => s.upsertSchedule);
   const publishSchedule = useStudio((s) => s.publishSchedule);
   const setCreateOpen = useUi((s) => s.setCreateOpen);
+  const urls = useAssetUrls(schedule.map((item) => item.imageAssetId).filter((id): id is string => Boolean(id)));
   const [cursor, setCursor] = useState(() => new Date());
   const [view, setView] = useState<View>("month");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -179,7 +181,11 @@ export function CalendarPage() {
             .slice()
             .sort((a, b) => a.scheduledAt - b.scheduledAt)
             .map((item) => (
-              <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+              <li key={item.id} className="flex gap-3 rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+                {item.imageAssetId && urls[item.imageAssetId] ? (
+                  <img src={urls[item.imageAssetId]} alt="" className="size-14 shrink-0 rounded-xl object-cover" />
+                ) : null}
+                <div className="min-w-0 flex-1">
                 <p className="text-sm">{item.title}</p>
                 <p className="text-xs text-muted">
                   {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })} · {contentKindLabel(item.kind)} · {contentStatusLabel(item.status)}
@@ -203,6 +209,7 @@ export function CalendarPage() {
                       AI 延伸
                     </Link>
                   </Button>
+                </div>
                 </div>
               </li>
             ))}

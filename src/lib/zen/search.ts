@@ -154,6 +154,7 @@ export function searchCreative(input: {
         kind: "素材",
         score,
         assetId: asset.id,
+        thumbnail: asset.seedSrc,
       });
     }
   }
@@ -200,6 +201,7 @@ export function searchCreative(input: {
     const text = blobOf([post.caption, post.kind, post.date]);
     const score = scoreText(q, text, WEIGHT.instagram);
     if (!q || score > WEIGHT.instagram) {
+      const seed = input.assets.find((asset) => asset.id === post.assetId)?.seedSrc;
       hits.push({
         id: `ig:${post.id}`,
         source: "instagram",
@@ -209,6 +211,8 @@ export function searchCreative(input: {
         score,
         projectId: post.projectId,
         assetId: post.assetId,
+        thumbnail: post.mediaUrl || seed,
+        url: post.permalink,
       });
     }
   }
@@ -233,4 +237,12 @@ export function searchCreative(input: {
   }
 
   return hits.sort((a, b) => b.score - a.score).slice(0, 48);
+}
+
+export function groupCreativeHits(hits: CreativeHit[]): Record<string, CreativeHit[]> {
+  const map: Record<string, CreativeHit[]> = {};
+  for (const hit of hits) {
+    (map[hit.source] ??= []).push(hit);
+  }
+  return map;
 }

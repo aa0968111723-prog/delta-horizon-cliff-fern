@@ -2,8 +2,9 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { searchDriveLive } from "@/lib/connect/sync";
-import { searchCreative, type CreativeHit } from "@/lib/zen/search";
+import { searchCreative, groupCreativeHits, type CreativeHit } from "@/lib/zen/search";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
@@ -25,7 +26,8 @@ export function CreativeSearch() {
     [q, assets, projects, campaigns, igMemory, remoteFiles],
   );
 
-  const groups = groupHits(hits);
+  const groups = useMemo(() => groupCreativeHits(hits), [hits]);
+  const urls = useAssetUrls(hits.map((hit) => hit.assetId).filter((id): id is string => Boolean(id)));
 
   useEffect(() => {
     if (!open) return;
@@ -100,8 +102,8 @@ export function CreativeSearch() {
                 {list.map((hit) => (
                   <li key={hit.id}>
                     <div className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface-2">
-                      {hit.thumbnail ? (
-                        <img src={hit.thumbnail} alt="" className="size-10 shrink-0 rounded-lg object-cover" />
+                      {hit.thumbnail || (hit.assetId && urls[hit.assetId]) ? (
+                        <img src={hit.thumbnail || urls[hit.assetId!]} alt="" className="size-10 shrink-0 rounded-lg object-cover" />
                       ) : (
                         <span className="size-10 shrink-0 rounded-lg bg-surface" />
                       )}
@@ -138,14 +140,6 @@ export function CreativeSearch() {
       </DialogContent>
     </Dialog>
   );
-}
-
-function groupHits(hits: CreativeHit[]) {
-  const map: Record<string, CreativeHit[]> = {};
-  for (const hit of hits) {
-    (map[hit.source] ??= []).push(hit);
-  }
-  return map;
 }
 
 function sourceLabel(source: string) {

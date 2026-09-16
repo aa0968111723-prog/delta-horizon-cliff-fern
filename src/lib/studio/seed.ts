@@ -605,6 +605,8 @@ export const SEED_REMOTE_FILES: RemoteFile[] = [
     provider: "drive",
     name: "2025 茶會現場",
     mime: "image/jpeg",
+    thumbnail: "/seed/tamsui.svg",
+    url: "/seed/tamsui.svg",
     tags: ["茶會", "晚上", "同學", "互動"],
     summary: "歷屆晚上茶會，很多人圍坐。連接 Drive 後會換成真實檔案。",
   },
@@ -613,6 +615,8 @@ export const SEED_REMOTE_FILES: RemoteFile[] = [
     provider: "drive",
     name: "浮游禪光企劃",
     mime: "application/pdf",
+    thumbnail: "/seed/trilight.svg",
+    url: "/seed/trilight.svg",
     tags: ["浮游禪光", "企劃", "燈"],
     summary: "活動流程與燈的配置。",
   },
@@ -621,6 +625,8 @@ export const SEED_REMOTE_FILES: RemoteFile[] = [
     provider: "canva",
     name: "茶會 IG 主視覺",
     mime: "application/canva",
+    thumbnail: "/seed/trilight.svg",
+    url: "/seed/trilight.svg",
     tags: ["茶會", "Canva", "主視覺"],
     summary: "歷屆茶會版型，三色光。延續 DNA，不要直接複製。",
   },
@@ -629,10 +635,19 @@ export const SEED_REMOTE_FILES: RemoteFile[] = [
     provider: "canva",
     name: "招新版型",
     mime: "application/canva",
+    thumbnail: "/seed/campus.svg",
+    url: "/seed/campus.svg",
     tags: ["招生", "template"],
     summary: "招生活動版型。每年換學生情境，不要整張沿用。",
   },
 ];
+
+export function migrateRemoteFile(file: RemoteFile): RemoteFile {
+  if (file.thumbnail) return file;
+  const seed = SEED_REMOTE_FILES.find((row) => row.id === file.id);
+  if (!seed?.thumbnail) return file;
+  return { ...file, thumbnail: seed.thumbnail, url: file.url || seed.url };
+}
 
 export const SEED_IG_MEMORY: IgMemoryPost[] = [
   {

@@ -95,3 +95,27 @@ test("searchCreative groups Drive / Canva / IG for 茶會", () => {
   assert.ok(hits.some((hit) => hit.source === "canva"));
   assert.ok(hits.some((hit) => hit.source === "instagram"));
 });
+
+test("searchCreative keeps thumbnails so tea-party sources can show pictures", () => {
+  const tamsui: AssetMeta = { ...turtle, id: "asset_tamsui", name: "淡水晚上", seedSrc: "/seed/tamsui.svg", tags: ["淡水"] };
+  const hits = searchCreative({
+    query: "茶會",
+    assets: [{ ...turtle, seedSrc: "/seed/turtle.svg" }, tamsui],
+    projects: [],
+    campaigns: [],
+    igMemory: [{ ...nightIg, assetId: "asset_tamsui" }],
+    remoteFiles: [{ ...teaDrive, thumbnail: "/seed/tamsui.svg" }, { ...teaCanva, thumbnail: "/seed/trilight.svg" }],
+  });
+  assert.equal(hits.find((hit) => hit.source === "drive")?.thumbnail, "/seed/tamsui.svg");
+  assert.equal(hits.find((hit) => hit.source === "canva")?.thumbnail, "/seed/trilight.svg");
+  assert.equal(hits.find((hit) => hit.source === "instagram")?.thumbnail, "/seed/tamsui.svg");
+  const turtleHits = searchCreative({
+    query: "龜龜",
+    assets: [{ ...turtle, seedSrc: "/seed/turtle.svg" }],
+    projects: [],
+    campaigns: [],
+    igMemory: [],
+    remoteFiles: [],
+  });
+  assert.equal(turtleHits.find((hit) => hit.title === "龜龜")?.thumbnail, "/seed/turtle.svg");
+});

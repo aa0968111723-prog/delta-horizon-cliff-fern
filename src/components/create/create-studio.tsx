@@ -26,7 +26,7 @@ import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
 import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction";
 import { offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
-import { searchCreative, type CreativeHit } from "@/lib/zen/search";
+import { searchCreative, groupCreativeHits, type CreativeHit } from "@/lib/zen/search";
 import { pickSourceRefs, styleFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import { suggestWaves, eventKindFromText, waveLabel, contentKindForWave } from "@/lib/zen/schedule";
@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/shared/page-header";
+import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { useStudio } from "@/stores/studio-store";
 
 const KINDS: ContentKind[] = ["ig-post", "carousel", "story", "reels", "threads", "line"];
@@ -88,6 +89,7 @@ export function CreateStudio() {
   const memoryHint = clubCreativeDna({ brand, igMemory, campaigns, assets }).promptBlock;
   const learning = useMemo(() => learnFromIg(igMemory), [igMemory]);
   const recentKinds = calendar.slice(-4).map((item) => item.kind);
+  const urls = useAssetUrls(assets.map((a) => a.id));
 
   const [idea, setIdea] = useState(search.idea || "下週有一場茶會");
   const [eventName, setEventName] = useState(guessEventName(search.idea || ""));
@@ -112,6 +114,7 @@ export function CreateStudio() {
   const [vision, setVision] = useState<VisionAnalysis | null>(null);
   const [lastImage, setLastImage] = useState<{ base64: string; mime: string; assetId?: string; headline?: string } | null>(null);
   const autoRan = useRef(false);
+  const foundGroups = useMemo(() => groupCreativeHits(found), [found]);
 
   useEffect(() => {
     getCampaignAiStatus()
@@ -686,25 +689,41 @@ export function CreateStudio() {
       {found.length ? (
         <section className="mt-8">
           <h2 className="text-sm font-medium">找到 {found.length} 個相關素材</h2>
-          <p className="mt-1 text-xs text-muted">可釘選給 AI 當風格參考。來源會標出來。</p>
-          <ul className="mt-3 space-y-2">
-            {found.map((hit) => {
-              const pinnedHit = pinned.some((row) => row.id === hit.id);
-              return (
-                <li key={hit.id} className="flex items-start justify-between gap-2 rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]">
-                  <div>
-                    <p>{hit.title}</p>
-                    <p className="mt-1 text-xs text-muted">
-                      {sourceLine(hit)} · {hit.subtitle}
-                    </p>
-                  </div>
-                  <Button size="sm" variant={pinnedHit ? "default" : "secondary"} onClick={() => togglePin(hit)}>
-                    {pinnedHit ? "已參考" : "加入參考"}
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
+          <p className="mt-1 text-xs text-muted">
+            可釘選給 AI 當風格參考。來源會標出來。
+            {Object.entries(foundGroups)
+              .map(([source, list]) => `${sourceLabelOf(source)} ${list.length}`)
+              .join(" · ")}
+          </p>
+          {Object.entries(foundGroups).map(([source, list]) => (
+            <div key={source} className="mt-3">
+              <h3 className="text-xs tracking-[0.14em] text-muted uppercase">{sourceLabelOf(source)}</h3>
+              <ul className="mt-2 space-y-2">
+                {list.map((hit) => {
+                  const pinnedHit = pinned.some((row) => row.id === hit.id);
+                  const thumb = hit.thumbnail || (hit.assetId ? urls[hit.assetId] : undefined);
+                  return (
+                    <li key={hit.id} className="flex items-center gap-3 rounded-2xl bg-surface px-3 py-2 text-sm shadow-[var(--shadow-border)]">
+                      {thumb ? (
+                        <img src={thumb} alt="" className="size-12 shrink-0 rounded-xl object-cover" />
+                      ) : (
+                        <span className="size-12 shrink-0 rounded-xl bg-surface-2" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate">{hit.title}</p>
+                        <p className="mt-1 truncate text-xs text-muted">
+                          {sourceLine(hit)} · {hit.subtitle}
+                        </p>
+                      </div>
+                      <Button size="sm" variant={pinnedHit ? "default" : "secondary"} onClick={() => togglePin(hit)}>
+                        {pinnedHit ? "已參考" : "加入參考"}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </section>
       ) : null}
 
@@ -901,10 +920,14 @@ function toCreateImageFormat(mode: string) {
 }
 
 function sourceLine(hit: CreativeHit) {
-  if (hit.source === "drive") return "Google Drive";
-  if (hit.source === "canva") return "Canva";
-  if (hit.source === "instagram") return "Instagram";
-  if (hit.source === "generated") return "AI Generated";
+  return sourceLabelOf(hit.source);
+}
+
+function sourceLabelOf(source: string) {
+  if (source === "drive") return "Google Drive";
+  if (source === "canva") return "Canva";
+  if (source === "instagram") return "Instagram";
+  if (source === "generated") return "AI Generated";
   return "本機／品牌記憶";
 }
 

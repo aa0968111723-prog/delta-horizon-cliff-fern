@@ -96,7 +96,13 @@ export function HomePage() {
               </Button>
             </div>
             <div className="flex items-center justify-center">
-              {board && brand && heroProject ? (
+              {upcoming.imageAssetId && urls[upcoming.imageAssetId] ? (
+                <img
+                  src={urls[upcoming.imageAssetId]}
+                  alt={upcoming.name}
+                  className="w-40 rounded-2xl bg-bg/20 object-cover shadow-[var(--shadow-artboard)]"
+                />
+              ) : board && brand && heroProject ? (
                 <div className="rounded-2xl bg-bg/20 p-3">
                   <ArtboardView artboard={board} brand={brand} urls={urls} width={160} />
                 </div>
@@ -164,12 +170,17 @@ export function HomePage() {
         ) : (
           <ul className="space-y-2">
             {scheduled.map((item) => (
-              <li key={item.id} className="flex items-center justify-between rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
-                <div>
-                  <p className="text-sm">{item.title}</p>
+              <li key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+                <div className="flex min-w-0 items-center gap-3">
+                  {item.imageAssetId && urls[item.imageAssetId] ? (
+                    <img src={urls[item.imageAssetId]} alt="" className="size-12 shrink-0 rounded-xl object-cover" />
+                  ) : null}
+                  <div className="min-w-0">
+                  <p className="truncate text-sm">{item.title}</p>
                   <p className="text-xs text-muted">
                     {contentKindLabel(item.kind)} · {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })}
                   </p>
+                  </div>
                 </div>
               </li>
             ))}
