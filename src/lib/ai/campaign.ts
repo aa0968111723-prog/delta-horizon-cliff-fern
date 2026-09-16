@@ -154,7 +154,7 @@ eyebrow, headline, subhead, body, cta,
 captions[{style,text}] 至少含 學生版、短版、感性版，
 hashtags 8-12 個（含淡江、社團、精準活動詞），
 storyBeats 3-5 則限動分鏡（若不需要限動可給空陣列），
-carouselPages[{role:cover|problem|detail|proof|cta|close,headline,subhead,body,cta,visualNote,templateId}] ${data.wantCarousel ? "必須 6 頁，角色依序 cover, problem, detail, proof, cta, close" : "1 頁封面"},
+carouselPages[{role:cover|problem|detail|proof|cta|close,headline,subhead,body,cta,visualNote,templateId}] ${data.wantCarousel ? "必須 6 頁，角色依序 cover, problem, detail, proof, cta, close。cover.headline 必須是學生 Hook 問句，禁止活動名；第2頁情境、第3頁痛點、第4頁活動內容、第5頁 CTA（時間地點）" : "1 頁封面"},
 assetNeeds[{kind:photo|people|background|logo|illustration,title,detail,required}],
 checklist 5-8 則發布前檢查,
 altText, qaNotes 2-4 則設計注意,

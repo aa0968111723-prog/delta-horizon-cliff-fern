@@ -16,6 +16,7 @@ test("carouselPosterInputs uses each page headline, not campaign-wave dumps", ()
   assert.equal(inputs[0]?.headline, "最近是不是很久沒坐好？");
   assert.equal(inputs[1]?.subhead, "情境");
   assert.equal(inputs[2]?.height, 1350);
+  assert.notEqual(inputs[0]?.headline, "茶會");
   assert.equal(shouldPublishCarousel("carousel", inputs.length), true);
   assert.equal(shouldPublishCarousel("carousel", 1), false);
   assert.equal(shouldPublishCarousel("story", 6), false);

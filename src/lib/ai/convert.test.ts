@@ -31,6 +31,8 @@ test("convertPlan expands carousel and reels without assignee fields", () => {
   const carousel = convertPlan(plan, "carousel");
   assert.ok(carousel.items.length >= 5);
   assert.match(carousel.items[0] ?? "", /第 1 頁/);
+  assert.match(carousel.items[0] ?? "", /[？?]|坐下來|晚上|快樂|休息/);
+  assert.doesNotMatch(carousel.items[0] ?? "", /第 1 頁 封面 Hook：浮游禪光/);
   assert.doesNotMatch(carousel.items.join(" "), /Page \d/);
   assert.match(plan.directions?.[0]?.name ?? "", /方向 A/);
   assert.match(plan.directions?.[1]?.name ?? "", /方向 B/);

@@ -30,6 +30,11 @@ export function applyDirectionToPlan(plan: CampaignPlan, dir: VisualDirection): 
     storyFrames: plan.storyFrames?.length
       ? plan.storyFrames.map((frame, index) => (index === 0 || frame === plan.hook ? hook : frame))
       : plan.storyFrames,
+    carouselPages: plan.carouselPages?.length
+      ? plan.carouselPages.map((page, index) =>
+          index === 0 || page.role === "cover" ? { ...page, headline: hook } : page,
+        )
+      : plan.carouselPages,
     reelsScript: plan.reelsScript
       ? {
           ...plan.reelsScript,

@@ -57,6 +57,19 @@ test("completeCarouselPages fills the six-role script", () => {
   assert.ok(pages[1].body.includes("理由"));
 });
 
+test("completeCarouselPages uses the student hook when cover is missing", () => {
+  const pages = completeCarouselPages([], {
+    headline: "茶會",
+    subhead: "9/24 19:00",
+    body: "坐下",
+    cta: "來坐一下",
+    hook: "可以自己來？",
+    insight: "課表很滿",
+  });
+  assert.equal(pages[0]?.headline, "可以自己來？");
+  assert.notEqual(pages[0]?.headline, "茶會");
+});
+
 test("copyFromArtboard reads text roles", () => {
   const headline: TextLayer = {
     id: "t1",

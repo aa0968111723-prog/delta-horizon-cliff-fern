@@ -191,7 +191,11 @@ export function completeCarouselPages(
       };
     }
     const defaults: Record<CarouselPageRole, Pick<CarouselPagePlan, "headline" | "subhead" | "body">> = {
-      cover: { headline: fallback.headline, subhead: fallback.subhead, body: fallback.hook || fallback.body },
+      cover: {
+        headline: fallback.hook || fallback.headline,
+        subhead: fallback.subhead,
+        body: fallback.hook || fallback.body,
+      },
       problem: {
         headline: "為什麼現在看",
         subhead: fallback.insight || fallback.subhead,

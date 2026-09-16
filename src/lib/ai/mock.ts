@@ -4,6 +4,7 @@ import { directionsFromResearch, researchInspiration } from "../zen/inspiration.
 import { hookFromMemoryHint } from "../zen/memory-hook.ts";
 import { proposedHook, tidyCopy } from "../zen/review.ts";
 import { goalLabel } from "../studio/goals.ts";
+import { zenCarouselPages } from "./carousel-pages.ts";
 import type { CampaignPlan, CarouselPagePlan, CopyPack, StudentReview, TemplateId, VisualDirection } from "../studio/types.ts";
 import type { BriefInput } from "./schema.ts";
 
@@ -86,7 +87,18 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
           .join("\n"),
   );
 
-  const pages: CarouselPagePlan[] = data.wantCarousel
+  const pages: CarouselPagePlan[] = zen
+    ? zenCarouselPages({
+        hook,
+        name,
+        when,
+        where,
+        audience,
+        insight,
+        features,
+        cta,
+      }).slice(0, data.wantCarousel ? 6 : 1)
+    : data.wantCarousel
     ? [
         {
           role: "cover",

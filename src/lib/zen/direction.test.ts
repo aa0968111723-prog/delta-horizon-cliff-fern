@@ -22,7 +22,10 @@ test("applyDirectionToPlan follows the picked visual, not a temple poster", () =
     captions: [],
     hashtags: [],
     storyBeats: [],
-    carouselPages: [],
+    carouselPages: [
+      { role: "cover" as const, headline: "茶會", subhead: "", body: "", cta: "來坐一下", visualNote: "", templateId: "quote" as const },
+      { role: "proof" as const, headline: "茶會", subhead: "9/24", body: "", cta: "來坐一下", visualNote: "", templateId: "product" as const },
+    ],
     assetNeeds: [],
     checklist: [],
     altText: "",
@@ -57,6 +60,8 @@ test("applyDirectionToPlan follows the picked visual, not a temple poster", () =
   assert.match(next.threadsPost ?? "", /^可以自己來？/);
   assert.equal(next.storyFrames?.[0], "可以自己來？");
   assert.equal(next.storyFrames?.[2], "9/24 19:00 淡水校園");
+  assert.equal(next.carouselPages?.[0]?.headline, "可以自己來？");
+  assert.equal(next.carouselPages?.[1]?.headline, "茶會");
   assert.equal(next.reelsScript?.hook, "可以自己來？");
   assert.equal(next.reelsScript?.beats[0]?.caption, "可以自己來？");
   assert.equal(next.reelsScript?.beats[1]?.caption, "人可以慢");

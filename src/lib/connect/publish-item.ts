@@ -7,6 +7,7 @@ import { extraFromIgMemory, insightsLearnPatch } from "@/lib/connect/insights-le
 import { shouldPublishCarousel } from "@/lib/connect/instagram-graph";
 import { publishInstagramMedia } from "@/lib/connect/instagram-publish";
 import { carouselPosterInputs, pickCarouselPages } from "@/lib/connect/publish-slides";
+import { encodedCarouselIds } from "@/lib/ai/carousel-pages";
 import { syncConnection } from "@/lib/connect/sync";
 import { getAssetBlob } from "@/lib/studio/assets-idb";
 import { bytesToBase64 } from "@/lib/studio/bytes";
@@ -77,21 +78,31 @@ async function collectSlides(
       }
     }
   }
+  const storedIds = encodedCarouselIds(item);
+  if (item.kind === "carousel" && storedIds.length >= 2) {
+    const stored: string[] = [];
+    for (const id of storedIds) {
+      const png = await pngFromAsset(id, format);
+      if (png) stored.push(png);
+    }
+    if (stored.length >= 2) return { slides: stored, imageUrl };
+  }
   if (!shouldPublishCarousel(item.kind, pages.length)) {
     return { slides: hero ? [hero] : [], imageUrl };
   }
   const slides: string[] = [];
-  const inputs = carouselPosterInputs(pages, { title: item.title, name: project?.name });
+  const inputs = carouselPosterInputs(pages, {
+    title: item.title,
+    name: project?.name,
+    hook: project?.plan?.hook,
+    palette: project?.plan?.colorMood,
+  });
   for (let i = 0; i < inputs.length; i++) {
-    if (i === 0 && hero) {
-      slides.push(hero);
-      continue;
-    }
     const svg = directionPosterSvg(inputs[i]!);
     const png = await pngFromBase64(encodeUtf8Base64(svg), "image/svg+xml", format);
     if (png) slides.push(png);
   }
-  return { slides, imageUrl };
+  return { slides: slides.length ? slides : hero ? [hero] : [], imageUrl };
 }
 
 async function refreshIgInsightsAfterPublish(extra?: PublishItemExtra): Promise<{

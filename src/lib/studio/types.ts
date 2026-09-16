@@ -549,6 +549,7 @@ export type ScheduleItem = {
   hashtags?: string[];
   mediaUrl?: string;
   imageAssetId?: string;
+  slideAssetIds?: string[];
   videoAssetId?: string;
   permalink?: string;
   igMediaId?: string;

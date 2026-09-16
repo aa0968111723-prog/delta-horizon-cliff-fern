@@ -4,8 +4,10 @@ import type { IgMemoryPost, ScheduleItem } from "@/lib/studio/types";
 import { feelLabel, type PostFeel } from "@/lib/zen/feel";
 import { isDue } from "@/lib/zen/schedule";
 import { previewMediaId } from "@/lib/ai/reels-asset";
+import { encodedCarouselIds } from "@/lib/ai/carousel-pages";
 import { contentKindLabel } from "@/lib/studio/content";
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 
 export function IgFeedPreview({
   handle,
@@ -35,7 +37,10 @@ export function IgFeedPreview({
   onSelect: (id: string) => void;
 }) {
   const feedUpcoming = upcoming.filter((item) => item.kind === "ig-post" || item.kind === "carousel");
-  const nextUp = feedUpcoming[0];
+  const nextCarousel =
+    upcoming.find((item) => item.kind === "carousel" && encodedCarouselIds(item).length >= 2) ??
+    upcoming.find((item) => item.kind === "carousel");
+  const nextUp = feedUpcoming.find((item) => item.id !== nextCarousel?.id) ?? (nextCarousel ? undefined : feedUpcoming[0]);
   const nextReel = reels[0];
   const orderedMemory = postedId
     ? [...memory.filter((post) => post.id === postedId), ...memory.filter((post) => post.id !== postedId)]
@@ -82,6 +87,8 @@ export function IgFeedPreview({
           </div>
         </div>
       ) : null}
+
+      {nextCarousel ? <CarouselPreview item={nextCarousel} urls={urls} publishingId={publishingId} onPublish={onPublish} /> : null}
 
       <h2 className="text-sm font-medium">Feed Preview</h2>
       <p className="mt-1 text-xs text-muted">像學生滑到的樣子。剛發布的在上面，可以標記會不會停。</p>
@@ -176,5 +183,81 @@ export function IgFeedPreview({
         </ul>
       </div>
     </section>
+  );
+}
+
+function CarouselPreview({
+  item,
+  urls,
+  publishingId,
+  onPublish,
+}: {
+  item: ScheduleItem;
+  urls: Record<string, string>;
+  publishingId: string | null;
+  onPublish: (item: ScheduleItem) => void;
+}) {
+  const slides = encodedCarouselIds(item);
+  const [page, setPage] = useState(0);
+  const cover = item.imageAssetId ? urls[item.imageAssetId] : undefined;
+  const src = slides[page] ? urls[slides[page]!] : cover;
+
+  return (
+    <div className="mx-auto mb-8 w-full max-w-[18rem] sm:max-w-[20rem]" data-testid="ig-carousel-preview">
+      <h2 className="text-sm font-medium">Carousel Preview</h2>
+      <p className="mt-1 text-xs text-muted">4:5 多頁。第一頁是學生 Hook。</p>
+      <div className="mt-3 overflow-hidden rounded-[1.75rem] bg-surface p-2 shadow-[var(--shadow-artboard)]">
+        {src ? (
+          <AssetMedia src={src} className="aspect-[4/5] w-full rounded-[1.4rem]" testId="ig-carousel-page" />
+        ) : (
+          <div className="flex aspect-[4/5] items-end rounded-[1.4rem] bg-surface-2 p-4 text-sm">{item.title}</div>
+        )}
+        {slides.length >= 2 ? (
+          <div className="mt-2 flex items-center justify-between gap-2 px-1">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="min-h-11"
+              disabled={page === 0}
+              onClick={() => setPage((n) => Math.max(0, n - 1))}
+            >
+              上一頁
+            </Button>
+            <p className="text-xs text-muted">
+              {page + 1} / {slides.length}
+            </p>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="min-h-11"
+              disabled={page >= slides.length - 1}
+              data-testid="ig-carousel-next"
+              onClick={() => setPage((n) => Math.min(slides.length - 1, n + 1))}
+            >
+              下一頁
+            </Button>
+          </div>
+        ) : (
+          <Button className="mt-2 min-h-11 w-full" size="sm" variant="secondary" asChild>
+            <Link to="/create" search={{ mode: "carousel", idea: item.caption || item.title }}>
+              編成 Carousel
+            </Link>
+          </Button>
+        )}
+        <p className="mt-2 px-1 text-xs text-muted">{isDue(item) ? "現在可以發" : "即將"} · Carousel</p>
+        <p className="mt-1 line-clamp-2 px-1 text-sm">{item.caption || item.title}</p>
+        {slides.length >= 2 ? (
+          <Button
+            className="mt-2 min-h-11 w-full"
+            size="sm"
+            disabled={publishingId === item.id}
+            data-testid="ig-carousel-publish"
+            onClick={() => onPublish(item)}
+          >
+            發布到 IG
+          </Button>
+        ) : null}
+      </div>
+    </div>
   );
 }

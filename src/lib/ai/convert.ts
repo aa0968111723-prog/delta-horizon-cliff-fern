@@ -1,4 +1,5 @@
-import type { CampaignPlan, CarouselPagePlan, ContentKind } from "@/lib/studio/types";
+import type { CampaignPlan, ContentKind } from "@/lib/studio/types";
+import { carouselPageLine, carouselPagesFromPlan } from "./carousel-pages.ts";
 import { tidyCopy } from "../zen/review.ts";
 
 export type ConvertedPack = {
@@ -7,32 +8,10 @@ export type ConvertedPack = {
   items: string[];
 };
 
-const PAGE_ROLE: Record<string, string> = {
-  cover: "封面 Hook",
-  problem: "情境",
-  detail: "痛點",
-  proof: "活動內容",
-  cta: "CTA",
-  close: "收束",
-};
-
-export function carouselPageLine(page: Pick<CarouselPagePlan, "role" | "headline">, index: number) {
-  const role = PAGE_ROLE[page.role] ?? page.role;
-  return `第 ${index + 1} 頁 ${role}：${page.headline.replace(/\n/g, " ")}`;
-}
-
 export function convertPlan(plan: CampaignPlan, kind: ContentKind): ConvertedPack {
   const when = plan.subhead || plan.cta;
   if (kind === "carousel") {
-    const pages = plan.carouselPages.length
-      ? plan.carouselPages.map((page, i) => carouselPageLine(page, i))
-      : [
-          `第 1 頁 封面 Hook：${plan.hook}`,
-          `第 2 頁 情境：${plan.insight}`,
-          `第 3 頁 痛點：${plan.concept}`,
-          `第 4 頁 活動內容：${plan.body}`,
-          `第 5 頁 CTA：${plan.cta}`,
-        ];
+    const pages = carouselPagesFromPlan(plan).map((page, i) => carouselPageLine(page, i));
     return { kind, title: "Carousel", items: pages };
   }
   if (kind === "story") {

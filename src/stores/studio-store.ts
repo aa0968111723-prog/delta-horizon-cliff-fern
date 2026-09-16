@@ -299,6 +299,7 @@ function migrateScheduleItem(raw: ScheduleItem): ScheduleItem {
     caption: raw.caption ?? seed?.caption ?? "",
     hashtags: raw.hashtags ?? seed?.hashtags ?? [],
     imageAssetId: raw.imageAssetId ?? seed?.imageAssetId,
+    slideAssetIds: Array.isArray(raw.slideAssetIds) ? raw.slideAssetIds.filter(Boolean) : undefined,
     videoAssetId: raw.videoAssetId,
   };
 }

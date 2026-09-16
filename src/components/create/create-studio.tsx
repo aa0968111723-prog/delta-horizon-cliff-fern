@@ -48,6 +48,7 @@ import {
 } from "@/lib/zen/schedule";
 import type { WaveDraft } from "@/lib/ai/wave";
 import type { CampaignPlan, CampaignWaveKind, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
+import { CarouselBoard } from "@/components/create/carousel-board";
 import { HeroVisual } from "@/components/create/hero-visual";
 import { ReelsBoard } from "@/components/create/reels-board";
 import { ShareBoard } from "@/components/create/share-board";
@@ -313,7 +314,11 @@ export function CreateStudio() {
       setCampaign({ ...currentCampaign, oneLiner: hook });
       for (const item of useStudio.getState().schedule.filter((row) => row.campaignId === currentCampaign.id)) {
         if (item.kind === "story" || item.kind === "countdown") continue;
-        upsertSchedule({ ...item, caption, body: next.body });
+        upsertSchedule({
+          ...item,
+          caption,
+          body: item.kind === "carousel" ? item.body : next.body,
+        });
       }
     }
     if (toastMsg) toast.success(toastMsg);
@@ -873,6 +878,7 @@ export function CreateStudio() {
         continue;
       }
       const prev = existing.find((item) => item.kind === pack.kind);
+      const slideAssetIds = pack.kind === "carousel" ? prev?.slideAssetIds : undefined;
       upsertSchedule({
         id: prev?.id ?? uid("sch"),
         projectId,
@@ -885,8 +891,9 @@ export function CreateStudio() {
         caption: packCaption(nextPlan, pack),
         body: pack.items.join("\n"),
         hashtags: nextPlan.hashtags,
-        imageAssetId: assetId,
+        imageAssetId: slideAssetIds?.[0] ?? (pack.kind === "carousel" ? prev?.imageAssetId : assetId) ?? assetId,
         mediaUrl: undefined,
+        ...(pack.kind === "carousel" && slideAssetIds?.length ? { slideAssetIds } : {}),
         ...(pack.kind === "reels" && created.videoAssetId ? { videoAssetId: created.videoAssetId } : {}),
       });
     }
@@ -1083,7 +1090,11 @@ export function CreateStudio() {
       }
       for (const item of useStudio.getState().schedule.filter((row) => row.campaignId === created.id)) {
         if (item.kind === "story" || item.kind === "countdown") continue;
-        upsertSchedule({ ...item, caption: cleaned.caption, body: cleaned.body });
+        upsertSchedule({
+          ...item,
+          caption: cleaned.caption,
+          body: item.kind === "carousel" ? item.body : cleaned.body,
+        });
       }
       toast.success("已用這個方向做出整套：主視覺、文案、各平台、月曆");
       requestAnimationFrame(() => {
@@ -1498,6 +1509,15 @@ export function CreateStudio() {
             </div>
           ) : null}
         </section>
+      ) : null}
+
+      {plan ? (
+        <CarouselBoard
+          plan={plan}
+          eventName={eventName || plan.campaignName}
+          campaignId={campaign?.id}
+          onSchedule={() => saveCampaignAndWaves()}
+        />
       ) : null}
 
       {plan?.reelsScript ? (
