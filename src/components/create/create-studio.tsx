@@ -32,7 +32,16 @@ import { offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
 import { searchCreative, groupCreativeHits, type CreativeHit } from "@/lib/zen/search";
 import { pickSourceRefs, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
-import { suggestWaves, eventKindFromText, waveLabel, contentKindForWave, waveVisualVariation } from "@/lib/zen/schedule";
+import {
+  suggestWaves,
+  eventKindFromText,
+  waveLabel,
+  contentKindForWave,
+  waveVisualVariation,
+  mergeCampaignWaves,
+  scheduleItemsForWave,
+} from "@/lib/zen/schedule";
+import type { WaveDraft } from "@/lib/ai/wave";
 import type { CampaignPlan, CampaignWaveKind, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
 import { HeroVisual } from "@/components/create/hero-visual";
 import { ReelsBoard } from "@/components/create/reels-board";
@@ -72,7 +81,7 @@ const MODE_HINT: Record<string, string> = {
 };
 
 export function CreateStudio() {
-  const search = useSearch({ strict: false }) as { mode?: string; idea?: string; asset?: string };
+  const search = useSearch({ strict: false }) as { mode?: string; idea?: string; asset?: string; campaign?: string };
   const navigate = useNavigate();
   const brands = useStudio((s) => s.brands);
   const hydrated = useStudio((s) => s.hydrated);
@@ -83,8 +92,10 @@ export function CreateStudio() {
   const remoteFiles = useStudio((s) => s.remoteFiles);
   const calendar = useStudio((s) => s.schedule);
   const createProject = useStudio((s) => s.createProject);
+  const updateProject = useStudio((s) => s.updateProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const createCampaign = useStudio((s) => s.createCampaign);
+  const updateCampaign = useStudio((s) => s.updateCampaign);
   const upsertSchedule = useStudio((s) => s.upsertSchedule);
   const addAsset = useStudio((s) => s.addAsset);
   const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
@@ -154,8 +165,11 @@ export function CreateStudio() {
     if (search.idea) setIdea(search.idea);
     const guessed = guessEventName(search.idea || "");
     if (guessed) setEventName(guessed);
-    const existing = campaigns.find((c) => search.idea && (c.name === search.idea || c.oneLiner === search.idea));
+    const existing =
+      campaigns.find((c) => search.campaign && c.id === search.campaign) ??
+      campaigns.find((c) => search.idea && (c.name === search.idea || c.oneLiner === search.idea));
     if (existing) {
+      setCampaign(existing);
       setEventName(existing.name);
       setLocation(existing.location);
       setStudentPain(existing.studentPain || "開學後行程變滿，休息會心虛。");
@@ -164,10 +178,12 @@ export function CreateStudio() {
       setDescription(existing.description);
       setTheme(existing.theme);
       if (existing.date) setSchedule(`${existing.date.replaceAll("-", "/")} ${existing.time}`.trim());
+      const looks = looksFromCampaign(existing);
+      if (Object.keys(looks).length) setWaveLookIds((current) => ({ ...looks, ...current }));
     } else if (search.idea) {
       setSchedule(defaultScheduleText(search.idea));
     }
-  }, [search.idea]);
+  }, [search.idea, search.campaign]);
 
   const activePack = packs.find((p) => p.tone === tone) ?? packs[0];
   const mode = search.mode || "idea";
@@ -250,15 +266,107 @@ export function CreateStudio() {
   async function swapWaveVisual(kind: CampaignWaveKind) {
     const dir = pickedDirection || directions[0];
     if (!dir) return;
-    const assetId = await saveGeneratedImage(dir, { kind: waveVisualVariation(kind), silent: true });
+    const asHero = kind === "hero";
+    const assetId = await saveGeneratedImage(dir, { kind: waveVisualVariation(kind), silent: true, asHero });
     if (!assetId) return;
     setWaveLookIds((current) => ({ ...current, [kind]: assetId }));
-    const label = waveLabel(kind);
-    for (const item of calendar) {
-      if (campaign && item.campaignId === campaign.id && item.title.startsWith(label)) {
+    const currentCampaign = campaign;
+    if (currentCampaign) {
+      const waves = currentCampaign.waves.map((wave) =>
+        wave.kind === kind ? { ...wave, imageAssetId: assetId } : wave,
+      );
+      updateCampaign(currentCampaign.id, {
+        waves,
+        imageAssetId: asHero ? assetId : currentCampaign.imageAssetId,
+      });
+      setCampaign({ ...currentCampaign, waves, imageAssetId: asHero ? assetId : currentCampaign.imageAssetId });
+      for (const item of scheduleItemsForWave(useStudio.getState().schedule, currentCampaign.id, kind)) {
         upsertSchedule({ ...item, imageAssetId: assetId });
       }
     }
+  }
+
+  async function saveLocalWavePoster(dir: VisualDirection, kind: CampaignWaveKind) {
+    const variation = waveVisualVariation(kind);
+    const spec = formatById(toImageFormat(toCreateImageFormat(mode)));
+    const payload = posterPayloadFromDirection(
+      { ...dir, name: `${waveLabel(kind)} · ${dir.name}` },
+      spec,
+      variation,
+    );
+    const id = uid("asset");
+    await putAssetBlob(id, blobFromBase64(payload.imageBase64, payload.mime));
+    addAsset({
+      id,
+      name: `${waveLabel(kind)} · ${dir.name}`,
+      kind: "image",
+      category: "ai",
+      mime: payload.mime,
+      width: spec.width,
+      height: spec.height,
+      tags: ["AI 生成", waveLabel(kind), eventName || idea],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      source: "generated",
+      licenseNotes: "來源：AI Generated",
+      licenseOwner: "禪光",
+      favorite: false,
+      lastUsedAt: Date.now(),
+      useCount: 0,
+    });
+    return id;
+  }
+
+  async function attachWaveLooks(created: ClubCampaign, dir: VisualDirection, heroId: string) {
+    const pairs = await Promise.all(
+      created.waves
+        .filter((wave) => wave.kind !== "hero")
+        .map(async (wave) => [wave.kind, await saveLocalWavePoster(dir, wave.kind)] as const),
+    );
+    const looks: Partial<Record<CampaignWaveKind, string>> = { hero: heroId };
+    for (const [kind, assetId] of pairs) looks[kind] = assetId;
+    const waves = created.waves.map((wave) => ({ ...wave, imageAssetId: looks[wave.kind] ?? heroId }));
+    const assetIds = [...new Set(waves.map((wave) => wave.imageAssetId).filter((id): id is string => Boolean(id)))];
+    updateCampaign(created.id, { waves, imageAssetId: heroId, assetIds });
+    setCampaign({ ...created, waves, imageAssetId: heroId, assetIds });
+    setWaveLookIds(looks);
+    const rows = useStudio.getState().schedule;
+    for (const wave of waves) {
+      const assetId = looks[wave.kind];
+      if (!assetId) continue;
+      for (const item of scheduleItemsForWave(rows, created.id, wave.kind)) {
+        upsertSchedule({ ...item, imageAssetId: assetId });
+      }
+    }
+  }
+
+  function applyWaveCopy(draft: WaveDraft) {
+    setPacks((rows) =>
+      rows.map((pack) => ({
+        ...pack,
+        hook: draft.hook,
+        body: draft.body,
+        cta: draft.cta,
+      })),
+    );
+    setPlan((current) => (current ? { ...current, hook: draft.hook, body: draft.body, cta: draft.cta } : current));
+    const currentCampaign = campaign;
+    if (currentCampaign) {
+      const caption = `${draft.hook}\n${draft.body}`.trim();
+      const waves = currentCampaign.waves.map((wave) =>
+        wave.kind === draft.kind ? { ...wave, caption, notes: draft.visualNote || wave.notes } : wave,
+      );
+      updateCampaign(currentCampaign.id, { waves, oneLiner: draft.kind === "hero" ? draft.hook : currentCampaign.oneLiner });
+      setCampaign({
+        ...currentCampaign,
+        waves,
+        oneLiner: draft.kind === "hero" ? draft.hook : currentCampaign.oneLiner,
+      });
+      for (const item of scheduleItemsForWave(useStudio.getState().schedule, currentCampaign.id, draft.kind)) {
+        upsertSchedule({ ...item, caption, body: draft.body });
+      }
+    }
+    toast.success(`已套用「${draft.title}」文案`);
   }
 
   async function runCopy() {
@@ -466,7 +574,7 @@ export function CreateStudio() {
 
   async function saveGeneratedImage(
     dir: VisualDirection,
-    opts?: { kind?: (typeof VARIATIONS)[number]["id"]; format?: string; silent?: boolean },
+    opts?: { kind?: (typeof VARIATIONS)[number]["id"]; format?: string; silent?: boolean; asHero?: boolean },
   ) {
     const format = toImageFormat(opts?.format ?? toCreateImageFormat(mode));
     const spec = formatById(format);
@@ -531,7 +639,9 @@ export function CreateStudio() {
       lastUsedAt: Date.now(),
       useCount: 0,
     });
-    setLastImage({ base64: png.base64, mime: png.mime, assetId: id, headline: dir.headline, directionName: dir.name });
+    if (opts?.asHero !== false) {
+      setLastImage({ base64: png.base64, mime: png.mime, assetId: id, headline: dir.headline, directionName: dir.name });
+    }
     if (!opts?.silent) toast.success("圖片已進素材庫（AI Generated）");
     return id;
   }
@@ -586,8 +696,17 @@ export function CreateStudio() {
     const name = eventName.trim() || guessEventName(`${idea} ${nextPlan?.campaignName ?? ""}`) || nextPlan?.campaignName || "未命名活動";
     const date = parseEventDate(`${schedule} ${idea}`);
     const type = eventKindFromText(`${name} ${idea}`);
-    const waves = suggestWaves({ date, type, name }, new Date(), { recentKinds });
-    const created = createCampaign({
+    const existing =
+      (search.campaign ? campaigns.find((row) => row.id === search.campaign) : undefined) ??
+      campaigns.find((row) => row.name === name && row.date === date) ??
+      (campaign && campaign.name === name ? campaign : undefined);
+    const fresh = suggestWaves({ date, type, name }, new Date(), { recentKinds });
+    const waves = mergeCampaignWaves(existing?.waves, fresh).map((wave) => ({
+      ...wave,
+      imageAssetId: wave.imageAssetId ?? assetId,
+      projectId: projectId ?? wave.projectId,
+    }));
+    const patch = {
       name,
       type,
       date,
@@ -600,8 +719,15 @@ export function CreateStudio() {
       cta: nextPlan?.cta || "來坐一下",
       signupUrl,
       waves,
-      imageAssetId: assetId ?? null,
-    });
+      imageAssetId: assetId ?? existing?.imageAssetId ?? null,
+    };
+    let created: ClubCampaign;
+    if (existing) {
+      updateCampaign(existing.id, patch);
+      created = { ...existing, ...patch, id: existing.id, createdAt: existing.createdAt, updatedAt: Date.now() };
+    } else {
+      created = createCampaign(patch);
+    }
     for (const wave of waves) {
       if (!wave.scheduledAt) continue;
       upsertSchedule({
@@ -613,10 +739,10 @@ export function CreateStudio() {
         scheduledAt: wave.scheduledAt,
         publishedAt: null,
         status: "scheduled",
-        caption: oneLiner || nextPlan?.hook || idea,
+        caption: wave.caption || oneLiner || nextPlan?.hook || idea,
         body: description || nextPlan?.body,
         hashtags: nextPlan?.hashtags,
-        imageAssetId: assetId,
+        imageAssetId: wave.imageAssetId ?? assetId,
       });
     }
     setCampaign(created);
@@ -712,11 +838,10 @@ export function CreateStudio() {
           : ((await saveGeneratedImage(dir, { silent: true })) ?? lastImage?.assetId);
       const project = applyToCanvas(next, false, imageId);
       const created = saveCampaignAndWaves(next, imageId, project?.id ?? null, { silent: true });
+      if (project) updateProject(project.id, { campaignId: created.id });
       scheduleConverted(next, created, project?.id ?? null, imageId);
       if (imageId) {
-        const looks: Partial<Record<CampaignWaveKind, string>> = {};
-        for (const wave of created.waves) looks[wave.kind] = imageId;
-        setWaveLookIds(looks);
+        await attachWaveLooks(created, dir, imageId);
       }
       toast.success("已用這個方向做出整套：主視覺、文案、各平台、月曆");
       requestAnimationFrame(() => {
@@ -1013,6 +1138,13 @@ export function CreateStudio() {
               })),
             );
             setPlan((current) => (current ? { ...current, hook } : current));
+            if (campaign) {
+              updateCampaign(campaign.id, { oneLiner: hook });
+              setCampaign({ ...campaign, oneLiner: hook });
+              for (const item of scheduleItemsForWave(useStudio.getState().schedule, campaign.id, "hero")) {
+                upsertSchedule({ ...item, caption: hook });
+              }
+            }
             toast.success("已套用學生視角 Hook");
           }}
         />
@@ -1094,18 +1226,7 @@ export function CreateStudio() {
             }),
           )}
           onSwapVisual={(kind) => swapWaveVisual(kind)}
-          onApplyDraft={(draft) => {
-            setPacks((rows) =>
-              rows.map((pack) => ({
-                ...pack,
-                hook: draft.hook,
-                body: draft.body,
-                cta: draft.cta,
-              })),
-            );
-            setPlan((current) => (current ? { ...current, hook: draft.hook, body: draft.body, cta: draft.cta } : current));
-            toast.success(`已套用「${draft.title}」文案`);
-          }}
+          onApplyDraft={applyWaveCopy}
         />
       ) : null}
 
@@ -1159,7 +1280,9 @@ export function CreateStudio() {
                         data-testid={hit.source === "canva" ? "extend-canva" : undefined}
                         onClick={() => {
                           if (!pinnedHit) togglePin(hit);
-                          else toast.success(`已用${sourceLine(hit)}延伸`);
+                          const nextIdea = `${idea}。延續「${hit.title}」的品牌 DNA，做新的活動，不要複製舊作品。`;
+                          setIdea(nextIdea);
+                          void runKit(nextIdea);
                         }}
                       >
                         延伸新設計
@@ -1217,6 +1340,14 @@ function sourceLabelOf(source: string) {
   if (source === "instagram") return "Instagram";
   if (source === "generated") return "AI Generated";
   return "本機／品牌記憶";
+}
+
+function looksFromCampaign(created: ClubCampaign): Partial<Record<CampaignWaveKind, string>> {
+  const looks: Partial<Record<CampaignWaveKind, string>> = {};
+  for (const wave of created.waves) {
+    if (wave.imageAssetId) looks[wave.kind] = wave.imageAssetId;
+  }
+  return looks;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

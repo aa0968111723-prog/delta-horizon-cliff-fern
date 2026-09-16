@@ -100,7 +100,8 @@ export function HomePage() {
                     to: "/create",
                     search: {
                       mode: "campaign",
-                      idea: `${upcoming.name} ${upcoming.date} ${upcoming.oneLiner}`.trim(),
+                      idea: upcoming.name,
+                      campaign: upcoming.id,
                     },
                   });
                 }}
@@ -177,7 +178,7 @@ export function HomePage() {
                 className="mt-3"
                 size="sm"
                 variant="secondary"
-                onClick={() => void navigate({ to: "/create", search: { mode: "campaign", idea: c.name } })}
+                onClick={() => void navigate({ to: "/create", search: { mode: "campaign", idea: c.name, campaign: c.id } })}
               >
                 AI 生成完整宣傳
               </Button>

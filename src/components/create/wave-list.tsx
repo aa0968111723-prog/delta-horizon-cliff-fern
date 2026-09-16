@@ -63,7 +63,13 @@ export function WaveList({
             <li key={wave.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
               <div className="flex gap-3">
                 {look ? (
-                  <img src={look} alt="" data-testid="wave-visual" className="size-16 shrink-0 rounded-xl object-cover" />
+                  <img
+                    src={look}
+                    alt=""
+                    data-testid="wave-visual"
+                    data-wave-kind={wave.kind}
+                    className="size-16 shrink-0 rounded-xl object-cover"
+                  />
                 ) : null}
                 <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">{wave.title}</p>
@@ -79,7 +85,7 @@ export function WaveList({
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {draft && onApplyDraft ? (
-                  <Button size="sm" onClick={() => onApplyDraft(draft)}>
+                  <Button size="sm" data-testid="wave-apply-draft" onClick={() => onApplyDraft(draft)}>
                     套用這則文案
                   </Button>
                 ) : null}

@@ -10,6 +10,7 @@ export const Route = createFileRoute("/create")({
       mode: typeof search.mode === "string" ? search.mode : undefined,
       idea: typeof search.idea === "string" ? search.idea : undefined,
       asset: typeof search.asset === "string" ? search.asset : undefined,
+      campaign: typeof search.campaign === "string" ? search.campaign : undefined,
     });
   },
   component: CreateStudio,

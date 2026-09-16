@@ -508,6 +508,8 @@ export type CampaignWave = {
   scheduledAt: number | null;
   projectId: string | null;
   notes: string;
+  imageAssetId?: string | null;
+  caption?: string;
 };
 
 export type ClubCampaign = {

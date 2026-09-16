@@ -150,38 +150,30 @@ export function CalendarPage() {
                             className="mt-1 size-6 rounded-md object-cover"
                           />
                         ) : null}
-                        {view === "month" ? (
-                          <button
-                            type="button"
-                            className="mt-1 text-[10px] text-accent"
-                            onClick={() => setEditingId(item.id)}
-                          >
-                            編輯
-                          </button>
-                        ) : (
                         <div className="mt-1 flex flex-wrap gap-1">
-                          <button type="button" className="text-[10px] text-muted" onClick={() => duplicate(item.id)}>
+                          <button type="button" className="min-h-8 text-[10px] text-muted" onClick={() => duplicate(item.id)}>
                             複製
                           </button>
-                          <button type="button" className="text-[10px] text-muted" onClick={() => setEditingId(item.id)}>
+                          <button type="button" className="min-h-8 text-[10px] text-muted" onClick={() => setEditingId(item.id)}>
                             編輯
                           </button>
-                          <button
-                            type="button"
-                            className="text-[10px] text-muted"
-                            onClick={() => publishSchedule(item.id)}
-                          >
-                            已發布
-                          </button>
+                          {view !== "month" ? (
+                            <button
+                              type="button"
+                              className="min-h-8 text-[10px] text-muted"
+                              onClick={() => publishSchedule(item.id)}
+                            >
+                              已發布
+                            </button>
+                          ) : null}
                           <Link
                             to="/create"
                             search={{ mode: "idea", idea: item.caption || item.title }}
-                            className="text-[10px] text-accent"
+                            className="inline-flex min-h-8 items-center text-[10px] text-accent"
                           >
                             AI 延伸
                           </Link>
                         </div>
-                        )}
                       </div>
                     </li>
                   ))}
@@ -266,7 +258,11 @@ export function CalendarPage() {
               </p>
               <p className="mt-1 font-medium">{c.name}</p>
               <p className="mt-1 text-sm text-muted">{c.oneLiner}</p>
-              <Link to="/create" search={{ mode: "campaign", idea: c.name }} className="mt-2 inline-block text-sm text-accent">
+              <Link
+                to="/create"
+                search={{ mode: "campaign", idea: c.name, campaign: c.id }}
+                className="mt-2 inline-block text-sm text-accent"
+              >
                 AI 延伸
               </Link>
             </li>

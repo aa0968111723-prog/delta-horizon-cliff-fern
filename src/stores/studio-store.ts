@@ -54,6 +54,7 @@ import type {
   Brief,
   CampaignPlan,
   ClubCampaign,
+  CampaignWave,
   ConnectionMeta,
   ContentKind,
   ContentStatus,
@@ -284,6 +285,21 @@ function migrateScheduleItem(raw: ScheduleItem): ScheduleItem {
     caption: raw.caption ?? seed?.caption ?? "",
     hashtags: raw.hashtags ?? seed?.hashtags ?? [],
     imageAssetId: raw.imageAssetId ?? seed?.imageAssetId,
+  };
+}
+
+function migrateWave(raw: CampaignWave): CampaignWave {
+  return {
+    ...raw,
+    imageAssetId: raw.imageAssetId ?? null,
+    caption: raw.caption ?? "",
+  };
+}
+
+function migrateCampaign(raw: ClubCampaign): ClubCampaign {
+  return {
+    ...raw,
+    waves: (raw.waves ?? []).map(migrateWave),
   };
 }
 
@@ -1280,7 +1296,7 @@ export const useStudio = create<StudioState>()(
           brands,
           assets,
           projects,
-          campaigns: p.campaigns ?? current.campaigns,
+          campaigns: (p.campaigns ?? current.campaigns).map(migrateCampaign),
           schedule: (p.schedule ?? current.schedule).map(migrateScheduleItem),
           connections: p.connections?.length ? p.connections : current.connections,
           igMemory: p.igMemory ?? current.igMemory,
@@ -1307,7 +1323,7 @@ export const useStudio = create<StudioState>()(
           brands,
           assets,
           projects,
-          campaigns: state.campaigns ?? SEED_CAMPAIGNS,
+          campaigns: (state.campaigns ?? SEED_CAMPAIGNS).map(migrateCampaign),
           schedule: (state.schedule ?? SEED_SCHEDULE).map(migrateScheduleItem),
           connections: state.connections?.length ? state.connections : DEFAULT_CONNECTIONS,
           igMemory: state.igMemory ?? SEED_IG_MEMORY,

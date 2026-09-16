@@ -131,6 +131,31 @@ export function soonestScheduled<T extends { status: string; scheduledAt: number
     .slice(0, limit);
 }
 
+/** Keep wave ids when regenerating a campaign so calendar rows upsert instead of duplicating. */
+export function mergeCampaignWaves(existing: CampaignWave[] | undefined, fresh: CampaignWave[]): CampaignWave[] {
+  return fresh.map((row) => {
+    const prev = existing?.find((wave) => wave.kind === row.kind);
+    if (!prev) return row;
+    return {
+      ...row,
+      id: prev.id,
+      projectId: prev.projectId ?? row.projectId,
+      imageAssetId: prev.imageAssetId,
+      caption: prev.caption,
+      notes: row.notes || prev.notes,
+    };
+  });
+}
+
+export function scheduleItemsForWave<T extends { campaignId: string | null; title: string }>(
+  items: T[],
+  campaignId: string,
+  kind: CampaignWaveKind,
+): T[] {
+  const label = waveLabel(kind);
+  return items.filter((item) => item.campaignId === campaignId && item.title.startsWith(label));
+}
+
 export function eventKindFromText(text: string): EventKind {
   if (/茶/.test(text)) return "tea";
   if (/光|浮游|燈/.test(text)) return "light";

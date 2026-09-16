@@ -4,7 +4,12 @@ import { createSearchParams } from "./create-search.ts";
 
 test("createSearchParams omits empty mode / idea / asset keys", () => {
   assert.deepEqual(createSearchParams({}), {});
-  assert.deepEqual(createSearchParams({ mode: "from-image", idea: "", asset: "" }), { mode: "from-image" });
+  assert.deepEqual(createSearchParams({ mode: "from-image", idea: "", asset: "", campaign: "" }), { mode: "from-image" });
+  assert.deepEqual(createSearchParams({ mode: "campaign", idea: "浮游禪光", campaign: "camp_floating_light" }), {
+    mode: "campaign",
+    idea: "浮游禪光",
+    campaign: "camp_floating_light",
+  });
   assert.deepEqual(
     createSearchParams({
       mode: "from-image",
