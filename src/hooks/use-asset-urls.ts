@@ -49,7 +49,7 @@ export function useAssetUrls(ids: string[]): Record<string, string> {
   return useMemo(() => {
     const merged: Record<string, string> = {};
     for (const id of list) {
-      const url = blobUrls[id] || seedFallbacks[id];
+      const url = seedFallbacks[id] || blobUrls[id];
       if (url) merged[id] = url;
     }
     return merged;
