@@ -34,6 +34,7 @@ import { inferContentKind, kindFromFormat, legacyFromContent, statusFromLegacy }
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { metricsFromFeel } from "@/lib/zen/feel";
 import { shiftHostEveningToTaipei } from "@/lib/zen/dates";
+import { retuneCadence } from "@/lib/zen/schedule";
 import {
   DEFAULT_CONNECTIONS,
   SEED_ASSETS,
@@ -1309,7 +1310,7 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 4,
+  version: 5,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,
@@ -1350,7 +1351,7 @@ export const useStudio = create<StudioState>()(
           lastProjectId: p.lastProjectId ?? projects[0]?.id ?? current.lastProjectId,
         };
       },
-      migrate: (persisted) => {
+      migrate: (persisted, fromVersion) => {
         const state = persisted as {
           brands?: BrandKit[];
           assets?: AssetMeta[];
@@ -1365,12 +1366,19 @@ export const useStudio = create<StudioState>()(
         const brands = (state.brands ?? []).map(migrateBrandRecord);
         const assets = (state.assets ?? []).map(migrateAssetRecord);
         const projects = (state.projects ?? []).map(migrateProject);
+        let campaigns = (state.campaigns ?? SEED_CAMPAIGNS).map(migrateCampaign);
+        let schedule = (state.schedule ?? SEED_SCHEDULE).map(migrateScheduleItem);
+        if ((fromVersion ?? 0) < 5) {
+          const next = retuneCadence(campaigns, schedule);
+          campaigns = next.campaigns;
+          schedule = next.schedule;
+        }
         return {
           brands,
           assets,
           projects,
-          campaigns: (state.campaigns ?? SEED_CAMPAIGNS).map(migrateCampaign),
-          schedule: (state.schedule ?? SEED_SCHEDULE).map(migrateScheduleItem),
+          campaigns,
+          schedule,
           connections: state.connections?.length ? state.connections : DEFAULT_CONNECTIONS,
           igMemory: state.igMemory ?? SEED_IG_MEMORY,
           remoteFiles: (state.remoteFiles?.length ? state.remoteFiles : SEED_REMOTE_FILES).map(migrateRemoteFile),

@@ -92,6 +92,9 @@ const threadsAt = titles.findIndex((text) => /^Threads/.test(text));
 if (reasonAt >= 0 && threadsAt >= 0 && threadsAt < reasonAt) {
   issues.push(`Threads 插在參加理由前面: ${titles.slice(0, 12).join(" / ")}`);
 }
+if ((await page.locator('[data-testid="agenda-shift-later"]').count()) === 0) {
+  issues.push("月曆 Agenda 不能改日期（沒有後一天）");
+}
 await page.screenshot({ path: "/workspace/screenshots/search-into-create-calendar.png", fullPage: true });
 
 await page.goto(`${base}/`, { waitUntil: "networkidle" });

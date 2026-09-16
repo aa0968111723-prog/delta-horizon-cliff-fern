@@ -16,6 +16,8 @@ import {
   waveVisualVariation,
   heroScheduleItem,
   suggestWaves,
+  retuneCadence,
+  waveKindFromTitle,
 } from "./schedule.ts";
 
 test("soonestScheduled surfaces the next tea-party IG post, not a later LINE draft", () => {
@@ -275,4 +277,61 @@ test("7-day tea 預熱 is a calendar day before 主視覺, not the same evening 
   const order = waves.map((wave) => wave.kind);
   assert.ok(order.indexOf("warmup") < order.indexOf("hero"));
   assert.ok(order.indexOf("hero") < order.indexOf("countdown"));
+});
+
+test("waveKindFromTitle reads 主視覺 and 參加理由, not Carousel", () => {
+  assert.equal(waveKindFromTitle("主視覺 · 茶會"), "hero");
+  assert.equal(waveKindFromTitle("參加理由 · 茶會"), "reason");
+  assert.equal(waveKindFromTitle("Carousel · 茶會"), undefined);
+});
+
+test("retuneCadence moves Threads after 參加理由 and leaves published rows", () => {
+  const now = new Date("2026-09-16T10:00:00+08:00");
+  const waves = suggestWaves({ date: "2026-09-23", type: "tea", name: "茶會" }, now);
+  const hero = waves.find((wave) => wave.kind === "hero")?.scheduledAt ?? 0;
+  const reason = waves.find((wave) => wave.kind === "reason")?.scheduledAt ?? 0;
+  const campaigns = [
+    {
+      id: "camp_tea",
+      date: "2026-09-23",
+      type: "tea" as const,
+      name: "茶會",
+      waves: waves.map((wave) =>
+        wave.kind === "reason" ? { ...wave, scheduledAt: hero - 86_400_000 } : wave,
+      ),
+    },
+  ];
+  const schedule = [
+    {
+      id: "reason",
+      campaignId: "camp_tea",
+      title: "參加理由 · 茶會",
+      kind: "knowledge",
+      status: "scheduled",
+      scheduledAt: hero - 86_400_000,
+    },
+    {
+      id: "threads",
+      campaignId: "camp_tea",
+      title: "Threads · 茶會",
+      kind: "threads",
+      status: "scheduled",
+      scheduledAt: hero + 2 * 86_400_000,
+    },
+    {
+      id: "done",
+      campaignId: "camp_tea",
+      title: "預熱 · 茶會",
+      kind: "member-story",
+      status: "published",
+      scheduledAt: 1,
+    },
+  ];
+  const next = retuneCadence(campaigns, schedule, now);
+  const reasonAt = next.schedule.find((row) => row.id === "reason")?.scheduledAt ?? 0;
+  const threadsAt = next.schedule.find((row) => row.id === "threads")?.scheduledAt ?? 0;
+  assert.ok(reasonAt > 0);
+  assert.ok(threadsAt > reasonAt);
+  assert.equal(next.schedule.find((row) => row.id === "done")?.scheduledAt, 1);
+  assert.ok(reasonAt >= reason || reasonAt > hero - 86_400_000);
 });

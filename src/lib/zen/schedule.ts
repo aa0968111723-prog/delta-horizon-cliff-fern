@@ -1,7 +1,7 @@
 import { uid } from "../studio/ids.ts";
 import type { CampaignWave, CampaignWaveKind, ClubCampaign, ContentKind, EventKind, FormatId } from "../studio/types.ts";
 import { canGraphPublish, isFeedGraphKind, isStoryGraphKind } from "./memory.ts";
-import { nextKindAfter } from "./rhythm.ts";
+import { convertedScheduledAt, nextKindAfter, skipConvertedIgPost } from "./rhythm.ts";
 
 const WAVE_LABEL: Record<CampaignWaveKind, string> = {
   warmup: "預熱",
@@ -278,6 +278,50 @@ export function mergeCampaignWaves(existing: CampaignWave[] | undefined, fresh: 
       notes: row.notes || prev.notes,
     };
   });
+}
+
+export function waveKindFromTitle(title?: string): CampaignWaveKind | undefined {
+  if (!title) return undefined;
+  const kinds: CampaignWaveKind[] = ["warmup", "emotion", "hero", "detail", "reason", "countdown", "dayof", "recap"];
+  return kinds.find((kind) => title.startsWith(waveLabel(kind)));
+}
+
+/**
+ * Rebuild unpublished tea-party clocks from the campaign date.
+ * Published rows stay put. Converted Threads/Reels follow 參加理由.
+ */
+export function retuneCadence<
+  C extends { id: string; date: string; type: EventKind; name: string; waves?: CampaignWave[] },
+  S extends {
+    id: string;
+    campaignId?: string | null;
+    title: string;
+    kind: string;
+    status: string;
+    scheduledAt: number;
+  },
+>(campaigns: C[], schedule: S[], now = new Date()): { campaigns: C[]; schedule: S[] } {
+  const camps = campaigns.map((campaign) => {
+    if (!campaign.date || !campaign.waves?.length) return campaign;
+    return { ...campaign, waves: mergeCampaignWaves(campaign.waves, suggestWaves(campaign, now)) };
+  });
+  const converted = new Set(["carousel", "threads", "reels", "line", "ig-post"]);
+  const nextSchedule = schedule.map((item) => {
+    if (item.status === "published") return item;
+    const campaign = camps.find((row) => row.id === item.campaignId);
+    if (!campaign?.waves?.length || !campaign.date) return item;
+    const eventWhen = Date.parse(`${campaign.date}T19:00:00+08:00`);
+    if (Number.isNaN(eventWhen)) return item;
+    const waveKind = waveKindFromTitle(item.title);
+    if (waveKind) {
+      const wave = campaign.waves.find((wave) => wave.kind === waveKind);
+      return wave?.scheduledAt ? { ...item, scheduledAt: wave.scheduledAt } : item;
+    }
+    if (item.kind === "ig-post" && skipConvertedIgPost(campaign.waves)) return item;
+    if (!converted.has(item.kind)) return item;
+    return { ...item, scheduledAt: convertedScheduledAt(item.kind as ContentKind, eventWhen, campaign.waves) };
+  });
+  return { campaigns: camps, schedule: nextSchedule };
 }
 
 export function scheduleItemsForWave<T extends { campaignId: string | null; title: string }>(

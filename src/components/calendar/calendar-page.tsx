@@ -88,6 +88,12 @@ export function CalendarPage() {
     moveSchedule(item.id, next.getTime());
   }
 
+  function shiftDay(id: string, days: number) {
+    const item = schedule.find((row) => row.id === id);
+    if (!item || item.status === "published") return;
+    moveSchedule(item.id, item.scheduledAt + days * 86_400_000);
+  }
+
   function duplicate(id: string) {
     const item = schedule.find((row) => row.id === id);
     if (!item) return;
@@ -305,6 +311,28 @@ export function CalendarPage() {
                   <Button size="sm" variant="secondary" onClick={() => duplicate(item.id)}>
                     複製
                   </Button>
+                  {item.status !== "published" ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="min-h-11"
+                        data-testid={item.id === agenda.find((row) => row.status === "scheduled")?.id ? "agenda-shift-earlier" : undefined}
+                        onClick={() => shiftDay(item.id, -1)}
+                      >
+                        前一天
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="min-h-11"
+                        data-testid={item.id === agenda.find((row) => row.status === "scheduled")?.id ? "agenda-shift-later" : undefined}
+                        onClick={() => shiftDay(item.id, 1)}
+                      >
+                        後一天
+                      </Button>
+                    </>
+                  ) : null}
                   <Button
                     size="sm"
                     variant="secondary"
