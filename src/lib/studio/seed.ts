@@ -225,7 +225,7 @@ export function createSeedCampaign(): ClubCampaign {
     location: "淡江大學淡水校園 · 禪學社",
     oneLiner: "最近是不是很久沒有好好坐下來？",
     description:
-      "用燈、坐、和一點茶，把開學後的 rumble 放慢。不需要會禪，也不用正襟危坐。",
+      "用燈、坐、和一點茶，把開學後的吵雜放慢。不需要會禪，也不用正襟危坐。",
     theme: "夜晚、光、朋友、喘口氣",
     studentPain: "開學後行程變滿，休息會心虛。",
     cta: "來坐一下",
