@@ -168,7 +168,7 @@ async function applyQr(projectId: string, action: Extract<EditorAction, { type: 
 function applyLayoutVersions(projectId: string, count: number): string[] {
   const store = useStudio.getState();
   const templates = ["editorial", "product", "quote"] as const;
-  const names = ["排版 A · 活動主視覺", "排版 B · 現場照片", "排版 C · 一句 Hook"];
+  const names = ["排版 A · 編輯封面", "排版 B · 活動主視覺", "排版 C · 引言卡片"];
   const n = Math.min(3, Math.max(2, count));
   let firstId: string | null = null;
   for (let i = 0; i < n; i++) {

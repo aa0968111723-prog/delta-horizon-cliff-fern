@@ -26,7 +26,7 @@ export type Align = "left" | "center" | "right";
 
 export type ColorRole = "primary" | "secondary" | "accent" | "background" | "ink";
 
-export type ProjectStatus = "draft" | "ready" | "exported";
+export type ProjectStatus = "idea" | "creating" | "complete" | "scheduled" | "published";
 
 export type EditorTool = "select" | "text" | "rect" | "ellipse" | "line";
 
@@ -124,7 +124,18 @@ export type BrandKit = {
   imageStyle: ImageStyle;
   rules: BrandRules;
   boilerplate: BrandBoilerplate;
-  memory: BrandMemory;
+  memory?: BrandMemory;
+  updatedAt: number;
+};
+
+export type BrandMemory = {
+  mission: string;
+  audienceSegments: string[];
+  campusContexts: string[];
+  seasonalMoments: string[];
+  contentPillars: string[];
+  signatureElements: string[];
+  learnedPatterns: string[];
   updatedAt: number;
 };
 
@@ -143,19 +154,21 @@ export type AssetCategory =
   | "illustration"
   | "icon"
   | "logo"
-  | "mascot"
-  | "campus"
-  | "tamsui"
-  | "poster"
-  | "generated"
-  | "ig"
-  | "story"
-  | "reels"
-  | "archive"
   | "template"
   | "history";
 
-export type AssetSourceKind = "upload" | "seed" | "generated" | "drive" | "canva" | "instagram";
+export type AssetSourceKind = "upload" | "seed" | "generated" | "google-drive" | "canva" | "instagram";
+
+export type AssetProvenance = {
+  provider: AssetSourceKind;
+  label: string;
+  externalId?: string;
+  externalUrl?: string;
+  collection?: string;
+  sourceDate?: string;
+  importedAt: number;
+  parentAssetId?: string;
+};
 
 /** AI 對素材的理解（Vision AI 結果或本機推斷）。 */
 export type AssetInsight = {
@@ -173,6 +186,22 @@ export type AssetInsight = {
 };
 
 export type AssetUsageStatus = "in-use" | "used" | "unused";
+
+export type AssetAnalysis = {
+  summary: string;
+  subjects: string[];
+  colors: string[];
+  lighting: string;
+  composition: string;
+  textHierarchy: string;
+  brandFit: string;
+  studentFit: string;
+  stopPower: string;
+  risks: string[];
+  recommendations: string[];
+  suggestedTags: string[];
+  analyzedAt: number;
+};
 
 export type AssetMeta = {
   id: string;
@@ -193,9 +222,9 @@ export type AssetMeta = {
   favorite: boolean;
   lastUsedAt: number | null;
   useCount: number;
-  insight?: AssetInsight | null;
-  /** 外部來源的參照（Drive 檔案 id、Canva design id、IG media id）。 */
-  externalRef?: { provider: "drive" | "canva" | "instagram"; id: string; url?: string; label?: string } | null;
+  analysis?: AssetAnalysis;
+  generationPrompt?: string;
+  provenance?: AssetProvenance;
 };
 
 export type Background = {
@@ -358,6 +387,53 @@ export type AssetNeed = {
 
 export type PlanSource = "live" | "mock";
 
+export type CopyTone =
+  | "校園口語"
+  | "清楚資訊"
+  | "傳給朋友"
+  | "短版"
+  | "一般版"
+  | "感性版"
+  | "學生版"
+  | "生活版"
+  | "幽默版";
+
+export type CopyVariant = {
+  tone: CopyTone;
+  hook: string;
+  body: string;
+  cta: string;
+  hashtags: string[];
+};
+
+export type StudentReviewItem = {
+  question: string;
+  pass: boolean;
+  feedback: string;
+};
+
+export type ReelsBeat = {
+  timing: string;
+  visual: string;
+  subtitle: string;
+  voiceover: string;
+  transition: string;
+  assetSuggestion: string;
+};
+
+export type CopyPack = {
+  variants: CopyVariant[];
+  studentReview: StudentReviewItem[];
+  revisedCaption: string;
+  threads: string;
+  line: string;
+  storyFrames: string[];
+  carouselPages: string[];
+  reelsScript: ReelsBeat[];
+  generatedAt: number;
+  source: PlanSource;
+};
+
 export type CampaignPlan = {
   campaignName: string;
   concept: string;
@@ -380,6 +456,7 @@ export type CampaignPlan = {
   checklist: string[];
   altText: string;
   qaNotes: string[];
+  copyPack?: CopyPack;
   generatedAt: number;
   source: PlanSource;
 };

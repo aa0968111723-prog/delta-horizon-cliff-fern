@@ -9,16 +9,16 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { APP_NAME, CLUB_NAME } from "@/lib/zen/labels";
 import appCss from "../styles.css?url";
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
+const APP_NAME = "禪作所";
 
 export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: `${APP_NAME} · ${CLUB_NAME}` },
-      { name: "description", content: `${CLUB_NAME}的一人 AI 創作中控台：IG 文案、圖片、Carousel、Story、Reels、排程與品牌記憶。` },
-      { name: "theme-color", content: "#fbf7f1" },
+      { title: APP_NAME },
+      { name: "description", content: "淡江大學禪學社的一人網宣創作室" },
+      { name: "theme-color", content: "#F4F1EA" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },

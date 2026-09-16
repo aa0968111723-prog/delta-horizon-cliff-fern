@@ -14,9 +14,9 @@ export function AssistantSheet() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent side="bottom" className="flex max-h-[86dvh] flex-col p-0 lg:max-h-[92dvh]">
         <div className="border-b border-border px-4 py-3 pr-12">
-          <SheetTitle>畫布代理</SheetTitle>
+          <SheetTitle>寫這則網宣</SheetTitle>
           <p className="mt-1 text-sm text-muted">
-            對目前畫面下指令，或寫活動需求生成企劃。{" "}
+            企劃、文案、畫面同一人做完。{" "}
             <Link
               to="/assistant"
               className="text-fg underline-offset-2 hover:underline"

@@ -1,17 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { InstagramCenter } from "@/components/instagram/instagram-center";
+import type { IgSurface } from "@/lib/studio/ig-surfaces";
 
-const TABS = ["grid", "feed", "dna", "inspire", "stats"] as const;
-type Tab = (typeof TABS)[number];
+export type InstagramSearch = {
+  project?: string;
+  content?: string;
+  surface?: IgSurface;
+};
+
+function parseInstagramSearch(search: Record<string, unknown>): InstagramSearch {
+  const surface = search.surface;
+  return {
+    project: typeof search.project === "string" && search.project ? search.project : undefined,
+    content: typeof search.content === "string" && search.content ? search.content : undefined,
+    surface:
+      surface === "feed" || surface === "story" || surface === "reels" || surface === "carousel"
+        ? surface
+        : undefined,
+  };
+}
 
 export const Route = createFileRoute("/instagram")({
-  validateSearch: (raw: Record<string, unknown>): { tab?: Tab } => ({
-    tab: typeof raw.tab === "string" && (TABS as readonly string[]).includes(raw.tab) ? (raw.tab as Tab) : undefined,
-  }),
-  component: InstagramRoute,
+  validateSearch: parseInstagramSearch,
+  component: InstagramPage,
 });
 
-function InstagramRoute() {
+function InstagramPage() {
   const search = Route.useSearch();
-  return <InstagramCenter initialTab={search.tab} />;
+  return <InstagramCenter projectId={search.project} surface={search.surface} />;
 }

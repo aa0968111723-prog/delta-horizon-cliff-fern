@@ -1,5 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { hydrateSeedAsset } from "@/lib/studio/assets-idb";
+import { useCreative } from "@/stores/creative-store";
+import { useConnectionStore } from "@/stores/connection-store";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
@@ -8,7 +10,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     void (async () => {
       try {
-        await useStudio.persist.rehydrate();
+        await Promise.all([
+          useStudio.persist.rehydrate(),
+          useCreative.persist.rehydrate(),
+          useConnectionStore.persist.rehydrate(),
+        ]);
       } finally {
         if (!cancelled) useStudio.getState().setHydrated(true);
         const assets = useStudio.getState().assets;

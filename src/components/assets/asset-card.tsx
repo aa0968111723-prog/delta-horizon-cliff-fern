@@ -1,8 +1,8 @@
-import { Star, Trash2 } from "lucide-react";
+import { BrainCircuit, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ASSET_DRAG_MIME, categoryLabel, sourceLabel, usageLabel } from "@/lib/studio/assets";
+import { ASSET_DRAG_MIME, categoryLabel, provenanceLabel, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import type { AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,7 @@ export function AssetCard({
   onCreate?: () => void;
 }) {
   const [broken, setBroken] = useState(false);
+  const referenceOnly = !url && asset.width === 0 && !asset.seedSrc;
 
   return (
     <article
@@ -50,7 +51,7 @@ export function AssetCard({
             />
           ) : (
             <div className="flex size-full items-center justify-center px-3 text-center text-xs text-muted">
-              {broken ? "預覽失敗" : "載入中"}
+              {referenceOnly ? "來源參考，沒有原圖像素" : broken ? "預覽失敗" : "載入中"}
             </div>
           )}
           <span className="absolute top-2 left-2">
@@ -58,6 +59,14 @@ export function AssetCard({
               {usageLabel(usage)}
             </Badge>
           </span>
+          <span className="absolute bottom-2 left-2">
+            <Badge variant="accent">{sourceLabel(asset.source)}</Badge>
+          </span>
+          {asset.analysis ? (
+            <span className="absolute top-2 right-2 rounded-full bg-surface/90 p-1.5 text-accent shadow-sm" title="已有 AI 視覺分析">
+              <BrainCircuit className="size-3.5" />
+            </span>
+          ) : null}
         </div>
       </button>
       <div className="space-y-1.5 px-3 py-2.5">
@@ -65,7 +74,7 @@ export function AssetCard({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{asset.name}</p>
             <p className="truncate text-xs text-muted">
-              {categoryLabel(asset.category)} · {sourceLabel(asset.source)}
+              {categoryLabel(asset.category)} · {provenanceLabel(asset)}
             </p>
           </div>
           <Button
@@ -85,14 +94,13 @@ export function AssetCard({
           <p className="truncate text-xs text-subtle">{asset.tags.slice(0, 3).join(" · ")}</p>
         ) : null}
         <div className="flex items-center gap-1 pt-1">
-          {onCreate ? (
-            <Button size="sm" variant="secondary" className="flex-1" onClick={onCreate}>
-              加入創作
-            </Button>
-          ) : onPlace ? (
-            <Button size="sm" variant="secondary" className="flex-1" onClick={onPlace}>
+          {onPlace && !referenceOnly ? (
+            <Button size="sm" variant="secondary" className="min-h-11 flex-1" onClick={onPlace}>
               放到畫布
             </Button>
+          ) : null}
+          {referenceOnly ? (
+            <p className="flex-1 text-xs leading-5 text-muted">沒有原圖，不能放到畫布。</p>
           ) : null}
           {onDelete ? (
             <Button variant="ghost" size="icon-sm" aria-label={`刪除 ${asset.name}`} onClick={onDelete}>

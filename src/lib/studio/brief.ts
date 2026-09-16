@@ -22,11 +22,11 @@ export function emptyBrief(): Brief {
     schedule: "",
     location: "",
     offer: "",
-    audience: "",
+    audience: "淡江大學學生，包含新生、住宿生、通勤生，以及最近感到壓力或想認識新朋友的人",
     goal: "awareness",
     features: "",
-    style: "",
-    notes: "",
+    style: "明亮、自然、有學生生活感；把禪轉譯成喘口氣、安定與認識自己",
+    notes: "先從淡江學生正在經歷的生活情境切入，不說教、不過度宗教、不寫成工整的 AI 金句。",
     deliverables: emptyDeliverables(),
   };
 }
@@ -131,6 +131,7 @@ export function migratePlan(raw?: Partial<CampaignPlan> | null): CampaignPlan | 
         : [],
     altText: raw.altText ?? "",
     qaNotes: Array.isArray(raw.qaNotes) ? raw.qaNotes : [],
+    copyPack: raw.copyPack,
     generatedAt: raw.generatedAt ?? Date.now(),
     source: raw.source === "mock" || raw.source === "live" ? raw.source : "live",
   };

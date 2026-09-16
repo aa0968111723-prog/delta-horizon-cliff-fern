@@ -1,6 +1,7 @@
 import { emptyBoilerplate } from "./boilerplate.ts";
 import { uid } from "./ids.ts";
 import type {
+  BrandMemory,
   BrandKit,
   BrandMemory,
   BrandRules,
@@ -12,67 +13,14 @@ import type {
 export function emptyBrandMemory(): BrandMemory {
   return {
     mission: "",
-    fixedIntro: "",
-    mascotName: "",
-    mascotDescription: "",
-    mascotAssetId: null,
-    signatureVisual: "",
-    likedStyles: [],
-    dislikedStyles: [],
-    audienceNotes: "",
-    toneExamples: [],
-    recurringEvents: [],
-    igDna: "",
+    audienceSegments: [],
+    campusContexts: [],
+    seasonalMoments: [],
+    contentPillars: [],
+    signatureElements: [],
+    learnedPatterns: [],
+    updatedAt: Date.now(),
   };
-}
-
-export function migrateBrandMemory(raw: unknown): BrandMemory {
-  const base = emptyBrandMemory();
-  if (!raw || typeof raw !== "object") return base;
-  const row = raw as Partial<BrandMemory>;
-  const list = (v: unknown) =>
-    Array.isArray(v) ? v.map((item) => String(item).trim()).filter(Boolean) : [];
-  return {
-    mission: row.mission ?? "",
-    fixedIntro: row.fixedIntro ?? "",
-    mascotName: row.mascotName ?? "",
-    mascotDescription: row.mascotDescription ?? "",
-    mascotAssetId: row.mascotAssetId ?? null,
-    signatureVisual: row.signatureVisual ?? "",
-    likedStyles: list(row.likedStyles),
-    dislikedStyles: list(row.dislikedStyles),
-    audienceNotes: row.audienceNotes ?? "",
-    toneExamples: list(row.toneExamples),
-    recurringEvents: list(row.recurringEvents),
-    igDna: row.igDna ?? "",
-  };
-}
-
-/** 給 AI prompt 用的 Brand Memory 摘要（每次生成前先讀）。 */
-export function brandMemoryContext(brand: BrandKit): string {
-  const m = brand.memory ?? emptyBrandMemory();
-  const colors = brand.colors.map((c) => `${c.label} ${c.hex}`).join("、");
-  return [
-    `品牌：${brand.name} ${brand.handle}`,
-    m.mission && `社團理念：${m.mission}`,
-    m.fixedIntro && `固定介紹：${m.fixedIntro}`,
-    m.mascotName && `角色：${m.mascotName}（${m.mascotDescription}）`,
-    m.signatureVisual && `標誌視覺：${m.signatureVisual}`,
-    colors && `品牌色：${colors}`,
-    brand.voice && `語氣：${brand.voice}`,
-    brand.doSay && `可說：${brand.doSay}`,
-    brand.dontSay && `不說：${brand.dontSay}`,
-    brand.forbiddenWords.length && `禁用詞：${brand.forbiddenWords.join("、")}`,
-    m.likedStyles.length && `喜歡的風格：${m.likedStyles.join("、")}`,
-    m.dislikedStyles.length && `不喜歡的風格：${m.dislikedStyles.join("、")}`,
-    m.toneExamples.length && `語氣範例：\n- ${m.toneExamples.join("\n- ")}`,
-    brand.ctas.length && `常用 CTA：${brand.ctas.join("／")}`,
-    m.audienceNotes && `受眾筆記：${m.audienceNotes}`,
-    m.recurringEvents.length && `常見活動：${m.recurringEvents.join("、")}`,
-    m.igDna && `自己 IG 的 DNA：${m.igDna}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
 }
 
 export function emptyImageStyle(): ImageStyle {
@@ -198,7 +146,17 @@ export function migrateBrand(raw: Partial<BrandKit> & { id: string; name: string
     imageStyle: { ...emptyImageStyle(), ...(raw.imageStyle ?? {}) },
     rules: { ...emptyBrandRules(), ...(raw.rules ?? {}) },
     boilerplate: raw.boilerplate ?? emptyBoilerplate(),
-    memory: migrateBrandMemory(raw.memory),
+    memory: {
+      ...emptyBrandMemory(),
+      ...(raw.memory ?? {}),
+      audienceSegments: asStringArray(raw.memory?.audienceSegments),
+      campusContexts: asStringArray(raw.memory?.campusContexts),
+      seasonalMoments: asStringArray(raw.memory?.seasonalMoments),
+      contentPillars: asStringArray(raw.memory?.contentPillars),
+      signatureElements: asStringArray(raw.memory?.signatureElements),
+      learnedPatterns: asStringArray(raw.memory?.learnedPatterns),
+      updatedAt: raw.memory?.updatedAt ?? raw.updatedAt ?? Date.now(),
+    },
     updatedAt: raw.updatedAt ?? Date.now(),
   };
 }

@@ -1,435 +1,293 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { format as formatDate } from "date-fns";
-import { zhTW } from "date-fns/locale";
-import { Bookmark, Heart, Lightbulb, Link2, MessageCircle, Sparkles, Wand2 } from "lucide-react";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ExternalItemCard } from "@/components/search/external-item";
-import { IgPostPreview } from "@/components/content/ig-preview";
+import { BrandSubnav } from "@/components/brand/brand-subnav";
+import { IgPreview } from "@/components/instagram/ig-preview";
+import { ReelsStudio } from "@/components/instagram/reels-studio";
+import type { IgSurface } from "@/lib/studio/ig-surfaces";
+import { OutcomeJournal } from "@/components/learning/outcome-journal";
+import { CreationLoop } from "@/components/shared/creation-loop";
 import { PageHeader } from "@/components/shared/page-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { analyzeIgPost, researchInspiration } from "@/lib/ai/zen";
-import { fetchInstagramFeed } from "@/lib/connections/api";
-import type { ExternalItem } from "@/lib/connections/providers";
-import { brandMemoryContext } from "@/lib/studio/brand";
-import type { ContentItem } from "@/lib/studio/types";
-import { computeIgDna, performanceInsights } from "@/lib/zen/ig-dna";
-import { INSPIRATION_PATTERNS } from "@/lib/zen/inspiration";
-import { CLUB_HANDLE, contentTypeShort } from "@/lib/zen/labels";
-import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getInstagramInsightsStatus, getInstagramStatus, listInstagramMedia, startInstagramConnect } from "@/lib/connections/instagram";
+import { openExternalUrl } from "@/components/connections/connection-status";
+import { redirectToLoginIfRequired } from "@/lib/app-data";
+import type { ConnectorUiState, InstagramInsightsSnapshot } from "@/lib/connections/types";
+import { lessonsFromInsights } from "@/lib/creative/learning";
+import { emptyBrandMemory } from "@/lib/studio/brand";
+import { useConnectionStore } from "@/stores/connection-store";
 import { useStudio } from "@/stores/studio-store";
 
-type Tab = "grid" | "feed" | "dna" | "inspire" | "stats";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "grid", label: "過去 IG" },
-  { id: "feed", label: "Feed 預覽" },
-  { id: "dna", label: "IG DNA" },
-  { id: "inspire", label: "靈感" },
-  { id: "stats", label: "成效" },
-];
-
-export function InstagramCenter({ initialTab }: { initialTab?: Tab }) {
-  const navigate = useNavigate();
-  const hydrated = useStudio((s) => s.hydrated);
-  const brand = useStudio((s) => s.brands[0]);
-  const contents = useStudio((s) => s.contents);
-  const updateBrand = useStudio((s) => s.updateBrand);
-  const [tab, setTab] = useState<Tab>(initialTab && TABS.some((t) => t.id === initialTab) ? initialTab : "grid");
-  const [active, setActive] = useState<ContentItem | ExternalItem | null>(null);
+export function InstagramCenter({
+  projectId,
+  surface,
+}: {
+  projectId?: string;
+  surface?: IgSurface;
+}) {
+  const items = useConnectionStore((state) => state.instagramItems);
+  const syncItems = useConnectionStore((state) => state.syncInstagramItems);
+  const username = useConnectionStore((state) => state.instagramUsername);
+  const lastProjectId = useStudio((state) => state.lastProjectId);
+  const brand = useStudio((state) => state.brands[0]);
+  const updateBrand = useStudio((state) => state.updateBrand);
+  const [status, setStatus] = useState<ConnectorUiState>("idle");
+  const [insightsNote, setInsightsNote] = useState("官方 Insights 尚未授權。這裡不會顯示模擬數據。");
+  const [insights, setInsights] = useState<InstagramInsightsSnapshot | null>(null);
+  const [canRequestInsights, setCanRequestInsights] = useState(false);
+  const [tab, setTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.replace("#", "");
+      if (["memory", "preview", "reels", "insights", "learn"].includes(hash)) return hash;
+    }
+    return projectId ? "preview" : "memory";
+  });
+  const [query, setQuery] = useState("");
+  const locationHash = useRouterState({ select: (state) => state.location.hash });
 
   useEffect(() => {
-    if (initialTab && TABS.some((t) => t.id === initialTab)) setTab(initialTab);
-  }, [initialTab]);
+    void (async () => {
+      const availability = await getInstagramStatus();
+      setCanRequestInsights(availability.available && availability.mode === "oauth" && availability.connected && !availability.capabilities.insights);
+      if (!availability.available) {
+        setStatus("unavailable");
+        return;
+      }
+      if (!availability.connected) {
+        setStatus("not_connected");
+        return;
+      }
+      const result = await listInstagramMedia({ data: {} });
+      if (!result.ok) {
+        setStatus(result.kind);
+        return;
+      }
+      syncItems(result.data);
+      setStatus("connected");
+      const nextInsights = await getInstagramInsightsStatus();
+      if (!nextInsights.ok) {
+        setInsights(null);
+        setInsightsNote(nextInsights.detail || nextInsights.message);
+        return;
+      }
+      setInsights(nextInsights.data);
+      setInsightsNote("");
+    })();
+  }, [syncItems]);
 
-  const live = useQuery({
-    queryKey: ["ig-feed"],
-    queryFn: () => fetchInstagramFeed({ data: { limit: 30, insights: true } }),
-    staleTime: 60_000,
-  });
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("ig") === "connected") {
+      toast.success("Instagram 已連接");
+      params.delete("ig");
+      window.history.replaceState({}, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
+    }
+    if (params.get("ig") === "error") {
+      toast.error("Instagram 授權未完成");
+      params.delete("ig");
+      params.delete("reason");
+      window.history.replaceState({}, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
+    }
+    if (params.get("tab")) setTab(params.get("tab") || "memory");
+  }, []);
 
-  const published = useMemo(
-    () =>
-      [...contents]
-        .filter((c) => c.status === "published" || c.type === "ig-post" || c.type === "carousel" || c.type === "recap" || c.type === "reels")
-        .sort((a, b) => (b.publishedAt ?? b.scheduledAt ?? b.createdAt) - (a.publishedAt ?? a.scheduledAt ?? a.createdAt)),
-    [contents],
-  );
-  const previewQueue = useMemo(
-    () =>
-      [...contents]
-        .filter((c) => c.status === "scheduled" || c.status === "done" || c.status === "published")
-        .sort((a, b) => (b.scheduledAt ?? b.publishedAt ?? 0) - (a.scheduledAt ?? a.publishedAt ?? 0)),
-    [contents],
-  );
-  const urls = useAssetUrls(useMemo(() => contents.map((c) => c.coverAssetId ?? "").filter(Boolean), [contents]));
-  const dna = useMemo(() => {
-    const extras = live.data && live.data.ok
-      ? {
-          captions: live.data.items.map((i) => i.caption ?? i.title),
-          hashtags: live.data.items.flatMap((i) => (i.caption ?? "").match(/#[^\s#]+/g) ?? []),
-        }
-      : undefined;
-    return computeIgDna(contents, extras);
-  }, [contents, live.data]);
-  const insights = useMemo(() => performanceInsights(contents), [contents]);
+  useEffect(() => {
+    const hash = locationHash.replace("#", "");
+    if (["memory", "preview", "reels", "insights", "learn"].includes(hash)) setTab(hash);
+  }, [locationHash]);
 
-  if (!hydrated || !brand) return null;
-
-  const connected = live.data && live.data.ok;
-  const gridItems: (ContentItem | ExternalItem)[] = connected && live.data.ok && live.data.items.length ? live.data.items : published;
-
-  function switchTab(next: Tab) {
-    setTab(next);
-    void navigate({ to: "/instagram", search: { tab: next === "grid" ? undefined : next }, replace: true });
-  }
+  const visible = useMemo(() => {
+    const needle = query.trim();
+    if (!needle) return items;
+    return items.filter((item) => `${item.title} ${item.snippet}`.includes(needle));
+  }, [items, query]);
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="Instagram"
-        title={connected && live.data && live.data.ok && live.data.profile ? `@${live.data.profile.username}` : CLUB_HANDLE}
-        description={
-          connected && live.data && live.data.ok && live.data.profile
-            ? live.data.profile.biography || "已連接禪學社 IG，Grid 顯示真實貼文。"
-            : "還沒連接帳號時，Grid 會顯示本機已發布與示範貼文。連接後讀 Profile、過去貼文、Caption 與 Insights。"
-        }
-        actions={
-          connected ? (
-            <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">Connected</span>
-          ) : (
-            <Button size="sm" className="rounded-full" asChild>
-              <Link to="/connections">
-                <Link2 className="size-3.5" /> 連接 IG
-              </Link>
-            </Button>
-          )
-        }
+        kicker={username ? `@${username}` : "IG 內容記憶"}
+        title="Instagram"
+        description="回看已授權的貼文、預覽這則網宣的 Studio 畫面與文案。沒有連接時不會假裝有貼文或成效數字。"
+        actions={<BrandSubnav current="connections" />}
       />
 
-      {connected && live.data && live.data.ok && live.data.profile ? (
-        <p className="mt-3 text-xs text-muted tabular-nums">
-          {live.data.profile.followers ? `${live.data.profile.followers.toLocaleString()} 追蹤 · ` : ""}
-          {live.data.profile.mediaCount ?? live.data.items.length} 則貼文
-        </p>
-      ) : null}
-
-      <div className="no-scrollbar mt-5 flex gap-1 overflow-x-auto rounded-full bg-surface-2 p-1">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => switchTab(t.id)}
-            className={cn("min-h-11 shrink-0 rounded-full px-4 py-2 text-xs", tab === t.id ? "bg-surface text-fg shadow-[var(--shadow-border)]" : "text-muted")}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="mt-4">
+        <CreationLoop current={tab === "preview" ? "preview" : tab === "reels" ? "image" : "preview"} />
       </div>
 
-      {tab === "grid" ? (
-        <section className="mt-5">
-          <div className="grid grid-cols-3 gap-[2px] overflow-hidden rounded-2xl bg-border">
-            {gridItems.slice(0, 18).map((item) => {
-              const isContent = "copy" in item;
-              const thumb = isContent ? (item.coverAssetId ? urls[item.coverAssetId] : undefined) : item.thumbnail;
-              const kind = isContent ? contentTypeShort(item.type) : item.kind;
-              return (
-                <button
-                  key={isContent ? item.id : `ig-${item.id}`}
-                  type="button"
-                  onClick={() => setActive(item)}
-                  className="relative aspect-square bg-glow-card"
-                >
-                  {thumb ? (
-                    <img src={thumb} alt="" className="size-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="flex size-full items-end bg-night p-2">
-                      <span className="line-clamp-4 text-left text-[10px] leading-snug text-night-fg">
-                        {isContent ? item.copy.hook : item.title}
-                      </span>
-                    </div>
-                  )}
-                  <span className="absolute top-1 right-1 rounded bg-night/70 px-1 text-[9px] text-night-fg">{kind}</span>
-                </button>
-              );
-            })}
-          </div>
-          {gridItems.length === 0 ? <p className="mt-6 text-center text-sm text-muted">還沒有貼文。去 AI 創作寫一篇，或連接 IG。</p> : null}
-        </section>
-      ) : null}
+      <Tabs
+        value={tab}
+        onValueChange={(next) => {
+          setTab(next);
+          window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}#${next}`);
+        }}
+        className="mt-6 min-w-0"
+      >
+        <div className="min-w-0 overflow-x-auto">
+          <TabsList className="h-auto min-h-11 w-max min-w-full flex-nowrap justify-start">
+            <TabsTrigger value="memory" className="min-h-11 shrink-0">記憶</TabsTrigger>
+            <TabsTrigger value="preview" className="min-h-11 shrink-0">預覽</TabsTrigger>
+            <TabsTrigger value="reels" className="min-h-11 shrink-0">Reels</TabsTrigger>
+            <TabsTrigger value="learn" className="min-h-11 shrink-0">筆記</TabsTrigger>
+            <TabsTrigger value="insights" className="min-h-11 shrink-0">成效</TabsTrigger>
+          </TabsList>
+        </div>
 
-      {tab === "feed" ? (
-        <section className="mt-6 space-y-6">
-          <p className="text-sm text-muted">即將發布與已完成的內容，長得像真實 IG 動態。</p>
-          {previewQueue.length === 0 ? (
-            <p className="rounded-2xl bg-surface px-4 py-8 text-center text-sm text-muted shadow-[var(--shadow-border)]">把內容排進 Calendar 後，會出現在這裡。</p>
+        <TabsContent value="memory" className="mt-5">
+          {status === "unavailable" ? (
+            <EmptyNote
+              title="Instagram 尚未在此環境提供"
+              detail="沒有官方 OAuth 憑證或 MCP catalog。請到連接頁查看狀態，不會顯示模擬貼文。"
+            />
+          ) : status === "not_connected" || status === "login" ? (
+            <EmptyNote
+              title="尚未連接 Instagram"
+              detail="連接後才會出現過去貼文格。這裡不接受貼 Token。"
+              action={<Button asChild><Link to="/connections">去連接</Link></Button>}
+            />
+          ) : items.length ? (
+            <>
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="mb-4 h-11"
+                placeholder="搜尋已同步的 Caption、hashtag"
+              />
+              {visible.length ? (
+                <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                  {visible.map((item) => (
+                    <li key={item.id} className="overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-border)]">
+                      <div className="flex aspect-square items-center justify-center bg-bg">
+                        {item.thumbnailUrl ? (
+                          <img src={item.thumbnailUrl} alt={item.title} className="size-full object-cover" />
+                        ) : (
+                          <span className="px-3 text-center text-xs text-muted">{item.mimeType}</span>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p className="line-clamp-2 text-sm font-medium">{item.title}</p>
+                        <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted">{item.snippet || "沒有 Caption"}</p>
+                        {item.webUrl ? (
+                          <a href={item.webUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-accent">
+                            在 Instagram 開啟
+                          </a>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyNote title="沒有符合的貼文" detail="只會搜尋已同步的真實內容，不會補假貼文。" />
+              )}
+            </>
           ) : (
-            previewQueue.slice(0, 8).map((c) => (
-              <div key={c.id}>
-                <div className="mb-2 flex items-center justify-between text-xs text-muted">
-                  <span>
-                    {c.status === "published" ? "已發布" : c.status === "scheduled" ? "已排程" : "完成"}
-                    {c.scheduledAt || c.publishedAt
-                      ? ` · ${formatDate(c.publishedAt ?? c.scheduledAt!, "M/d HH:mm", { locale: zhTW })}`
-                      : ""}
-                  </span>
-                  <Link to="/create" search={{ contentId: c.id }} className="text-accent">
-                    編輯
-                  </Link>
-                </div>
-                <IgPostPreview content={c} cover={c.coverAssetId ? urls[c.coverAssetId] : undefined} handle={brand.handle} />
-              </div>
-            ))
+            <EmptyNote title="還沒有 IG 內容記憶" detail={status === "checking" || status === "idle" ? "正在檢查授權…" : "已連接，但目前沒有可顯示的貼文。"} />
           )}
-        </section>
-      ) : null}
+        </TabsContent>
 
-      {tab === "dna" ? <DnaPanel dna={dna} onRemember={() => {
-        updateBrand(brand.id, { memory: { ...brand.memory, igDna: dna.summary } });
-        toast.success("已寫進 Brand Memory，之後生成會優先參考自己的 IG。");
-      }} remembered={Boolean(brand.memory.igDna)} /> : null}
+        <TabsContent value="preview" className="mt-5">
+          <IgPreview projectId={projectId ?? lastProjectId ?? undefined} surface={surface} />
+        </TabsContent>
 
-      {tab === "inspire" ? <InspirePanel brandContext={brandMemoryContext(brand)} /> : null}
+        <TabsContent value="reels" className="mt-5">
+          <ReelsStudio projectId={projectId ?? lastProjectId ?? undefined} />
+        </TabsContent>
 
-      {tab === "stats" ? (
-        <section className="mt-6 space-y-3">
-          {insights.map((card) => (
-            <article key={card.question} className="rounded-[22px] bg-surface p-4 shadow-[var(--shadow-border)]">
-              <p className="text-xs tracking-[0.16em] text-muted uppercase">{card.question}</p>
-              <p className="mt-2 text-sm leading-relaxed">{card.answer}</p>
-            </article>
-          ))}
-          <p className="text-xs text-muted">成效用來改善下一次生成，不是給主管看的報表。</p>
-        </section>
-      ) : null}
+        <TabsContent value="learn" className="mt-5">
+          <OutcomeJournal />
+        </TabsContent>
 
-      <PostSheet
-        item={active}
-        url={active && "copy" in active && active.coverAssetId ? urls[active.coverAssetId] : undefined}
-        brandContext={brandMemoryContext(brand)}
-        onClose={() => setActive(null)}
-      />
+        <TabsContent value="insights" className="mt-5">
+          {insights?.rows.length ? (
+            <div className="rounded-3xl bg-surface p-6 shadow-[var(--shadow-border)] md:p-10">
+              <Badge variant="success">官方 Insights</Badge>
+              <h2 className="mt-3 font-display text-2xl">只顯示 Instagram 回傳的數字</h2>
+              <p className="mt-2 text-sm text-muted">期間：{insights.period}。沒有的指標不會補 0。</p>
+              <ul className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+                {insights.rows.map((row) => (
+                  <li key={row.metric} className="rounded-2xl bg-bg p-4">
+                    <p className="text-xs text-muted">{row.label}</p>
+                    <p className="mt-2 text-2xl font-semibold tabular-nums">{row.value.toLocaleString("zh-TW")}</p>
+                  </li>
+                ))}
+              </ul>
+              <Button
+                className="mt-5 min-h-11"
+                variant="secondary"
+                onClick={() => {
+                  if (!brand) return;
+                  const memory = brand.memory ?? emptyBrandMemory();
+                  updateBrand(brand.id, {
+                    memory: {
+                      ...memory,
+                      learnedPatterns: [
+                        ...lessonsFromInsights(insights.rows),
+                        ...memory.learnedPatterns,
+                      ].filter((item, index, list) => list.indexOf(item) === index).slice(0, 12),
+                      updatedAt: Date.now(),
+                    },
+                  });
+                  toast.success("已把官方 Insights 寫入 Brand Memory");
+                }}
+              >
+                寫入 Brand Memory
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-3xl bg-surface p-6 shadow-[var(--shadow-border)] md:p-10">
+              <Badge variant="default">未來狀態</Badge>
+              <h2 className="mt-3 font-display text-2xl">不會顯示模擬成效</h2>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-muted">{insightsNote}</p>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
+                沒有官方 Insights 時，不會用模擬數字來教你下次怎麼寫。改用社團自己的現場筆記。
+              </p>
+              <Button className="mt-5 min-h-11" variant="secondary" onClick={() => setTab("learn")}>
+                打開現場筆記
+              </Button>
+              {canRequestInsights ? (
+                <Button
+                  className="mt-5"
+                  onClick={() => void (async () => {
+                    const result = await startInstagramConnect({ data: { insights: true } });
+                    if (!result.ok) {
+                      if (result.loginRequired && result.loginUrl) {
+                        redirectToLoginIfRequired({
+                          ok: false,
+                          data: null,
+                          loginRequired: true,
+                          loginUrl: result.loginUrl,
+                        });
+                      }
+                      toast.error(result.message);
+                      return;
+                    }
+                    openExternalUrl(result.data.url);
+                  })()}
+                >
+                  向 Instagram 請求 Insights 權限
+                </Button>
+              ) : status !== "connected" ? (
+                <Button className="mt-5" asChild>
+                  <Link to="/connections">去連接 Instagram</Link>
+                </Button>
+              ) : null}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </main>
   );
 }
 
-function DnaPanel({ dna, onRemember, remembered }: { dna: ReturnType<typeof computeIgDna>; onRemember: () => void; remembered: boolean }) {
+function EmptyNote({ title, detail, action }: { title: string; detail: string; action?: React.ReactNode }) {
   return (
-    <section className="mt-6 space-y-4">
-      <div className="rounded-[24px] bg-night p-5 text-night-fg">
-        <p className="text-xs tracking-[0.18em] text-night-fg/60 uppercase">Zen Club IG DNA</p>
-        <p className="mt-2 text-sm leading-relaxed">{dna.summary}</p>
-        <p className="mt-3 text-xs text-night-fg/50">依 {dna.sample} 則內容推估 · Caption 約 {dna.captionAvg} 字</p>
-      </div>
-      <div className="flex h-10 overflow-hidden rounded-2xl">
-        {dna.palette.map((hex) => (
-          <span key={hex} className="flex-1" style={{ backgroundColor: hex }} title={hex} />
-        ))}
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <ChipBlock title="有效 Hook" items={dna.hooks} />
-        <ChipBlock title="Hashtag" items={dna.hashtags} />
-        <ChipBlock title="常用 CTA" items={dna.ctas} />
-        <ChipBlock title="視覺" items={dna.visualNotes} />
-      </div>
-      <Button className="rounded-full" onClick={onRemember}>
-        <Sparkles className="size-4" />
-        {remembered ? "更新 Brand Memory 裡的 DNA" : "記住這個 DNA"}
-      </Button>
-    </section>
-  );
-}
-
-function ChipBlock({ title, items }: { title: string; items: string[] }) {
-  return (
-    <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-      <p className="text-xs font-medium text-muted">{title}</p>
-      <ul className="mt-2 flex flex-wrap gap-1.5">
-        {items.length ? items.map((h) => (
-          <li key={h} className="rounded-full bg-surface-2 px-2.5 py-1 text-xs">
-            {h}
-          </li>
-        )) : <li className="text-xs text-muted">樣本還少</li>}
-      </ul>
+    <div className="rounded-3xl bg-surface px-6 py-12 text-center shadow-[var(--shadow-border)]">
+      <p className="font-medium">{title}</p>
+      <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted">{detail}</p>
+      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
-  );
-}
-
-function InspirePanel({ brandContext }: { brandContext: string }) {
-  const [liveRows, setLiveRows] = useState<{ observed: string; composition: string; color: string; layout: string; hook: string; form: string; zenUse: string }[] | null>(null);
-  const [busy, setBusy] = useState(false);
-  const navigate = useNavigate();
-
-  async function research() {
-    setBusy(true);
-    try {
-      const { studentContextPrompt } = await import("@/lib/zen/context");
-      const res = await researchInspiration({ data: { studentContext: studentContextPrompt(), brandContext } });
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
-      setLiveRows(res.patterns);
-      toast.success(res.source === "live" ? "已抽象成可重組的元素，沒有抄任何帳號" : "本機靈感庫（AI 連線後會再研究一輪）");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const rows = liveRows ?? INSPIRATION_PATTERNS.map((p) => ({
-    observed: p.observed,
-    composition: p.abstract.composition,
-    color: p.abstract.color,
-    layout: p.abstract.layout,
-    hook: p.abstract.hook,
-    form: p.abstract.form,
-    zenUse: p.zenUse,
-  }));
-
-  return (
-    <section className="mt-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted">研究大學生社群手法，抽象成構圖 / 配色 / Hook，再轉成禪學社自己的內容。</p>
-        <Button size="sm" className="rounded-full" onClick={() => void research()} disabled={busy}>
-          {busy ? "研究中…" : "AI 再研究一次"}
-        </Button>
-      </div>
-      <ul className="mt-4 space-y-3">
-        {rows.map((p, i) => (
-          <li key={i} className="rounded-[22px] bg-surface p-4 shadow-[var(--shadow-border)]">
-            <div className="flex items-start gap-2">
-              <Lightbulb className="mt-0.5 size-4 text-accent" />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted">{p.observed}</p>
-                <p className="mt-2 text-sm">
-                  構圖 {p.composition} · 配色 {p.color} · 形式 {p.form}
-                </p>
-                <p className="mt-1 text-sm font-medium">禪學社可以這樣用：{p.zenUse}</p>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="mt-2 rounded-full"
-                  onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: p.zenUse } })}
-                >
-                  <Wand2 className="size-3.5" /> 用這個開始
-                </Button>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function PostSheet({
-  item,
-  url,
-  brandContext,
-  onClose,
-}: {
-  item: ContentItem | ExternalItem | null;
-  url?: string;
-  brandContext: string;
-  onClose: () => void;
-}) {
-  const navigate = useNavigate();
-  const [analysis, setAnalysis] = useState<{ hook: string; visual: string; theme: string; captionLength: number; cta: string; direction: string; improvements: string[] } | null>(null);
-  const [busy, setBusy] = useState(false);
-  if (!item) return null;
-  const current = item;
-  const isContent = "copy" in current;
-  const caption = isContent ? [current.copy.hook, current.copy.body, current.copy.cta, current.copy.hashtags.join(" ")].filter(Boolean).join("\n\n") : (current.caption || current.title);
-  const when = isContent ? current.publishedAt ?? current.scheduledAt : current.date ? Date.parse(current.date) : null;
-  const metrics = isContent ? current.metrics : current.metrics;
-
-  async function analyze() {
-    setBusy(true);
-    try {
-      const res = await analyzeIgPost({
-        data: {
-          caption,
-          kind: isContent ? current.type : current.kind,
-          metrics: metrics ? { reach: metrics.reach, likes: metrics.likes, comments: metrics.comments, saves: metrics.saves, shares: metrics.shares } : undefined,
-          brandContext,
-        },
-      });
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
-      setAnalysis(res.analysis);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Sheet open={Boolean(item)} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="bottom" className="flex max-h-[88dvh] flex-col gap-4 overflow-y-auto rounded-t-[28px]">
-        <SheetTitle>{isContent ? current.copy.hook || current.title : current.title}</SheetTitle>
-        <div className="flex gap-3">
-          <div className="size-24 overflow-hidden rounded-xl bg-glow-card">
-            {isContent ? (url ? <img src={url} alt="" className="size-full object-cover" /> : null) : current.thumbnail ? <img src={current.thumbnail} alt="" className="size-full object-cover" referrerPolicy="no-referrer" /> : null}
-          </div>
-          <div className="min-w-0 flex-1 text-xs text-muted">
-            <p>{isContent ? contentTypeShort(current.type) : current.kind}</p>
-            {when ? <p className="mt-1 tabular-nums">{formatDate(when, "yyyy/M/d HH:mm", { locale: zhTW })}</p> : null}
-            {metrics && (metrics.likes != null || metrics.reach != null) ? (
-              <p className="mt-2 flex flex-wrap gap-2 text-fg">
-                <span className="flex items-center gap-1"><Heart className="size-3" />{metrics.likes ?? "—"}</span>
-                <span className="flex items-center gap-1"><MessageCircle className="size-3" />{metrics.comments ?? "—"}</span>
-                <span className="flex items-center gap-1"><Bookmark className="size-3" />{metrics.saves ?? "—"}</span>
-                {metrics.reach != null ? <span>觸及 {metrics.reach}</span> : null}
-              </p>
-            ) : null}
-          </div>
-        </div>
-        <p className="whitespace-pre-wrap text-sm leading-relaxed">{caption}</p>
-        {isContent && current.sources.length ? (
-          <p className="text-[11px] text-subtle">來源：{current.sources.map((s) => s.label).join(" · ")}</p>
-        ) : !isContent ? (
-          <p className="text-[11px] text-subtle">來源：{current.subtitle}</p>
-        ) : null}
-
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" className="rounded-full" onClick={() => void analyze()} disabled={busy}>
-            <Sparkles className="size-3.5" />
-            {busy ? "分析中…" : "AI 分析"}
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            className="rounded-full"
-            onClick={() => {
-              onClose();
-              void navigate({ to: "/create", search: { mode: "ig", idea: `延伸這篇舊貼文：${caption.slice(0, 80)}` } });
-            }}
-          >
-            延伸成新內容
-          </Button>
-        </div>
-
-        {analysis ? (
-          <div className="rounded-2xl bg-glow-card p-4 text-sm">
-            <p><span className="text-xs text-muted">Hook</span> {analysis.hook}</p>
-            <p className="mt-1"><span className="text-xs text-muted">主題</span> {analysis.theme} · {analysis.captionLength} 字</p>
-            <p className="mt-1"><span className="text-xs text-muted">方向</span> {analysis.direction}</p>
-            <p className="mt-1"><span className="text-xs text-muted">CTA</span> {analysis.cta}</p>
-            <ul className="mt-2 space-y-1 text-xs">
-              {analysis.improvements.map((s, i) => (
-                <li key={i}>· {s}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        {!isContent ? <ExternalItemCard item={current} /> : null}
-      </SheetContent>
-    </Sheet>
   );
 }

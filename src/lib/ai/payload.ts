@@ -1,11 +1,20 @@
-import { migrateBrief } from "@/lib/studio/brief";
-import type { BrandKit, Brief } from "@/lib/studio/types";
-import type { BriefInput } from "./schema";
+import { migrateBrief } from "../studio/brief.ts";
+import type { AssetMeta, BrandKit, Brief } from "../studio/types.ts";
+import { buildCreativeMemoryContext } from "../creative/memory.ts";
+import type { Campaign } from "../creative/types.ts";
+import type { BriefInput } from "./schema.ts";
 
 export function toBriefInput(
   brief: Brief,
   brand: BrandKit,
-  extra?: { forceMock?: boolean },
+  extra?: {
+    forceMock?: boolean;
+    assets?: AssetMeta[];
+    campaigns?: Campaign[];
+    styleReferences?: { provider: string; collection: string; title: string; notes: string }[];
+    instagramHashtags?: string[];
+    outcomeHashtags?: string[];
+  },
 ): BriefInput {
   const b = migrateBrief(brief);
   const eventName = b.eventName.trim() || b.product.trim();
@@ -37,6 +46,14 @@ export function toBriefInput(
     imageStyle: [brand.imageStyle?.mood, brand.imageStyle?.lighting, brand.imageStyle?.paletteHint]
       .filter(Boolean)
       .join("；"),
+    brandMemory: buildCreativeMemoryContext({
+      brand,
+      assets: extra?.assets ?? [],
+      campaigns: extra?.campaigns ?? [],
+      styleReferences: extra?.styleReferences,
+      instagramHashtags: extra?.instagramHashtags,
+      outcomeHashtags: extra?.outcomeHashtags,
+    }),
     ...(extra?.forceMock ? { forceMock: true } : {}),
   };
 }

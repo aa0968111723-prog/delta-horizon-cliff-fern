@@ -6,27 +6,20 @@
   --font-display: "Noto Serif TC", "Source Han Serif TC", "Noto Serif", ui-serif, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-bg: #fbf7f1;
-  --color-surface: #ffffff;
-  --color-surface-2: #f2ede4;
-  --color-fg: #2b2b36;
-  --color-muted: #6e6b78;
-  --color-subtle: #9c99a6;
-  --color-border: #e8e1d6;
-  --color-border-strong: #d4ccbf;
-  --color-accent: #3e7c6f;
-  --color-accent-fg: #fff6e9;
-  --color-danger: #b4483a;
-  --color-warn: #b07a2d;
-  --color-success: #3a7d5c;
-  --color-ring: #3e7c6f;
-
-  /* 三色光 */
-  --color-glow-amber: #f2b56b;
-  --color-glow-teal: #7fb7a8;
-  --color-glow-lavender: #c9b8e8;
-  --color-night: #2b2b36;
-  --color-night-fg: #fff6e9;
+  --color-bg: #f4f1ea;
+  --color-surface: #fffcf7;
+  --color-surface-2: #e9e5da;
+  --color-fg: #1a1814;
+  --color-muted: #6f6a63;
+  --color-subtle: #9a948c;
+  --color-border: #ddd6ca;
+  --color-border-strong: #c9c1b4;
+  --color-accent: #174d49;
+  --color-accent-fg: #f4f1ea;
+  --color-danger: #a33b2a;
+  --color-warn: #b18b36;
+  --color-success: #2f6a4a;
+  --color-ring: #174d49;
 
   --radius-xs: 4px;
   --radius-sm: 8px;
@@ -35,6 +28,8 @@
   --radius-xl: 24px;
   --radius-2xl: 28px;
 
+  --spacing-nav: 3.5rem;
+  --spacing-nav-safe: calc(3.5rem + env(safe-area-inset-bottom, 0px));
   --spacing-header: 3.5rem;
 
   --shadow-border:
@@ -48,16 +43,6 @@
   --shadow-artboard:
     0 18px 40px -24px rgba(26, 24, 20, 0.35),
     0 0 0 1px rgba(26, 24, 20, 0.06);
-  --shadow-float:
-    0 24px 48px -28px rgba(43, 43, 54, 0.35),
-    0 8px 20px -12px rgba(43, 43, 54, 0.18),
-    0 0 0 1px rgba(43, 43, 54, 0.05);
-  --shadow-glow:
-    0 0 0 1px rgba(62, 124, 111, 0.12),
-    0 12px 40px -16px rgba(242, 181, 107, 0.45);
-
-  --spacing-nav: 4.25rem;
-  --spacing-nav-safe: calc(4.25rem + env(safe-area-inset-bottom, 0px));
 }
 
 @layer base {
@@ -66,6 +51,7 @@
     -moz-osx-font-smoothing: grayscale;
     background: var(--color-bg);
     color: var(--color-fg);
+    overflow-x: hidden;
   }
 
   body {
@@ -160,7 +146,8 @@
   }
 
   .h-app {
-    height: calc(100dvh - var(--spacing-nav-safe));
+    height: calc(100dvh - 3.5rem - env(safe-area-inset-bottom, 0px));
+    min-height: 0;
   }
 
   @media (min-width: 1024px) {

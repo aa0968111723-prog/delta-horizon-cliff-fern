@@ -28,6 +28,18 @@ var millisecondsInWeek = 6048e5;
 var millisecondsInDay = 864e5;
 /**
 * @constant
+* @name millisecondsInMinute
+* @summary Milliseconds in 1 minute
+*/
+var millisecondsInMinute = 6e4;
+/**
+* @constant
+* @name millisecondsInHour
+* @summary Milliseconds in 1 hour
+*/
+var millisecondsInHour = 36e5;
+/**
+* @constant
 * @name secondsInDay
 * @summary Seconds in 1 day.
 */
@@ -131,6 +143,59 @@ function constructFrom(date, value) {
 */
 function toDate(argument, context) {
 	return constructFrom(context || argument, argument);
+}
+//#endregion
+//#region node_modules/date-fns/addDays.js
+/**
+* The {@link addDays} function options.
+*/
+/**
+* @name addDays
+* @category Day Helpers
+* @summary Add the specified number of days to the given date.
+*
+* @description
+* Add the specified number of days to the given date.
+*
+* **You don't need date-fns\***:
+*
+* Temporal has a built-in `add` method on all its classes:
+*
+* - [`Temporal.Instant.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/add)
+* - [`Temporal.PlainDate.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate/add)
+* - [`Temporal.PlainDateTime.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDateTime/add)
+* - [`Temporal.PlainTime.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/add)
+* - [`Temporal.PlainYearMonth.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/add)
+* - [`Temporal.ZonedDateTime.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/add)
+*
+* \* **Not really**, see: https://date-fns.org/you-dont-need-date-fns
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The date to be changed
+* @param amount - The amount of days to be added.
+* @param options - An object with options
+*
+* @returns The new date with the days added
+*
+* @example
+* // Add 10 days to 1 September 2014:
+* const result = addDays(new Date(2014, 8, 1), 10)
+* //=> Thu Sep 11 2014 00:00:00
+*
+* @example
+* // Using Temporal:
+* // Add 10 days to 1 September 2014:
+* Temporal.PlainDate.from("2014-09-01").add({ days: 10 }).toString();
+* //=> "2014-09-11"
+*/
+function addDays(date, amount, options) {
+	const _date = toDate(date, options?.in);
+	if (isNaN(amount)) return constructFrom(options?.in || date, NaN);
+	if (!amount) return _date;
+	_date.setDate(_date.getDate() + amount);
+	return _date;
 }
 //#endregion
 //#region node_modules/date-fns/_lib/defaultOptions.js
@@ -2150,6 +2215,311 @@ function cleanEscapedString(input) {
 	return matched[1].replace(doubleQuoteRegExp, "'");
 }
 //#endregion
+//#region node_modules/date-fns/formatISO.js
+/**
+* The {@link formatISO} function options.
+*/
+/**
+* @name formatISO
+* @category Common Helpers
+* @summary Format the date according to the ISO 8601 standard (https://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a003169814.htm).
+*
+* @description
+* Return the formatted date string in ISO 8601 format. Options may be passed to control the parts and notations of the date.
+*
+* @param date - The original date
+* @param options - An object with options.
+*
+* @returns The formatted date string (in local time zone)
+*
+* @throws `date` must not be Invalid Date
+*
+* @example
+* // Represent 18 September 2019 in ISO 8601 format (local time zone is UTC):
+* const result = formatISO(new Date(2019, 8, 18, 19, 0, 52))
+* //=> '2019-09-18T19:00:52Z'
+*
+* @example
+* // Represent 18 September 2019 in ISO 8601, short format (local time zone is UTC):
+* const result = formatISO(new Date(2019, 8, 18, 19, 0, 52), { format: 'basic' })
+* //=> '20190918T190052'
+*
+* @example
+* // Represent 18 September 2019 in ISO 8601 format, date only:
+* const result = formatISO(new Date(2019, 8, 18, 19, 0, 52), { representation: 'date' })
+* //=> '2019-09-18'
+*
+* @example
+* // Represent 18 September 2019 in ISO 8601 format, time only (local time zone is UTC):
+* const result = formatISO(new Date(2019, 8, 18, 19, 0, 52), { representation: 'time' })
+* //=> '19:00:52Z'
+*/
+function formatISO(date, options) {
+	const date_ = toDate(date, options?.in);
+	if (isNaN(+date_)) throw new RangeError("Invalid time value");
+	const format = options?.format ?? "extended";
+	const representation = options?.representation ?? "complete";
+	let result = "";
+	let tzOffset = "";
+	const dateDelimiter = format === "extended" ? "-" : "";
+	const timeDelimiter = format === "extended" ? ":" : "";
+	if (representation !== "time") {
+		const day = addLeadingZeros(date_.getDate(), 2);
+		const month = addLeadingZeros(date_.getMonth() + 1, 2);
+		result = `${addLeadingZeros(date_.getFullYear(), 4)}${dateDelimiter}${month}${dateDelimiter}${day}`;
+	}
+	if (representation !== "date") {
+		const offset = date_.getTimezoneOffset();
+		if (offset !== 0) {
+			const absoluteOffset = Math.abs(offset);
+			const hourOffset = addLeadingZeros(Math.trunc(absoluteOffset / 60), 2);
+			const minuteOffset = addLeadingZeros(absoluteOffset % 60, 2);
+			tzOffset = `${offset < 0 ? "+" : "-"}${hourOffset}:${minuteOffset}`;
+		} else tzOffset = "Z";
+		const hour = addLeadingZeros(date_.getHours(), 2);
+		const minute = addLeadingZeros(date_.getMinutes(), 2);
+		const second = addLeadingZeros(date_.getSeconds(), 2);
+		const separator = result === "" ? "" : "T";
+		const time = [
+			hour,
+			minute,
+			second
+		].join(timeDelimiter);
+		result = `${result}${separator}${time}${tzOffset}`;
+	}
+	return result;
+}
+//#endregion
+//#region node_modules/date-fns/parseISO.js
+/**
+* The {@link parseISO} function options.
+*/
+/**
+* @name parseISO
+* @category Common Helpers
+* @summary Parse ISO string
+*
+* @description
+* Parse the given string in ISO 8601 format and return an instance of Date.
+*
+* Function accepts complete ISO 8601 formats as well as partial implementations.
+* ISO 8601: http://en.wikipedia.org/wiki/ISO_8601
+*
+* If the argument isn't a string, the function cannot parse the string or
+* the values are invalid, it returns Invalid Date.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param argument - The value to convert
+* @param options - An object with options
+*
+* @returns The parsed date in the local time zone
+*
+* @example
+* // Convert string '2014-02-11T11:30:30' to date:
+* const result = parseISO('2014-02-11T11:30:30')
+* //=> Tue Feb 11 2014 11:30:30
+*
+* @example
+* // Convert string '+02014101' to date,
+* // if the additional number of digits in the extended year format is 1:
+* const result = parseISO('+02014101', { additionalDigits: 1 })
+* //=> Fri Apr 11 2014 00:00:00
+*/
+function parseISO(argument, options) {
+	const invalidDate = () => constructFrom(options?.in, NaN);
+	const additionalDigits = options?.additionalDigits ?? 2;
+	const dateStrings = splitDateString(argument);
+	let date;
+	if (dateStrings.date) {
+		const parseYearResult = parseYear(dateStrings.date, additionalDigits);
+		date = parseDate(parseYearResult.restDateString, parseYearResult.year);
+	}
+	if (!date || isNaN(+date)) return invalidDate();
+	const timestamp = +date;
+	let time = 0;
+	let offset;
+	if (dateStrings.time) {
+		time = parseTime(dateStrings.time);
+		if (isNaN(time)) return invalidDate();
+	}
+	if (dateStrings.timezone) {
+		offset = parseTimezone(dateStrings.timezone);
+		if (isNaN(offset)) return invalidDate();
+	} else {
+		const tmpDate = new Date(timestamp + time);
+		const result = toDate(0, options?.in);
+		result.setFullYear(tmpDate.getUTCFullYear(), tmpDate.getUTCMonth(), tmpDate.getUTCDate());
+		result.setHours(tmpDate.getUTCHours(), tmpDate.getUTCMinutes(), tmpDate.getUTCSeconds(), tmpDate.getUTCMilliseconds());
+		return result;
+	}
+	return toDate(timestamp + time + offset, options?.in);
+}
+var patterns = {
+	dateTimeDelimiter: /[T ]/,
+	timeZoneDelimiter: /[Z ]/i,
+	timezone: /([Z+-].*)$/
+};
+var dateRegex = /^-?(?:(\d{3})|(\d{2})(?:-?(\d{2}))?|W(\d{2})(?:-?(\d{1}))?|)$/;
+var timeRegex = /^(\d{2}(?:[.,]\d*)?)(?::?(\d{2}(?:[.,]\d*)?))?(?::?(\d{2}(?:[.,]\d*)?))?$/;
+var timezoneRegex = /^([+-])(\d{2})(?::?(\d{2}))?$/;
+function splitDateString(dateString) {
+	const dateStrings = {};
+	const array = dateString.split(patterns.dateTimeDelimiter);
+	let timeString;
+	if (array.length > 2) return dateStrings;
+	if (/:/.test(array[0])) timeString = array[0];
+	else {
+		dateStrings.date = array[0];
+		timeString = array[1];
+		if (patterns.timeZoneDelimiter.test(dateStrings.date)) {
+			dateStrings.date = dateString.split(patterns.timeZoneDelimiter)[0];
+			timeString = dateString.substr(dateStrings.date.length, dateString.length);
+		}
+	}
+	if (timeString) {
+		const token = patterns.timezone.exec(timeString);
+		if (token) {
+			dateStrings.time = timeString.replace(token[1], "");
+			dateStrings.timezone = token[1];
+		} else dateStrings.time = timeString;
+	}
+	return dateStrings;
+}
+function parseYear(dateString, additionalDigits) {
+	const regex = new RegExp("^(?:(\\d{4}|[+-]\\d{" + (4 + additionalDigits) + "})|(\\d{2}|[+-]\\d{" + (2 + additionalDigits) + "})$)");
+	const captures = dateString.match(regex);
+	if (!captures) return {
+		year: NaN,
+		restDateString: ""
+	};
+	const year = captures[1] ? parseInt(captures[1]) : null;
+	const century = captures[2] ? parseInt(captures[2]) : null;
+	return {
+		year: century === null ? year : century * 100,
+		restDateString: dateString.slice((captures[1] || captures[2]).length)
+	};
+}
+function parseDate(dateString, year) {
+	if (year === null) return /* @__PURE__ */ new Date(NaN);
+	const captures = dateString.match(dateRegex);
+	if (!captures) return /* @__PURE__ */ new Date(NaN);
+	const isWeekDate = !!captures[4];
+	const dayOfYear = parseDateUnit(captures[1]);
+	const month = parseDateUnit(captures[2]) - 1;
+	const day = parseDateUnit(captures[3]);
+	const week = parseDateUnit(captures[4]);
+	const dayOfWeek = parseDateUnit(captures[5]) - 1;
+	if (isWeekDate) {
+		if (!validateWeekDate(year, week, dayOfWeek)) return /* @__PURE__ */ new Date(NaN);
+		return dayOfISOWeekYear(year, week, dayOfWeek);
+	} else {
+		const date = /* @__PURE__ */ new Date(0);
+		if (!validateDate(year, month, day) || !validateDayOfYearDate(year, dayOfYear)) return /* @__PURE__ */ new Date(NaN);
+		date.setUTCFullYear(year, month, Math.max(dayOfYear, day));
+		return date;
+	}
+}
+function parseDateUnit(value) {
+	return value ? parseInt(value) : 1;
+}
+function parseTime(timeString) {
+	const captures = timeString.match(timeRegex);
+	if (!captures) return NaN;
+	const hours = parseTimeUnit(captures[1]);
+	const minutes = parseTimeUnit(captures[2]);
+	const seconds = parseTimeUnit(captures[3]);
+	if (!validateTime(hours, minutes, seconds)) return NaN;
+	return hours * millisecondsInHour + minutes * millisecondsInMinute + seconds * 1e3;
+}
+function parseTimeUnit(value) {
+	return value && parseFloat(value.replace(",", ".")) || 0;
+}
+function parseTimezone(timezoneString) {
+	if (timezoneString === "Z") return 0;
+	const captures = timezoneString.match(timezoneRegex);
+	if (!captures) return 0;
+	const sign = captures[1] === "+" ? -1 : 1;
+	const hours = parseInt(captures[2]);
+	const minutes = captures[3] && parseInt(captures[3]) || 0;
+	if (!validateTimezone(hours, minutes)) return NaN;
+	return sign * (hours * millisecondsInHour + minutes * millisecondsInMinute);
+}
+function dayOfISOWeekYear(isoWeekYear, week, day) {
+	const date = /* @__PURE__ */ new Date(0);
+	date.setUTCFullYear(isoWeekYear, 0, 4);
+	const fourthOfJanuaryDay = date.getUTCDay() || 7;
+	const diff = (week - 1) * 7 + day + 1 - fourthOfJanuaryDay;
+	date.setUTCDate(date.getUTCDate() + diff);
+	return date;
+}
+var daysInMonths = [
+	31,
+	null,
+	31,
+	30,
+	31,
+	30,
+	31,
+	31,
+	30,
+	31,
+	30,
+	31
+];
+function isLeapYearIndex(year) {
+	return year % 400 === 0 || year % 4 === 0 && year % 100 !== 0;
+}
+function validateDate(year, month, date) {
+	return month >= 0 && month <= 11 && date >= 1 && date <= (daysInMonths[month] || (isLeapYearIndex(year) ? 29 : 28));
+}
+function validateDayOfYearDate(year, dayOfYear) {
+	return dayOfYear >= 1 && dayOfYear <= (isLeapYearIndex(year) ? 366 : 365);
+}
+function validateWeekDate(_year, week, day) {
+	return week >= 1 && week <= 53 && day >= 0 && day <= 6;
+}
+function validateTime(hours, minutes, seconds) {
+	if (hours === 24) return minutes === 0 && seconds === 0;
+	return seconds >= 0 && seconds < 60 && minutes >= 0 && minutes < 60 && hours >= 0 && hours < 25;
+}
+function validateTimezone(_hours, minutes) {
+	return minutes >= 0 && minutes <= 59;
+}
+//#endregion
+//#region node_modules/date-fns/setHours.js
+/**
+* The {@link setHours} function options.
+*/
+/**
+* @name setHours
+* @category Hour Helpers
+* @summary Set the hours to the given date.
+*
+* @description
+* Set the hours to the given date.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The date to be changed
+* @param hours - The hours of the new date
+* @param options - An object with options
+*
+* @returns The new date with the hours set
+*
+* @example
+* // Set 4 hours to 1 September 2014 11:30:00:
+* const result = setHours(new Date(2014, 8, 1, 11, 30), 4)
+* //=> Mon Sep 01 2014 04:30:00
+*/
+function setHours(date, hours, options) {
+	const _date = toDate(date, options?.in);
+	_date.setHours(hours);
+	return _date;
+}
+//#endregion
 //#region node_modules/date-fns/locale/zh-TW/_lib/formatDistance.js
 var formatDistanceLocale = {
 	lessThanXSeconds: {
@@ -2603,4 +2973,4 @@ var zhTW = {
 	}
 };
 //#endregion
-export { format as n, zhTW as t };
+export { format as a, formatISO as i, setHours as n, differenceInCalendarDays as o, parseISO as r, addDays as s, zhTW as t };

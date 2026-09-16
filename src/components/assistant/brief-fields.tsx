@@ -44,7 +44,7 @@ export function BriefFields({ brief, onChange, compact }: Props) {
             const eventName = e.target.value;
             onChange({ eventName, product: brief.product || eventName });
           }}
-          placeholder="例如：浮游禪光・週三茶會"
+          placeholder="例如：09/24 浮游禪光"
         />
       </Field>
 
@@ -53,14 +53,14 @@ export function BriefFields({ brief, onChange, compact }: Props) {
           <Input
             value={brief.schedule}
             onChange={(e) => onChange({ schedule: e.target.value })}
-            placeholder="例如：9/12–9/30"
+            placeholder="例如：9/24 19:00–21:00"
           />
         </Field>
         <Field label="地點">
           <Input
             value={brief.location}
             onChange={(e) => onChange({ location: e.target.value })}
-            placeholder="B302 教室 / 社辦 / 淡水河邊"
+            placeholder="例如：淡江校園／社團辦公室"
           />
         </Field>
       </div>
@@ -69,7 +69,7 @@ export function BriefFields({ brief, onChange, compact }: Props) {
         <Input
           value={brief.audience}
           onChange={(e) => onChange({ audience: e.target.value })}
-          placeholder="淡江學生、大一新生、住宿生"
+          placeholder="哪一群淡江學生會停下來看"
         />
       </Field>
 
@@ -77,7 +77,7 @@ export function BriefFields({ brief, onChange, compact }: Props) {
         <Textarea
           value={brief.features}
           onChange={(e) => onChange({ features: e.target.value })}
-          placeholder="最多三件要被記住的事"
+          placeholder="活動內容、學生會得到什麼、參加方式"
           className={compact ? "min-h-20" : undefined}
         />
       </Field>
@@ -86,16 +86,16 @@ export function BriefFields({ brief, onChange, compact }: Props) {
         <Input
           value={brief.style}
           onChange={(e) => onChange({ style: e.target.value })}
-          placeholder="例如：沉靜、留白、不叫賣"
+          placeholder="例如：舒服、年輕、有晚間校園感"
         />
       </Field>
 
       {compact ? null : (
-        <Field label="參加方式（選填）">
+        <Field label="參加誘因（選填）">
           <Input
             value={brief.offer}
             onChange={(e) => onChange({ offer: e.target.value })}
-            placeholder="不用報名、帶杯子來也可以"
+            placeholder="例如：免費參加／可帶朋友／不用事先報名"
           />
         </Field>
       )}
@@ -104,7 +104,7 @@ export function BriefFields({ brief, onChange, compact }: Props) {
         <Textarea
           value={brief.notes}
           onChange={(e) => onChange({ notes: e.target.value })}
-          placeholder="語氣、禁用、必須出現的資訊"
+          placeholder="報名連結、必須出現的資訊，以及不要太宗教或太 AI"
           className={compact ? "min-h-20" : undefined}
         />
       </Field>

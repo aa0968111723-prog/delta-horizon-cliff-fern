@@ -75,6 +75,7 @@ export const BriefInputSchema = z.object({
   slogans: z.string().max(240).optional(),
   preferredCtas: z.string().max(160).optional(),
   imageStyle: z.string().max(400).optional(),
+  brandMemory: z.string().max(2400).optional(),
   forceMock: z.boolean().optional(),
 });
 

@@ -89,7 +89,7 @@ var HEADERS = { TSS_SHELL: "X-TSS_SHELL" };
 * the dev styles URL for route-scoped CSS collection.
 */
 async function getStartManifest(matchedRoutes) {
-	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-ByDFWubD.mjs");
+	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-BsSRQBt9.mjs");
 	const startManifest = tsrStartManifest();
 	let routes = startManifest.routes;
 	routes[rootRouteId];
@@ -111,11 +111,15 @@ async function getStartManifest(matchedRoutes) {
 var manifest = {
 	"33f8623ec89488020a450daf3dd1d5eaba647d90bfd212224919e7686b4ad56e": {
 		functionName: "generateCampaignPlan_createServerFn_handler",
-		importer: () => import("./campaign-M-ePRg7N.mjs")
+		importer: () => import("./campaign-B6F_HLZz.mjs")
 	},
 	"51052173a1f06126bc3572058baa979c40dbe318b507888eb1c255646b3bd1fe": {
 		functionName: "getCampaignAiStatus_createServerFn_handler",
-		importer: () => import("./campaign-M-ePRg7N.mjs")
+		importer: () => import("./campaign-B6F_HLZz.mjs")
+	},
+	"52b222ee496fac70e202564c0c335d08423ec4ee7160668db1b52550958991af": {
+		functionName: "generateCopyPack_createServerFn_handler",
+		importer: () => import("./copy-CE1TG7jK.mjs")
 	},
 	"86652c34390936ffd17f0154640d9f08f7b9106dd86d50dcb537409d9aeff764": {
 		functionName: "interpretEditorCommand_createServerFn_handler",
@@ -1389,7 +1393,7 @@ var getBaseManifest = getProdBaseManifest;
 var createEarlyHintsForRequest = createEarlyHintsCollector;
 async function loadEntries() {
 	const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-		import("./router-C_PWIgcC.mjs").then((n) => n.t),
+		import("./router-Dh2P_fa6.mjs").then((n) => n.t),
 		import("./start-5Z2QO8AU.mjs"),
 		import("./empty-plugin-adapters-D9UWiqvJ.mjs")
 	]);
