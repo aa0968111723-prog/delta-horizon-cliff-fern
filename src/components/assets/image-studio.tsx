@@ -176,7 +176,7 @@ export function ImageStudio() {
         <div className="p-5 md:p-7">
           <Badge className="bg-accent-fg/10 text-accent-fg">
             <Sparkles className="size-3.5" />
-            AI Image Studio
+            畫面生成
           </Badge>
           <h2 className="mt-4 text-2xl font-semibold tracking-tight">先想情境，再生成畫面</h2>
           <p className="mt-2 max-w-md text-sm leading-6 text-accent-fg/70">
