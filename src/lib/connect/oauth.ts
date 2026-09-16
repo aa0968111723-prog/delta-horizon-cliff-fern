@@ -2,6 +2,7 @@ import { EncryptJWT, jwtDecrypt } from "jose";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
+import { DRIVE_SCOPES } from "./drive-publish";
 
 export type ProviderId = "drive" | "canva" | "instagram";
 
@@ -31,7 +32,7 @@ export function providerConfig(provider: ProviderId): { configured: boolean; aut
       configured: Boolean(id && process.env.GOOGLE_CLIENT_SECRET),
       label: "Google Drive",
       authorize: id
-        ? `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(id)}&response_type=code&scope=${encodeURIComponent("https://www.googleapis.com/auth/drive.readonly")}&access_type=offline&prompt=consent`
+        ? `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(id)}&response_type=code&scope=${encodeURIComponent(DRIVE_SCOPES)}&access_type=offline&prompt=consent`
         : undefined,
     };
   }

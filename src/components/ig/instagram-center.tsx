@@ -7,6 +7,9 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { publishInstagramMedia } from "@/lib/connect/instagram-publish";
+import { getAssetBlob } from "@/lib/studio/assets-idb";
+import { bytesToBase64 } from "@/lib/studio/bytes";
+import { persistGeneratedImage } from "@/lib/studio/raster";
 import { pagesOf } from "@/lib/studio/layers";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { canGraphPublish } from "@/lib/zen/memory";
@@ -43,9 +46,31 @@ export function InstagramCenter() {
     try {
       await navigator.clipboard.writeText(caption).catch(() => undefined);
       if (canGraphPublish(item.kind)) {
-        const result = await publishInstagramMedia({ data: { caption, imageUrl: item.mediaUrl } });
+        let imageBase64: string | undefined;
+        if (item.imageAssetId) {
+          const blob = await getAssetBlob(item.imageAssetId);
+          if (blob) {
+            const png = await persistGeneratedImage({
+              base64: bytesToBase64(new Uint8Array(await blob.arrayBuffer())),
+              mime: blob.type || "image/png",
+              width: 1080,
+              height: 1350,
+            });
+            imageBase64 = png.base64;
+          }
+        }
+        const result = await publishInstagramMedia({
+          data: {
+            caption,
+            imageUrl: item.mediaUrl,
+            imageBase64,
+            mime: "image/png",
+            title: item.title,
+            format: "feed-portrait",
+          },
+        });
         if (result.ok) {
-          publishSchedule(item.id, { mediaUrl: item.mediaUrl });
+          publishSchedule(item.id, { mediaUrl: result.imageUrl || item.mediaUrl });
           toast.success(result.note);
           return;
         }

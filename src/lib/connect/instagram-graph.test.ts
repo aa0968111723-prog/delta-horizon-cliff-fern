@@ -12,7 +12,8 @@ import {
 test("Graph URLs and public image check stay official and non-local", () => {
   assert.equal(mediaContainerUrl("123"), "https://graph.facebook.com/v21.0/123/media");
   assert.equal(mediaPublishUrl("123"), "https://graph.facebook.com/v21.0/123/media_publish");
-  assert.equal(isPublicImageUrl("https://cdn.example.com/tea.jpg"), true);
+  assert.equal(isPublicImageUrl("https://lh3.googleusercontent.com/d/abc=w1080"), true);
+  assert.equal(isPublicImageUrl("https://export-download.canva.com/tea.png"), true);
   assert.equal(isPublicImageUrl("http://127.0.0.1:8080/og.jpg"), false);
   assert.equal(isPublicImageUrl("https://localhost/x.jpg"), false);
   const params = containerParams({ imageUrl: "https://cdn.example.com/tea.jpg", caption: "來坐一下" });

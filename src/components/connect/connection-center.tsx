@@ -11,9 +11,9 @@ import { SEED_REMOTE_FILES } from "@/lib/studio/seed";
 import { useStudio } from "@/stores/studio-store";
 
 const CARDS: { provider: "drive" | "canva" | "instagram"; title: string; hint: string }[] = [
-  { provider: "drive", title: "Google Drive", hint: "照片、企劃、歷屆文宣。指定禪學社資料夾。" },
-  { provider: "canva", title: "Canva", hint: "海報與 IG 設計。送進去會開對應尺寸，有主視覺會放上畫布。" },
-  { provider: "instagram", title: "Instagram", hint: "官方 API 讀貼文、Insights，並可發布 Feed。新權限需重新授權。" },
+  { provider: "drive", title: "Google Drive", hint: "讀歷屆照片與企劃。發布時會把主視覺放到「禪光發布」資料夾，需重新授權寫入。" },
+  { provider: "canva", title: "Canva", hint: "海報與 IG 設計。可送進去微調，也可匯出 PNG 給官方 IG 發布。" },
+  { provider: "instagram", title: "Instagram", hint: "官方 API 讀貼文、Insights，並發布 Feed。主視覺走 Drive 或 Canva 公開網址。" },
 ];
 
 export function ConnectionCenter() {

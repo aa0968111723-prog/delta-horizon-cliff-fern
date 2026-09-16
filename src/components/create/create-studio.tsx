@@ -17,7 +17,8 @@ import { createCanvaDesign } from "@/lib/connect/canva";
 import { searchDriveLive } from "@/lib/connect/sync";
 import { emptyBrief, migrateBrief } from "@/lib/studio/brief";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
-import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
+import { persistGeneratedImage } from "@/lib/studio/raster";
+import { bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById, FORMATS } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { parseEventDate, parseEventTime, guessEventName } from "@/lib/zen/dates";
@@ -343,9 +344,14 @@ export function CreateStudio() {
       return null;
     }
     const spec = formatById(format);
-    const blob = blobFromBase64(result.imageBase64, result.mime);
+    const png = await persistGeneratedImage({
+      base64: result.imageBase64,
+      mime: result.mime,
+      width: spec.width,
+      height: spec.height,
+    });
     const id = uid("asset");
-    await putAssetBlob(id, blob);
+    await putAssetBlob(id, png.blob);
     addAsset({
       id,
       name: [dir.name, opts?.kind ? VARIATIONS.find((item) => item.id === opts.kind)?.label : null, spec.short]
@@ -353,7 +359,7 @@ export function CreateStudio() {
         .join(" · "),
       kind: "image",
       category: "ai",
-      mime: result.mime,
+      mime: png.mime,
       width: spec.width,
       height: spec.height,
       tags: ["AI 生成", eventName || idea],
@@ -366,7 +372,7 @@ export function CreateStudio() {
       lastUsedAt: Date.now(),
       useCount: 0,
     });
-    setLastImage({ base64: result.imageBase64, mime: result.mime, assetId: id, headline: dir.headline });
+    setLastImage({ base64: png.base64, mime: png.mime, assetId: id, headline: dir.headline });
     if (!opts?.silent) toast.success("圖片已進素材庫（AI Generated）");
     return id;
   }

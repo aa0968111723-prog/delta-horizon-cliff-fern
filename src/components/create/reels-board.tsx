@@ -1,6 +1,6 @@
 import { generateStudioImage, toImageFormat } from "@/lib/ai/image-studio";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
-import { blobFromBase64 } from "@/lib/studio/bytes";
+import { persistGeneratedImage } from "@/lib/studio/raster";
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import type { ReelsScript } from "@/lib/studio/types";
@@ -41,15 +41,20 @@ export function ReelsBoard({
         return;
       }
       const spec = formatById("reels-cover");
-      const blob = blobFromBase64(result.imageBase64, result.mime);
+      const png = await persistGeneratedImage({
+        base64: result.imageBase64,
+        mime: result.mime,
+        width: spec.width,
+        height: spec.height,
+      });
       const id = uid("asset");
-      await putAssetBlob(id, blob);
+      await putAssetBlob(id, png.blob);
       addAsset({
         id,
         name: `Reels 封面 · ${eventName || "禪光"}`,
         kind: "image",
         category: "reels",
-        mime: result.mime,
+        mime: png.mime,
         width: spec.width,
         height: spec.height,
         tags: ["AI 生成", "Reels", eventName || "封面"],
@@ -63,7 +68,7 @@ export function ReelsBoard({
         useCount: 0,
       });
       toast.success("Reels 封面已進素材庫（AI Generated）");
-      setLastCover({ base64: result.imageBase64, mime: result.mime });
+      setLastCover({ base64: png.base64, mime: png.mime });
     } finally {
       setBusy(false);
     }

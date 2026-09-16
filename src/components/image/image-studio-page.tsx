@@ -19,7 +19,8 @@ import {
 } from "@/lib/ai/image-studio";
 import { createCanvaDesign } from "@/lib/connect/canva";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
-import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
+import { persistGeneratedImage } from "@/lib/studio/raster";
+import { bytesToBase64 } from "@/lib/studio/bytes";
 import { FORMATS, formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { guessEventName } from "@/lib/zen/dates";
@@ -144,15 +145,20 @@ export function ImageStudioPage() {
         return;
       }
       const spec = formatById(nextFormat);
-      const blob = blobFromBase64(result.imageBase64, result.mime);
+      const png = await persistGeneratedImage({
+        base64: result.imageBase64,
+        mime: result.mime,
+        width: spec.width,
+        height: spec.height,
+      });
       const id = uid("asset");
-      await putAssetBlob(id, blob);
+      await putAssetBlob(id, png.blob);
       addAsset({
         id,
         name: [dir.name, kind ? VARIATIONS.find((v) => v.id === kind)?.label : null, spec.short].filter(Boolean).join(" · "),
         kind: "image",
         category: "ai",
-        mime: result.mime,
+        mime: png.mime,
         width: spec.width,
         height: spec.height,
         tags: ["AI 生成", idea, spec.short],
@@ -165,7 +171,7 @@ export function ImageStudioPage() {
         lastUsedAt: Date.now(),
         useCount: 0,
       });
-      setLastImage({ base64: result.imageBase64, mime: result.mime, headline: dir.headline });
+      setLastImage({ base64: png.base64, mime: png.mime, headline: dir.headline });
       toast.success("已存進素材庫（AI Generated）");
     } finally {
       setBusy(false);
