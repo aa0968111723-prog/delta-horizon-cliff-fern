@@ -381,7 +381,7 @@ export function CreateStudio() {
     }
   }
 
-  function applyToCanvas(nextPlan = plan, navigateAfter = true) {
+  function applyToCanvas(nextPlan = plan, navigateAfter = true, imageAssetId = lastImage?.assetId) {
     if (!brand || !nextPlan) return null;
     const brief = migrateBrief({
       ...emptyBrief(),
@@ -402,6 +402,7 @@ export function CreateStudio() {
       templateId: nextPlan.templateId,
       campaignId: campaign?.id,
       contentKind: mode === "story" ? "story" : mode === "reels" ? "reels" : "carousel",
+      imageAssetId,
     });
     applyCampaignPlan(project.id, nextPlan, brief);
     if (navigateAfter) void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
@@ -538,7 +539,7 @@ export function CreateStudio() {
     setBusy(true);
     try {
       const imageId = (await saveGeneratedImage(dir, { silent: true })) ?? undefined;
-      const project = applyToCanvas(next, false);
+      const project = applyToCanvas(next, false, imageId);
       const created = saveCampaignAndWaves(next, imageId, project?.id ?? null, { silent: true });
       scheduleConverted(next, created, project?.id ?? null, imageId);
       toast.success("已用這個方向做出整套：主視覺、文案、各平台、月曆");

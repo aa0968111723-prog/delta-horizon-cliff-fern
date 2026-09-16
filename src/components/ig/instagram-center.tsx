@@ -87,14 +87,21 @@ export function InstagramCenter() {
         <h2 className="text-sm font-medium">Grid Preview</h2>
         <ul className="mt-3 grid grid-cols-3 gap-1">
           {upcoming
-            .filter((item) => item.projectId)
-            .slice(0, 3)
+            .filter((item) => item.kind === "ig-post" || item.kind === "carousel")
+            .slice(0, 6)
             .map((item) => {
-              const project = projects.find((p) => p.id === item.projectId);
+              const project = item.projectId ? projects.find((p) => p.id === item.projectId) : null;
               const page = project ? pagesOf(project)[0] : null;
+              const src = item.imageAssetId ? urls[item.imageAssetId] : null;
               return (
                 <li key={`up-${item.id}`} className="relative aspect-square overflow-hidden bg-surface-2">
-                  {page && brand ? <ArtboardView artboard={page} brand={brand} urls={urls} width={140} /> : null}
+                  {src ? (
+                    <img src={src} alt={item.title} className="size-full object-cover" />
+                  ) : page && brand ? (
+                    <ArtboardView artboard={page} brand={brand} urls={urls} width={140} />
+                  ) : (
+                    <span className="flex size-full items-center p-2 text-left text-xs">{item.title}</span>
+                  )}
                   <span className="absolute bottom-1 left-1 rounded-full bg-surface px-2 py-0.5 text-[10px] text-fg">即將</span>
                 </li>
               );
@@ -180,7 +187,11 @@ export function InstagramCenter() {
         <h2 className="text-sm font-medium">即將發布</h2>
         <ul className="mt-3 space-y-2">
           {upcoming.slice(0, 6).map((item) => (
-              <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]">
+              <li key={item.id} className="flex gap-3 rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]">
+                {item.imageAssetId && urls[item.imageAssetId] ? (
+                  <img src={urls[item.imageAssetId]} alt="" className="size-16 shrink-0 rounded-xl object-cover" />
+                ) : null}
+                <div className="min-w-0 flex-1">
                 {item.title}
                 <span className="mt-1 block text-xs text-muted">{item.kind}</span>
                 {item.caption ? <p className="mt-2 line-clamp-3 text-xs text-muted">{item.caption}</p> : null}
@@ -202,6 +213,7 @@ export function InstagramCenter() {
                   >
                     標記已發布
                   </Button>
+                </div>
                 </div>
               </li>
             ))}

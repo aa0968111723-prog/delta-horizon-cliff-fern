@@ -122,6 +122,7 @@ type StudioState = {
     templateId?: TemplateId;
     campaignId?: string | null;
     contentKind?: ContentKind;
+    imageAssetId?: string | null;
   }) => Project;
   createFromTemplate: (input: { templateId: TemplateId; brandId: string }) => Project;
   createCampaign: (input: Partial<ClubCampaign> & { name: string }) => ClubCampaign;
@@ -426,12 +427,12 @@ export const useStudio = create<StudioState>()(
         get().markAssetUsed(asset.id);
         return true;
       },
-      createProject: ({ name, brandId, formatId, brief, templateId, campaignId, contentKind }) => {
+      createProject: ({ name, brandId, formatId, brief, templateId, campaignId, contentKind, imageAssetId }) => {
         const brand = brandById(get().brands, brandId);
         const tpl = templateId ?? "editorial";
         const copy = withBoilerplate(emptyCopy(brand.handle, brand.boilerplate), brand.boilerplate);
         copy.headline = name;
-        const artboard = buildLayout(formatId, copy, brand, tpl);
+        const artboard = buildLayout(formatId, copy, brand, tpl, { imageAssetId: imageAssetId ?? null });
         const nextBrief = migrateBrief(brief);
         const project: Project = {
           id: uid("proj"),
