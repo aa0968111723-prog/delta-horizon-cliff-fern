@@ -12,10 +12,9 @@ var install_page_default = "<!DOCTYPE html>\n<html lang=\"en\" class=\"device-de
 //#endregion
 //#region \0virtual:grok-og-identity
 var grokOgIdentity = { "site": {
-	"title": "構幀",
-	"type": "website",
+	"title": "禪作所",
 	"card": "custom",
-	"color": "1E4A45",
+	"color": "174D49",
 	"image": "/og.jpg"
 } };
 //#endregion
