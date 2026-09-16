@@ -8,7 +8,9 @@ import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { clubDnaFromMemory } from "@/lib/club/dna";
+import { compactSeasonSteer } from "@/lib/club/featured";
 import { clubInsightsFromPosts, nextCreateFromLearn } from "@/lib/club/insights";
+import { academicMoment } from "@/lib/club/season";
 import { analyzeIgMemoryPost, applyStudentSimToCopy } from "@/lib/club/ig-analyze";
 import { captionFromProject } from "@/lib/creative/publish";
 import { coverFromSourceRefs, followPublishedSlot, igGridSlots, upcomingSlotId, upcomingStatusCopy, type IgGridSlot } from "@/lib/creative/ig-feed";
@@ -247,6 +249,7 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
                     mixLesson: insights.mixLesson,
                     visualLesson: insights.visualLesson,
                   },
+                  { seasonNote: compactSeasonSteer(academicMoment(), lastLearn?.hook ?? insights.winningHooks[0]) },
                 ),
                 go: "1",
               }}

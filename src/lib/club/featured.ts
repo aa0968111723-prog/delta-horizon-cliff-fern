@@ -109,3 +109,12 @@ export function seasonCreateNote(season: AcademicMoment, lastHook?: string) {
     stale ? ` 不要沿用「${lastHook}」這種過季語氣。` : ""
   } Hook 必須跟淡江學生現在的生活有關，不要抽象客群。`;
 }
+
+/** 給創作入口用的短註，避免把整段學期說明塞進 360 字 query。 */
+export function compactSeasonSteer(season: AcademicMoment, lastHook?: string) {
+  const hook = lastHook?.replace(/\s+/g, " ").slice(0, 24);
+  if (hook && !hookFitsSeason(lastHook ?? "", season.id)) {
+    return `現在是${season.label}，不要沿用「${hook}」。下一篇寫現在的生活。`;
+  }
+  return `現在是${season.label}。下一篇不要重複「${hook || "同一句"}」。`;
+}

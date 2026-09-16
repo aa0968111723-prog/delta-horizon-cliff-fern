@@ -152,8 +152,10 @@ export function lastLearnPromptBlock(
 
 export function nextCreateFromLearn(
   learn: Pick<LastLearn, "hook" | "hookLesson" | "mixLesson" | "visualLesson">,
+  opts?: { seasonNote?: string },
 ) {
   const hook = learn.hook.replace(/\s+/g, " ").slice(0, 48);
   const visual = learn.visualLesson ? ` ${learn.visualLesson}` : "";
-  return `下一篇不要重複「${hook}」。${learn.hookLesson} ${learn.mixLesson}${visual} 幫我寫一篇新的 IG。`.slice(0, 360);
+  const skip = opts?.seasonNote ?? `下一篇不要重複「${hook}」。`;
+  return `${skip} ${learn.hookLesson} ${learn.mixLesson}${visual} 幫我寫一篇新的 IG。`.slice(0, 360);
 }

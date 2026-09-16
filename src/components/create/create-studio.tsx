@@ -22,7 +22,7 @@ import { buildCanvaKit, canvaDesignIdFromEditUrl, canvaReturnTitle, memoryFromCa
 import { persistableImageSrc } from "@/lib/connect/next";
 import { publicImageUrl } from "@/lib/connect/ig-publish";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
-import { varyImagePrompt } from "@/lib/creative/image-vary";
+import { varyImagePrompt, type ImageVaryKind } from "@/lib/creative/image-vary";
 import { inferCampaignType, inferEventDate, isoFromMs, scheduledAtFor } from "@/lib/creative/schedule";
 import { annotateWavesFromPack, captionForPackKind, coverForKind, PACK_SCHEDULE_KINDS, remainingPackKinds, topicForPackKind, usesStoryCover } from "@/lib/creative/pack-schedule";
 import { gatherStatusLine, searchCreative, selectSourcesForPack } from "@/lib/creative/search";
@@ -308,16 +308,24 @@ export function CreateStudio({
             if (result.ok) {
               setVision(result.report);
               toast.success(`已讀「${asset.name}」，可以延續風格或整套生成`);
-              if (autoRun) await runPack({ vision: result.report });
+              if (autoRun) {
+                if (mode === "image") await runDirections(result.report);
+                else await runPack({ vision: result.report });
+              }
             } else if (autoRun) {
-              await runPack();
+              if (mode === "image") await runDirections();
+              else await runPack();
             }
           } else if (autoRun) {
-            await runPack();
+            if (mode === "image") await runDirections();
+            else await runPack();
           }
         } catch {
           toast.error("這張圖讀不到，改丟一張進來也可以。");
-          if (autoRun) await runPack();
+          if (autoRun) {
+            if (mode === "image") await runDirections();
+            else await runPack();
+          }
         } finally {
           setBusy(false);
         }
@@ -327,13 +335,19 @@ export function CreateStudio({
     if (mode === "vision") fileRef.current?.click();
     if (autoRun) {
       ran.current = true;
-      void runPack();
+      if (mode === "image") void runDirections();
+      else void runPack();
+      return;
+    }
+    if (mode === "image") {
+      ran.current = true;
+      void runDirections();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRun, initialAssetId, mode]);
 
   useEffect(() => {
-    if (restored.current || pack || autoRun || initialAssetId) return;
+    if (restored.current || pack || autoRun || initialAssetId || mode === "image") return;
     const session = readLastSession();
     if (!session) return;
     restored.current = true;
@@ -351,7 +365,7 @@ export function CreateStudio({
     if (session.canvaEditUrl) setCanvaEditUrl(session.canvaEditUrl);
     if (session.canvaDesignId) setCanvaDesignId(session.canvaDesignId);
     if (session.canvaReturnAssetId) setCanvaReturnAssetId(session.canvaReturnAssetId);
-  }, [autoRun, initialAssetId, pack]);
+  }, [autoRun, initialAssetId, pack, mode]);
 
   useEffect(() => {
     if (notice === "denied") toast.error("授權沒有完成，這次的文案還在");
@@ -385,13 +399,18 @@ export function CreateStudio({
     }
   }
 
-  async function runDirections() {
+  async function runDirections(report?: VisionReport | null) {
+    const vis = report !== undefined ? report : vision;
     setBusy(true);
     try {
       const result = await listVisualDirections({
         data: {
           topic: query,
-          notes: [brands[0] ? brandMemoryBlock(brands[0]) : "", vision ? visionPromptBlock(vision) : ""]
+          notes: [
+            seasonCreateNote(academicMoment(), useCreative.getState().lastLearn?.hook),
+            brands[0] ? brandMemoryBlock(brands[0]) : "",
+            vis ? visionPromptBlock(vis) : "",
+          ]
             .filter(Boolean)
             .join("\n")
             .slice(0, 1600),
@@ -400,6 +419,8 @@ export function CreateStudio({
       if (result.ok) {
         setDirections(result.directions);
         setDirId(result.directions[0]?.id ?? null);
+        if (pack) setPack({ ...pack, directions: result.directions });
+        toast.success("三個視覺方向好了，先選一個再生成圖");
       }
     } finally {
       setBusy(false);
@@ -960,7 +981,8 @@ export function CreateStudio({
     toast.message(result.message);
   }
 
-  const activeDir = pack?.directions.find((d) => d.id === dirId) ?? directions.find((d) => d.id === dirId);
+  const shownDirections = pack?.directions.length ? pack.directions : directions;
+  const activeDir = shownDirections.find((d) => d.id === dirId) ?? shownDirections[0];
   const copy = copies.find((c) => c.tone === tone) ?? copies[0];
   const sim = pack?.plan.studentSim;
   const insights = clubInsightsFromPosts(igPosts);
@@ -1015,9 +1037,15 @@ export function CreateStudio({
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-20 md:px-8 md:py-10">
-      <p className="text-xs tracking-[0.18em] text-muted uppercase">AI 創作台</p>
-      <h1 className="mt-1 font-display text-3xl md:text-4xl">把一句話變成整套網宣</h1>
-      <p className="mt-2 text-sm text-muted">文案、方向、Carousel、Story、Threads、Reels 會一起出來。不會出現 Agent 管理。</p>
+      <p className="text-xs tracking-[0.18em] text-muted uppercase">{mode === "image" ? "AI Image Studio" : "AI 創作台"}</p>
+      <h1 className="mt-1 font-display text-3xl md:text-4xl">
+        {mode === "image" ? "先選一個視覺方向" : "把一句話變成整套網宣"}
+      </h1>
+      <p className="mt-2 text-sm text-muted">
+        {mode === "image"
+          ? "先想活動、淡江學生、淡水、品牌色與龜龜，再給三個方向。不要直接生一張禪風海報。"
+          : "文案、方向、Carousel、Story、Threads、Reels 會一起出來。不會出現 Agent 管理。"}
+      </p>
 
       <Textarea
         value={query}
@@ -1118,7 +1146,7 @@ export function CreateStudio({
             ) : null}
           </div>
         </section>
-      ) : imageSrc ? (
+      ) : imageSrc && !shownDirections.length ? (
         <img src={imageSrc} alt="生成或上傳的畫面" className="mt-6 w-full rounded-3xl shadow-[var(--shadow-artboard)]" />
       ) : null}
 
@@ -1171,6 +1199,31 @@ export function CreateStudio({
         </div>
       ) : null}
 
+      {shownDirections.length ? (
+        <VisualDirectionBoard
+          directions={shownDirections}
+          dirId={activeDir?.id ?? dirId}
+          activeDir={activeDir}
+          aspect={aspect}
+          busy={busy}
+          imageSrc={imageSrc}
+          onPick={(dir) => {
+            setDirId(dir.id);
+            if (pack && dir.id !== dirId && dir.imagePrompt) {
+              void runImage(dir.imagePrompt, aspect, { silent: true });
+            }
+          }}
+          onAspect={setAspect}
+          onGenerate={() => {
+            if (activeDir?.imagePrompt) void runImage(activeDir.imagePrompt);
+          }}
+          onVary={(kind) => {
+            if (activeDir?.imagePrompt) void runImage(varyImagePrompt(activeDir.imagePrompt, kind));
+          }}
+          onRefresh={() => void runDirections()}
+        />
+      ) : null}
+
       {pack ? (
         <section className="mt-8 space-y-6">
           <div className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
@@ -1198,70 +1251,6 @@ export function CreateStudio({
             <Button className="mt-3 min-h-11 rounded-full" disabled={busy} onClick={() => void scheduleWholeCampaign()}>
               整套排進月曆
             </Button>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-medium">三個創意方向</h2>
-            <ul className="mt-3 grid gap-3 md:grid-cols-3">
-              {(pack.directions.length ? pack.directions : directions).map((dir) => (
-                <li key={dir.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDirId(dir.id);
-                      if (dir.id !== dirId && dir.imagePrompt) {
-                        void runImage(dir.imagePrompt, aspect, { silent: true });
-                      }
-                    }}
-                    className={cn(
-                      "h-full min-h-11 w-full rounded-2xl p-4 text-left shadow-[var(--shadow-border)]",
-                      dirId === dir.id ? "bg-accent text-accent-fg" : "bg-surface",
-                    )}
-                  >
-                    <p className="text-sm font-medium">{dir.name}</p>
-                    <p className={cn("mt-2 text-xs", dirId === dir.id ? "text-accent-fg/80" : "text-muted")}>{dir.concept}</p>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {activeDir ? (
-              <div className="mt-4 rounded-2xl bg-surface p-4 text-sm shadow-[var(--shadow-border)]">
-                <p>配色：{activeDir.palette}</p>
-                <p className="mt-1">構圖：{activeDir.composition}</p>
-                <p className="mt-1">字：{activeDir.typeDirection}</p>
-                <p className="mt-3 text-xs text-muted">{activeDir.imagePrompt}</p>
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {ASPECTS.map((item) => (
-                    <Button key={item.id} size="sm" variant={aspect === item.id ? "default" : "secondary"} onClick={() => setAspect(item.id)}>
-                      {item.label}
-                    </Button>
-                  ))}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => void runImage(activeDir.imagePrompt)}>
-                    生成這個方向的圖
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void runImage(varyImagePrompt(activeDir.imagePrompt, "compose"))}>
-                    換構圖
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void runImage(varyImagePrompt(activeDir.imagePrompt, "mood"))}>
-                    換氣氛
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void runImage(varyImagePrompt(activeDir.imagePrompt, "bg"))}>
-                    換背景
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void runImage(varyImagePrompt(activeDir.imagePrompt, "style"))}>
-                    換風格
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void runImage(varyImagePrompt(activeDir.imagePrompt, "type"))}>
-                    換文字
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void runDirections()}>
-                    重新生成方向
-                  </Button>
-                </div>
-              </div>
-            ) : null}
           </div>
 
           <div>
@@ -1472,6 +1461,112 @@ export function CreateStudio({
         </section>
       ) : null}
     </main>
+  );
+}
+
+function VisualDirectionBoard({
+  directions,
+  dirId,
+  activeDir,
+  aspect,
+  busy,
+  imageSrc,
+  onPick,
+  onAspect,
+  onGenerate,
+  onVary,
+  onRefresh,
+}: {
+  directions: CreativeDirection[];
+  dirId: string | null;
+  activeDir?: CreativeDirection;
+  aspect: (typeof ASPECTS)[number]["id"];
+  busy: boolean;
+  imageSrc: string | null;
+  onPick: (dir: CreativeDirection) => void;
+  onAspect: (id: (typeof ASPECTS)[number]["id"]) => void;
+  onGenerate: () => void;
+  onVary: (kind: ImageVaryKind) => void;
+  onRefresh: () => void;
+}) {
+  return (
+    <section className="mt-8" data-visual-directions="">
+      <h2 className="text-sm font-medium">三個視覺方向</h2>
+      <p className="mt-1 text-xs text-muted">每個方向有概念、配色、構圖、字、主文案。選一個再生成，不要直接出禪風海報。</p>
+      <ul className="mt-3 grid gap-3 md:grid-cols-3">
+        {directions.map((dir) => {
+          const selected = dir.id === dirId;
+          return (
+            <li key={dir.id}>
+              <button
+                type="button"
+                onClick={() => onPick(dir)}
+                className={cn(
+                  "h-full min-h-11 w-full rounded-2xl p-4 text-left shadow-[var(--shadow-border)]",
+                  selected ? "bg-accent text-accent-fg" : "bg-surface",
+                )}
+              >
+                <p className="text-sm font-medium">{dir.name}</p>
+                <p className="mt-2 font-display text-base leading-snug">「{dir.headline.replace(/\n/g, "")}」</p>
+                <p className={cn("mt-2 text-xs", selected ? "text-accent-fg/80" : "text-muted")}>{dir.concept}</p>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {activeDir ? (
+        <div className="mt-4 rounded-2xl bg-surface p-4 text-sm shadow-[var(--shadow-border)]">
+          {imageSrc ? (
+            <img
+              src={imageSrc}
+              alt="這個方向的主視覺"
+              className="mb-4 max-h-80 w-full rounded-2xl object-cover shadow-[var(--shadow-artboard)]"
+            />
+          ) : null}
+          <p>主文案：{activeDir.headline.replace(/\n/g, " ")}</p>
+          <p className="mt-1">副文案：{activeDir.subhead}</p>
+          <p className="mt-1">配色：{activeDir.palette}</p>
+          <p className="mt-1">構圖：{activeDir.composition}</p>
+          <p className="mt-1">字：{activeDir.typeDirection}</p>
+          <p className="mt-3 text-xs text-muted">{activeDir.imagePrompt}</p>
+          <div className="mt-3 flex flex-wrap gap-1">
+            {ASPECTS.map((item) => (
+              <Button
+                key={item.id}
+                size="sm"
+                variant={aspect === item.id ? "default" : "secondary"}
+                onClick={() => onAspect(item.id)}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" disabled={busy} onClick={onGenerate}>
+              生成這個方向的圖
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => onVary("compose")}>
+              換構圖
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => onVary("mood")}>
+              換氣氛
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => onVary("bg")}>
+              換背景
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => onVary("style")}>
+              換風格
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => onVary("type")}>
+              換文字
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={onRefresh}>
+              重新生成方向
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </section>
   );
 }
 

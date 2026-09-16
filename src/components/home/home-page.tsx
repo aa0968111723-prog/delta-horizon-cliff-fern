@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { daysUntil, academicMoment } from "@/lib/club/season";
 import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { CalendarThumb } from "@/components/calendar/calendar-thumb";
-import { featuredHookForNow, seasonCreateNote } from "@/lib/club/featured";
+import { compactSeasonSteer, featuredHookForNow } from "@/lib/club/featured";
 import { clubInsightsFromPosts, nextCreateFromLearn } from "@/lib/club/insights";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { gatherStatusLine, searchCreative } from "@/lib/creative/search";
@@ -207,7 +207,7 @@ export function HomePage() {
             <Link
               to="/create"
               search={{
-                q: `${seasonCreateNote(season, lastLearn.hook)} ${nextCreateFromLearn(lastLearn)}`.slice(0, 360),
+                q: nextCreateFromLearn(lastLearn, { seasonNote: compactSeasonSteer(season, lastLearn.hook) }),
                 go: "1",
               }}
             >

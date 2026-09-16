@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SEED_IG_POSTS } from "../creative/memory-seed.ts";
+import { compactSeasonSteer } from "./featured.ts";
 import {
   clubInsightsFromPosts,
   insightsPromptBlock,
@@ -9,6 +10,7 @@ import {
   lastLearnPromptBlock,
   nextCreateFromLearn,
 } from "./insights.ts";
+import { academicMoment } from "./season.ts";
 
 test("insights prefer high-save life posts over club invitations", () => {
   const insights = clubInsightsFromPosts(SEED_IG_POSTS);
@@ -33,6 +35,13 @@ test("insights prefer high-save life posts over club invitations", () => {
   assert.ok(nextQuery.startsWith("下一篇不要重複"));
   assert.equal(nextQuery.includes("年輕人"), false);
   assert.ok(/畫面|停/.test(nextQuery));
+  const seasonQuery = nextCreateFromLearn(learned, {
+    seasonNote: compactSeasonSteer(academicMoment(new Date("2026-09-16T12:00:00+08:00")), "期末不是要你更努力。"),
+  });
+  assert.match(seasonQuery, /開學/);
+  assert.match(seasonQuery, /不要沿用/);
+  assert.ok(seasonQuery.includes("幫我寫一篇新的 IG"));
+  assert.equal(seasonQuery.length <= 360, true);
   const fromThisPost = lastLearnFromPosts(SEED_IG_POSTS, "淡江大學禪學社誠摯邀請您", 2, {
     caption: "淡江大學禪學社誠摯邀請您蒞臨本週活動。",
     mediaType: "image",

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SEED_IG_POSTS } from "../creative/memory-seed.ts";
-import { featuredHookForNow, hookFitsSeason, seasonCreateNote } from "./featured.ts";
+import { compactSeasonSteer, featuredHookForNow, hookFitsSeason, seasonCreateNote } from "./featured.ts";
 import { academicMoment } from "./season.ts";
 
 test("期末高收藏句不能當開學的今天推薦", () => {
@@ -29,6 +29,10 @@ test("浮游禪光在開學週推薦坐好，不推薦期末", () => {
   const note = seasonCreateNote(season, "期末不是要你更努力。");
   assert.match(note, /開學/);
   assert.match(note, /過季/);
+  const steer = compactSeasonSteer(season, "期末不是要你更努力。");
+  assert.match(steer, /開學/);
+  assert.match(steer, /不要沿用/);
+  assert.equal(steer.includes("大一剛到淡水"), false);
 });
 
 test("期末週可以沿用期末那句的節奏", () => {
