@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { useCreative, type ScheduleItem } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
+const DAY_MS = 86_400_000;
+
 function extendKind(kind: ContentKind) {
   return kind === "story" || kind === "carousel" || kind === "reels" || kind === "ig-post" ? kind : undefined;
 }
@@ -111,6 +113,7 @@ export function CalendarPage() {
   const due = useMemo(() => publishableScheduleRows(schedule), [schedule]);
   const [cursor, setCursor] = useState(() => new Date(2026, 8, 16));
   const [view, setView] = useState<"month" | "week" | "agenda">("month");
+  const [narrow, setNarrow] = useState(false);
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<ContentKind>("ig-post");
   const [selected, setSelected] = useState<ScheduleItem | null>(null);
@@ -122,7 +125,14 @@ export function CalendarPage() {
   }, [schedule, selected]);
 
   useEffect(() => {
-    if (window.matchMedia("(max-width: 640px)").matches) setView("agenda");
+    const mq = window.matchMedia("(max-width: 640px)");
+    const apply = () => {
+      setNarrow(mq.matches);
+      if (mq.matches) setView((current) => (current === "month" ? "agenda" : current));
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
   }, []);
 
   const days = useMemo(() => {
@@ -137,6 +147,14 @@ export function CalendarPage() {
 
   const agenda = [...schedule].sort((a, b) => a.plannedAt - b.plannedAt);
   const gridDays = view === "month" ? days : week;
+  const stackDays =
+    view === "week"
+      ? week
+      : days.filter((day) => isSameDay(day, cursor) || schedule.some((row) => isSameDay(row.plannedAt, day)));
+
+  function shiftRow(row: ScheduleItem, daysDelta: number) {
+    moveSchedule(row.id, row.plannedAt + daysDelta * DAY_MS);
+  }
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
@@ -194,60 +212,107 @@ export function CalendarPage() {
       ) : null}
 
       {view !== "agenda" ? (
-        <div className="mt-6 overflow-x-auto rounded-3xl bg-surface p-3 shadow-[var(--shadow-border)]">
+        <div className="mt-6 overflow-x-hidden rounded-3xl bg-surface p-3 shadow-[var(--shadow-border)]">
           <div className="mb-3 flex items-center justify-between px-2">
             <Button variant="ghost" onClick={() => setCursor(addDays(cursor, view === "month" ? -30 : -7))}>上一{view === "month" ? "月" : "週"}</Button>
             <p className="font-display text-xl">{format(cursor, "yyyy年M月", { locale: zhTW })}</p>
             <Button variant="ghost" onClick={() => setCursor(addDays(cursor, view === "month" ? 30 : 7))}>下一{view === "month" ? "月" : "週"}</Button>
           </div>
-          <div className="grid min-w-[36rem] grid-cols-7 gap-1 text-center text-xs text-muted">
-            {["一", "二", "三", "四", "五", "六", "日"].map((d) => (
-              <div key={d} className="py-2">{d}</div>
-            ))}
-          </div>
-          <div className="grid min-w-[36rem] grid-cols-7 gap-1">
-            {gridDays.map((day) => {
-              const items = schedule.filter((row) => isSameDay(row.plannedAt, day));
-              return (
-                <div
-                  key={day.toISOString()}
-                  className={cn(
-                    "rounded-2xl bg-bg p-1 text-left",
-                    view === "week" ? "min-h-32" : "min-h-24",
-                    view === "month" && !isSameMonth(day, cursor) && "opacity-40",
-                  )}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const id = e.dataTransfer.getData("text/schedule-id");
-                    if (!id) return;
-                    const hour = new Date(schedule.find((row) => row.id === id)?.plannedAt ?? day).getHours();
-                    moveSchedule(id, new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0, 0).getTime());
-                  }}
-                >
-                  <p className="px-1 text-xs">{format(day, "d")}</p>
-                  <ul className="mt-1 space-y-1">
-                    {items.map((row) => (
-                      <li key={row.id}>
-                        <button
-                          type="button"
-                          draggable
-                          data-testid="calendar-chip"
-                          data-chip={scheduleChipLabel(row)}
-                          onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", row.id)}
-                          onClick={() => setSelected(row)}
-                          className="w-full truncate rounded-lg bg-surface px-1 py-1 text-[10px]"
-                          title="點開可複製、標記發布或讓 AI 延伸"
-                        >
-                          {scheduleChipLabel(row)}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
+          {narrow ? (
+            <ul className="space-y-2" data-testid="cal-day-stack">
+              {stackDays.map((day) => {
+                const items = schedule.filter((row) => isSameDay(row.plannedAt, day));
+                return (
+                  <li
+                    key={day.toISOString()}
+                    className="rounded-2xl bg-bg px-3 py-3"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const id = e.dataTransfer.getData("text/schedule-id");
+                      if (!id) return;
+                      const hour = new Date(schedule.find((row) => row.id === id)?.plannedAt ?? day).getHours();
+                      moveSchedule(id, new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0, 0).getTime());
+                    }}
+                  >
+                    <p className="text-xs text-muted">{format(day, "M/d（EE）", { locale: zhTW })}</p>
+                    {items.length ? (
+                      <ul className="mt-2 space-y-1">
+                        {items.map((row) => (
+                          <li key={row.id}>
+                            <button
+                              type="button"
+                              draggable
+                              data-testid="calendar-chip"
+                              data-chip={scheduleChipLabel(row)}
+                              onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", row.id)}
+                              onClick={() => setSelected(row)}
+                              className="w-full truncate rounded-lg bg-surface px-2 py-2 text-left text-sm"
+                            >
+                              {scheduleChipLabel(row)}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-1 text-sm text-muted">這天還沒有排程</p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <>
+              <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted">
+                {["一", "二", "三", "四", "五", "六", "日"].map((d) => (
+                  <div key={d} className="py-2">{d}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {gridDays.map((day) => {
+                  const items = schedule.filter((row) => isSameDay(row.plannedAt, day));
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={cn(
+                        "rounded-2xl bg-bg p-1 text-left",
+                        view === "week" ? "min-h-32" : "min-h-24",
+                        view === "month" && !isSameMonth(day, cursor) && "opacity-40",
+                      )}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const id = e.dataTransfer.getData("text/schedule-id");
+                        if (!id) return;
+                        const hour = new Date(schedule.find((row) => row.id === id)?.plannedAt ?? day).getHours();
+                        moveSchedule(id, new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0, 0).getTime());
+                      }}
+                    >
+                      <p className="px-1 text-xs">{format(day, "d")}</p>
+                      <ul className="mt-1 space-y-1">
+                        {items.map((row) => (
+                          <li key={row.id}>
+                            <button
+                              type="button"
+                              draggable
+                              data-testid="calendar-chip"
+                              data-chip={scheduleChipLabel(row)}
+                              onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", row.id)}
+                              onClick={() => setSelected(row)}
+                              className="w-full truncate rounded-lg bg-surface px-1 py-1 text-[10px]"
+                              title="點開可複製、標記發布或讓 AI 延伸"
+                            >
+                              {scheduleChipLabel(row)}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <ul className="mt-6 space-y-2">
@@ -257,6 +322,14 @@ export function CalendarPage() {
                 {format(row.plannedAt, "M/d（EE）HH:mm", { locale: zhTW })} · {CONTENT_KIND_META[row.contentKind].label} · {CONTENT_STATUS_META[row.status].label}
               </p>
               <p className="mt-1 font-medium">{row.title}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button size="sm" variant="ghost" data-testid="cal-shift-prev" onClick={() => shiftRow(row, -1)}>
+                  改到前一天
+                </Button>
+                <Button size="sm" variant="ghost" data-testid="cal-shift-next" onClick={() => shiftRow(row, 1)}>
+                  改到後一天
+                </Button>
+              </div>
               <div className="mt-2">
                 <ScheduleActions row={row} compact urls={urls} />
               </div>
@@ -273,6 +346,14 @@ export function CalendarPage() {
               <SheetDescription>
                 {format(selected.plannedAt, "M/d（EE）HH:mm", { locale: zhTW })} · {CONTENT_KIND_META[selected.contentKind].label} · {CONTENT_STATUS_META[selected.status].label}
               </SheetDescription>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button size="sm" variant="ghost" data-testid="cal-shift-prev" onClick={() => shiftRow(selected, -1)}>
+                  改到前一天
+                </Button>
+                <Button size="sm" variant="ghost" data-testid="cal-shift-next" onClick={() => shiftRow(selected, 1)}>
+                  改到後一天
+                </Button>
+              </div>
               <div className="mt-4">
                 <ScheduleActions row={selected} urls={urls} />
               </div>

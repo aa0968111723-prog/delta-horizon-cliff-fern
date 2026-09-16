@@ -52,13 +52,18 @@ export function summarizeFound(groups: Record<string, MemoryItem[] | undefined>)
 }
 
 export function notesFromHits(parsed: ParsedIdea, hits: MemoryItem[]) {
-  const lines = hits.slice(0, 8).map((item) => `- ${item.subtitle} — ${item.title}`);
+  const lines = hits.slice(0, 8).map((item) => `- ${item.subtitle} — ${item.title}：${item.notes}`);
+  const canva = hits.filter((item) => item.source === "canva").slice(0, 2);
+  const ig = hits.filter((item) => item.source === "instagram").slice(0, 2);
   return [
     `使用者想法：${parsed.raw}`,
     "已找到相關素材（延續品牌 DNA，不要複製舊作品）：",
     ...(lines.length ? lines : ["- Brand Memory / 龜龜與三色光"]),
+    canva.length ? `Canva 風格：延續配色與留白，不要複製舊排版。${canva.map((item) => item.title).join("、")}` : "",
+    ig.length ? `IG DNA：先學 Hook 與停留感。${ig.map((item) => item.title).join("、")}` : "",
     "目標客群是淡江大學學生，不是抽象年輕人。",
   ]
+    .filter(Boolean)
     .join("\n")
     .slice(0, 1200);
 }

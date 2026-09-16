@@ -10,12 +10,34 @@ export function hitText(item: RankableHit) {
   return [item.title, item.subtitle, item.notes, item.caption, ...(item.tags ?? [])].join(" ").toLowerCase();
 }
 
+const CLUB_TERMS = [
+  "浮游禪光",
+  "三色光",
+  "茶會",
+  "龜龜",
+  "主視覺",
+  "招生",
+  "互動",
+  "晚上",
+  "夜間",
+  "淡水",
+  "校園",
+  "海報",
+  "carousel",
+  "限動",
+  "story",
+];
+
 export function searchKeys(query: string) {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  const cleaned = q.replace(/的照片|照片|素材|檔案|文宣|幫我|一下|找/g, " ");
-  const parts = cleaned.split(/\s+/).filter((part) => part.length >= 1 && !["適合", "相關", "以前"].includes(part));
-  return parts.length ? parts : [q];
+  const cleaned = q.replace(/的照片|照片|素材|檔案|文宣|幫我|一下|找以前|找/g, " ");
+  const parts = cleaned
+    .split(/\s+/)
+    .filter((part) => part.length >= 1 && !["適合", "相關", "以前", "有很多", "同學"].includes(part));
+  const terms = CLUB_TERMS.filter((term) => q.includes(term.toLowerCase()));
+  const keys = [...new Set([...terms, ...parts])].filter(Boolean);
+  return keys.length ? keys : [q];
 }
 
 export function fuzzyMatch(blob: string, part: string) {
@@ -24,8 +46,9 @@ export function fuzzyMatch(blob: string, part: string) {
   if (part.includes("浮游") && blob.includes("浮游")) return true;
   if (part.includes("光") && blob.includes("三色")) return true;
   if (part.includes("晚上") && (blob.includes("夜") || blob.includes("晚"))) return true;
-  if (part.includes("互動") && blob.includes("互動")) return true;
-  if (part.includes("主視覺") && blob.includes("主視覺")) return true;
+  if ((part.includes("互動") || part.includes("同學")) && (blob.includes("互動") || blob.includes("圍坐"))) return true;
+  if (part.includes("主視覺") && (blob.includes("主視覺") || blob.includes("海報"))) return true;
+  if (/\big\b|instagram/.test(part) && (blob.includes("主視覺") || blob.includes("ig") || blob.includes("海報"))) return true;
   return false;
 }
 

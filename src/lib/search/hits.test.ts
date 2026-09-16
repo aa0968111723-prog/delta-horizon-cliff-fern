@@ -46,4 +46,19 @@ test("adopting a search hit continues brand DNA instead of copying the old work"
   assert.match(idea, /浮游禪光/);
   assert.match(idea, /Canva/);
   assert.match(idea, /不要直接複製/);
+  assert.match(idea, /配色|留白|文字層級/);
+  const drive = adoptIdeaFromHit({
+    source: "drive",
+    title: "夜間茶會照片",
+    subtitle: "Google Drive / 2025 茶會",
+    notes: "很多人圍坐。",
+  });
+  assert.match(drive, /現場感覺/);
+  const ig = adoptIdeaFromHit({
+    source: "instagram",
+    title: "茶會回顧",
+    subtitle: "Instagram / 2025-11-13",
+    notes: "Hook 有效。",
+  });
+  assert.match(ig, /Hook|停留感/);
 });

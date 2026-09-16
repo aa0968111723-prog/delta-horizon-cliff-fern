@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fallbackHeroThumb, formatIdFromKind, httpsVideoUrl, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, packForScheduleRow, persistablePack, publicReelsCoverUrl, withCanvaExport, withPackKind, withReelsVideo } from "./last-pack.ts";
+import { fallbackHeroThumb, formatIdFromKind, httpsVideoUrl, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, needsPublicRaster, packForScheduleRow, persistablePack, publicReelsCoverUrl, withCanvaExport, withPackKind, withReelsVideo } from "./last-pack.ts";
 
 test("lastPackFromPlan keeps hook, caption, and a public hero fallback", () => {
   const pack = lastPackFromPlan({
@@ -87,6 +87,31 @@ test("lastPackPreviewSrc prefers the generated asset url", () => {
   });
   assert.equal(lastPackPreviewSrc(pack, { asset_hero: "blob:hero" }), "blob:hero");
   assert.equal(lastPackPreviewSrc(pack, {}), "https://export-download.canva.com/tea.jpg");
+});
+
+test("needsPublicRaster is true until a Canva or Imagine https raster exists", () => {
+  const pack = lastPackFromPlan({
+    projectId: "proj_tea",
+    campaignId: "camp_tea",
+    eventName: "茶會",
+    plan: { hook: "坐一下", captions: [], hashtags: [] },
+    updatedAt: 1,
+  });
+  assert.equal(needsPublicRaster(pack), true);
+  assert.equal(
+    needsPublicRaster({
+      ...pack,
+      canvaExportUrl: "https://export-download.canva.com/tea.jpg",
+    }),
+    false,
+  );
+  assert.equal(
+    needsPublicRaster({
+      ...pack,
+      formatPublicUrls: { "ig-post": "https://imgen.x.ai/tea.png" },
+    }),
+    false,
+  );
 });
 
 test("withCanvaExport stores the public export url on the current format", () => {

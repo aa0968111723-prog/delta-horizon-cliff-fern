@@ -10,7 +10,7 @@ import { takeAutoRun } from "@/lib/create/handoff";
 import { applyStudentReviewToPlan } from "@/lib/copy/review";
 import { toBriefInput } from "@/lib/ai/payload";
 import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, notesFromHits, summarizeFound } from "@/lib/club/compose";
-import { applyCanvaPush, canvaPushMessage, pushHeroToCanva } from "@/lib/club/canva-push";
+import { applyCanvaPush, canvaPushMessage, ensurePublicRaster, pushHeroToCanva } from "@/lib/club/canva-push";
 import { formatIdFromKind, httpsRasterUrl, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, publicReelsCoverUrl, withPackKind, withReelsVideo } from "@/lib/club/last-pack";
 import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
@@ -27,6 +27,7 @@ import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { pagesOf } from "@/lib/studio/layers";
 import { searchCreative, type SearchHit } from "@/lib/search/creative";
+import { adoptIdeaFromHit } from "@/lib/search/hits";
 import type { CampaignPlan, ContentKind, CreativeDirection } from "@/lib/studio/types";
 import { sourceLabel, useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -225,28 +226,39 @@ export function IdeaFlow({
       contentStatus: scheduled ? "scheduled" : "done",
       scheduledAt: scheduled ? Date.now() : null,
     });
-    setLastPack(
-      lastPackFromPlan({
-        projectId: projectNext.id,
-        campaignId: campaign.id,
-        eventName: parsed.eventName,
-        plan: nextPlan,
-        kind: packKind,
-        converted: packs[packKind],
-        packs,
-        formatAssetIds,
-        formatPublicUrls,
-        directionName: direction.name,
-        heroAssetId,
-        heroThumb: currentHits[0]?.thumb,
-      }),
-    );
+    const packed = lastPackFromPlan({
+      projectId: projectNext.id,
+      campaignId: campaign.id,
+      eventName: parsed.eventName,
+      plan: nextPlan,
+      kind: packKind,
+      converted: packs[packKind],
+      packs,
+      formatAssetIds,
+      formatPublicUrls,
+      directionName: direction.name,
+      heroAssetId,
+      heroThumb: currentHits[0]?.thumb,
+    });
+    setLastPack(packed);
     setPhase("pack");
     toast.success("已生成主視覺、文案與多模態內容，並依淡江學生視角改過一輪");
+    void ensurePublicRaster({
+      pack: packed,
+      previewSrc: nextKindUrls[packKind] || currentHits[0]?.thumb || "/seed/tea.svg",
+      title: parsed.eventName,
+    })
+      .then((result) => {
+        if (!result.changed) return;
+        setLastPack(result.pack);
+        toast.success(result.message);
+      })
+      .catch(() => undefined);
   }
 
   function adoptHit(item: SearchHit) {
     setHeroUrl(item.thumb);
+    setIdea(adoptIdeaFromHit(item));
     const current = useCreative.getState().lastPack;
     if (current) {
       setLastPack({ ...current, heroThumb: item.thumb, updatedAt: Date.now() });

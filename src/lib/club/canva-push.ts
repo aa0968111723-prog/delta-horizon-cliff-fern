@@ -1,17 +1,22 @@
 import { createCanvaFromPlan } from "@/lib/connections/oauth";
 import { formatById } from "@/lib/studio/formats";
 import { blobToDataUrl, rasterizeToJpeg } from "@/lib/image/raster";
-import { formatIdFromKind, httpsRasterUrl, withCanvaExport, type LastPack } from "./last-pack.ts";
+import { formatIdFromKind, httpsRasterUrl, needsPublicRaster, withCanvaExport, type LastPack } from "./last-pack.ts";
 import { graphImageUrl } from "./publish.ts";
 import type { ContentKind } from "../studio/types.ts";
+
+export { needsPublicRaster };
 
 export async function pushHeroToCanva(input: {
   title: string;
   kind: ContentKind | string;
   previewSrc: string;
   caption: string;
+  copyCaption?: boolean;
 }) {
-  await navigator.clipboard.writeText(input.caption).catch(() => undefined);
+  if (input.copyCaption !== false) {
+    await navigator.clipboard.writeText(input.caption).catch(() => undefined);
+  }
   const format = formatById(formatIdFromKind(input.kind as ContentKind));
   const jpeg = await rasterizeToJpeg(input.previewSrc, format.width, format.height);
   let imageBase64: string | undefined;
@@ -43,4 +48,17 @@ export function canvaPushMessage(result: CanvaPushResult) {
 export function applyCanvaPush(pack: LastPack, result: CanvaPushResult): LastPack {
   if (!result.ok) return pack;
   return withCanvaExport(pack, result);
+}
+
+export async function ensurePublicRaster(input: { pack: LastPack; previewSrc: string; title: string }) {
+  if (!needsPublicRaster(input.pack)) return { pack: input.pack, changed: false as const, message: "" };
+  const result = await pushHeroToCanva({
+    title: input.title,
+    kind: input.pack.kind,
+    previewSrc: input.previewSrc,
+    caption: input.pack.caption,
+    copyCaption: false,
+  });
+  if (!result.ok) return { pack: input.pack, changed: false as const, message: "" };
+  return { pack: applyCanvaPush(input.pack, result), changed: true as const, message: canvaPushMessage(result) };
 }

@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hitScore, matchHit, rankHits } from "./rank.ts";
+import { hitScore, matchHit, rankHits, searchKeys } from "./rank.ts";
+
+test("unspaced Drive questions still keep tea and night keys", () => {
+  const keys = searchKeys("找以前晚上的茶會照片");
+  assert.ok(keys.includes("茶會"));
+  assert.ok(keys.includes("晚上"));
+  assert.ok(searchKeys("找有龜龜的素材").includes("龜龜"));
+  assert.ok(searchKeys("找適合 IG 主視覺的照片").some((key) => key.includes("主視覺") || key === "ig"));
+});
 
 test("night tea ranks tea photos above a generic campus file", () => {
   const ranked = rankHits(

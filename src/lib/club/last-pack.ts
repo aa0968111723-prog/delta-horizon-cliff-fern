@@ -41,6 +41,10 @@ export function httpsRasterUrl(src?: string | null) {
   return "";
 }
 
+export function needsPublicRaster(pack: LastPack) {
+  return !httpsRasterUrl(pack.formatPublicUrls?.[pack.kind]) && !httpsRasterUrl(pack.canvaExportUrl);
+}
+
 function httpsUrlMap(urls?: Partial<Record<ContentKind, string>>) {
   const next: Partial<Record<ContentKind, string>> = {};
   for (const [kind, url] of Object.entries(urls ?? {})) {

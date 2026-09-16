@@ -33,7 +33,12 @@ export function InspirationPage() {
               data-testid="inspiration-to-campaign"
               onClick={() => {
                 setCreateOpen(false);
-                writeHandoff({ idea: inspirationQuery(card), tab: "campaign" });
+                writeHandoff({
+                  idea: inspirationQuery(card),
+                  tab: "campaign",
+                  autoRun: true,
+                  sourceLabel: `靈感 / ${card.pattern}`,
+                });
                 void navigate({ to: "/create", search: { tab: "campaign" } });
               }}
             >

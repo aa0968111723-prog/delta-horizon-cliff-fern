@@ -24,6 +24,8 @@ test("tea idea becomes a full campaign brief and sourced plan", () => {
   assert.equal(brief.eventName, "茶會");
   assert.equal(brief.deliverables.carousel, true);
   assert.match(brief.notes, /Google Drive|Canva|Instagram/);
+  assert.match(brief.notes, /Canva 風格/);
+  assert.match(brief.notes, /IG DNA/);
 
   const input: BriefInput = {
     eventName: brief.eventName,
