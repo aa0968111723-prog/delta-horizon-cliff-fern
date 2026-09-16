@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { toast } from "sonner";
 import { PostPackBar } from "@/components/create/post-pack";
 import { PublishPreview } from "@/components/create/publish-preview";
 import { DownloadPackButton } from "@/components/export/download-pack";
 import { PackFlowBar } from "@/components/shared/pack-flow";
+import { PackSyncButtons } from "@/components/shared/pack-sync";
 import { SectionHeader } from "@/components/shared/page-header";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import { pagesOf } from "@/lib/studio/layers";
 import { contentKindLabel } from "@/lib/studio/status";
 import type { BrandKit, Project } from "@/lib/studio/types";
 import { CONVERT_TARGETS } from "@/lib/studio/convert-copy";
-import { useStudio } from "@/stores/studio-store";
 
 /** 一次做成全套之後：同一則內容的每種型態都可以直接複製帶走。 */
 export function ConvertPack({
@@ -38,8 +37,7 @@ export function ConvertPack({
       />
       <div className="flex flex-wrap items-center gap-2">
         <PackFlowBar projectId={packId} />
-        <SpreadCopyButton projectId={packId} />
-        <SpreadVisualButton projectId={packId} />
+        <PackSyncButtons projectId={packId} />
       </div>
       <ul className="grid gap-4 lg:grid-cols-2">
         {members.map((project) => {
@@ -82,42 +80,5 @@ export function ConvertPack({
         })}
       </ul>
     </section>
-  );
-}
-
-function SpreadCopyButton({ projectId }: { projectId: string }) {
-  const applyCopyToPack = useStudio((s) => s.applyCopyToPack);
-  return (
-    <Button
-      size="sm"
-      variant="secondary"
-      aria-label="文案套到全套"
-      onClick={() => {
-        const count = applyCopyToPack(projectId);
-        if (count > 1) toast.success(`這則文案已套到 ${count} 種型態。Threads、LINE、Reels 也換了。`);
-        else toast.info("這則還沒做成其他型態。");
-      }}
-    >
-      文案套到全套
-    </Button>
-  );
-}
-
-function SpreadVisualButton({ projectId }: { projectId: string }) {
-  const applyVisualToPack = useStudio((s) => s.applyVisualToPack);
-  return (
-    <Button
-      size="sm"
-      variant="secondary"
-      aria-label="畫面套到全套"
-      onClick={() => {
-        const count = applyVisualToPack(projectId);
-        if (count > 1) toast.success(`主視覺已套到 ${count} 種畫面。限動、LINE、Reels 封面也換了。`);
-        else if (count === 1) toast.info("這則還沒做成其他有畫面的型態。");
-        else toast.info("這則還沒有主視覺。");
-      }}
-    >
-      畫面套到全套
-    </Button>
   );
 }

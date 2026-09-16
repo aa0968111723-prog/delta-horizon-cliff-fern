@@ -442,7 +442,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       const packSize = convertPackOf(useStudio.getState().projects, target.id).length;
       toast.success(
         packSize > 1
-          ? "這版已套到全套文案，Threads、LINE、Reels 也換了。"
+          ? "這版已套到全套文案，輪播、限動各頁和 Threads、LINE、Reels 也換了。"
           : created
             ? "已建立內容，可以進畫面編輯了"
             : "已套用到這則內容",

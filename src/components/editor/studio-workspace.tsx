@@ -24,6 +24,7 @@ import { CarouselPreview } from "@/components/editor/carousel-preview";
 import { VersionPanel } from "@/components/editor/version-panel";
 import { PublishPreview, isPublishPreviewKind } from "@/components/create/publish-preview";
 import { ConvertBar } from "@/components/create/convert-bar";
+import { PackSyncButtons } from "@/components/shared/pack-sync";
 import { PlannerPanel } from "@/components/planner/planner-panel";
 import { QualityPanel } from "@/components/qa/quality-panel";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -203,7 +204,10 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
         </button>
       </header>
       <div className="shrink-0 space-y-2 overflow-x-auto border-b border-border bg-surface px-3 py-2">
-        <ConvertBar project={project} variant="compact" />
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <ConvertBar project={project} variant="compact" />
+          <PackSyncButtons projectId={project.id} />
+        </div>
         <SourceList sources={project.sources} />
       </div>
 

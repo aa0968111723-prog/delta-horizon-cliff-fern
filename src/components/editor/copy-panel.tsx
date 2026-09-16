@@ -2,6 +2,7 @@ import { ConvertBar } from "@/components/create/convert-bar";
 import { PostPackBar } from "@/components/create/post-pack";
 import { ReelsTimeline } from "@/components/create/reels-timeline";
 import { ContentFlowBar } from "@/components/shared/content-flow";
+import { PackSyncButtons } from "@/components/shared/pack-sync";
 import { SourceList } from "@/components/shared/source-list";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,9 @@ export function CopyPanel({ project }: { project: Project }) {
       <ContentFlowBar project={project} className="pt-2" />
       <SourceList sources={project.sources} className="pt-2" />
       <ConvertBar project={project} className="pt-2" />
+      <div className="flex flex-wrap items-center gap-2 pt-2">
+        <PackSyncButtons projectId={project.id} />
+      </div>
       {project.reels ? (
         <div className="pt-2">
           <p className="mb-2 text-sm font-medium">Reels 腳本</p>

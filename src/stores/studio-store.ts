@@ -18,7 +18,7 @@ import { applyAssetToArtboard } from "@/lib/studio/reels-cover";
 import { sourceFromAsset } from "@/lib/studio/sources";
 import { emptyCopy, withBoilerplate } from "@/lib/studio/copy";
 import { copyFromDraft } from "@/lib/studio/copy-draft";
-import { spreadCopyAcrossPack } from "@/lib/studio/pack-copy";
+import { applyPackCopyToProject, spreadCopyAcrossPack } from "@/lib/studio/pack-copy";
 import { paintAssetOnProject, spreadVisualAcrossPack, visualAssetOf } from "@/lib/studio/pack-visual";
 import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
@@ -592,7 +592,10 @@ export const useStudio = create<StudioState>()(
       applyCopyDeckToPack: (projectId, deck) => {
         const updates = spreadCopyAcrossPack(get().projects, projectId, deck);
         for (const update of updates) {
-          get().setCopy(update.projectId, update.copy);
+          const member = get().projects.find((item) => item.id === update.projectId);
+          if (!member) continue;
+          const brand = brandById(get().brands, member.brandId);
+          get().updateProject(update.projectId, (item) => applyPackCopyToProject(item, brand, update.copy));
           if (update.reels) get().setReels(update.projectId, update.reels);
         }
         return updates.length;

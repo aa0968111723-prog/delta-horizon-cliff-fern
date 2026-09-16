@@ -21,7 +21,11 @@ export function pageVisualAsset(page: Artboard | undefined): string | null {
 export function visualAssetOf(
   project: Pick<Project, "activeFormatId" | "slides" | "artboards" | "reels">,
 ): string | null {
-  return pageVisualAsset(pagesOf(project)[0]) ?? project.reels?.coverAssetId ?? null;
+  for (const page of pagesOf(project)) {
+    const hit = pageVisualAsset(page);
+    if (hit) return hit;
+  }
+  return project.reels?.coverAssetId ?? null;
 }
 
 /** 把同一張主視覺畫進這則的每一頁，限動／輪播一起換，文字層不動。 */

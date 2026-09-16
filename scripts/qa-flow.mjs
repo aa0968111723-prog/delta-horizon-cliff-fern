@@ -186,6 +186,10 @@ try {
   await expectText("全套可排程", "排這套到日曆");
   await expectText("全套可發布", "這套都發出去了");
   await page.screenshot({ path: `${prefix}-pack.png` });
+  await tap(page.getByRole("link", { name: "進畫面" }).first());
+  await page.waitForURL(/\/studio\//, { timeout: 15000 });
+  await expectText("畫面裡可套全套", "文案套到全套");
+  await page.screenshot({ path: `${prefix}-studio-pack.png` });
 
   await page.goto(`${base}/`, { waitUntil: "networkidle" });
   await page.getByText("今天可以發", { exact: true }).scrollIntoViewIfNeeded();

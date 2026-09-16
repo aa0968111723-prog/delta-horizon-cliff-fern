@@ -6,8 +6,9 @@ import {
   stampSlideMeta,
 } from "./carousel.ts";
 import { uid } from "./ids.ts";
-import { buildLayout, extractImageAssetId } from "./layout.ts";
+import { buildLayout } from "./layout.ts";
 import { MAX_SLIDES, pagesOf } from "./layers.ts";
+import { pageVisualAsset, visualAssetOf } from "./pack-visual.ts";
 import { CONTENT_KIND_META, contentKindLabel, deliverablesForKind, kindUsesPagedLayout } from "./status.ts";
 import type { Artboard, BrandKit, ContentKind, CopyDeck, Project, ReelsScript } from "./types.ts";
 import { convertCopy } from "./convert-copy.ts";
@@ -81,7 +82,7 @@ export function reelsFromCopy(
 }
 
 function storyPages(source: Project, brand: BrandKit, copy: CopyDeck): Artboard[] {
-  const imageAssetId = extractImageAssetId(pagesOf(source)[0]);
+  const imageAssetId = visualAssetOf(source);
   const beats: { headline: string; subhead: string; body: string; cta: string }[] = [
     { headline: copy.headline, subhead: copy.subhead, body: "", cta: "" },
     {
@@ -116,7 +117,7 @@ function storyPages(source: Project, brand: BrandKit, copy: CopyDeck): Artboard[
 
 function carouselPages(source: Project, brand: BrandKit, copy: CopyDeck): Artboard[] {
   const existing = pagesOf(source);
-  const imageAssetId = extractImageAssetId(existing[0]);
+  const imageAssetId = visualAssetOf(source);
   const plans = completeCarouselPages(
     existing.map((page, i) => ({
       role: page.role ?? CAROUSEL_SEQUENCE[i]?.role ?? "detail",
@@ -145,7 +146,7 @@ function carouselPages(source: Project, brand: BrandKit, copy: CopyDeck): Artboa
         copyForCarouselPage(copy, page, source.plan ?? undefined),
         brand,
         page.templateId,
-        { imageAssetId: extractImageAssetId(existing[i] ?? existing[0]) ?? imageAssetId },
+        { imageAssetId: pageVisualAsset(existing[i] ?? existing[0]) ?? imageAssetId },
       );
       board.role = page.role;
       board.templateId = page.templateId;
