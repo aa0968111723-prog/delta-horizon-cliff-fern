@@ -22,7 +22,8 @@ import { LayerTree } from "@/components/editor/layer-tree";
 import { SlideBar } from "@/components/editor/slide-bar";
 import { CarouselPreview } from "@/components/editor/carousel-preview";
 import { VersionPanel } from "@/components/editor/version-panel";
-import { isPublishPreviewKind, PublishPreview } from "@/components/create/publish-preview";
+import { PublishPreview, isPublishPreviewKind } from "@/components/create/publish-preview";
+import { ConvertBar } from "@/components/create/convert-bar";
 import { PlannerPanel } from "@/components/planner/planner-panel";
 import { QualityPanel } from "@/components/qa/quality-panel";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -200,6 +201,9 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
           {qa.score}
         </button>
       </header>
+      <div className="shrink-0 overflow-x-auto border-b border-border bg-surface px-3 py-2">
+        <ConvertBar project={project} variant="compact" />
+      </div>
 
       <div className="flex h-0 min-h-0 flex-1">
         <div className="hidden h-full min-h-0 min-w-0 flex-1 lg:block">

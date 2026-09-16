@@ -10,9 +10,11 @@ import { useStudio } from "@/stores/studio-store";
 export function ConvertBar({
   project,
   className,
+  variant = "full",
 }: {
   project: Project;
   className?: string;
+  variant?: "full" | "compact";
 }) {
   const navigate = useNavigate();
   const convertProject = useStudio((s) => s.convertProject);
@@ -39,10 +41,18 @@ export function ConvertBar({
     toast.success(`已做成 ${made.map((item) => CONVERT_TARGETS.find((t) => t.id === item.contentKind)?.label).join("、")}。原本那則還在。`);
   }
 
+  if (!remaining.length) return null;
+
   return (
-    <div className={cn("space-y-2", className)}>
-      <p className="text-sm font-medium">做成其他型態</p>
-      <p className="text-xs text-muted">一則內容可以變成貼文、輪播、限動、Threads、LINE 圖或 Reels，原本那則不會被蓋掉。</p>
+    <div className={cn(variant === "full" ? "space-y-2" : "flex min-w-0 flex-wrap items-center gap-2", className)}>
+      {variant === "full" ? (
+        <>
+          <p className="text-sm font-medium">做成其他型態</p>
+          <p className="text-xs text-muted">一則內容可以變成貼文、輪播、限動、Threads、LINE 圖或 Reels，原本那則不會被蓋掉。</p>
+        </>
+      ) : (
+        <p className="text-xs text-subtle">做成</p>
+      )}
       <div className="flex flex-wrap gap-2">
         {remaining.map((item) => (
           <Button
