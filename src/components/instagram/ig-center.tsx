@@ -11,6 +11,8 @@ import { lastPackPreviewSrc, packAssetIds, withPackKind } from "@/lib/club/last-
 import { CONVERT_TARGETS } from "@/lib/convert/pack";
 import { lessonsFromIg } from "@/lib/club/insights";
 import { writeHandoff } from "@/lib/create/handoff";
+import { runPackPublish } from "@/lib/club/run-publish";
+import { toast } from "sonner";
 import { listConnectedMedia } from "@/lib/connections/oauth";
 import { useCreative, type IgMemoryPost } from "@/stores/creative-store";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
@@ -20,10 +22,27 @@ export function InstagramCenter() {
   const ingestIg = useCreative((s) => s.ingestIg);
   const lastPack = useCreative((s) => s.lastPack);
   const setLastPack = useCreative((s) => s.setLastPack);
+  const setScheduleStatus = useCreative((s) => s.setScheduleStatus);
+  const schedule = useCreative((s) => s.schedule);
   const [active, setActive] = useState<IgMemoryPost | null>(null);
   const [live, setLive] = useState<IgMemoryPost[]>([]);
+  const [publishing, setPublishing] = useState(false);
   const urls = useAssetUrls(packAssetIds(lastPack));
   const draftThumb = lastPack ? lastPackPreviewSrc(lastPack, urls) : "";
+
+  async function publishDraft() {
+    if (!lastPack) return;
+    setPublishing(true);
+    try {
+      const result = await runPackPublish(lastPack, lastPackPreviewSrc(lastPack, urls));
+      ingestIg([result.post]);
+      const row = schedule.find((item) => item.campaignId === lastPack.campaignId && item.contentKind === lastPack.kind && item.status !== "published");
+      if (row) setScheduleStatus(row.id, "published");
+      toast.success(result.message);
+    } finally {
+      setPublishing(false);
+    }
+  }
 
   useEffect(() => {
     void listConnectedMedia().then((result) => {
@@ -126,6 +145,16 @@ export function InstagramCenter() {
                 <Link to="/create" search={{ tab: "campaign" }}>
                   繼續改這篇
                 </Link>
+              </Button>
+              <Button
+                className="mt-2 w-full"
+                size="sm"
+                variant="secondary"
+                data-testid="ig-publish"
+                disabled={publishing}
+                onClick={() => void publishDraft()}
+              >
+                {publishing ? "發布中…" : "發布到 IG"}
               </Button>
             </div>
           ) : (

@@ -8,7 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { writeHandoff } from "@/lib/create/handoff";
 import { CONTENT_KIND_META, CONTENT_STATUS_META } from "@/lib/studio/status";
+import { lastPackFromPlan, lastPackPreviewSrc, withPackKind } from "@/lib/club/last-pack";
+import { runPackPublish } from "@/lib/club/run-publish";
 import { scheduleChipLabel } from "@/lib/club/schedule";
+import { toast } from "sonner";
 import type { ContentKind } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useCreative, type ScheduleItem } from "@/stores/creative-store";
@@ -21,6 +24,8 @@ function extendKind(kind: ContentKind) {
 function ScheduleActions({ row, compact }: { row: ScheduleItem; compact?: boolean }) {
   const duplicateSchedule = useCreative((s) => s.duplicateSchedule);
   const setScheduleStatus = useCreative((s) => s.setScheduleStatus);
+  const ingestIg = useCreative((s) => s.ingestIg);
+  const lastPack = useCreative((s) => s.lastPack);
   const updateProject = useStudio((s) => s.updateProject);
   const size = compact ? "sm" : "sm";
 
@@ -35,13 +40,36 @@ function ScheduleActions({ row, compact }: { row: ScheduleItem; compact?: boolea
     }
   }
 
+  async function publishToIg() {
+    const pack = lastPack
+      ? withPackKind(lastPack, row.contentKind)
+      : lastPackFromPlan({
+          projectId: row.projectId || "",
+          campaignId: row.campaignId || "",
+          eventName: row.title,
+          plan: { hook: row.title, captions: [{ style: "學生版", text: row.title }], hashtags: ["#淡江禪學社"] },
+          kind: row.contentKind,
+        });
+    const previewSrc = lastPack ? lastPackPreviewSrc(pack, {}, row.contentKind) : pack.heroThumb;
+    const result = await runPackPublish(pack, previewSrc);
+    ingestIg([result.post]);
+    setScheduleStatus(row.id, "published");
+    if (row.projectId) {
+      updateProject(row.projectId, { contentStatus: "published", publishedAt: Date.now() });
+    }
+    toast.success(result.message);
+  }
+
   return (
     <div className="flex flex-wrap gap-2" data-testid="calendar-item-actions">
+      <Button size={size} data-testid="calendar-publish" onClick={() => void publishToIg()}>
+        發布到 IG
+      </Button>
       <Button size={size} variant="secondary" onClick={() => duplicateSchedule(row.id)}>
         複製
       </Button>
       <Button size={size} variant="ghost" onClick={markPublished}>
-        {row.status === "published" ? "改回已排程" : "標記已發布"}
+        {row.status === "published" ? "改回已排程" : "只標記已發布"}
       </Button>
       <Button size={size} variant="ghost" asChild>
         <Link

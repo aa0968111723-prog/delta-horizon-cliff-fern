@@ -14,6 +14,7 @@ import { formatIdFromKind, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, w
 import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
 import { convertedScheduleInput, matchingScheduleRow } from "@/lib/club/schedule";
+import { runPackPublish } from "@/lib/club/run-publish";
 import { CONVERT_TARGETS, allConvertedPacks, convertPlan } from "@/lib/convert/pack";
 import { createCanvaFromPlan } from "@/lib/connections/oauth";
 import { folderSearchInput } from "@/lib/connections/presets";
@@ -55,6 +56,7 @@ export function IdeaFlow({
   const attachProject = useCreative((s) => s.attachProject);
   const setLastSearch = useCreative((s) => s.setLastSearch);
   const setLastPack = useCreative((s) => s.setLastPack);
+  const ingestIg = useCreative((s) => s.ingestIg);
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
   const updateProject = useStudio((s) => s.updateProject);
   const folder = useCreative((s) => s.folder);
@@ -298,6 +300,32 @@ export function IdeaFlow({
     if (current) setLastPack(withPackKind(current, packKind, convertPlan(plan, packKind).items));
     toast.success("已排入 IG Post、Carousel、Story、Threads、LINE、Reels");
     void navigate({ to: "/calendar" });
+  }
+
+  async function publishNow() {
+    const current = useCreative.getState().lastPack;
+    if (!current) {
+      toast.message("先做成一篇，才能發布。");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await runPackPublish(current, previewSrc);
+      ingestIg([result.post]);
+      const existing = useCreative.getState().schedule.find(
+        (row) => row.campaignId === campaignId && row.contentKind === packKind && row.status !== "published",
+      );
+      if (existing) {
+        upsertSchedule({ ...existing, status: "published", publishedAt: Date.now() });
+      }
+      if (projectId) {
+        updateProject(projectId, { campaignId, contentKind: packKind, contentStatus: "published", publishedAt: Date.now() });
+      }
+      toast.success(result.message);
+      void navigate({ to: "/instagram" });
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function pickDirection(direction: CreativeDirection) {
@@ -627,6 +655,9 @@ export function IdeaFlow({
               onClick={() => putAllOnCalendar()}
             >
               排入全部格式
+            </Button>
+            <Button data-testid="idea-publish" disabled={busy} onClick={() => void publishNow()}>
+              發布到 IG
             </Button>
             <Button variant="secondary" onClick={() => void navigate({ to: "/instagram" })}>
               看 IG Preview

@@ -24,6 +24,11 @@ function firstLine(caption: string) {
 }
 
 function bestHookLine(posts: IgLessonPost[]) {
+  const published = posts.find((post) => (post.analysis || "").includes("剛發布"));
+  if (published) {
+    const line = firstLine(published.caption).replace(/[「」]/g, "").trim();
+    if (line) return line;
+  }
   const scored = posts.filter((post) => post.metrics).sort((a, b) => score(b) - score(a));
   return firstLine(scored[0]?.caption ?? "").replace(/[「」]/g, "").trim();
 }
@@ -61,8 +66,9 @@ export function nextCreateIdeaFromLessons(posts: IgLessonPost[], eventName?: str
 
 /** Turn IG metrics into next-generation advice, not a dashboard. */
 export function lessonsFromIg(posts: IgLessonPost[]): IgLessons {
+  const published = posts.find((post) => (post.analysis || "").includes("剛發布"));
   const scored = posts.filter((post) => post.metrics).sort((a, b) => score(b) - score(a));
-  if (!scored.length) {
+  if (!scored.length && !published) {
     return {
       hook: "還沒有足夠的 IG 成效。先發，再讓 AI 記住哪種第一句會讓人停下來。",
       visual: "目前沒有圖片停留資料。夜間暖光與學生側影通常比廟宇海報更能停。",
@@ -73,12 +79,15 @@ export function lessonsFromIg(posts: IgLessonPost[]): IgLessons {
   }
   const best = scored[0];
   const weakest = scored[scored.length - 1];
-  const carousel = scored.find((post) => post.mediaType === "carousel");
+  const carousel = scored.find((post) => post.mediaType === "carousel") ?? (published?.mediaType === "carousel" ? published : undefined);
   const reels = scored.find((post) => post.mediaType === "reels");
   const recap = scored.find((post) => /來的人|回顧|可以。/.test(post.caption));
+  const publishedHook = published ? firstLine(published.caption) : "";
 
   return {
-    hook: `比較有效的 Hook 像是「${firstLine(best.caption)}」。少用社團全名當第一句。`,
+    hook: publishedHook
+      ? `剛發布的第一句是「${publishedHook}」。下次延續這種會讓人停下來的問法，不要改回「淡江大學禪學社誠摯邀請」。`
+      : `比較有效的 Hook 像是「${firstLine(best.caption)}」。少用社團全名當第一句。`,
     visual: reels
       ? `夜間光與現場感比較有停留（Reels「${firstLine(reels.caption)}」）。龜龜可以入鏡，但要配一句學生生活。`
       : `收藏較高的畫面偏生活，而不是正式海報。`,
@@ -88,7 +97,7 @@ export function lessonsFromIg(posts: IgLessonPost[]): IgLessons {
     carousel: carousel
       ? `Carousel 結構比較有效時，中段會變成對話而不是簡章。可延續「${firstLine(carousel.caption)}」這種口吻。`
       : `Carousel 還可以試：第一頁問句、第三頁互動、最後一頁報名。`,
-    story: weakest && score(weakest) < score(best) / 2
+    story: weakest && best && score(weakest) < score(best) / 2
       ? `互動比較少的是「${firstLine(weakest.caption)}」這類只露角色、沒有生活句的內容。Story 改問學生此刻卡在哪。`
       : `Story 適合問一句真話，或倒數，而不是再貼一次主視覺。`,
   };

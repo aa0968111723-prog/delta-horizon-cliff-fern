@@ -11,7 +11,8 @@ import {
   decryptState,
   type OAuthBlob,
 } from "./vault.server";
-import { fetchCanvaDesigns, fetchInstagramMedia, probeDrive, createCanvaDesign, searchDriveFolders } from "./live";
+import { fetchCanvaDesigns, fetchInstagramMedia, probeDrive, createCanvaDesign, searchDriveFolders, publishInstagramMedia } from "./live";
+import { graphImageUrl } from "@/lib/club/publish";
 
 type PkceState = { verifier: string; provider: "canva" | "instagram"; at: number };
 
@@ -100,7 +101,7 @@ export const startOAuth = createServerFn({ method: "POST" })
     url.searchParams.set("client_id", process.env.META_APP_ID ?? "");
     url.searchParams.set("redirect_uri", `${origin}/oauth/instagram`);
     url.searchParams.set("state", state);
-    url.searchParams.set("scope", "instagram_basic,pages_show_list,instagram_manage_insights");
+    url.searchParams.set("scope", "instagram_basic,pages_show_list,instagram_manage_insights,instagram_content_publish");
     return { ok: true as const, url: url.toString() };
   });
 
@@ -212,4 +213,24 @@ export const createCanvaFromPlan = createServerFn({ method: "POST" })
     const req = getRequest();
     const blob = await readBlobFromCookie(req?.headers.get("cookie") ?? null);
     return createCanvaDesign(blob, { title: data.title, kind: data.kind || "ig-post" });
+  });
+
+export const publishToInstagram = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    z
+      .object({
+        caption: z.string().min(1).max(2200),
+        imageUrl: z.string().min(8).max(2000),
+        kind: z.string().max(40).optional(),
+      })
+      .parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input),
+  )
+  .handler(async ({ data }) => {
+    const imageUrl = graphImageUrl(data.imageUrl);
+    if (!imageUrl) {
+      return { ok: false as const, error: "官方 API 需要公開的 JPG/PNG 網址。", reason: "not-public" as const };
+    }
+    const req = getRequest();
+    const blob = await readBlobFromCookie(req?.headers.get("cookie") ?? null);
+    return publishInstagramMedia(blob, { imageUrl, caption: data.caption, kind: data.kind || "ig-post" });
   });

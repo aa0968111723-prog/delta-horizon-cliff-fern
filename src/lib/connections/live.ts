@@ -106,21 +106,34 @@ export async function fetchCanvaDesigns(blob: OAuthBlob | null): Promise<LiveHit
   }
 }
 
-export async function fetchInstagramMedia(blob: OAuthBlob | null): Promise<LiveHit[]> {
+export type IgAccount = { id: string; username: string; token: string };
+
+export async function resolveIgAccount(blob: OAuthBlob | null): Promise<IgAccount | null> {
   const token = blob?.instagram?.access;
-  if (!token) return [];
+  if (!token) return null;
   try {
     const accounts = await timedFetch(
-      `https://graph.facebook.com/v21.0/me/accounts?fields=instagram_business_account{id,username}&access_token=${encodeURIComponent(token)}`,
+      `https://graph.facebook.com/v21.0/me/accounts?fields=access_token,instagram_business_account{id,username}&access_token=${encodeURIComponent(token)}`,
     );
-    if (!accounts.ok) return [];
+    if (!accounts.ok) return null;
     const parsed = (await accounts.json()) as {
-      data?: { instagram_business_account?: { id?: string; username?: string } }[];
+      data?: { access_token?: string; instagram_business_account?: { id?: string; username?: string } }[];
     };
-    const ig = parsed.data?.map((row) => row.instagram_business_account).find((row) => row?.id);
-    if (!ig?.id) return [];
+    const page = parsed.data?.find((row) => row.instagram_business_account?.id);
+    const ig = page?.instagram_business_account;
+    if (!ig?.id) return null;
+    return { id: ig.id, username: ig.username || "", token: page?.access_token || token };
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchInstagramMedia(blob: OAuthBlob | null): Promise<LiveHit[]> {
+  const ig = await resolveIgAccount(blob);
+  if (!ig) return [];
+  try {
     const media = await timedFetch(
-      `https://graph.facebook.com/v21.0/${ig.id}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count,saved&limit=18&access_token=${encodeURIComponent(token)}`,
+      `https://graph.facebook.com/v21.0/${ig.id}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count,saved&limit=18&access_token=${encodeURIComponent(ig.token)}`,
     );
     if (!media.ok) return [];
     const json = (await media.json()) as {
@@ -137,7 +150,7 @@ export async function fetchInstagramMedia(blob: OAuthBlob | null): Promise<LiveH
       }[];
     };
     const rows = json.data ?? [];
-    const withMetrics = await attachIgInsights(token, rows);
+    const withMetrics = await attachIgInsights(ig.token, rows);
     return withMetrics.map((item, index) => ({
       id: item.id || `ig_${index}`,
       source: "instagram" as const,
@@ -153,12 +166,55 @@ export async function fetchInstagramMedia(blob: OAuthBlob | null): Promise<LiveH
       date: (item.timestamp || "").slice(0, 10),
       thumb: item.thumbnail_url || item.media_url || "/seed/tamsui.svg",
       caption: item.caption,
-      notes: item.permalink || `${ig.username ?? ""} · 讚 ${item.like_count ?? 0} · 留言 ${item.comments_count ?? 0}`,
+      notes: item.permalink || `${ig.username} · 讚 ${item.like_count ?? 0} · 留言 ${item.comments_count ?? 0}`,
       metrics: item.metrics,
       live: true,
     }));
   } catch {
     return [];
+  }
+}
+
+export async function publishInstagramMedia(
+  blob: OAuthBlob | null,
+  input: { imageUrl: string; caption: string; kind: string },
+): Promise<
+  | { ok: true; mediaId: string; permalink?: string }
+  | { ok: false; error: string; needsConnect?: boolean; reason: "not-connected" | "api" | "unsupported" }
+> {
+  if (input.kind === "reels") {
+    return { ok: false, error: "Reels 需要影片檔，官方 API 不能只發封面。", reason: "unsupported" };
+  }
+  const ig = await resolveIgAccount(blob);
+  if (!ig) return { ok: false, error: "還沒連接 Instagram。", needsConnect: true, reason: "not-connected" };
+  try {
+    const createBody = new URLSearchParams({
+      image_url: input.imageUrl,
+      caption: input.caption.slice(0, 2200),
+      access_token: ig.token,
+    });
+    if (input.kind === "story") createBody.set("media_type", "STORIES");
+    const created = await fetch(`https://graph.facebook.com/v21.0/${ig.id}/media`, {
+      method: "POST",
+      body: createBody,
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (created.status === 401 || created.status === 403) {
+      return { ok: false, error: "Instagram 權限不足，請重新授權發布。", needsConnect: true, reason: "api" };
+    }
+    if (!created.ok) return { ok: false, error: "官方 IG 暫時無法建立貼文。", reason: "api" };
+    const createdJson = (await created.json()) as { id?: string };
+    if (!createdJson.id) return { ok: false, error: "官方 IG 沒有回傳草稿。", reason: "api" };
+    const published = await fetch(`https://graph.facebook.com/v21.0/${ig.id}/media_publish`, {
+      method: "POST",
+      body: new URLSearchParams({ creation_id: createdJson.id, access_token: ig.token }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!published.ok) return { ok: false, error: "官方 IG 草稿已建立，但還沒發出去。", reason: "api" };
+    const publishedJson = (await published.json()) as { id?: string };
+    return { ok: true, mediaId: publishedJson.id || createdJson.id };
+  } catch {
+    return { ok: false, error: "官方 IG 暫時無法發布。", reason: "api" };
   }
 }
 
