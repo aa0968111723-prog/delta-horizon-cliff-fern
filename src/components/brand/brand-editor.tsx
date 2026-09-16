@@ -222,7 +222,7 @@ export function BrandEditor() {
         ))}
       </div>
 
-      <section id="brand-identity" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section id="brand-identity" className="space-y-3 rounded-2xl surface-card p-5">
         <h2 className="text-sm font-medium">品牌識別</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="品牌名稱">
@@ -240,7 +240,7 @@ export function BrandEditor() {
         </Field>
       </section>
 
-      <section id="brand-memory" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section id="brand-memory" className="space-y-3 rounded-2xl surface-card p-5">
         <div>
           <h2 className="text-sm font-medium">品牌記憶</h2>
           <p className="mt-0.5 text-xs text-muted">
@@ -347,7 +347,7 @@ export function BrandEditor() {
         />
       </section>
 
-      <section id="brand-logo" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section id="brand-logo" className="space-y-3 rounded-2xl surface-card p-5">
         <div className="flex items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-medium">Logo 與版本</h2>
@@ -447,7 +447,7 @@ export function BrandEditor() {
         )}
       </section>
 
-      <section id="brand-colors" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section id="brand-colors" className="space-y-3 rounded-2xl surface-card p-5">
         <h2 className="text-sm font-medium">色彩</h2>
         <p className="text-xs text-muted">主色、輔助色與背景色會進自動排版；強調色用於 CTA 與線條。</p>
         <ul className="space-y-3">
@@ -517,7 +517,7 @@ export function BrandEditor() {
         </Button>
       </section>
 
-      <section id="brand-fonts" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section id="brand-fonts" className="space-y-3 rounded-2xl surface-card p-5">
         <h2 className="text-sm font-medium">字體</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="標題字體">
@@ -559,7 +559,7 @@ export function BrandEditor() {
         </div>
       </section>
 
-      <section id="brand-copy" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section id="brand-copy" className="space-y-3 rounded-2xl surface-card p-5">
         <h2 className="text-sm font-medium">固定標語與常用 CTA</h2>
         <ChipList
           label="固定標語"
@@ -608,7 +608,7 @@ export function BrandEditor() {
         </Field>
       </section>
 
-      <section id="brand-style" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section id="brand-style" className="space-y-3 rounded-2xl surface-card p-5">
         <h2 className="text-sm font-medium">圖片風格</h2>
         <p className="text-xs text-muted">給攝影師與 AI 企劃看的視覺方向，不會自動套濾鏡。</p>
         <Field label="畫面情緒">
@@ -653,7 +653,7 @@ export function BrandEditor() {
         </Field>
       </section>
 
-      <section id="brand-rules" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section id="brand-rules" className="space-y-3 rounded-2xl surface-card p-5">
         <h2 className="text-sm font-medium">品牌禁用規則</h2>
         <Field label="可以說">
           <Input value={brand.doSay} onChange={(e) => patch("doSay", e.target.value)} />

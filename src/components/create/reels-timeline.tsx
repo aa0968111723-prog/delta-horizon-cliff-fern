@@ -1,9 +1,12 @@
 import { Check, Copy as CopyIcon, ImagePlus, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { generateImage } from "@/lib/ai/image-ai";
+import { previewUrlForAsset } from "@/lib/studio/assets";
 import { saveGeneratedImage } from "@/lib/studio/generated-image";
+import { LOCAL_VISUAL_NOTE, matchLocalVisualAsset } from "@/lib/studio/local-visual";
 import { coverImagePrompt, reelsScriptText, shotListText } from "@/lib/studio/reels-cover";
 import type { ReelsScript } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
@@ -20,12 +23,28 @@ export function ReelsTimeline({
   projectId?: string;
 }) {
   const addAsset = useStudio((s) => s.addAsset);
+  const assets = useStudio((s) => s.assets);
   const applyVisualToPack = useStudio((s) => s.applyVisualToPack);
   const applyCoverAsset = useStudio((s) => s.applyCoverAsset);
   const brand = useStudio((s) => s.brands[0]);
   const [copied, setCopied] = useState<"script" | "shots" | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [coverAdapter, setCoverAdapter] = useState<"live" | "local" | null>(null);
+
+  function applyLocalCover() {
+    const match = matchLocalVisualAsset({ hook: reels.hook, imagePrompt: reels.cover }, assets);
+    const url = match ? previewUrlForAsset(match) : undefined;
+    if (!match || !url) return false;
+    setPreview(url);
+    setCoverAdapter("local");
+    if (projectId) {
+      const count = applyVisualToPack(projectId, match.id);
+      if (count < 1) applyCoverAsset(projectId, match.id);
+    }
+    toast.info(LOCAL_VISUAL_NOTE);
+    return true;
+  }
 
   async function copyText(kind: "script" | "shots", text: string) {
     try {
@@ -51,10 +70,11 @@ export function ReelsTimeline({
         },
       });
       if (!res.ok) {
-        toast.error(res.error);
+        if (!applyLocalCover()) toast.error(res.error);
         return;
       }
       setPreview(res.dataUrl);
+      setCoverAdapter("live");
       const meta = await saveGeneratedImage({
         dataUrl: res.dataUrl,
         name: `Reels 封面 · ${reels.hook.slice(0, 18)}`,
@@ -74,7 +94,7 @@ export function ReelsTimeline({
         toast.success("封面已存進素材庫。先用一版文案建立內容，就能套到畫面上。");
       }
     } catch {
-      toast.error("生成封面時出錯了，再試一次。");
+      if (!applyLocalCover()) toast.error("生成封面時出錯了，再試一次。");
     } finally {
       setCoverBusy(false);
     }
@@ -102,6 +122,12 @@ export function ReelsTimeline({
           </Button>
         </div>
       </div>
+      {coverAdapter === "local" ? (
+        <p className="text-xs text-subtle">
+          <Badge className="mr-2">本機素材</Badge>
+          {LOCAL_VISUAL_NOTE}
+        </p>
+      ) : null}
       {adapter === "local" || adapter === "mock" ? (
         <p className="text-xs text-subtle">這是本機草稿，可以直接改；不是線上模型的回覆。</p>
       ) : null}
@@ -114,7 +140,7 @@ export function ReelsTimeline({
       ) : null}
       <ol className="relative space-y-2 border-l border-border pl-4">
         {reels.beats.map((beat) => (
-          <li key={beat.range} className="relative rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <li key={beat.range} className="relative rounded-2xl glass p-4">
             <span className="absolute -left-[21px] top-5 size-2.5 rounded-full bg-accent" />
             <p className="text-xs font-medium tracking-wide text-[var(--color-accent)]">{beat.range}</p>
             <p className="mt-1 text-sm font-medium">{beat.caption}</p>

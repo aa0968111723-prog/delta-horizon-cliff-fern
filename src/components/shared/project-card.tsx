@@ -33,7 +33,7 @@ export function ProjectCard({
   const previewW = compact ? 112 : Math.min(180, (180 * format.width) / format.height);
 
   return (
-    <article className="group rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
+    <article className="group rounded-2xl surface-card p-3">
       <Link
         to="/studio/$projectId"
         params={{ projectId: project.id }}

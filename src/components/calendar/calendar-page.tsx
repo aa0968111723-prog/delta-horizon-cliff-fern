@@ -373,7 +373,7 @@ export function CalendarPage() {
           <SectionHeader title="完成了、還沒排" hint="同一則做成的全套會併成一列。排這套、或複製文案下載圖就能發。" />
           <ul className="grid gap-3 lg:grid-cols-2">
             {waiting.map((row) => (
-              <li key={row.rootId} className="min-w-0 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
+              <li key={row.rootId} className="min-w-0 rounded-2xl surface-card p-3">
                 <div className="flex items-start justify-between gap-2">
                   <Link
                     to="/studio/$projectId"
@@ -409,7 +409,7 @@ export function CalendarPage() {
       ) : null}
 
       {items.length === 0 ? (
-        <div className="mt-8 rounded-2xl bg-surface p-8 text-center shadow-[var(--shadow-border)]">
+        <div className="mt-8 rounded-2xl surface-card p-8">
           <CalendarDays className="mx-auto size-5 text-subtle" />
           <p className="mt-2 text-sm text-muted">日曆上還沒有東西。</p>
           <div className="mt-3 flex flex-wrap justify-center gap-2">
@@ -637,7 +637,7 @@ function AgendaList({
   return (
     <ul className="mt-6 space-y-2">
       {items.map((item) => (
-        <li key={keyOf(item)} className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
+        <li key={keyOf(item)} className="rounded-2xl surface-card p-3">
           {item.type === "pack" ? (
             <AgendaPackCard item={item} onReschedulePack={onReschedulePack} />
           ) : item.type === "content" ? (

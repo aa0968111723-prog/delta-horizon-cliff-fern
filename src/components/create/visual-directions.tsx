@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PhotoHeroButtons } from "@/components/editor/hero-photo-strip";
 import { generateImage, type VisualDirection } from "@/lib/ai/image-ai";
+import { assetPreviewFitClass, previewUrlForAsset } from "@/lib/studio/assets";
 import { saveGeneratedImage } from "@/lib/studio/generated-image";
+import { LOCAL_VISUAL_NOTE, matchLocalVisualAsset, nextLocalVisualAsset } from "@/lib/studio/local-visual";
 import type { ImageRatio } from "@/lib/studio/wave-draft";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
@@ -32,14 +34,32 @@ export function VisualDirectionCard({
   preferredRatio?: (typeof RATIOS)[number]["id"];
 }) {
   const addAsset = useStudio((s) => s.addAsset);
+  const assets = useStudio((s) => s.assets);
   const [ratio, setRatio] = useState<(typeof RATIOS)[number]["id"]>(preferredRatio);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [lastAssetId, setLastAssetId] = useState<string | null>(null);
+  const [adapter, setAdapter] = useState<"live" | "local" | null>(null);
 
   useEffect(() => {
     setRatio(preferredRatio);
   }, [preferredRatio]);
+
+  function applyLocalPhoto(currentId: string | null) {
+    const match = currentId
+      ? nextLocalVisualAsset(direction, assets, currentId)
+      : matchLocalVisualAsset(direction, assets);
+    const url = match ? previewUrlForAsset(match) : undefined;
+    if (!match || !url) {
+      toast.error("這個環境沒有連上圖片生成服務。可以先點下面的示範照片。");
+      return false;
+    }
+    setPreview(url);
+    setLastAssetId(match.id);
+    setAdapter("local");
+    toast.info(LOCAL_VISUAL_NOTE);
+    return true;
+  }
 
   async function runGenerate() {
     setBusy(true);
@@ -48,7 +68,7 @@ export function VisualDirectionCard({
         data: { prompt: direction.imagePrompt, ratio, styleHint: styleHint || undefined },
       });
       if (!res.ok) {
-        toast.error(res.error);
+        applyLocalPhoto(lastAssetId);
         return;
       }
       setPreview(res.dataUrl);
@@ -60,10 +80,11 @@ export function VisualDirectionCard({
       });
       addAsset(meta);
       setLastAssetId(meta.id);
+      setAdapter("live");
       onImageSaved?.(meta.id, ratio);
       toast.success("圖片已存進素材庫");
     } catch {
-      toast.error("生成圖片時出錯了，再試一次。");
+      applyLocalPhoto(lastAssetId);
     } finally {
       setBusy(false);
     }
@@ -73,7 +94,14 @@ export function VisualDirectionCard({
     <article className="glass flex h-full flex-col gap-3 rounded-2xl p-4">
       <header className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-display text-lg">{direction.title}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-display text-lg">{direction.title}</p>
+            {adapter === "local" ? (
+              <Badge data-testid="visual-local-source">本機素材</Badge>
+            ) : adapter === "live" ? (
+              <Badge variant="accent">AI 生成</Badge>
+            ) : null}
+          </div>
           <p className="mt-1 text-xs text-muted">{direction.concept}</p>
         </div>
       </header>
@@ -81,8 +109,11 @@ export function VisualDirectionCard({
       {preview ? (
         <img
           src={preview}
-          alt={`${direction.title} 生成結果`}
-          className="w-full rounded-xl bg-surface-2 object-cover"
+          alt={adapter === "local" ? `${direction.title} 示範照片` : `${direction.title} 生成結果`}
+          className={cn(
+            "w-full rounded-xl bg-surface-2",
+            assetPreviewFitClass({ seedSrc: preview }, preview),
+          )}
         />
       ) : null}
 
@@ -158,10 +189,25 @@ export function VisualDirectionCard({
             </Button>
           ) : null}
         </div>
+        {adapter === "local" ? (
+          <p className="text-xs text-subtle" data-testid="visual-local-note">
+            {LOCAL_VISUAL_NOTE}
+          </p>
+        ) : null}
         {onImageSaved ? (
           <div className="space-y-1.5">
-            <p className="text-xs text-subtle">沒有生成時，點照片也能當主視覺。</p>
-            <PhotoHeroButtons testIdPrefix="hero-card" onPick={(assetId) => onImageSaved(assetId, ratio)} />
+            <p className="text-xs text-subtle">沒有生圖服務時，生成會先套對應的示範照片。點照片也能當主視覺。</p>
+            <PhotoHeroButtons
+              testIdPrefix="hero-card"
+              onPick={(assetId) => {
+                const asset = assets.find((item) => item.id === assetId);
+                const url = asset ? previewUrlForAsset(asset) : undefined;
+                if (url) setPreview(url);
+                setLastAssetId(assetId);
+                setAdapter("local");
+                onImageSaved(assetId, ratio);
+              }}
+            />
           </div>
         ) : null}
       </div>

@@ -130,7 +130,7 @@ export function InstagramCenter() {
       />
 
       {/* 帳號卡：像 IG 個人頁，追蹤數字沒連上就不編造 */}
-      <section className="mt-6 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+      <section className="mt-6 rounded-2xl surface-card p-4">
         <div className="flex items-center gap-4">
           <span className="three-lights flex size-16 shrink-0 items-center justify-center rounded-full">
             <Instagram className="size-6 text-accent-fg" />
@@ -301,7 +301,7 @@ export function InstagramCenter() {
               {igPosts.map((post) => (
                 <li
                   key={post.id}
-                  className="flex flex-wrap items-start justify-between gap-2 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+                  className="flex flex-wrap items-start justify-between gap-2 rounded-2xl surface-card p-3"
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{post.title}</p>
@@ -358,7 +358,7 @@ export function InstagramCenter() {
               {feed.map((project) => (
                 <li
                   key={project.id}
-                  className="flex flex-wrap items-start justify-between gap-2 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+                  className="flex flex-wrap items-start justify-between gap-2 rounded-2xl surface-card p-3"
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{project.name}</p>
@@ -407,7 +407,7 @@ export function InstagramCenter() {
             }
           />
           {readingText ? (
-            <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+            <div className="rounded-2xl surface-card p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-medium">帳號自己的語氣</p>
                 <Badge variant={reading?.adapter === "live" ? "accent" : "default"}>
@@ -604,7 +604,7 @@ function ExtendLink({ seed, kind }: { seed: string; kind?: string }) {
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+    <div className="rounded-2xl surface-card p-4">
       <p className="text-sm font-medium">{title}</p>
       <div className="mt-2">{children}</div>
     </div>
@@ -613,7 +613,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 
 function EmptyBlock({ text, action }: { text: string; action?: React.ReactNode }) {
   return (
-    <div className="rounded-2xl bg-surface p-6 text-center shadow-[var(--shadow-border)]">
+    <div className="rounded-2xl surface-card p-6 text-center">
       <Grid3x3 className="mx-auto size-5 text-subtle" />
       <p className="mx-auto mt-2 max-w-md text-sm text-muted">{text}</p>
       {action ? <div className="mt-3 flex justify-center">{action}</div> : null}

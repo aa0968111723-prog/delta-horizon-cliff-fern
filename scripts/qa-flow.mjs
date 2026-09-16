@@ -99,6 +99,10 @@ try {
   const dirs = await page.locator("summary", { hasText: "圖片 Prompt" }).count();
   record("視覺方向數量", dirs >= 3, `只有 ${dirs} 個`);
   await expectText("視覺方向可用示範照片", "點照片也能當主視覺");
+  await tap(page.getByRole("button", { name: "生成圖片" }).first());
+  await page.waitForSelector("text=本機素材", { timeout: 15000 });
+  await expectText("生圖本機素材", "本機素材");
+  await expectText("生圖不是 AI 畫面", "不是 AI 生成的畫面");
   await page.screenshot({ path: `${prefix}-visual.png` });
 
   // 6. 用這版 → 建立內容

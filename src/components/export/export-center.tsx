@@ -120,7 +120,7 @@ export function ExportCenter() {
       </div>
 
       {pack.length > 1 ? (
-        <section className="mt-6 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <section className="mt-6 rounded-2xl surface-card p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <h2 className="text-sm font-medium">這次做成的全套</h2>
@@ -141,7 +141,7 @@ export function ExportCenter() {
       ) : null}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <section className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <section className="rounded-2xl surface-card p-4">
           <div className="mb-3 flex flex-wrap gap-1">
             {(["feed-square", "feed-portrait", "feed-landscape", "story", "reels-cover"] as const).map(
               (id) => (
@@ -189,13 +189,13 @@ export function ExportCenter() {
         </section>
 
         <div className="space-y-4">
-          <section className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <section className="rounded-2xl surface-card p-4">
             <ContentFlowBar project={project} />
           </section>
-          <section className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <section className="rounded-2xl surface-card p-4">
             <ExportPanel project={project} brand={brand} artboard={artboard} />
           </section>
-          <section className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <section className="rounded-2xl surface-card p-4">
             <QualityPanel project={project} brand={brand} />
           </section>
         </div>
@@ -204,7 +204,7 @@ export function ExportCenter() {
       <section className="mt-8">
         <h2 className="text-sm font-medium">版本紀錄</h2>
         {project.exports.length === 0 ? (
-          <p className="mt-3 rounded-2xl bg-surface px-4 py-8 text-center text-sm text-muted shadow-[var(--shadow-border)]">
+          <p className="mt-3 rounded-2xl surface-card px-4 py-8">
             還沒有下載紀錄。第一次匯出會出現在這裡。
           </p>
         ) : (

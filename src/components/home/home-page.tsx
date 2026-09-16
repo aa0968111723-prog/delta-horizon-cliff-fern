@@ -225,7 +225,7 @@ export function HomePage() {
                 <Link
                   to="/campaigns/$campaignId"
                   params={{ campaignId: campaign.id }}
-                  className="flex h-full flex-col gap-2 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-lift)]"
+                  className="flex h-full flex-col gap-2 surface-card rounded-2xl p-4 transition-shadow hover:shadow-[var(--shadow-lift)]"
                 >
                   <span className="flex items-center justify-between gap-2 text-xs">
                     <span className="font-medium">{formatCampaignDate(campaign)}</span>
@@ -255,7 +255,7 @@ export function HomePage() {
           }
         />
         {scheduled.length === 0 ? (
-          <p className="rounded-2xl bg-surface px-4 py-8 text-center text-sm text-muted shadow-[var(--shadow-border)]">
+          <p className="rounded-2xl surface-card px-4 py-8">
             還沒有排到後面的晚上。做完一篇後在日曆上排時間。
           </p>
         ) : (
@@ -265,7 +265,7 @@ export function HomePage() {
                 <Link
                   to="/studio/$projectId"
                   params={{ projectId: pack.primary.id }}
-                  className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-lift)]"
+                  className="flex items-center gap-3 rounded-2xl surface-card p-3 transition-shadow hover:shadow-[var(--shadow-lift)]"
                 >
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-2">
                     <CalendarDays className="size-4" />
@@ -337,7 +337,7 @@ export function HomePage() {
           }
         />
         {published.length === 0 ? (
-          <div className="rounded-2xl bg-surface px-4 py-8 text-center shadow-[var(--shadow-border)]">
+          <div className="rounded-2xl surface-card px-4 py-8">
             <Instagram className="mx-auto size-5 text-subtle" />
             <p className="mt-2 text-sm text-muted">還沒有標記為已發布的內容。</p>
             <p className="mt-1 text-xs text-subtle">
@@ -352,7 +352,7 @@ export function HomePage() {
                 <Link
                   to="/studio/$projectId"
                   params={{ projectId: pack.primary.id }}
-                  className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+                  className="flex items-center gap-3 rounded-2xl surface-card p-3"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{pack.primary.name}</span>

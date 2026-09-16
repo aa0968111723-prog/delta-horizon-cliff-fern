@@ -191,7 +191,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
         }
       />
 
-      <dl className="mt-6 grid gap-2 rounded-2xl bg-surface p-4 text-sm shadow-[var(--shadow-border)] sm:grid-cols-2">
+      <dl className="mt-6 grid gap-2 rounded-2xl surface-card p-4 text-sm sm:grid-cols-2">
         <Row label="日期" value={`${formatCampaignDate(campaign)} ${campaign.time}`.trim()} />
         <Row label="地點" value={campaign.location || "未定"} />
         <Row label="主要行動" value={campaign.cta} />
@@ -201,7 +201,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
       </dl>
 
       {campaign.axis ? (
-        <section className="mt-6 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <section className="mt-6 rounded-2xl surface-card p-4">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-medium">宣傳主軸</p>
             <Badge variant={campaign.planSource === "live" ? "accent" : "default"}>
@@ -217,7 +217,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
           <SectionHeader title="創意方向" hint="選一個往下做，其他留著換角度" />
           <ul className="grid gap-3 sm:grid-cols-3">
             {campaign.directions.map((dir) => (
-              <li key={dir.id} className="flex flex-col gap-2 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <li key={dir.id} className="flex flex-col gap-2 rounded-2xl surface-card p-4">
                 <p className="font-display text-lg">{dir.title}</p>
                 <p className="text-xs text-muted">{dir.concept}</p>
                 {dir.visual ? <p className="text-xs text-subtle">視覺：{dir.visual}</p> : null}
@@ -272,7 +272,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
               return (
                 <li
                   key={wave.id}
-                  className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]"
+                  className="rounded-2xl surface-card p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">

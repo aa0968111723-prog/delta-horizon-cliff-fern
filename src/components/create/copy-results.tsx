@@ -37,7 +37,7 @@ export function CopyDraftCard({
   }
 
   return (
-    <article className="flex h-full flex-col gap-3 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+    <article className="flex h-full flex-col gap-3 surface-card rounded-2xl p-4">
       <header className="flex items-center justify-between gap-2">
         <Badge variant={draft.source === "live" ? "accent" : "default"}>{toneLabel(draft.tone)}</Badge>
         <span className="text-xs text-subtle">

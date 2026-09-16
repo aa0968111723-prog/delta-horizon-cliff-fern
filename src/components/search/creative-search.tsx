@@ -123,7 +123,7 @@ export function CreativeSearchPage({ initialQuery }: { initialQuery?: string }) 
         description="一個框就好。不用分別去每個 App 找。"
       />
 
-      <div className="mt-6 flex items-center gap-2 rounded-2xl bg-surface px-3 shadow-[var(--shadow-border)]">
+      <div className="mt-6 flex items-center gap-2 rounded-2xl surface-card px-3">
         <Search className="size-4 shrink-0 text-subtle" />
         <Input
           value={q}
@@ -186,7 +186,7 @@ export function CreativeSearchPage({ initialQuery }: { initialQuery?: string }) 
                 <Link
                   to="/studio/$projectId"
                   params={{ projectId: project.id }}
-                  className="block rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+                  className="block rounded-2xl surface-card p-3"
                 >
                   <span className="block truncate text-sm font-medium">{project.name}</span>
                   <span className="block truncate text-xs text-muted">
@@ -210,7 +210,7 @@ export function CreativeSearchPage({ initialQuery }: { initialQuery?: string }) 
                 <Link
                   to="/campaigns/$campaignId"
                   params={{ campaignId: campaign.id }}
-                  className="block rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+                  className="block rounded-2xl surface-card p-3"
                 >
                   <span className="block truncate text-sm font-medium">{campaignTitle(campaign)}</span>
                   <span className="block truncate text-xs text-muted">{campaign.oneLiner}</span>
@@ -241,7 +241,7 @@ export function CreativeSearchPage({ initialQuery }: { initialQuery?: string }) 
 
       {/* 尚未連接的來源，誠實列出來 */}
       {connections.filter((c) => c.state !== "connected").length ? (
-        <section className="mt-8 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <section className="mt-8 rounded-2xl surface-card p-4">
           <p className="text-sm font-medium">還沒接進搜尋的來源</p>
           <ul className="mt-2 space-y-2">
             {connections
@@ -293,7 +293,7 @@ function Group({
 }
 
 function Empty({ text }: { text: string }) {
-  return <p className="rounded-2xl bg-surface px-4 py-5 text-center text-xs text-subtle shadow-[var(--shadow-border)]">{text}</p>;
+  return <p className="rounded-2xl surface-card px-4 py-5">{text}</p>;
 }
 
 function AssetSearchHit({
@@ -343,7 +343,7 @@ function RemoteList({ items }: { items: RemoteItem[] }) {
 
 function RemoteRow({ item }: { item: RemoteItem }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl surface-card p-3">
       <span className="flex min-w-0 items-center gap-3">
         {item.thumbnailUrl ? (
           <img src={item.thumbnailUrl} alt="" className="size-12 shrink-0 rounded-lg bg-surface-2 object-cover" />

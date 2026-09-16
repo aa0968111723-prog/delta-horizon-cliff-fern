@@ -31,7 +31,7 @@ export function TodayPosts() {
         }
       />
       {ready.length === 0 ? (
-        <p className="rounded-2xl bg-surface px-4 py-8 text-center text-sm text-muted shadow-[var(--shadow-border)]">
+        <p className="rounded-2xl surface-card px-4 py-8 text-center text-sm text-muted">
           完成一篇就會出現在這裡。沒有審核，一個人就能發。
         </p>
       ) : (

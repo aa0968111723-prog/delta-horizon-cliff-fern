@@ -80,7 +80,7 @@ export function TodayIdeas() {
             <Link
               to="/create"
               search={{ from: "idea", seed: idea.hook, kind: idea.kind }}
-              className="flex h-full flex-col gap-2 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-lift)]"
+              className="flex h-full flex-col gap-2 rounded-2xl surface-card p-4 transition-shadow hover:shadow-[var(--shadow-lift)]"
             >
               <span className="flex items-center gap-2 text-xs text-muted">
                 <Lightbulb className="size-3.5" />

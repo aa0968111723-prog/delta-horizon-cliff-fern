@@ -464,6 +464,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       const draft = (usedDraftId ? drafts.find((item) => item.id === usedDraftId) : null) ?? drafts[0];
       projectId = draft ? commitDraft(draft, { quiet: true }) ?? null : null;
     }
+    const visualAsset = useStudio.getState().assets.find((item) => item.id === assetId);
     if (!projectId) {
       const created = createProject({
         name: (direction.headline.split("\n")[0] || direction.title).slice(0, 18) || "視覺草稿",
@@ -485,7 +486,11 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           notes: painPoint.trim(),
           deliverables: deliverablesForKind(kind),
         },
-        sources: [{ kind: "generated", label: "AI 生成圖片", detail: direction.title, assetId }],
+        sources: [
+          visualAsset
+            ? sourceFromAsset(visualAsset, direction.title)
+            : { kind: "generated" as const, label: "AI 生成圖片", detail: direction.title, assetId },
+        ],
       });
       projectId = created.id;
       if (direction.headline) {
@@ -747,7 +752,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       ) : null}
 
       {linkedProject?.sources.length ? (
-        <div className="mt-4 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <div className="mt-4 rounded-2xl surface-card p-4">
           <SourceList sources={linkedProject.sources} />
         </div>
       ) : null}
@@ -1091,7 +1096,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       ) : null}
 
       {linkedProject ? (
-        <section className="mt-8 space-y-6 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <section className="mt-8 space-y-6 rounded-2xl surface-card p-4">
           {linkedProject.contentKind === "threads" || linkedProject.contentKind === "line" ? (
             <PublishPreview project={linkedProject} brand={brand} urls={urls} />
           ) : null}

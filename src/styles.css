@@ -65,8 +65,9 @@
 }
 
 @layer utilities {
-  /* 玻璃浮層：首頁與 AI 面板用 */
-  .glass {
+  /* 玻璃浮層：首頁、日曆、創作卡片 */
+  .glass,
+  .surface-card {
     background: color-mix(in oklab, var(--color-surface) 78%, transparent);
     backdrop-filter: blur(14px) saturate(1.1);
     box-shadow: var(--shadow-lift);

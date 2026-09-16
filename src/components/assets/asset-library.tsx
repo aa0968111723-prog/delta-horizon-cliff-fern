@@ -314,7 +314,7 @@ export function AssetLibrary() {
                       const project = createFromTemplate({ templateId: tpl.id, brandId: brand.id });
                       void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
                     }}
-                    className="w-full rounded-2xl bg-surface p-3 text-left shadow-[var(--shadow-border)]"
+                    className="w-full rounded-2xl surface-card p-3 text-left"
                   >
                     <div className="flex h-32 items-center justify-center overflow-hidden rounded-lg bg-bg">
                       {preview && brand ? (

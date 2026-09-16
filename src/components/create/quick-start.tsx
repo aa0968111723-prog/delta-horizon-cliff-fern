@@ -158,7 +158,7 @@ export function QuickStartGrid({
             to={item.to}
             search={item.search}
             onClick={onNavigate}
-            className="flex h-full min-h-[4.5rem] items-center gap-3 rounded-2xl bg-surface px-3 py-3 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-lift)]"
+            className="flex h-full min-h-[4.5rem] items-center gap-3 surface-card rounded-2xl px-3 py-3 transition-shadow hover:shadow-[var(--shadow-lift)]"
           >
             <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", TONE_RING[item.tone])}>
               <item.icon className="size-5" />

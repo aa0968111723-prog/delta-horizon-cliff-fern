@@ -117,7 +117,7 @@ export function ConnectionCenter({ focus, status }: { focus?: string; status?: s
               <li
                 key={item.id}
                 className={cn(
-                  "rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]",
+                  "rounded-2xl surface-card p-4",
                   highlight && "ring-2 ring-ring",
                 )}
               >
@@ -195,7 +195,7 @@ export function ConnectionCenter({ focus, status }: { focus?: string; status?: s
         </ul>
       )}
 
-      <section className="mt-8 rounded-2xl bg-surface p-4 text-xs text-muted shadow-[var(--shadow-border)]">
+      <section className="mt-8 rounded-2xl surface-card p-4 text-xs text-muted">
         <p className="text-sm font-medium text-fg">關於安全</p>
         <ul className="mt-2 space-y-1">
           <li>· 三個連接都用各平台的官方 OAuth，不會爬網站、不模擬登入、也不會存你的帳號密碼。</li>

@@ -40,7 +40,7 @@ export function AssetCard({
 
   return (
     <article
-      className="group overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-border)]"
+      className="group overflow-hidden rounded-2xl surface-card"
       draggable={draggable}
       onDragStart={(e) => {
         e.dataTransfer.setData(ASSET_DRAG_MIME, asset.id);

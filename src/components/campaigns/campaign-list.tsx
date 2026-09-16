@@ -67,7 +67,7 @@ export function CampaignListPage({ openNew }: { openNew?: boolean }) {
                 <Link
                   to="/campaigns/$campaignId"
                   params={{ campaignId: campaign.id }}
-                  className="flex h-full flex-col gap-2 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-lift)]"
+                  className="flex h-full flex-col gap-2 surface-card rounded-2xl p-4 transition-shadow hover:shadow-[var(--shadow-lift)]"
                 >
                   <span className="flex items-center justify-between gap-2 text-xs">
                     <span className="rounded-full bg-surface-2 px-2.5 py-1 font-medium">

@@ -32,7 +32,7 @@ export function IgStoryPreview({
 
   if (!projects.length || !story) {
     return (
-      <div className="rounded-2xl bg-surface px-4 py-8 text-center shadow-[var(--shadow-border)]">
+      <div className="rounded-2xl surface-card px-4 py-8">
         <p className="text-xs text-subtle">限動預覽 · {CLUB_HANDLE}</p>
         <p className="mt-2 text-sm text-muted">還沒有限動或 Reels 可以預覽。</p>
         <p className="mt-1 text-xs text-subtle">做成限動之後，這裡會用直式 9:16 看。</p>
