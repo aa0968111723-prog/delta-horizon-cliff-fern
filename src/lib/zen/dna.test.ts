@@ -75,6 +75,7 @@ test("clubCreativeDna prefers own IG and motifs, not generic youth", () => {
       },
     ],
   });
+  assert.match(dna.promptBlock, /^過去表現較好的 Hook/);
   assert.match(dna.promptBlock, /龜龜/);
   assert.match(dna.promptBlock, /浮游禪光/);
   assert.match(dna.promptBlock, /來坐一下/);

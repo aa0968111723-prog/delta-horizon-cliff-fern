@@ -10,6 +10,7 @@ export function IgFeedPreview({
   memory,
   urls,
   publishingId,
+  postedId,
   onPublish,
   onRate,
   onSelect,
@@ -20,16 +21,21 @@ export function IgFeedPreview({
   memory: IgMemoryPost[];
   urls: Record<string, string>;
   publishingId: string | null;
+  postedId?: string;
   onPublish: (item: ScheduleItem) => void;
   onRate: (id: string, feel: PostFeel) => void;
   onSelect: (id: string) => void;
 }) {
   const feedUpcoming = upcoming.filter((item) => item.kind === "ig-post" || item.kind === "carousel");
+  const nextUp = feedUpcoming[0];
+  const orderedMemory = postedId
+    ? [...memory.filter((post) => post.id === postedId), ...memory.filter((post) => post.id !== postedId)]
+    : memory;
 
   return (
     <section className="mt-8">
       <h2 className="text-sm font-medium">Feed Preview</h2>
-      <p className="mt-1 text-xs text-muted">像學生滑到的樣子。不是後台列表。</p>
+      <p className="mt-1 text-xs text-muted">像學生滑到的樣子。剛發布的在上面，可以標記會不會停。</p>
       <div
         className="mx-auto mt-4 w-full max-w-[22rem] overflow-hidden rounded-[1.75rem] bg-surface p-3 shadow-[var(--shadow-artboard)]"
         data-testid="ig-feed"
@@ -51,31 +57,7 @@ export function IgFeedPreview({
           </ul>
         ) : null}
         <ul className="mt-3 space-y-5">
-          {feedUpcoming.slice(0, 4).map((item) => (
-            <li key={item.id} className="rounded-2xl bg-bg p-2">
-              <p className="text-xs text-muted">即將 · {contentKindLabel(item.kind)}</p>
-              {item.imageAssetId && urls[item.imageAssetId] ? (
-                <img
-                  src={urls[item.imageAssetId]}
-                  alt=""
-                  className="mt-2 aspect-[4/5] w-full rounded-xl object-cover"
-                />
-              ) : (
-                <div className="mt-2 flex aspect-[4/5] items-end rounded-xl bg-surface-2 p-3 text-sm">{item.title}</div>
-              )}
-              <p className="mt-2 whitespace-pre-wrap text-sm">{item.caption || item.title}</p>
-              <Button
-                className="mt-2 min-h-11 w-full"
-                size="sm"
-                disabled={publishingId === item.id}
-                data-testid={item.id === feedUpcoming[0]?.id ? "ig-feed-publish" : undefined}
-                onClick={() => onPublish(item)}
-              >
-                發布到 IG
-              </Button>
-            </li>
-          ))}
-          {memory.slice(0, 4).map((post) => {
+          {orderedMemory.slice(0, 6).map((post, index) => {
             const src = post.assetId ? urls[post.assetId] : post.mediaUrl;
             return (
               <li key={post.id} className="rounded-2xl bg-bg p-2">
@@ -89,7 +71,9 @@ export function IgFeedPreview({
                   ) : (
                     <div className="mt-2 rounded-xl bg-surface-2 p-3 text-sm">{post.caption}</div>
                   )}
-                  <p className="mt-2 line-clamp-4 text-sm">{post.caption}</p>
+                  <p className="mt-2 line-clamp-4 text-sm" data-testid={index === 0 ? "ig-memory-first" : undefined}>
+                    {post.caption}
+                  </p>
                 </button>
                 <div className="mt-2 grid grid-cols-3 gap-1">
                   {(["strong", "ok", "weak"] as PostFeel[]).map((feel) => (
@@ -97,7 +81,7 @@ export function IgFeedPreview({
                       key={feel}
                       size="sm"
                       variant={post.feel === feel ? "default" : "secondary"}
-                      data-testid={feel === "strong" && post.id === memory[0]?.id ? "ig-rate-strong" : undefined}
+                      data-testid={feel === "strong" && index === 0 ? "ig-rate-strong" : undefined}
                       onClick={() => onRate(post.id, feel)}
                     >
                       {feelLabel(feel)}
@@ -107,6 +91,28 @@ export function IgFeedPreview({
               </li>
             );
           })}
+          {nextUp ? (
+            <li className="flex gap-3 rounded-2xl bg-bg p-2">
+              {nextUp.imageAssetId && urls[nextUp.imageAssetId] ? (
+                <img src={urls[nextUp.imageAssetId]} alt="" className="size-16 shrink-0 rounded-xl object-cover" />
+              ) : (
+                <div className="flex size-16 shrink-0 items-end rounded-xl bg-surface-2 p-2 text-xs">{nextUp.title}</div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted">即將 · {contentKindLabel(nextUp.kind)}</p>
+                <p className="mt-1 line-clamp-2 text-sm">{nextUp.caption || nextUp.title}</p>
+                <Button
+                  className="mt-2 min-h-11 w-full"
+                  size="sm"
+                  disabled={publishingId === nextUp.id}
+                  data-testid="ig-feed-publish"
+                  onClick={() => onPublish(nextUp)}
+                >
+                  發布到 IG
+                </Button>
+              </div>
+            </li>
+          ) : null}
         </ul>
       </div>
     </section>

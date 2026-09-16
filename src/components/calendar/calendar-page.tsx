@@ -1,10 +1,13 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { addDays, format, isSameDay, startOfMonth, startOfWeek, endOfMonth, endOfWeek } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
+import { runPublishItem } from "@/lib/connect/publish-item";
+import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { contentKindLabel, contentStatusLabel } from "@/lib/studio/content";
 import { uid } from "@/lib/studio/ids";
 import { cn } from "@/lib/utils";
@@ -15,6 +18,7 @@ import { ScheduleEditor } from "@/components/calendar/schedule-editor";
 type View = "month" | "week" | "agenda";
 
 export function CalendarPage() {
+  const navigate = useNavigate();
   const hydrated = useStudio((s) => s.hydrated);
   const schedule = useStudio((s) => s.schedule);
   const campaigns = useStudio((s) => s.campaigns);
@@ -26,6 +30,7 @@ export function CalendarPage() {
   const [cursor, setCursor] = useState(() => new Date());
   const [view, setView] = useState<View>("agenda");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (window.matchMedia("(min-width: 768px)").matches) setView("month");
@@ -69,7 +74,37 @@ export function CalendarPage() {
     });
   }
 
+  async function publishItem(id: string) {
+    const item = schedule.find((row) => row.id === id);
+    if (!item) return;
+    setPublishingId(id);
+    try {
+      const result = await runPublishItem(item);
+      toast.message(result.note);
+      if (result.marked) {
+        publishSchedule(item.id, result.extra);
+        const memory = igMemoryFromSchedule({
+          ...item,
+          status: "published",
+          publishedAt: Date.now(),
+          permalink: result.extra?.permalink ?? item.permalink,
+          mediaUrl: result.extra?.mediaUrl ?? item.mediaUrl,
+          igMediaId: result.extra?.igMediaId ?? item.igMediaId,
+        });
+        toast.success("已寫進過去 IG");
+        void navigate({ to: "/ig", search: { posted: memory.id } });
+      }
+    } finally {
+      setPublishingId(null);
+    }
+  }
+
   const cells = view === "month" ? days : weekDays;
+  const agenda = useMemo(
+    () => schedule.slice().sort((a, b) => a.scheduledAt - b.scheduledAt),
+    [schedule],
+  );
+  const firstPublishable = agenda.find((item) => item.status !== "published");
 
   if (!hydrated) {
     return (
@@ -160,10 +195,11 @@ export function CalendarPage() {
                           {view !== "month" ? (
                             <button
                               type="button"
-                              className="min-h-8 text-[10px] text-muted"
-                              onClick={() => publishSchedule(item.id)}
+                              className="min-h-8 text-xs text-muted"
+                              disabled={publishingId === item.id}
+                              onClick={() => void publishItem(item.id)}
                             >
-                              已發布
+                              發布
                             </button>
                           ) : null}
                           <Link
@@ -185,10 +221,7 @@ export function CalendarPage() {
         </div>
       ) : (
         <ul data-testid="calendar-agenda" className="mt-4 space-y-2">
-          {schedule
-            .slice()
-            .sort((a, b) => a.scheduledAt - b.scheduledAt)
-            .map((item) => (
+          {agenda.map((item) => (
               <li key={item.id} className="flex gap-3 rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
                 {item.imageAssetId && urls[item.imageAssetId] ? (
                   <img
@@ -203,12 +236,20 @@ export function CalendarPage() {
                 <p className="text-xs text-muted">
                   {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })} · {contentKindLabel(item.kind)} · {contentStatusLabel(item.status)}
                 </p>
-                <div className="mt-2 flex gap-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                   <Button size="sm" variant="secondary" onClick={() => duplicate(item.id)}>
                     複製
                   </Button>
                   <Button size="sm" variant="secondary" onClick={() => setEditingId(item.id)}>
                     直接編輯
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={publishingId === item.id || item.status === "published"}
+                    data-testid={item.id === firstPublishable?.id ? "calendar-publish" : undefined}
+                    onClick={() => void publishItem(item.id)}
+                  >
+                    發布到 IG
                   </Button>
                   <Button
                     size="sm"

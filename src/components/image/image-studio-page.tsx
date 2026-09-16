@@ -27,6 +27,7 @@ import { uid } from "@/lib/studio/ids";
 import { guessEventName } from "@/lib/zen/dates";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
+import { composeMemoryHint } from "@/lib/zen/memory-hook";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import type { CopyPack, FormatId, StudentReview, VisualDirection } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
@@ -91,7 +92,7 @@ export function ImageStudioPage() {
         data: {
           idea: nextIdea,
           format: toImageFormat(formatOverride ?? format),
-          memoryHint: `${dna.promptBlock}\n${learning.promptBlock}`.slice(0, 800),
+          memoryHint: composeMemoryHint([learning.promptBlock, dna.promptBlock]),
         },
       });
       if (!result.ok) {
@@ -112,7 +113,7 @@ export function ImageStudioPage() {
         data: {
           idea: nextIdea,
           eventName: guessEventName(nextIdea) || "",
-          memoryHint: `${dna.promptBlock}\n${learning.promptBlock}`.slice(0, 800),
+          memoryHint: composeMemoryHint([learning.promptBlock, dna.promptBlock]),
         },
       });
       if (!result.ok) {
@@ -158,7 +159,7 @@ export function ImageStudioPage() {
             palette: dir.palette,
             name: dir.name,
             variation: kind,
-            memoryHint: `${dna.promptBlock}\n${learning.promptBlock}`.slice(0, 800),
+            memoryHint: composeMemoryHint([learning.promptBlock, dna.promptBlock]),
           },
         });
         if (result.ok) payload = { imageBase64: result.imageBase64, mime: result.mime };

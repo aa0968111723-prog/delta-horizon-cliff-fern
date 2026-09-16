@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { zenSystemPrompt } from "@/lib/zen/context";
+import { hookFromMemoryHint } from "@/lib/zen/memory-hook";
 import { waveLabel } from "@/lib/zen/schedule";
 import { studentReviewOf } from "@/lib/zen/review";
 import { mockWaveDraft, WAVE_ANGLE, type WaveDraft } from "./wave-draft";
@@ -15,6 +16,7 @@ function parseWaveInput(input: unknown) {
     schedule: z.string().max(80).optional(),
     location: z.string().max(80).optional(),
     idea: z.string().max(240).optional(),
+    memoryHint: z.string().max(1200).optional(),
     twist: z.enum(["rewrite", "visual", "angle"]).optional(),
     forceMock: z.boolean().optional(),
   });
@@ -28,7 +30,7 @@ function parseWaveInput(input: unknown) {
 export const regenerateCampaignWave = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseWaveInput(input))
   .handler(async ({ data }): Promise<{ ok: true; draft: WaveDraft; reviewNotes: string[] } | { ok: false; error: string }> => {
-    const mock = mockWaveDraft(data);
+    const mock = mockWaveDraft({ ...data, learnedHook: hookFromMemoryHint(data.memoryHint) });
     if (data.twist === "angle") {
       mock.hook = "有時候我們需要的不是答案，只是一個安靜的晚上。";
       mock.angle = "換角度：少提活動，多提身體狀態。";

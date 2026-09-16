@@ -1,6 +1,7 @@
 import { HOOK_EXAMPLES, academicBeat, isZenClubBrief } from "../zen/context.ts";
 import { labelDirections } from "../zen/direction.ts";
 import { directionsFromResearch, researchInspiration } from "../zen/inspiration.ts";
+import { hookFromMemoryHint } from "../zen/memory-hook.ts";
 import { proposedHook, tidyCopy } from "../zen/review.ts";
 import { goalLabel } from "../studio/goals.ts";
 import type { CampaignPlan, CarouselPagePlan, CopyPack, StudentReview, TemplateId, VisualDirection } from "../studio/types.ts";
@@ -53,8 +54,9 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
   const templateId = pickTemplate(data.goal, data.wantCarousel);
   const headline = clipHeadline(name.replace(/[（(].*$/, ""));
   const zen = isZenClubBrief(data.brandName, data.audience);
+  const learnedHook = hookFromMemoryHint(data.memoryHint);
   const hook = zen
-    ? stripForbidden(slogan || HOOK_EXAMPLES[name.length % HOOK_EXAMPLES.length], data.forbiddenWords)
+    ? stripForbidden(learnedHook || slogan || HOOK_EXAMPLES[name.length % HOOK_EXAMPLES.length], data.forbiddenWords)
     : stripForbidden(slogan || (offer ? `${name}，${offer}。` : `${name}，只在${when}。`), data.forbiddenWords);
   const concept = stripForbidden(
     `${name}把「${features}」講給${audience}聽。目的是${goalLabel(data.goal)}，語氣維持${style}，不靠叫賣。`,

@@ -49,6 +49,35 @@ test("buildMockPlan is structured Traditional Chinese and marked mock", () => {
   assert.equal(plan.templateId, "product");
 });
 
+test("buildMockPlan uses the learned IG hook for 禪學社", () => {
+  const plan = buildMockPlan({
+    eventName: "茶會",
+    schedule: "下週三 19:00",
+    location: "淡江大學淡水校園",
+    product: "茶會",
+    offer: "",
+    audience: "淡江大一新生",
+    goal: "traffic",
+    features: "坐下、茶",
+    style: "生活感",
+    notes: "",
+    wantPost: true,
+    wantStory: true,
+    wantCarousel: true,
+    wantReels: true,
+    brandName: "淡江大學禪學社",
+    handle: "@tamkang.zen",
+    voice: "自然",
+    doSay: "坐下來",
+    dontSay: "誠摯邀請",
+    forbiddenWords: ["誠摯邀請"],
+    memoryHint: "品牌記憶：霧園。過去表現較好的 Hook：「課表排滿的時候，你還記得自己喜歡什麼嗎？」收藏 22",
+  });
+  assert.match(plan.hook, /課表排滿/);
+  assert.match(plan.copyPacks?.[0]?.hook ?? "", /課表排滿/);
+  assert.match(plan.directions?.[0]?.headline ?? "", /課表排滿/);
+});
+
 test("buildMockPlan strips forbidden words", () => {
   const plan = buildMockPlan({
     ...base,

@@ -27,6 +27,8 @@ import { parseEventDate, parseEventTime, guessEventName, defaultScheduleText } f
 import { DEFAULT_AUDIENCE, academicBeat } from "@/lib/zen/context";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
+import { composeMemoryHint } from "@/lib/zen/memory-hook";
+import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction";
 import { researchInspiration } from "@/lib/zen/inspiration";
 import { offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
@@ -254,7 +256,7 @@ export function CreateStudio() {
         data: {
           idea: `${idea}。參考：${notes || "品牌記憶"}`.slice(0, 400),
           eventName,
-          memoryHint: `${memoryHint}\n${research.promptBlock}`.slice(0, 800),
+          memoryHint: composeMemoryHint([learning.promptBlock, memoryHint, research.promptBlock]),
           forceMock: !status?.available,
         },
       });
@@ -382,7 +384,7 @@ export function CreateStudio() {
           eventName,
           schedule,
           location,
-          memoryHint: `${memoryHint}\n${research.promptBlock}\n參考來源：${sourceNotes(hits)}`.slice(0, 800),
+          memoryHint: composeMemoryHint([learning.promptBlock, memoryHint, research.promptBlock, `參考來源：${sourceNotes(hits)}`]),
           forceMock: !status?.available,
         },
       });
@@ -422,7 +424,12 @@ export function CreateStudio() {
       const result = await generateCampaignPlan({
         data: toBriefInput(brief, brand, {
           forceMock: !status?.available,
-          memoryHint: `${memoryHint}\n${learning.promptBlock}\n${research.promptBlock}\n參考來源：${sourceNotes(hits)}`.slice(0, 800),
+          memoryHint: composeMemoryHint([
+            learning.promptBlock,
+            memoryHint,
+            research.promptBlock,
+            `參考來源：${sourceNotes(hits)}`,
+          ]),
         }),
       });
       if (!result.ok) {
@@ -561,7 +568,7 @@ export function CreateStudio() {
         data: {
           idea: `${idea}。參考：${sourceNotes(hits)}`.slice(0, 400),
           eventName,
-          memoryHint: `${memoryHint}\n${research.promptBlock}`.slice(0, 800),
+          memoryHint: composeMemoryHint([learning.promptBlock, memoryHint, research.promptBlock]),
           forceMock: !status?.available,
         },
       });
@@ -598,7 +605,7 @@ export function CreateStudio() {
           palette: dir.palette,
           name: dir.name,
           variation: opts?.kind,
-          memoryHint: `${memoryHint}\n${research.promptBlock}`.slice(0, 800),
+          memoryHint: composeMemoryHint([learning.promptBlock, memoryHint, research.promptBlock]),
         },
       });
       if (result.ok) payload = { imageBase64: result.imageBase64, mime: result.mime };
@@ -799,8 +806,16 @@ export function CreateStudio() {
       toast.message(result.note);
       if (result.marked) {
         publishSchedule(item.id, result.extra);
+        const memory = igMemoryFromSchedule({
+          ...item,
+          status: "published",
+          publishedAt: Date.now(),
+          permalink: result.extra?.permalink ?? item.permalink,
+          mediaUrl: result.extra?.mediaUrl ?? item.mediaUrl,
+          igMediaId: result.extra?.igMediaId ?? item.igMediaId,
+        });
         toast.success("已寫進過去 IG。可在 Feed 標記學生會不會停。");
-        void navigate({ to: "/ig" });
+        void navigate({ to: "/ig", search: { posted: memory.id } });
       }
     } finally {
       setBusy(false);
@@ -1213,6 +1228,9 @@ export function CreateStudio() {
               <p className="mt-1 text-xs text-muted">
                 已用這個方向做出整套。可送 Canva 微調、看 IG Preview、或到月曆改時間。發布後會寫進過去 IG。
               </p>
+              <p className="mt-3 font-display text-lg leading-snug" data-testid="kit-hook">
+                {plan.hook}
+              </p>
               <p className="mt-3 text-xs text-muted">
                 已建立 {campaign.name}，節奏含 {campaign.waves.map((w) => waveLabel(w.kind)).join("、") || "預熱到回顧"}。
               </p>
@@ -1246,6 +1264,7 @@ export function CreateStudio() {
           schedule={schedule}
           location={location}
           idea={idea}
+          memoryHint={composeMemoryHint([learning.promptBlock, memoryHint])}
           looks={Object.fromEntries(
             (Object.entries(waveLookIds) as Array<[CampaignWaveKind, string]>).flatMap(([kind, assetId]) => {
               const src = urls[assetId];

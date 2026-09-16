@@ -41,7 +41,7 @@ const IdeaInput = z.object({
   idea: z.string().min(1).max(400),
   eventName: z.string().max(120).optional(),
   format: z.enum(IMAGE_FORMAT_IDS).optional(),
-  memoryHint: z.string().max(800).optional(),
+  memoryHint: z.string().max(1200).optional(),
   forceMock: z.boolean().optional(),
 });
 
@@ -138,7 +138,7 @@ const ImageGenInput = z.object({
   name: z.string().max(80).optional(),
   variation: z.enum(["composition", "mood", "background", "style", "text"]).optional(),
   forceMock: z.boolean().optional(),
-  memoryHint: z.string().max(800).optional(),
+  memoryHint: z.string().max(1200).optional(),
 });
 
 function parseImageGen(input: unknown) {

@@ -51,12 +51,12 @@ export function clubCreativeDna(input: {
   const hashtags = hashtagsFromCaptions(captions);
   const voice = brand?.voice || "像社團的人在傳訊息";
   const promptBlock = [
+    learning.promptBlock,
     `品牌記憶：${palette}。母題 ${motifs.join("、")}。`,
     `語氣：${voice}`,
     `喜歡：${likes.join("、")}。不要：${dislikes.join("、")}。`,
     `常用 CTA：${ctas[0]}。Caption 大約 ${avg || 90} 字。`,
     events.length ? `做過的活動：${events.join("、")}` : "",
-    learning.promptBlock,
   ]
     .filter(Boolean)
     .join(" ");

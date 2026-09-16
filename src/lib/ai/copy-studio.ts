@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { zenSystemPrompt } from "@/lib/zen/context";
+import { hookFromMemoryHint } from "@/lib/zen/memory-hook";
 import { studentReviewOf, tidyCopy } from "@/lib/zen/review";
 import type { CopyPack, CopyTone, StudentReview } from "@/lib/studio/types";
 
@@ -12,7 +13,7 @@ const CopyInput = z.object({
   schedule: z.string().max(120).optional(),
   location: z.string().max(120).optional(),
   tone: ToneSchema.optional(),
-  memoryHint: z.string().max(800).optional(),
+  memoryHint: z.string().max(1200).optional(),
   forceMock: z.boolean().optional(),
 });
 
@@ -28,10 +29,15 @@ export type CopyResult =
   | { ok: true; adapter: "live" | "mock"; packs: CopyPack[]; review: StudentReview }
   | { ok: false; adapter: "live" | "mock"; error: string };
 
-function mockPacks(idea: string, eventName: string, schedule: string, location: string): CopyPack[] {
-  const hook = /坐|休息|空|累/.test(idea)
-    ? "最近是不是連休息都覺得有罪惡感？"
-    : "最近是不是很久沒有好好坐下來？";
+function hookFromMemory(memoryHint: string | undefined, idea: string) {
+  return (
+    hookFromMemoryHint(memoryHint) ||
+    (/坐|休息|空|累/.test(idea) ? "最近是不是連休息都覺得有罪惡感？" : "最近是不是很久沒有好好坐下來？")
+  );
+}
+
+function mockPacks(idea: string, eventName: string, schedule: string, location: string, memoryHint = ""): CopyPack[] {
+  const hook = hookFromMemory(memoryHint, idea);
   const where = [schedule, location].filter(Boolean).join(" · ");
   const eventLine = eventName ? `${eventName}${where ? `，${where}` : ""}` : where;
   const body = tidyCopy(`${idea.trim()}\n${eventLine}\n想找人一起的話，把這則傳給他。`);
@@ -58,7 +64,7 @@ export const generateCopyPacks = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseCopyInput(input))
   .handler(async ({ data }): Promise<CopyResult> => {
     const apiKey = process.env.XAI_API_KEY;
-    const packsMock = mockPacks(data.idea, data.eventName ?? "", data.schedule ?? "", data.location ?? "");
+    const packsMock = mockPacks(data.idea, data.eventName ?? "", data.schedule ?? "", data.location ?? "", data.memoryHint);
     const review = studentReviewOf(
       `${packsMock[0].hook}\n${packsMock[0].body}`,
       data.schedule ?? "",

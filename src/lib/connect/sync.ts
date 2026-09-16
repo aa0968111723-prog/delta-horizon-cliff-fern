@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { IgMemoryPost, RemoteFile } from "@/lib/studio/types";
 import { driveContainsQuery, remoteMatchesQuery } from "@/lib/zen/search";
 import { driveQueryEscape } from "./escape";
+import { mediaInsightsUrl, parseIgInsights } from "./instagram-graph";
 import { accessTokenFor, writeBundle } from "./tokens";
 
 type SyncResult = {
@@ -91,17 +92,9 @@ type IgMedia = {
 };
 
 async function igInsights(token: string, mediaId: string) {
-  const metrics = "impressions,reach,saved,shares,plays";
-  const res = await fetch(
-    `https://graph.facebook.com/v21.0/${mediaId}/insights?metric=${metrics}&access_token=${encodeURIComponent(token)}`,
-  );
+  const res = await fetch(`${mediaInsightsUrl(mediaId)}&access_token=${encodeURIComponent(token)}`);
   if (!res.ok) return {};
-  const json = (await res.json()) as { data?: { name?: string; values?: { value?: number }[] }[] };
-  const out: Record<string, number> = {};
-  for (const row of json.data ?? []) {
-    if (row.name) out[row.name] = Number(row.values?.[0]?.value ?? 0);
-  }
-  return out;
+  return parseIgInsights(await res.json());
 }
 
 function igKind(type?: string): IgMemoryPost["kind"] {

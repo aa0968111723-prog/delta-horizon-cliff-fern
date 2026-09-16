@@ -1,7 +1,7 @@
 import { IgFeedPreview } from "@/components/ig/ig-feed-preview";
 import { InsightLessons } from "@/components/ig/insight-lessons";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { PageHeader } from "@/components/shared/page-header";
@@ -9,9 +9,11 @@ import { LoadingState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { runPublishItem } from "@/lib/connect/publish-item";
+import { syncConnection } from "@/lib/connect/sync";
 import { pagesOf } from "@/lib/studio/layers";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { feelLabel, type PostFeel } from "@/lib/zen/feel";
+import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { soonestScheduled } from "@/lib/zen/schedule";
 import { igHookAnalysis } from "@/lib/zen/review";
 import { useStudio } from "@/stores/studio-store";
@@ -19,6 +21,7 @@ import type { ScheduleItem } from "@/lib/studio/types";
 
 export function InstagramCenter() {
   const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as { posted?: string };
   const hydrated = useStudio((s) => s.hydrated);
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
@@ -28,10 +31,14 @@ export function InstagramCenter() {
   const schedule = useStudio((s) => s.schedule);
   const publishSchedule = useStudio((s) => s.publishSchedule);
   const rateIgMemory = useStudio((s) => s.rateIgMemory);
+  const upsertIgMemory = useStudio((s) => s.upsertIgMemory);
+  const setConnection = useStudio((s) => s.setConnection);
   const brand = brands[0];
-  const [selected, setSelected] = useState<string | null>(igMemory[0]?.id ?? null);
+  const postedId = search.posted;
+  const [selected, setSelected] = useState<string | null>(postedId ?? igMemory[0]?.id ?? null);
   const [analysis, setAnalysis] = useState<ReturnType<typeof igHookAnalysis> | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const urls = useAssetUrls(assets.map((a) => a.id));
   const gridProjects = projects.filter((p) => p.activeFormatId.startsWith("feed") || p.contentKind === "carousel");
   const upcoming = soonestScheduled(schedule, 12);
@@ -43,6 +50,10 @@ export function InstagramCenter() {
     [igMemory, brand, assets, campaigns],
   );
 
+  useEffect(() => {
+    if (postedId) setSelected(postedId);
+  }, [postedId]);
+
   async function publishItem(item: ScheduleItem) {
     setPublishingId(item.id);
     try {
@@ -50,7 +61,16 @@ export function InstagramCenter() {
       toast.message(result.note);
       if (result.marked) {
         publishSchedule(item.id, result.extra);
+        const memory = igMemoryFromSchedule({
+          ...item,
+          status: "published",
+          publishedAt: Date.now(),
+          permalink: result.extra?.permalink ?? item.permalink,
+          mediaUrl: result.extra?.mediaUrl ?? item.mediaUrl,
+          igMediaId: result.extra?.igMediaId ?? item.igMediaId,
+        });
         toast.success("已寫進過去 IG。可標記學生會不會停，下次生成會學。");
+        void navigate({ to: "/ig", search: { posted: memory.id } });
       }
     } finally {
       setPublishingId(null);
@@ -60,6 +80,22 @@ export function InstagramCenter() {
   function rate(id: string, feel: PostFeel) {
     rateIgMemory(id, feel);
     toast.success(`已記成「${feelLabel(feel)}」，下次生成會參考`);
+  }
+
+  async function pullInsights() {
+    setSyncing(true);
+    try {
+      const result = await syncConnection({ data: { provider: "instagram" } });
+      if (result.igPosts.length) upsertIgMemory(result.igPosts);
+      setConnection("instagram", {
+        lastSyncAt: Date.now(),
+        status: result.connected ? "connected" : "disconnected",
+        ...(result.accountLabel ? { accountLabel: result.accountLabel } : {}),
+      });
+      toast.message(result.note);
+    } finally {
+      setSyncing(false);
+    }
   }
 
   if (!hydrated) {
@@ -73,9 +109,14 @@ export function InstagramCenter() {
         title="IG 是產品出口"
         description="Feed、Grid、文案、歷史、DNA。官方連接在「連接」。"
         actions={
-          <Button size="sm" variant="secondary" asChild>
-            <Link to="/connect">連接 IG</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" disabled={syncing} data-testid="ig-pull-insights" onClick={() => void pullInsights()}>
+              {syncing ? "讀取中" : "讀取成效"}
+            </Button>
+            <Button size="sm" variant="secondary" asChild>
+              <Link to="/connect">連接 IG</Link>
+            </Button>
+          </div>
         }
       />
 
@@ -96,6 +137,7 @@ export function InstagramCenter() {
         memory={igMemory}
         urls={urls}
         publishingId={publishingId}
+        postedId={postedId}
         onPublish={(item) => void publishItem(item)}
         onRate={rate}
         onSelect={(id) => {

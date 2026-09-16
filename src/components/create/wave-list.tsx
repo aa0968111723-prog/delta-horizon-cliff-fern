@@ -11,6 +11,7 @@ export function WaveList({
   schedule,
   location,
   idea,
+  memoryHint,
   looks,
   onApplyDraft,
   onSwapVisual,
@@ -20,6 +21,7 @@ export function WaveList({
   schedule: string;
   location: string;
   idea: string;
+  memoryHint?: string;
   looks?: Partial<Record<CampaignWaveKind, string>>;
   onApplyDraft?: (draft: WaveDraft) => void;
   onSwapVisual?: (kind: CampaignWaveKind) => Promise<void>;
@@ -31,7 +33,7 @@ export function WaveList({
     setBusy(`${kind}:${twist || "rewrite"}`);
     try {
       const result = await regenerateCampaignWave({
-        data: { kind, name, schedule, location, idea, twist },
+        data: { kind, name, schedule, location, idea, twist, memoryHint },
       });
       if (!result.ok) {
         toast.error(result.error);

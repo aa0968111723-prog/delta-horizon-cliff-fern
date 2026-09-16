@@ -19,7 +19,15 @@ export type IgLearning = {
 
 function score(post: IgMemoryPost) {
   const saveRate = (post.saves ?? 0) * 4;
-  return saveRate + (post.shares ?? 0) * 3 + (post.comments ?? 0) * 2 + (post.likes ?? 0) * 0.2 + (post.reach ?? 0) * 0.01;
+  const feelBoost = post.feel === "strong" ? 500 : post.feel === "weak" ? -200 : 0;
+  return (
+    saveRate +
+    (post.shares ?? 0) * 3 +
+    (post.comments ?? 0) * 2 +
+    (post.likes ?? 0) * 0.2 +
+    (post.reach ?? 0) * 0.01 +
+    feelBoost
+  );
 }
 
 function firstLine(caption: string) {
@@ -59,10 +67,11 @@ export function learnFromIg(posts: IgMemoryPost[]): IgLearning {
 
   if (top) {
     const reachBit = top.reach ? `，觸及 ${top.reach}` : "";
+    const feelBit = top.feel === "strong" ? "你標記「學生會停」。" : "";
     lessons.push({
       id: "hook",
       title: "哪種 Hook 比較有效？",
-      detail: `收藏較高的是「${firstLine(top.caption)}」（收藏 ${top.saves ?? 0}${reachBit}）。問句與生活語氣比社團全名更容易停。`,
+      detail: `${feelBit}下次先學「${firstLine(top.caption)}」（收藏 ${top.saves ?? 0}${reachBit}）。問句與生活語氣比社團全名更容易停。`,
     });
   }
   lessons.push({

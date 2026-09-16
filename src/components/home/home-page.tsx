@@ -38,12 +38,12 @@ export function HomePage() {
   const scheduled = soonestScheduled(schedule, 6);
   const generated = [...projects].filter((p) => p.plan).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
   const generatedLooks = assets.filter((asset) => asset.source === "generated").slice(0, 4);
-  const strong = [...igMemory].sort((a, b) => (b.saves ?? 0) - (a.saves ?? 0))[0];
   const dna = useMemo(
     () => clubCreativeDna({ brand, igMemory, campaigns, assets }),
     [brand, igMemory, campaigns, assets],
   );
   const learning = useMemo(() => learnFromIg(igMemory), [igMemory]);
+  const strong = learning.ranked[0];
   const beat = academicBeat();
   const inspiration = useMemo(() => inspirationForBeat(beat), [beat]);
 
@@ -90,7 +90,7 @@ export function HomePage() {
               </p>
               <p className="mt-5 text-lg leading-snug">
                 AI 建議做一篇
-                <span className="mt-1 block font-display text-2xl">「{upcoming.oneLiner}」</span>
+                <span className="mt-1 block font-display text-2xl">「{learning.bestHookShape || upcoming.oneLiner}」</span>
               </p>
               <p className="mt-2 text-sm text-accent-fg/75">IG Carousel · 讓淡江學生覺得這跟自己有關</p>
               <Button

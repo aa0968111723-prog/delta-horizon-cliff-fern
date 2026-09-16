@@ -9,6 +9,8 @@ import {
   parseIgUser,
   parseContainerId,
   parsePermalink,
+  mediaInsightsUrl,
+  parseIgInsights,
 } from "./instagram-graph.ts";
 
 test("Graph URLs and public image check stay official and non-local", () => {
@@ -32,4 +34,18 @@ test("parseIgUser reads professional account without tokens in payload", () => {
   assert.equal(mediaPermalinkUrl("1789"), "https://graph.facebook.com/v21.0/1789?fields=permalink");
   assert.equal(parsePermalink({ permalink: "https://www.instagram.com/p/tea1/" }), "https://www.instagram.com/p/tea1/");
   assert.equal(parsePermalink({ permalink: "not-a-url" }), null);
+  assert.equal(
+    mediaInsightsUrl("1789"),
+    "https://graph.facebook.com/v21.0/1789/insights?metric=impressions,reach,saved,shares,plays",
+  );
+  assert.doesNotMatch(mediaInsightsUrl("1789"), /access_token/);
+  assert.deepEqual(
+    parseIgInsights({
+      data: [
+        { name: "saved", values: [{ value: 21 }] },
+        { name: "reach", values: [{ value: 420 }] },
+      ],
+    }),
+    { saved: 21, reach: 420 },
+  );
 });

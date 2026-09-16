@@ -28,12 +28,13 @@ export function mockWaveDraft(input: {
   schedule?: string;
   location?: string;
   idea?: string;
+  learnedHook?: string;
 }): WaveDraft {
   const when = [input.schedule, input.location].filter(Boolean).join(" · ");
   const hooks: Record<CampaignWaveKind, string> = {
     warmup: "最近是不是連休息都覺得有罪惡感？",
     emotion: "大學生活很自由，但你最近真的有比較快樂嗎？",
-    hero: "最近是不是很久沒有好好坐下來？",
+    hero: input.learnedHook || "最近是不是很久沒有好好坐下來？",
     detail: `${input.name}是什麼？一個可以坐下的晚上。`,
     reason: "可以自己來，也可以把這則傳給他。",
     countdown: "明天晚上，淡水。",

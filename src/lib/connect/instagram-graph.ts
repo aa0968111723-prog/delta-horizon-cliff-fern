@@ -55,3 +55,16 @@ export function parsePermalink(json: unknown): string | null {
   const permalink = (json as { permalink?: string }).permalink;
   return permalink && permalink.startsWith("http") ? permalink : null;
 }
+
+export function mediaInsightsUrl(mediaId: string) {
+  return `${IG_GRAPH}/${mediaId}/insights?metric=impressions,reach,saved,shares,plays`;
+}
+
+export function parseIgInsights(json: unknown): Record<string, number> {
+  const data = (json as { data?: { name?: string; values?: { value?: number }[] }[] }).data;
+  const out: Record<string, number> = {};
+  for (const row of data ?? []) {
+    if (row.name) out[row.name] = Number(row.values?.[0]?.value ?? 0);
+  }
+  return out;
+}
