@@ -214,4 +214,32 @@ test("convertContent to LINE uses landscape 1.91:1", () => {
   assert.ok(pagesOf(next)[0]);
   assert.equal(pagesOf(next)[0]?.formatId, "feed-landscape");
   assert.equal(next.convertedFromId, source.id);
+  const cover = pagesOf(next)[0];
+  const hero = cover?.layers.find((layer) => layer.type === "image" && layer.name === "主視覺");
+  assert.equal(extractImageAssetId(cover), "asset_photo");
+  assert.ok(hero && hero.type === "image");
+  assert.equal(hero.x, 0);
+  assert.ok(hero.w < 1080 * 0.6, `photo width was ${hero.w}`);
+  assert.equal(
+    cover?.layers.some((layer) => layer.name === "外框"),
+    false,
+  );
+});
+
+test("convertContent to LINE without a photo keeps the offer frame", () => {
+  const brand = createEmptyBrand("禪學社");
+  const source = sampleProject();
+  const blank = buildLayout("feed-portrait", source.copy, brand, "editorial");
+  const next = convertContent(
+    {
+      ...source,
+      artboards: { "feed-portrait": blank },
+      slides: { "feed-portrait": [blank] },
+    },
+    brand,
+    "line",
+  );
+  const cover = pagesOf(next)[0];
+  assert.ok(cover?.layers.some((layer) => layer.name === "外框"));
+  assert.equal(extractImageAssetId(cover), null);
 });

@@ -143,6 +143,17 @@ try {
   await expectText("LINE 橫式", "1.91:1");
   await expectText("LINE 預覽", "LINE 預覽");
   await expectText("複製 LINE 文案", "複製 LINE 文案");
+  await page.waitForSelector('[data-testid="artboard-photo"]', { timeout: 15000 });
+  const linePhoto = await page
+    .getByTestId("artboard")
+    .first()
+    .locator("[data-testid=artboard-photo]")
+    .count();
+  record(
+    "LINE 橫式有照片",
+    linePhoto > 0,
+    linePhoto > 0 ? `畫布上有 ${linePhoto} 張主視覺` : "LINE 圖沒有主視覺照片",
+  );
   await page.screenshot({ path: `${prefix}-line.png` });
   await tap(page.getByRole("button", { name: /做成Threads/ }));
   await page.waitForSelector("text=Threads 預覽", { timeout: 15000 });
@@ -389,6 +400,7 @@ try {
   await expectText("改這張圖", "改這張圖");
   await expectText("改版預設", "更像淡江生活");
   await expectText("做成限動會排成 9:16", "限動與 Reels 封面會排成 Story 9:16");
+  await expectText("做成 LINE 會排橫式", "做成 LINE 圖會排成橫式 1.91:1");
   await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
   await page.waitForSelector("text=本機規則", { timeout: 20000 });
   await tap(

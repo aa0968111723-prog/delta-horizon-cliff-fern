@@ -676,7 +676,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           toast.warning("輪播文案這次沒寫成，五頁畫面還是可以用。");
         }
       }
-      if (kindUsesPagedLayout(payload.kind) || payload.kind === "reels") {
+      if (kindUsesPagedLayout(payload.kind) || payload.kind === "reels" || payload.kind === "line") {
         layoutFromKind(project.id, payload.kind);
       }
       if (payload.kind === "reels") {

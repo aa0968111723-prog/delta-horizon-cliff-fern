@@ -17,6 +17,7 @@ const MAKE_KINDS: { id: ContentKind; label: string }[] = [
   { id: "story", label: "做成限動" },
   { id: "carousel", label: "做成輪播" },
   { id: "reels", label: "做成 Reels 封面" },
+  { id: "line", label: "做成 LINE 圖" },
 ];
 
 function stripAssets<T extends { id: string }>(assets: T[], initialId?: string, limit = 12): T[] {
@@ -347,7 +348,7 @@ export function ImageUnderstanding({
             <p className="text-sm text-muted">
               {busy
                 ? "正在用本機規則看這張適不適合淡江學生…"
-                : "選好圖就會先用本機規則看適不適合淡江學生。做成限動、輪播或 Reels 封面時，會依 9:16 或 4:5 重構構圖。"}
+                : "選好圖就會先用本機規則看適不適合淡江學生。做成限動、輪播、Reels 封面或 LINE 圖時，會依 9:16、4:5 或 1.91:1 重構構圖。"}
             </p>
           )}
         </div>
@@ -358,7 +359,7 @@ export function ImageUnderstanding({
           <div>
             <p className="text-xs text-muted">用這張圖直接開始</p>
             <p className="mt-1 text-xs text-subtle">
-              限動與 Reels 封面會排成 Story 9:16，輪播排成 IG 4:5 並拆成五頁。做成 Reels 封面會同時寫一支 20 秒腳本。只改構圖比例與留白，不是 AI 生成的畫面。用這張寫文案會依畫面寫 Hook，並自動用淡江學生視角檢查。
+              限動與 Reels 封面會排成 Story 9:16，輪播排成 IG 4:5 並拆成五頁。做成 Reels 封面會同時寫一支 20 秒腳本。做成 LINE 圖會排成橫式 1.91:1，照片在左側。只改構圖比例與留白，不是 AI 生成的畫面。用這張寫文案會依畫面寫 Hook，並自動用淡江學生視角檢查。
             </p>
             <div className="mt-1.5 flex flex-wrap gap-2">
               {onGenerateCopy ? (

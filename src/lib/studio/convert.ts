@@ -130,6 +130,16 @@ function reelsCoverBoard(source: Project, brand: BrandKit, copy: CopyDeck): Artb
   return board;
 }
 
+/** LINE 群組圖：有照片就橫式左圖右文，沒有照片才用純文字框。 */
+function lineBoard(source: Project, brand: BrandKit, copy: CopyDeck): Artboard {
+  const imageAssetId = visualAssetOf(source);
+  const templateId = imageAssetId ? "product" : "offer";
+  const board = buildLayout("feed-landscape", copy, brand, templateId, { imageAssetId });
+  board.role = "cover";
+  board.templateId = templateId;
+  return board;
+}
+
 /** 從一張圖做成輪播時，一頁主視覺不能當成已經寫好的五頁腳本。 */
 function photoCarouselFallback(copy: CopyDeck, brief: Project["brief"]) {
   const hook = firstLine(copy.caption) || firstLine(copy.headline) || "先坐一下再說";
@@ -200,6 +210,8 @@ export function applyKindLayout(project: Project, brand: BrandKit, kind: Content
     pages = storyPages(project, brand, copy);
   } else if (kind === "reels") {
     pages = [reelsCoverBoard(project, brand, copy)];
+  } else if (kind === "line") {
+    pages = [lineBoard(project, brand, copy)];
   } else if (kindUsesPagedLayout(kind)) {
     pages = carouselPages(project, brand, copy);
   } else {
@@ -274,6 +286,8 @@ export function convertContent(source: Project, brand: BrandKit, kind: ContentKi
         fromPhoto: Boolean(visualAssetOf(source)),
       });
     }
+  } else if (kind === "line") {
+    pages = [lineBoard(source, brand, copy)];
   } else {
     const sourcePage = pagesOf(source)[0];
     pages = [
