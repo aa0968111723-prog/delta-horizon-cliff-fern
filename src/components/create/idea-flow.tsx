@@ -13,6 +13,7 @@ import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, not
 import { formatIdFromKind, lastPackFromPlan, withPackKind } from "@/lib/club/last-pack";
 import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
+import { convertedScheduleInput } from "@/lib/club/schedule";
 import { CONVERT_TARGETS, convertPlan } from "@/lib/convert/pack";
 import { createCanvaFromPlan } from "@/lib/connections/oauth";
 import { folderSearchInput } from "@/lib/connections/presets";
@@ -53,6 +54,7 @@ export function IdeaFlow({
   const attachProject = useCreative((s) => s.attachProject);
   const setLastSearch = useCreative((s) => s.setLastSearch);
   const setLastPack = useCreative((s) => s.setLastPack);
+  const upsertSchedule = useCreative((s) => s.upsertSchedule);
   const updateProject = useStudio((s) => s.updateProject);
   const folder = useCreative((s) => s.folder);
   const igPosts = useCreative((s) => s.igPosts);
@@ -203,6 +205,44 @@ export function IdeaFlow({
     toast.success("已生成主視覺、文案與多模態內容，並依淡江學生視角改過一輪");
   }
 
+  function adoptHit(item: SearchHit) {
+    setHeroUrl(item.thumb);
+    const current = useCreative.getState().lastPack;
+    if (current) {
+      setLastPack({ ...current, heroThumb: item.thumb, updatedAt: Date.now() });
+    }
+    toast.success(`已加入創作 · 來源：${sourceLabel(item.source)} / ${item.title}`);
+  }
+
+  function putOnCalendar() {
+    if (!plan) return;
+    const parsed = parseIdea(idea);
+    const draft = convertedScheduleInput({
+      eventDate: parsed.date,
+      eventName: parsed.eventName,
+      kind: packKind,
+      hook: plan.hook,
+      campaignId,
+      projectId,
+    });
+    const existing = useCreative
+      .getState()
+      .schedule.find((row) => row.campaignId === campaignId && row.contentKind === packKind && row.status !== "published");
+    upsertSchedule({ ...draft, id: existing?.id });
+    if (projectId) {
+      updateProject(projectId, {
+        campaignId: campaignId,
+        contentKind: packKind,
+        contentStatus: "scheduled",
+        scheduledAt: draft.plannedAt,
+      });
+    }
+    const current = useCreative.getState().lastPack;
+    if (current) setLastPack(withPackKind(current, packKind, convertPlan(plan, packKind).items));
+    toast.success(`已排入 Calendar · ${draft.title}`);
+    void navigate({ to: "/calendar" });
+  }
+
   async function pickDirection(direction: CreativeDirection) {
     if (!plan || !brand) return;
     setBusy(true);
@@ -313,6 +353,22 @@ export function IdeaFlow({
           {hits.slice(0, 8).map((item) => (
             <li key={item.id} className="rounded-full bg-bg px-3 py-1 text-xs text-muted">
               {sourceLabel(item.source)} / {item.title}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {hits.length ? (
+        <ul className="grid grid-cols-4 gap-2 sm:grid-cols-6" data-testid="idea-hit-thumbs">
+          {hits.slice(0, 8).map((item) => (
+            <li key={`thumb-${item.id}`}>
+              <button
+                type="button"
+                data-testid="idea-adopt-hit"
+                className="overflow-hidden rounded-xl bg-bg"
+                onClick={() => adoptHit(item)}
+              >
+                <img src={item.thumb} alt="" className="aspect-square w-full object-cover" />
+              </button>
             </li>
           ))}
         </ul>
@@ -465,8 +521,8 @@ export function IdeaFlow({
             </Button>
             <Button
               variant="secondary"
-              onClick={() => void navigate({ to: "/calendar" })}
               data-testid="idea-calendar"
+              onClick={() => putOnCalendar()}
             >
               排入 Calendar
             </Button>

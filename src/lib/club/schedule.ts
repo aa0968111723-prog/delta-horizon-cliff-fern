@@ -1,4 +1,5 @@
 import type { CampaignWave, ContentKind, ContentStatus, WavePurpose } from "../studio/types.ts";
+import { CONTENT_KIND_META } from "../studio/status.ts";
 import { uid } from "../studio/ids.ts";
 
 export type RhythmInput = {
@@ -127,4 +128,34 @@ export function scheduleDraftsFromCampaign(
       sourceLabel: "AI 節奏建議",
     };
   });
+}
+
+export function offsetDaysForKind(kind: ContentKind) {
+  if (kind === "story") return -1;
+  if (kind === "reels") return -2;
+  if (kind === "carousel") return -5;
+  if (kind === "threads") return -4;
+  if (kind === "line") return -3;
+  if (kind === "countdown") return -1;
+  if (kind === "recap") return 1;
+  return -7;
+}
+
+export function convertedScheduleInput(input: {
+  eventDate: string;
+  eventName: string;
+  kind: ContentKind;
+  hook?: string;
+  campaignId: string | null;
+  projectId: string | null;
+}) {
+  return {
+    campaignId: input.campaignId,
+    projectId: input.projectId,
+    title: `${CONTENT_KIND_META[input.kind].label} · ${input.eventName}`,
+    contentKind: input.kind,
+    status: "scheduled" as const,
+    plannedAt: plannedTimestamp(input.eventDate, offsetDaysForKind(input.kind)),
+    sourceLabel: input.hook ? `AI 轉換 / ${input.hook.slice(0, 24)}` : "AI 轉換",
+  };
 }

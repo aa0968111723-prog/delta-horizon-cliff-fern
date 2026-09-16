@@ -101,8 +101,15 @@ export function CreativeSearch() {
                     <Button
                       size="sm"
                       variant="ghost"
+                      data-testid="search-add-create"
                       onClick={() => {
-                        writeHandoff({ idea: `${item.title}\n${item.notes}`, tab: "campaign", sourceLabel: `${item.subtitle}` });
+                        writeHandoff({
+                          idea: `${item.title}\n${item.notes}`,
+                          tab: "campaign",
+                          autoRun: true,
+                          convertKind: item.kind !== "asset" ? item.kind : undefined,
+                          sourceLabel: `${sourceLabel(item.source)} / ${item.title}`,
+                        });
                         setSearchOpen(false);
                       }}
                       asChild
