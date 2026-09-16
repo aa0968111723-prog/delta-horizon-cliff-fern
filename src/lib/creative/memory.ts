@@ -1,5 +1,5 @@
-import { sourceLabel } from "@/lib/studio/assets";
-import type { AssetMeta, BrandKit } from "@/lib/studio/types";
+import { sourceLabel } from "../studio/assets.ts";
+import type { AssetMeta, BrandKit } from "../studio/types.ts";
 import type { Campaign, ContentItem } from "./types";
 
 export type CreativeMemoryResult = {
