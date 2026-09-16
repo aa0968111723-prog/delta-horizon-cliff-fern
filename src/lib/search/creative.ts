@@ -5,6 +5,7 @@ import { MEMORY_ITEMS, searchMemory, type MemoryItem } from "@/lib/club/memory";
 import { ConnectorType, GoogleDriveTools } from "@/lib/app-data/types";
 import { classifyCallToolError } from "@/lib/app-data/errors";
 import { driveSearchQuery } from "@/lib/connections/presets";
+import { asDriveHits, mergeRanked } from "./hits.ts";
 
 export type SearchHit = MemoryItem & { live?: boolean; mimeType?: string };
 
@@ -17,27 +18,6 @@ function parseInput(input: unknown) {
       folderId: z.string().max(80).optional(),
     })
     .parse(inner);
-}
-
-function asDriveHits(data: unknown): SearchHit[] {
-  if (!data) return [];
-  const rows = Array.isArray(data) ? data : typeof data === "object" && data && "files" in data ? (data as { files: unknown[] }).files : [];
-  return rows.slice(0, 12).map((row, index) => {
-    const item = row as { id?: string; name?: string; mimeType?: string; modifiedTime?: string };
-    return {
-      id: item.id || `drive_${index}`,
-      source: "drive" as const,
-      title: item.name || "未命名檔案",
-      subtitle: item.mimeType?.includes("folder") ? `Google Drive / ${item.name || "資料夾"}` : "Google Drive",
-      tags: ["drive"],
-      kind: "asset" as const,
-      date: (item.modifiedTime || "").slice(0, 10),
-      thumb: "/seed/campus.svg",
-      notes: item.mimeType || "Drive 檔案",
-      mimeType: item.mimeType,
-      live: true,
-    };
-  });
 }
 
 export const searchCreative = createServerFn({ method: "POST" })
@@ -60,7 +40,7 @@ export const searchCreative = createServerFn({ method: "POST" })
     const { fetchCanvaDesigns, fetchInstagramMedia } = await import("@/lib/connections/live");
     const req = getRequest();
     const blob = await readBlobFromCookie(req?.headers.get("cookie") ?? null);
-    const [liveCanva, liveIg] = await Promise.all([fetchCanvaDesigns(blob), fetchInstagramMedia(blob)]);
+    const [liveCanva, liveIg] = await Promise.all([fetchCanvaDesigns(blob, query), fetchInstagramMedia(blob)]);
     let drive: SearchHit[] = [];
     let loginRequired = false;
     let loginUrl: string | undefined;
@@ -109,17 +89,15 @@ export const searchCreative = createServerFn({ method: "POST" })
       driveDetail = "預覽環境可能還讀不到 Google Drive，社團記憶仍可搜。";
     }
 
-    const q = query.trim().toLowerCase();
-    const matchLive = (item: SearchHit) => {
-      if (!q) return true;
-      const blobText = [item.title, item.subtitle, item.notes, item.caption, ...item.tags].join(" ").toLowerCase();
-      return q.split(/\s+/).every((part) => blobText.includes(part));
-    };
     const groups: Record<string, SearchHit[]> = {
-      drive: [...drive, ...local.filter((item) => item.source === "drive")],
-      canva: [...liveCanva.filter(matchLive), ...local.filter((item) => item.source === "canva")],
-      instagram: [...liveIg.filter(matchLive), ...local.filter((item) => item.source === "instagram")],
-      generated: local.filter((item) => item.source === "generated"),
+      drive: mergeRanked(query, drive, local.filter((item) => item.source === "drive")),
+      canva: mergeRanked(query, liveCanva, local.filter((item) => item.source === "canva")),
+      instagram: mergeRanked(query, liveIg, local.filter((item) => item.source === "instagram")),
+      generated: mergeRanked(
+        query,
+        [],
+        local.filter((item) => item.source === "generated"),
+      ),
     };
     const found = Object.values(groups).reduce((n, list) => n + list.length, 0);
     return { ok: true, query: data.query, groups, found, loginRequired, loginUrl, driveDetail };

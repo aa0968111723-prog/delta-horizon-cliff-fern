@@ -14,6 +14,17 @@ export function folderSearchInput(query: string, folder?: { driveFolder?: string
   };
 }
 
+export function canvaDesignsUrl(query?: string) {
+  const url = new URL("https://api.canva.com/rest/v1/designs");
+  url.searchParams.set("limit", "24");
+  const q = query?.trim();
+  if (q) {
+    url.searchParams.set("query", q.slice(0, 80));
+    url.searchParams.set("sort_by", "relevance");
+  }
+  return url.toString();
+}
+
 export function canvaPresetFor(kind: string) {
   if (kind === "story") return "instagramStory";
   if (kind === "reels") return "instagramReel";

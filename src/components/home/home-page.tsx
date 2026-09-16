@@ -3,6 +3,7 @@ import { format as formatDate } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { Images, Plus, Search, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { NewProjectDialog } from "@/components/dashboard/new-project-dialog";
 import { ProjectCard } from "@/components/shared/project-card";
 import { SectionHeader } from "@/components/shared/page-header";
@@ -12,6 +13,8 @@ import { IgThumb } from "@/components/create/ig-thumb";
 import { lastPackPreviewSrc, packAssetIds } from "@/lib/club/last-pack";
 import { lessonsFromIg, nextCreateIdeaFromLessons } from "@/lib/club/insights";
 import { FEATURED_EVENT, featuredCampaignIdea } from "@/lib/club/memory";
+import { publishScheduleRow } from "@/lib/club/run-schedule-publish";
+import { publishableScheduleRows } from "@/lib/club/schedule";
 import { handoffFromQuickStart, QUICK_STARTS } from "@/lib/club/quick-starts";
 import { formatDaysUntil, studentContext } from "@/lib/club/season";
 import { writeHandoff } from "@/lib/create/handoff";
@@ -29,18 +32,40 @@ export function HomePage() {
   const schedule = useCreative((s) => s.schedule);
   const igPosts = useCreative((s) => s.igPosts);
   const lastPack = useCreative((s) => s.lastPack);
+  const ingestIg = useCreative((s) => s.ingestIg);
+  const setScheduleStatus = useCreative((s) => s.setScheduleStatus);
+  const updateProject = useStudio((s) => s.updateProject);
   const setCreateOpen = useUi((s) => s.setCreateOpen);
   const setSearchOpen = useUi((s) => s.setSearchOpen);
   const setLastSearch = useCreative((s) => s.setLastSearch);
   const [open, setOpen] = useState(false);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
   const ctx = studentContext();
   const featured = campaigns.find((c) => c.id === FEATURED_EVENT.id) ?? campaigns[0];
 
   const urls = useAssetUrls([...assets.map((a) => a.id), ...packAssetIds(lastPack)]);
   const recent = useMemo(() => [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6), [projects]);
+  const due = useMemo(() => publishableScheduleRows(schedule), [schedule]);
   const upcoming = [...schedule].sort((a, b) => a.plannedAt - b.plannedAt).filter((row) => row.status !== "published").slice(0, 4);
   const strong = [...igPosts].sort((a, b) => (b.metrics?.saves ?? 0) - (a.metrics?.saves ?? 0))[0];
   const lessons = lessonsFromIg(igPosts);
+
+  async function publishDue(row: (typeof schedule)[number]) {
+    setPublishingId(row.id);
+    try {
+      const result = await publishScheduleRow({ row, lastPack, assetUrls: urls });
+      ingestIg([result.post]);
+      setScheduleStatus(row.id, "published");
+      if (row.projectId) {
+        updateProject(row.projectId, { contentStatus: "published", publishedAt: Date.now() });
+      }
+      toast.success(result.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "發布失敗");
+    } finally {
+      setPublishingId(null);
+    }
+  }
 
   function startFeatured() {
     if (!featured) return;
@@ -174,6 +199,35 @@ export function HomePage() {
             </ul>
           </article>
         </section>
+
+        {due.length ? (
+          <section className="mt-10" data-testid="home-due">
+            <SectionHeader title="今天可以發布" hint="到時間就發，沒有審核人" />
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {due.slice(0, 4).map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-center justify-between gap-3 rounded-3xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted">
+                      {formatDate(row.plannedAt, "M/d HH:mm", { locale: zhTW })} · {CONTENT_KIND_META[row.contentKind].label}
+                    </p>
+                    <p className="mt-1 truncate text-sm font-medium">{row.title}</p>
+                  </div>
+                  <Button
+                    className="shrink-0 rounded-full"
+                    data-testid="home-due-publish"
+                    disabled={publishingId === row.id}
+                    onClick={() => void publishDue(row)}
+                  >
+                    現在發布
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         <section className="mt-10">
           <SectionHeader

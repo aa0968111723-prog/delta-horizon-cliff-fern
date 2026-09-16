@@ -6,6 +6,7 @@ import {
   convertedScheduleInput,
   matchingScheduleRow,
   offsetDaysForKind,
+  publishableScheduleRows,
   scheduleChipLabel,
   scheduleDraftsFromCampaign,
 } from "./schedule.ts";
@@ -93,6 +94,18 @@ test("all converted formats land on distinct days around the event", () => {
   const days = new Set(drafts.map((row) => new Date(row.plannedAt).getDate()));
   assert.equal(days.size, 6);
   assert.ok(drafts.some((row) => row.title === "Reels · 茶會"));
+});
+
+test("floating-light tease is publishable on the matching day", () => {
+  const waves = buildCampaignRhythm({ eventDate: "2026-09-24", eventType: "浮游禪光", leadDays: 8 });
+  const rows = scheduleDraftsFromCampaign(
+    { id: "camp_floating_light", name: "浮游禪光", date: "2026-09-24", waves, projectIds: ["proj_floating_light"] },
+    Date.parse("2026-09-16T12:00:00+08:00"),
+  );
+  const due = publishableScheduleRows(rows, Date.parse("2026-09-16T12:00:00+08:00"));
+  assert.ok(due.some((row) => row.title.includes("浮游禪光")));
+  assert.ok(due.some((row) => row.title.includes("預熱")));
+  assert.equal(due.some((row) => row.title.includes("回顧")), false);
 });
 
 test("short lead compresses into a dense sequence", () => {

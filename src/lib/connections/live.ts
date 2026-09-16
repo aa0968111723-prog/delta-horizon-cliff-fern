@@ -5,6 +5,7 @@ import type { OAuthBlob } from "./vault.server";
 import { graphImageUrl } from "@/lib/club/publish";
 import {
   canvaDesignTypeFor,
+  canvaDesignsUrl,
   canvaJobAssetId,
   canvaJobExportUrl,
   canvaJobId,
@@ -88,29 +89,32 @@ export async function probeDrive(): Promise<DriveProbe> {
   );
 }
 
-export async function fetchCanvaDesigns(blob: OAuthBlob | null): Promise<LiveHit[]> {
+export async function fetchCanvaDesigns(blob: OAuthBlob | null, query?: string): Promise<LiveHit[]> {
   const token = blob?.canva?.access;
   if (!token) return [];
   try {
-    const res = await timedFetch("https://api.canva.com/rest/v1/designs", {
+    const res = await timedFetch(canvaDesignsUrl(query), {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return [];
     const json = (await res.json()) as {
       items?: { id?: string; title?: string; thumbnail?: { url?: string }; urls?: { edit_url?: string }; updated_at?: number }[];
     };
-    return (json.items ?? []).slice(0, 24).map((item, index) => ({
-      id: item.id || `canva_${index}`,
-      source: "canva" as const,
-      title: item.title || "未命名設計",
-      subtitle: "Canva",
-      tags: ["canva", "設計"],
-      kind: "poster" as const,
-      date: item.updated_at ? new Date(item.updated_at * 1000).toISOString().slice(0, 10) : "",
-      thumb: item.thumbnail?.url || "/seed/tea.svg",
-      notes: item.urls?.edit_url || "Canva 設計",
-      live: true,
-    }));
+    return (json.items ?? []).slice(0, 24).map((item, index) => {
+      const title = item.title || "未命名設計";
+      return {
+        id: item.id || `canva_${index}`,
+        source: "canva" as const,
+        title,
+        subtitle: `Canva / ${title}`,
+        tags: ["canva", "設計", ...(/茶/.test(title) ? ["茶會"] : []), ...(/浮游|三色/.test(title) ? ["浮游禪光"] : [])],
+        kind: "poster" as const,
+        date: item.updated_at ? new Date(item.updated_at * 1000).toISOString().slice(0, 10) : "",
+        thumb: item.thumbnail?.url || "/seed/tea.svg",
+        notes: item.urls?.edit_url || "Canva 設計",
+        live: true,
+      };
+    });
   } catch {
     return [];
   }

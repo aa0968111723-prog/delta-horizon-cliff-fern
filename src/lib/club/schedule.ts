@@ -206,3 +206,12 @@ export function scheduleChipLabel(row: { contentKind: ContentKind; title: string
   }
   return `${kind} ${title}`;
 }
+
+/** Unpublished rows that are already due, or belong to today — so one person can publish when ready. */
+export function publishableScheduleRows<
+  T extends { status: ContentStatus; plannedAt: number },
+>(rows: T[], now = Date.now()) {
+  return rows
+    .filter((row) => row.status !== "published" && (row.plannedAt <= now || isSameScheduleDay(row.plannedAt, now)))
+    .sort((a, b) => a.plannedAt - b.plannedAt);
+}

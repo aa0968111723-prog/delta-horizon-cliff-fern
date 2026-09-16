@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fallbackHeroThumb, formatIdFromKind, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, persistablePack, withCanvaExport, withPackKind } from "./last-pack.ts";
+import { fallbackHeroThumb, formatIdFromKind, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, packForScheduleRow, persistablePack, withCanvaExport, withPackKind } from "./last-pack.ts";
 
 test("lastPackFromPlan keeps hook, caption, and a public hero fallback", () => {
   const pack = lastPackFromPlan({
@@ -105,4 +105,31 @@ test("withCanvaExport stores the public export url on the current format", () =>
   assert.equal(next.canvaDesignId, "DAF123");
   assert.equal(next.canvaExportUrl, "https://export-download.canva.com/tea.jpg");
   assert.equal(next.formatPublicUrls?.["ig-post"], "https://export-download.canva.com/tea.jpg");
+});
+
+test("a scheduled wave uses lastPack kind when a pack exists", () => {
+  const pack = lastPackFromPlan({
+    projectId: "proj_tea",
+    campaignId: "camp_tea",
+    eventName: "茶會",
+    plan: { hook: "最近是不是很久沒有好好坐下來？", captions: [{ style: "學生版", text: "人到了就好。" }], hashtags: ["#淡江禪學社"] },
+    kind: "ig-post",
+    updatedAt: 1,
+  });
+  const next = packForScheduleRow(
+    { campaignId: "camp_tea", projectId: "proj_tea", title: "預熱 · 浮游禪光", contentKind: "story" },
+    pack,
+  );
+  assert.equal(next.kind, "story");
+  assert.equal(next.hook, "最近是不是很久沒有好好坐下來？");
+});
+
+test("without a pack, the wave title becomes the publish hook", () => {
+  const next = packForScheduleRow(
+    { campaignId: "camp_floating_light", projectId: "proj_floating_light", title: "預熱 · 浮游禪光", contentKind: "ig-post" },
+    null,
+  );
+  assert.equal(next.kind, "ig-post");
+  assert.equal(next.hook, "預熱 · 浮游禪光");
+  assert.equal(next.eventName, "預熱 · 浮游禪光");
 });

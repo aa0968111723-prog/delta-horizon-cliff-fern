@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { writeHandoff } from "@/lib/create/handoff";
 import { CONTENT_KIND_META, CONTENT_STATUS_META } from "@/lib/studio/status";
-import { lastPackFromPlan, lastPackPreviewSrc, withPackKind } from "@/lib/club/last-pack";
-import { runPackPublish } from "@/lib/club/run-publish";
-import { scheduleChipLabel } from "@/lib/club/schedule";
+import { publishableScheduleRows, scheduleChipLabel } from "@/lib/club/schedule";
+import { publishScheduleRow } from "@/lib/club/run-schedule-publish";
+import { packAssetIds } from "@/lib/club/last-pack";
+import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { toast } from "sonner";
 import type { ContentKind } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -21,7 +22,15 @@ function extendKind(kind: ContentKind) {
   return kind === "story" || kind === "carousel" || kind === "reels" || kind === "ig-post" ? kind : undefined;
 }
 
-function ScheduleActions({ row, compact }: { row: ScheduleItem; compact?: boolean }) {
+function ScheduleActions({
+  row,
+  compact,
+  urls,
+}: {
+  row: ScheduleItem;
+  compact?: boolean;
+  urls: Record<string, string>;
+}) {
   const duplicateSchedule = useCreative((s) => s.duplicateSchedule);
   const setScheduleStatus = useCreative((s) => s.setScheduleStatus);
   const ingestIg = useCreative((s) => s.ingestIg);
@@ -41,23 +50,17 @@ function ScheduleActions({ row, compact }: { row: ScheduleItem; compact?: boolea
   }
 
   async function publishToIg() {
-    const pack = lastPack
-      ? withPackKind(lastPack, row.contentKind)
-      : lastPackFromPlan({
-          projectId: row.projectId || "",
-          campaignId: row.campaignId || "",
-          eventName: row.title,
-          plan: { hook: row.title, captions: [{ style: "學生版", text: row.title }], hashtags: ["#淡江禪學社"] },
-          kind: row.contentKind,
-        });
-    const previewSrc = lastPack ? lastPackPreviewSrc(pack, {}, row.contentKind) : pack.heroThumb;
-    const result = await runPackPublish(pack, previewSrc);
-    ingestIg([result.post]);
-    setScheduleStatus(row.id, "published");
-    if (row.projectId) {
-      updateProject(row.projectId, { contentStatus: "published", publishedAt: Date.now() });
+    try {
+      const result = await publishScheduleRow({ row, lastPack, assetUrls: urls });
+      ingestIg([result.post]);
+      setScheduleStatus(row.id, "published");
+      if (row.projectId) {
+        updateProject(row.projectId, { contentStatus: "published", publishedAt: Date.now() });
+      }
+      toast.success(result.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "發布失敗");
     }
-    toast.success(result.message);
   }
 
   return (
@@ -101,8 +104,11 @@ function ScheduleActions({ row, compact }: { row: ScheduleItem; compact?: boolea
 
 export function CalendarPage() {
   const schedule = useCreative((s) => s.schedule);
+  const lastPack = useCreative((s) => s.lastPack);
   const moveSchedule = useCreative((s) => s.moveSchedule);
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
+  const urls = useAssetUrls(packAssetIds(lastPack));
+  const due = useMemo(() => publishableScheduleRows(schedule), [schedule]);
   const [cursor, setCursor] = useState(() => new Date(2026, 8, 16));
   const [view, setView] = useState<"month" | "week" | "agenda">("month");
   const [title, setTitle] = useState("");
@@ -171,6 +177,22 @@ export function CalendarPage() {
         <Button type="submit">加到這天</Button>
       </form>
 
+      {due.length ? (
+        <section className="mt-6 rounded-3xl bg-surface p-4 shadow-[var(--shadow-border)]" data-testid="calendar-due">
+          <p className="text-xs tracking-[0.16em] text-muted">今天可以發布</p>
+          <ul className="mt-3 space-y-3">
+            {due.slice(0, 4).map((row) => (
+              <li key={row.id}>
+                <p className="text-sm font-medium">{row.title}</p>
+                <div className="mt-2">
+                  <ScheduleActions row={row} compact urls={urls} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {view !== "agenda" ? (
         <div className="mt-6 overflow-x-auto rounded-3xl bg-surface p-3 shadow-[var(--shadow-border)]">
           <div className="mb-3 flex items-center justify-between px-2">
@@ -236,7 +258,7 @@ export function CalendarPage() {
               </p>
               <p className="mt-1 font-medium">{row.title}</p>
               <div className="mt-2">
-                <ScheduleActions row={row} compact />
+                <ScheduleActions row={row} compact urls={urls} />
               </div>
             </li>
           ))}
@@ -252,7 +274,7 @@ export function CalendarPage() {
                 {format(selected.plannedAt, "M/d（EE）HH:mm", { locale: zhTW })} · {CONTENT_KIND_META[selected.contentKind].label} · {CONTENT_STATUS_META[selected.status].label}
               </SheetDescription>
               <div className="mt-4">
-                <ScheduleActions row={selected} />
+                <ScheduleActions row={selected} urls={urls} />
               </div>
             </>
           ) : null}

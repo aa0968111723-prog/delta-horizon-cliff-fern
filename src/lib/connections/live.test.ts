@@ -1,4 +1,4 @@
-import { driveSearchQuery, canvaPresetFor, folderSearchInput, canvaDesignTypeFor, jpegBase64Payload, canvaJobAssetId, canvaJobExportUrl, canvaMetadataHeader } from "./presets.ts";
+import { driveSearchQuery, canvaPresetFor, folderSearchInput, canvaDesignTypeFor, jpegBase64Payload, canvaJobAssetId, canvaJobExportUrl, canvaMetadataHeader, canvaDesignsUrl } from "./presets.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -21,6 +21,14 @@ test("Canva presets map IG formats without inventing carousel types", () => {
   assert.equal(canvaPresetFor("reels"), "instagramReel");
   assert.equal(canvaPresetFor("carousel"), "instagramPost");
   assert.equal(canvaPresetFor("ig-post"), "instagramPost");
+});
+
+test("official Canva list URL can query by club language", () => {
+  assert.equal(canvaDesignsUrl(), "https://api.canva.com/rest/v1/designs?limit=24");
+  assert.equal(
+    canvaDesignsUrl("茶會"),
+    "https://api.canva.com/rest/v1/designs?limit=24&query=%E8%8C%B6%E6%9C%83&sort_by=relevance",
+  );
 });
 
 test("Canva design type uses official custom pixel sizes", () => {

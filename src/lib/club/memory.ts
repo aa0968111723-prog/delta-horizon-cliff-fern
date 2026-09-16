@@ -1,4 +1,5 @@
 import { CLUB, DEFAULT_CTAS, DEFAULT_HASHTAGS } from "./identity.ts";
+import { matchHit, rankHits } from "./rank.ts";
 import type { ContentKind, CreativeSourceKind } from "../studio/types.ts";
 
 export type MemoryItem = {
@@ -12,6 +13,8 @@ export type MemoryItem = {
   thumb: string;
   caption?: string;
   notes: string;
+  live?: boolean;
+  mimeType?: string;
 };
 
 export const FEATURED_EVENT = {
@@ -161,37 +164,10 @@ export const MEMORY_ITEMS: MemoryItem[] = [
 ];
 
 export function searchMemory(query: string): MemoryItem[] {
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   if (!q) return MEMORY_ITEMS;
-  const cleaned = q.replace(/的照片|照片|素材|檔案|文宣|幫我|一下|找/g, " ");
-  const parts = cleaned.split(/\s+/).filter((part) => part.length >= 1 && !["適合", "相關", "以前"].includes(part));
-  const keys = parts.length ? parts : [q];
-  return MEMORY_ITEMS.filter((item) => {
-    const blob = [item.title, item.subtitle, item.notes, item.caption, ...item.tags].join(" ").toLowerCase();
-    return keys.some((part) => blob.includes(part) || fuzzyMatch(blob, part));
-  }).sort((a, b) => score(b, q) - score(a, q) + rank(b, keys) - rank(a, keys));
-}
-
-function rank(item: MemoryItem, keys: string[]) {
-  const blob = [item.title, item.subtitle, item.notes, item.caption, ...item.tags].join(" ").toLowerCase();
-  return keys.reduce((n, part) => n + (blob.includes(part) || fuzzyMatch(blob, part) ? 2 : 0), 0);
-}
-
-function fuzzyMatch(blob: string, part: string) {
-  if (part.includes("茶") && blob.includes("茶")) return true;
-  if ((part.includes("龜") || part.includes("turtle")) && blob.includes("龜")) return true;
-  if (part.includes("浮游") && blob.includes("浮游")) return true;
-  if (part.includes("光") && blob.includes("三色")) return true;
-  if (part.includes("晚上") && (blob.includes("夜") || blob.includes("晚"))) return true;
-  if (part.includes("互動") && blob.includes("互動")) return true;
-  if (part.includes("主視覺") && blob.includes("主視覺")) return true;
-  return false;
-}
-
-function score(item: MemoryItem, q: string) {
-  let n = 0;
-  if (item.title.includes(q)) n += 5;
-  if (item.tags.some((tag) => q.includes(tag) || tag.includes(q))) n += 3;
-  if (item.notes.includes(q)) n += 1;
-  return n;
+  return rankHits(
+    MEMORY_ITEMS.filter((item) => matchHit(item, q)),
+    q,
+  );
 }

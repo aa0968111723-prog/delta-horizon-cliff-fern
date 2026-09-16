@@ -115,6 +115,20 @@ export function lastPackFromPlan(input: {
   };
 }
 
+export function packForScheduleRow(
+  row: { campaignId: string | null; projectId: string | null; title: string; contentKind: ContentKind },
+  lastPack: LastPack | null,
+) {
+  if (lastPack) return withPackKind(lastPack, row.contentKind);
+  return lastPackFromPlan({
+    projectId: row.projectId || "",
+    campaignId: row.campaignId || "",
+    eventName: row.title,
+    plan: { hook: row.title, captions: [{ style: "學生版", text: row.title }], hashtags: ["#淡江禪學社"] },
+    kind: row.contentKind,
+  });
+}
+
 export function withPackKind(pack: LastPack, kind: ContentKind, converted?: ConvertedPack["items"]): LastPack {
   const items = converted ?? pack.packs?.[kind] ?? pack.converted;
   return {
