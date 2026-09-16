@@ -383,8 +383,8 @@ export function HomePage() {
             title="還沒有素材"
             description="上傳活動照片與 Logo，排版時會直接取用。"
             action={
-              <Button asChild variant="ghost" size="sm">
-                <Link to="/calendar">月曆</Link>
+              <Button asChild variant="secondary">
+                <Link to="/assets">前往素材庫</Link>
               </Button>
             }
           />

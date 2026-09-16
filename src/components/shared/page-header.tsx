@@ -50,7 +50,7 @@ export function SectionHeader({
         <h2 className="text-sm font-medium">{title}</h2>
         {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}
       </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
+      {action}
     </div>
   );
 }
