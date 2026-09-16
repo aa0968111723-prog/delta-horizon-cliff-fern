@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { matchesAssetQuery } from "../studio/assets.ts";
 import type { AssetMeta, IgMemoryPost, RemoteFile } from "../studio/types.ts";
+import { composeMemoryHint, hookFromMemoryHint } from "./memory-hook.ts";
 import {
   blobMatchesQuery,
   driveContainsQuery,
+  igPostsMatchingQuery,
+  igSearchHookBlock,
   searchCreative,
   searchTokens,
 } from "./search.ts";
@@ -118,4 +121,44 @@ test("searchCreative keeps thumbnails so tea-party sources can show pictures", (
     remoteFiles: [],
   });
   assert.equal(turtleHits.find((hit) => hit.title === "龜龜")?.thumbnail, "/seed/turtle.svg");
+});
+
+test("igPostsMatchingQuery keeps tea-party captions for this kit to learn", () => {
+  const posts = igPostsMatchingQuery(
+    [
+      nightIg,
+      { id: "ig_tea", caption: "下週茶會，要不要自己來？", date: "2025-11-02", kind: "carousel", source: "instagram" },
+      { id: "ig_other", caption: "招新現場很熱", date: "2025-09-01", kind: "post", source: "instagram" },
+    ],
+    "幫我做新的茶會宣傳",
+  );
+  assert.ok(posts.some((post) => post.id === "ig_tea"));
+  assert.ok(posts.some((post) => post.id === "ig_mem_tea"));
+  assert.equal(
+    posts.some((post) => post.id === "ig_other"),
+    false,
+  );
+});
+
+test("igSearchHookBlock puts the matching live caption first so this kit learns it", () => {
+  const block = igSearchHookBlock(
+    [
+      {
+        id: "seed",
+        caption: "課表排滿的時候，你還記得自己喜歡什麼嗎？",
+        date: "2025-08-01",
+        kind: "post",
+        source: "local",
+        saves: 33,
+      },
+      { id: "ig_tea", caption: "可以自己來？\n下週茶會，不用一次認識完。", date: "2025-11-02", kind: "carousel", source: "instagram" },
+    ],
+    "下週有一場茶會",
+  );
+  const hint = composeMemoryHint([
+    block,
+    "過去表現較好的 Hook：「課表排滿的時候，你還記得自己喜歡什麼嗎？」收藏 22",
+  ]);
+  assert.equal(hookFromMemoryHint(hint), "可以自己來？");
+  assert.match(hint, /這次搜到的 IG：可以自己來？/);
 });

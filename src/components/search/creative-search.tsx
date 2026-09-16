@@ -18,6 +18,7 @@ export function CreativeSearch() {
   const igMemory = useStudio((s) => s.igMemory);
   const remoteFiles = useStudio((s) => s.remoteFiles);
   const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
+  const upsertIgMemory = useStudio((s) => s.upsertIgMemory);
   const [q, setQ] = useState("");
   const [liveNote, setLiveNote] = useState("");
 
@@ -39,13 +40,14 @@ export function CreativeSearch() {
     const timer = window.setTimeout(() => {
       void searchDriveLive({ data: { query } })
         .then((live) => {
+          if (live.igPosts?.length) upsertIgMemory(live.igPosts);
           if (live.files.length) upsertRemoteFiles(live.files);
           setLiveNote(live.note);
         })
         .catch(() => undefined);
     }, 420);
     return () => window.clearTimeout(timer);
-  }, [q, open, upsertRemoteFiles]);
+  }, [q, open, upsertRemoteFiles, upsertIgMemory]);
 
   function openHit(hit: CreativeHit, action: "create" | "source") {
     if (action === "source" && hit.url) {

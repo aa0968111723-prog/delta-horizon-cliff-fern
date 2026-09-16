@@ -279,7 +279,11 @@ export function InstagramCenter() {
                 <div className="min-w-0 flex-1">
                 {item.title}
                 <span className="mt-1 block text-xs text-muted">{item.kind}</span>
-                {item.caption ? <p className="mt-2 line-clamp-3 text-xs text-muted">{item.caption}</p> : null}
+                {item.caption ? (
+                  <p className="mt-2 line-clamp-3 text-xs text-muted" data-testid="ig-caption">
+                    {item.caption}
+                  </p>
+                ) : null}
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button
                     size="sm"

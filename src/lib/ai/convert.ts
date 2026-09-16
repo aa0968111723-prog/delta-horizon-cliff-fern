@@ -84,3 +84,7 @@ export function packCaption(plan: CampaignPlan, pack: ConvertedPack) {
   const tags = plan.hashtags.join(" ");
   return [plan.hook, plan.body, plan.cta, tags].filter(Boolean).join("\n");
 }
+
+export function captionFromCopyPack(pack: { hook: string; body: string; cta: string; hashtags?: string[] }) {
+  return [pack.hook, pack.body, pack.cta, (pack.hashtags ?? []).join(" ")].filter(Boolean).join("\n");
+}

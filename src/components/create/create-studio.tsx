@@ -1,7 +1,7 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { convertPlan, packCaption, type ConvertedPack } from "@/lib/ai/convert";
+import { convertPlan, packCaption, captionFromCopyPack, type ConvertedPack } from "@/lib/ai/convert";
 import { generateCampaignPlan, getCampaignAiStatus, describeAdapter, type AiStatus } from "@/lib/ai/campaign";
 import { generateCopyPacks } from "@/lib/ai/copy-studio";
 import {
@@ -33,7 +33,7 @@ import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction";
 import { researchInspiration } from "@/lib/zen/inspiration";
 import { offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
-import { searchCreative, groupCreativeHits, type CreativeHit } from "@/lib/zen/search";
+import { searchCreative, groupCreativeHits, igSearchHookBlock, type CreativeHit } from "@/lib/zen/search";
 import { pickSourceRefs, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import {
@@ -105,9 +105,9 @@ export function CreateStudio() {
   const publishSchedule = useStudio((s) => s.publishSchedule);
   const addAsset = useStudio((s) => s.addAsset);
   const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
+  const upsertIgMemory = useStudio((s) => s.upsertIgMemory);
   const updateAsset = useStudio((s) => s.updateAsset);
   const brand = brands[0];
-  const memoryHint = clubCreativeDna({ brand, igMemory, campaigns, assets }).promptBlock;
   const learning = useMemo(() => learnFromIg(igMemory), [igMemory]);
   const recentKinds = calendar.slice(-4).map((item) => item.kind);
   const urls = useAssetUrls(assets.map((a) => a.id));
@@ -153,6 +153,8 @@ export function CreateStudio() {
     directionName?: string;
   } | null>(null);
   const [lastCanva, setLastCanva] = useState<{ designId: string; editUrl: string; title: string } | null>(null);
+  const [liveNote, setLiveNote] = useState("");
+  const [editHook, setEditHook] = useState("");
   const [sourcePreview, setSourcePreview] = useState<{
     id: string;
     name: string;
@@ -161,6 +163,10 @@ export function CreateStudio() {
   } | null>(null);
   const autoRan = useRef(false);
   const foundGroups = useMemo(() => groupCreativeHits(found), [found]);
+
+  useEffect(() => {
+    if (plan?.hook) setEditHook(plan.hook);
+  }, [plan?.hook]);
 
   useEffect(() => {
     getCampaignAiStatus()
@@ -222,16 +228,25 @@ export function CreateStudio() {
     let remotes = remoteFiles;
     try {
       const live = await searchDriveLive({ data: { query: query.slice(0, 80) || "茶會" } });
+      if (live.igPosts?.length) upsertIgMemory(live.igPosts);
       if (live.files.length) {
         upsertRemoteFiles(live.files);
         const map = new Map(remotes.map((row) => [row.id, row]));
         for (const file of live.files) map.set(file.id, file);
         remotes = [...map.values()];
       }
+      setLiveNote(live.note);
     } catch {
       /* keep local index */
     }
-    const hits = searchCreative({ query, assets, projects, campaigns, igMemory, remoteFiles: remotes });
+    const hits = searchCreative({
+      query,
+      assets,
+      projects,
+      campaigns,
+      igMemory: useStudio.getState().igMemory,
+      remoteFiles: remotes,
+    });
     setFound(hits.slice(0, 12));
     return hits;
   }
@@ -241,6 +256,70 @@ export function CreateStudio() {
     const picked = refs.length ? refs : hits.slice(0, 6);
     const sources = picked.map((h) => `${sourceLine(h)}/${h.title}`).join("、") || "品牌記憶";
     return `${sources}。${styleFromHits(picked)}`.slice(0, 400);
+  }
+
+  function kitMemoryHint(hits: CreativeHit[] = found) {
+    const s = useStudio.getState();
+    const query = `${idea} ${eventName}`.trim();
+    const matchingBlock = igSearchHookBlock(s.igMemory, query);
+    const learningNow = learnFromIg(s.igMemory);
+    const dna = clubCreativeDna({
+      brand: s.brands[0],
+      igMemory: s.igMemory,
+      campaigns: s.campaigns,
+      assets: s.assets,
+    });
+    const researchNow = researchInspiration({
+      idea: `${idea} ${eventName}`,
+      eventName,
+      beat: academicBeat(),
+      learning: learningNow,
+      sources: (pinned.length ? pinned : hits).map((hit) => ({ source: hit.source, title: hit.title })),
+    });
+    return composeMemoryHint([
+      matchingBlock,
+      learningNow.promptBlock,
+      dna.promptBlock,
+      researchNow.promptBlock,
+      hits.length ? `參考來源：${sourceNotes(hits)}` : undefined,
+    ]);
+  }
+
+  function applyKitCopy(pack: { hook: string; body: string; cta: string; hashtags?: string[] }, toastMsg = "已改這句，月曆會用這版發。") {
+    const hook = pack.hook.trim();
+    if (!hook) return;
+    const caption = captionFromCopyPack(pack);
+    setEditHook(hook);
+    setOneLiner(hook);
+    setPlan((current) =>
+      current
+        ? {
+            ...current,
+            hook: pack.hook,
+            body: pack.body,
+            cta: pack.cta,
+            captions: [{ style: "student", text: caption }, ...(current.captions ?? []).slice(1)],
+          }
+        : current,
+    );
+    setPacks((rows) => rows.map((row) => (row.tone === tone ? { ...row, ...pack, hook } : row)));
+    const currentCampaign = campaign;
+    if (currentCampaign) {
+      updateCampaign(currentCampaign.id, { oneLiner: hook });
+      setCampaign({ ...currentCampaign, oneLiner: hook });
+      for (const item of useStudio.getState().schedule.filter((row) => row.campaignId === currentCampaign.id)) {
+        if (
+          item.kind === "ig-post" ||
+          item.kind === "carousel" ||
+          item.kind === "threads" ||
+          item.kind === "line" ||
+          item.title.startsWith(waveLabel("hero"))
+        ) {
+          upsertSchedule({ ...item, caption, body: pack.body });
+        }
+      }
+    }
+    if (toastMsg) toast.success(toastMsg);
   }
 
   function togglePin(hit: CreativeHit) {
@@ -253,12 +332,12 @@ export function CreateStudio() {
     if (!idea.trim()) return;
     setBusy(true);
     try {
-      const notes = (refs.length ? refs : found).map((hit) => `${sourceLine(hit)}/${hit.title}`).join("、");
+      const refsOrFound = refs.length ? refs : found;
       const result = await generateVisualDirections({
         data: {
-          idea: `${idea}。參考：${notes || "品牌記憶"}`.slice(0, 400),
+          idea: `${idea}。參考：${sourceNotes(refsOrFound)}`.slice(0, 400),
           eventName,
-          memoryHint: composeMemoryHint([learning.promptBlock, memoryHint, research.promptBlock]),
+          memoryHint: kitMemoryHint(refsOrFound),
           forceMock: !status?.available,
         },
       });
@@ -386,7 +465,7 @@ export function CreateStudio() {
           eventName,
           schedule,
           location,
-          memoryHint: composeMemoryHint([learning.promptBlock, memoryHint, research.promptBlock, `參考來源：${sourceNotes(hits)}`]),
+          memoryHint: kitMemoryHint(hits),
           forceMock: !status?.available,
         },
       });
@@ -426,12 +505,7 @@ export function CreateStudio() {
       const result = await generateCampaignPlan({
         data: toBriefInput(brief, brand, {
           forceMock: !status?.available,
-          memoryHint: composeMemoryHint([
-            learning.promptBlock,
-            memoryHint,
-            research.promptBlock,
-            `參考來源：${sourceNotes(hits)}`,
-          ]),
+          memoryHint: kitMemoryHint(hits),
         }),
       });
       if (!result.ok) {
@@ -570,7 +644,7 @@ export function CreateStudio() {
         data: {
           idea: `${idea}。參考：${sourceNotes(hits)}`.slice(0, 400),
           eventName,
-          memoryHint: composeMemoryHint([learning.promptBlock, memoryHint, research.promptBlock]),
+          memoryHint: kitMemoryHint(hits),
           forceMock: !status?.available,
         },
       });
@@ -607,7 +681,7 @@ export function CreateStudio() {
           palette: dir.palette,
           name: dir.name,
           variation: opts?.kind,
-          memoryHint: composeMemoryHint([learning.promptBlock, memoryHint, research.promptBlock]),
+          memoryHint: kitMemoryHint(found),
         },
       });
       if (result.ok) payload = { imageBase64: result.imageBase64, mime: result.mime };
@@ -836,7 +910,7 @@ export function CreateStudio() {
       const result = await createCanvaDesign({
         data: {
           title: plan.campaignName,
-          hook: plan.hook,
+          hook: editHook || activePack?.hook || plan.hook,
           body: activePack?.body || plan.body,
           cta: plan.cta,
           format: mode === "story" ? "story" : mode === "reels" ? "reels-cover" : "feed-portrait",
@@ -1244,7 +1318,15 @@ export function CreateStudio() {
           <h2 className="text-sm font-medium">IG Copy</h2>
           <div className="mt-2 flex flex-wrap gap-2">
             {packs.map((pack) => (
-              <Button key={pack.tone} size="sm" variant={tone === pack.tone ? "default" : "secondary"} onClick={() => setTone(pack.tone)}>
+              <Button
+                key={pack.tone}
+                size="sm"
+                variant={tone === pack.tone ? "default" : "secondary"}
+                onClick={() => {
+                  setTone(pack.tone);
+                  applyKitCopy(pack, "已換成這版語氣，月曆會用這版發。");
+                }}
+              >
                 {toneLabel(pack.tone)}
               </Button>
             ))}
@@ -1264,22 +1346,16 @@ export function CreateStudio() {
         <StudentReviewCard
           review={review}
           onApplyHook={(hook) => {
-            setPacks((rows) =>
-              rows.map((pack) => ({
-                ...pack,
+            const pack = activePack ?? packs[0];
+            applyKitCopy(
+              {
                 hook,
-                body: pack.body.replace(pack.hook, hook),
-              })),
+                body: (pack?.body ?? plan?.body ?? "").replace(pack?.hook ?? "", hook),
+                cta: pack?.cta ?? plan?.cta ?? "來坐一下",
+                hashtags: pack?.hashtags ?? plan?.hashtags,
+              },
+              "已套用學生視角 Hook",
             );
-            setPlan((current) => (current ? { ...current, hook } : current));
-            if (campaign) {
-              updateCampaign(campaign.id, { oneLiner: hook });
-              setCampaign({ ...campaign, oneLiner: hook });
-              for (const item of scheduleItemsForWave(useStudio.getState().schedule, campaign.id, "hero")) {
-                upsertSchedule({ ...item, caption: hook });
-              }
-            }
-            toast.success("已套用學生視角 Hook");
           }}
         />
       ) : null}
@@ -1323,9 +1399,29 @@ export function CreateStudio() {
               <p className="mt-1 text-xs text-muted">
                 一人走完：Canva 微調 → 拉回主視覺 → IG Preview → 月曆 → 發布。
               </p>
-              <p className="mt-3 font-display text-lg leading-snug" data-testid="kit-hook">
-                {plan.hook}
-              </p>
+              <Label className="mt-3">我快速修改 Hook</Label>
+              <Textarea
+                className="mt-2"
+                rows={2}
+                data-testid="kit-hook"
+                value={editHook || plan.hook}
+                onChange={(e) => setEditHook(e.target.value)}
+              />
+              <Button
+                className="mt-3"
+                size="sm"
+                data-testid="kit-hook-save"
+                onClick={() =>
+                  applyKitCopy({
+                    hook: editHook || plan.hook,
+                    body: activePack?.body || plan.body,
+                    cta: activePack?.cta || plan.cta,
+                    hashtags: activePack?.hashtags ?? plan.hashtags,
+                  })
+                }
+              >
+                改這句，月曆用這版
+              </Button>
               <p className="mt-3 text-xs text-muted">
                 已建立 {campaign.name}，節奏含 {campaign.waves.map((w) => waveLabel(w.kind)).join("、") || "預熱到回顧"}。
               </p>
@@ -1381,7 +1477,7 @@ export function CreateStudio() {
           schedule={schedule}
           location={location}
           idea={idea}
-          memoryHint={composeMemoryHint([learning.promptBlock, memoryHint])}
+          memoryHint={kitMemoryHint()}
           looks={Object.fromEntries(
             (Object.entries(waveLookIds) as Array<[CampaignWaveKind, string]>).flatMap(([kind, assetId]) => {
               const src = urls[assetId];
@@ -1396,8 +1492,9 @@ export function CreateStudio() {
       {found.length ? (
         <section className="mt-8" data-testid="found-sources">
           <h2 className="text-sm font-medium">找到 {found.length} 個相關素材</h2>
-          <p className="mt-1 text-xs text-muted">
+          <p className="mt-1 text-xs text-muted" data-testid="live-found-note">
             可釘選給 AI 當風格參考。來源會標出來。
+            {liveNote ? ` ${liveNote}。` : ""}{" "}
             {Object.entries(foundGroups)
               .map(([source, list]) => `${sourceLabelOf(source)} ${list.length}`)
               .join(" · ")}

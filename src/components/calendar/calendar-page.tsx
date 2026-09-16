@@ -237,6 +237,11 @@ export function CalendarPage() {
                 ) : null}
                 <div className="min-w-0 flex-1">
                 <p className="text-sm">{item.title}</p>
+                {item.caption ? (
+                  <p className="mt-1 line-clamp-2 text-xs text-muted" data-testid="schedule-caption">
+                    {item.caption}
+                  </p>
+                ) : null}
                 <p className="text-xs text-muted">
                   {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })} · {contentKindLabel(item.kind)} · {contentStatusLabel(item.status)}
                   {isDue(item) ? (
@@ -315,7 +320,9 @@ export function CalendarPage() {
                 {c.date} {c.time}
               </p>
               <p className="mt-1 font-medium">{c.name}</p>
-              <p className="mt-1 text-sm text-muted">{c.oneLiner}</p>
+              <p className="mt-1 text-sm text-muted" data-testid="campaign-oneliner">
+                {c.oneLiner}
+              </p>
               <Link
                 to="/create"
                 search={{ mode: "campaign", idea: c.name, campaign: c.id }}

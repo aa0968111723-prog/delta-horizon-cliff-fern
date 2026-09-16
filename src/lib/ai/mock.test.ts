@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { composeMemoryHint } from "../zen/memory-hook.ts";
+import { igSearchHookBlock } from "../zen/search.ts";
 import { buildMockPlan } from "./mock.ts";
 import type { BriefInput } from "./schema.ts";
 
@@ -47,6 +49,33 @@ test("buildMockPlan is structured Traditional Chinese and marked mock", () => {
   assert.ok(plan.checklist.length >= 4);
   assert.equal(plan.storyBeats.length, 3);
   assert.equal(plan.templateId, "product");
+});
+
+test("buildMockPlan uses a live tea-party IG caption over older seed metrics", () => {
+  const block = igSearchHookBlock(
+    [
+      {
+        id: "ig_tea",
+        caption: "可以自己來？\n下週茶會。",
+        date: "2025-11-02",
+        kind: "carousel",
+        source: "instagram",
+      },
+    ],
+    "下週有一場茶會",
+  );
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "茶會",
+    product: "茶會",
+    audience: "淡江大一新生",
+    brandName: "淡江大學禪學社",
+    memoryHint: composeMemoryHint([
+      block,
+      "過去表現較好的 Hook：「課表排滿的時候，你還記得自己喜歡什麼嗎？」收藏 22",
+    ]),
+  });
+  assert.match(plan.hook, /可以自己來/);
 });
 
 test("buildMockPlan uses the learned IG hook for 禪學社", () => {

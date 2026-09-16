@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { IgMemoryPost, RemoteFile } from "@/lib/studio/types";
-import { driveContainsQuery, remoteMatchesQuery } from "@/lib/zen/search";
+import { driveContainsQuery, igPostsMatchingQuery, remoteMatchesQuery } from "@/lib/zen/search";
 import { driveQueryEscape } from "./escape";
 import { mediaInsightsUrl, parseIgInsights } from "./instagram-graph";
 import { accessTokenFor, writeBundle } from "./tokens";
@@ -240,8 +240,9 @@ function canvaMatches(file: RemoteFile, query: string) {
 
 export const searchDriveLive = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseSearchQuery(input))
-  .handler(async ({ data }): Promise<{ ok: boolean; files: RemoteFile[]; note: string }> => {
+  .handler(async ({ data }): Promise<{ ok: boolean; files: RemoteFile[]; igPosts: IgMemoryPost[]; note: string }> => {
     const files: RemoteFile[] = [];
+    const igPosts: IgMemoryPost[] = [];
     const notes: string[] = [];
     const drive = await accessTokenFor("drive");
     if (!drive) {
@@ -289,14 +290,17 @@ export const searchDriveLive = createServerFn({ method: "POST" })
         const listed = await listInstagram(instagram.accessToken, { insights: false });
         const matched = listed.files.filter((file) => canvaMatches(file, data.query));
         files.push(...matched);
-        notes.push(`IG ${matched.length}`);
+        igPosts.push(...igPostsMatchingQuery(listed.igPosts, data.query));
+        notes.push(`IG ${matched.length + igPosts.length}`);
       } catch {
         notes.push("IG 搜尋暫時失敗。");
       }
     }
+    const remoteCount = files.length + igPosts.length;
     return {
       ok: true,
       files,
-      note: files.length ? `找到 ${files.length} 個相關素材` : notes.join(" · ") || "沒有遠端檔，改搜品牌記憶。",
+      igPosts,
+      note: remoteCount ? `找到 ${remoteCount} 個相關素材` : notes.join(" · ") || "沒有遠端檔，改搜品牌記憶。",
     };
   });

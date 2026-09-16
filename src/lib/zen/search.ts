@@ -246,3 +246,18 @@ export function groupCreativeHits(hits: CreativeHit[]): Record<string, CreativeH
   }
   return map;
 }
+
+/** Live IG search must teach this kit, not only fill a file list. */
+export function igPostsMatchingQuery(posts: IgMemoryPost[], query: string): IgMemoryPost[] {
+  return posts.filter((post) => blobMatchesQuery(`${post.caption} ${post.date} ${post.kind}`, query));
+}
+
+/** Matching IG captions go first so seed metrics cannot bury this kit's hook. */
+export function igSearchHookBlock(posts: IgMemoryPost[], query: string): string | undefined {
+  const hooks = igPostsMatchingQuery(posts, query)
+    .map((post) => post.caption.trim().split(/\n/)[0]?.trim())
+    .filter((line): line is string => Boolean(line && line.length >= 4))
+    .slice(0, 3);
+  if (!hooks.length) return undefined;
+  return `過去表現較好的 Hook：「${hooks[0]}」。這次搜到的 IG：${hooks.join("／")}`;
+}

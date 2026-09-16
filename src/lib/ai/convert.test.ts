@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { convertPlan } from "./convert.ts";
+import { convertPlan, captionFromCopyPack } from "./convert.ts";
 import { buildMockPlan } from "./mock.ts";
 
 const zenBrief = {
@@ -45,4 +45,16 @@ test("zen campaign directions put a student hook on the poster, not the event na
   const plan = buildMockPlan({ ...zenBrief, eventName: "茶會", product: "茶會" });
   assert.match(plan.directions?.[0]?.headline ?? "", /[？?]|晚上|坐下來|快樂|休息/);
   assert.notEqual(plan.directions?.[0]?.headline, "茶會");
+});
+
+test("captionFromCopyPack is what Calendar and Canva should send after 快速修改", () => {
+  const caption = captionFromCopyPack({
+    hook: "可以自己來？",
+    body: "下週茶會，不用一次認識完。",
+    cta: "來坐一下",
+    hashtags: ["#淡江禪學社"],
+  });
+  assert.match(caption, /^可以自己來？/);
+  assert.match(caption, /來坐一下/);
+  assert.match(caption, /#淡江禪學社/);
 });
