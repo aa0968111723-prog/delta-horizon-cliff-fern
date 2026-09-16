@@ -197,7 +197,7 @@ export function ConnectionCenter() {
                   placeholder="自然語言搜尋：以前晚上的茶會照片、浮游禪光企劃"
                 />
               </div>
-              <Button className="min-h-11" disabled={!connected || status === "checking"} onClick={() => void search()}>
+              <Button className="min-h-11" disabled={!connected} onClick={() => void search()}>
                 搜尋 Drive
               </Button>
             </div>
