@@ -464,7 +464,11 @@ try {
     .first()
     .locator("[data-testid=artboard-photo]")
     .count();
-  record("做成輪播封面有照片", carouselPhoto > 0, "封面沒有主視覺照片");
+  record(
+    "做成輪播封面有照片",
+    carouselPhoto > 0,
+    carouselPhoto > 0 ? `畫布上有 ${carouselPhoto} 張主視覺` : "封面沒有主視覺照片",
+  );
   await page.screenshot({ path: `${prefix}-from-image-carousel.png` });
 
   await page.goto(`${base}/instagram`, { waitUntil: "networkidle" });
