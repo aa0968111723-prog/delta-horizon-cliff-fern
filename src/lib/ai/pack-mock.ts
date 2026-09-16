@@ -1,4 +1,6 @@
 import { HOOK_BANK, HASHTAG_BANK } from "../club/identity.ts";
+import { featuredHookForNow } from "../club/featured.ts";
+import { academicMoment } from "../club/season.ts";
 import type { CampaignPlan, CopyTone, CreativeDirection, ReelsBeat, StoryFrame, StudentSim } from "../studio/types.ts";
 import type { BriefInput } from "./schema.ts";
 
@@ -147,7 +149,16 @@ export function buildZenMockPlan(data: BriefInput, directions: CreativeDirection
   const name = data.eventName.trim();
   const when = data.schedule.trim() || "近期晚上";
   const where = data.location.trim() || "淡江校園";
-  const hook = HOOK_BANK[3];
+  const season = academicMoment();
+  const hook = featuredHookForNow({
+    season,
+    campaign: {
+      name: data.eventName,
+      oneLiner: data.features,
+      theme: data.features,
+      studentPain: data.audience,
+    },
+  }).hook;
   const dir = directions[0];
   const caption = [
     hook,

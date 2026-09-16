@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { clubSystemPrompt, HASHTAG_BANK } from "@/lib/club/identity";
 import { academicMoment } from "@/lib/club/season";
+import { seasonCreateNote } from "@/lib/club/featured";
 import type { CampaignPlan, CopyTone, CreativeDirection, SourceRef } from "@/lib/studio/types";
 import { buildZenMockPlan, mockDirections, mockReels, mockStoryFrames, mockStudentSim } from "./pack-mock";
 import { extractJson, hasXai, xaiChat } from "./xai";
@@ -163,6 +164,7 @@ export const generateCreativePack = createServerFn({ method: "POST" })
 地點：${brief.location}
 一句話：${brief.features}
 參考來源：${sources.map((s) => s.label).join("、") || "品牌記憶"}
+${seasonCreateNote(season)}
 ${data.dnaNotes ? `品牌與 IG DNA：\n${data.dnaNotes}` : ""}
 ${data.visionNotes ? `圖片理解（延續風格，不要複製原圖）：\n${data.visionNotes}` : ""}
 ${data.inspirationNotes ? `靈感抽象（不要抄作品）：\n${data.inspirationNotes}` : ""}

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { daysUntil, academicMoment } from "@/lib/club/season";
 import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { CalendarThumb } from "@/components/calendar/calendar-thumb";
-import { clubDnaFromMemory } from "@/lib/club/dna";
+import { featuredHookForNow, seasonCreateNote } from "@/lib/club/featured";
 import { clubInsightsFromPosts, nextCreateFromLearn } from "@/lib/club/insights";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { gatherStatusLine, searchCreative } from "@/lib/creative/search";
@@ -77,9 +77,15 @@ export function HomePage() {
   );
   const recent = [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6);
   const strong = [...igPosts].sort((a, b) => (b.saves ?? 0) - (a.saves ?? 0)).slice(0, 3);
-  const dna = clubDnaFromMemory({ igPosts, memory });
   const insights = clubInsightsFromPosts(igPosts);
-  const featuredHook = dna.winningHooks[0] || "最近是不是很久沒有好好坐下來？";
+  const featuredSuggest = featured
+    ? featuredHookForNow({
+        season,
+        campaign: featured,
+        posts: igPosts,
+      })
+    : null;
+  const featuredHook = featuredSuggest?.hook || "最近是不是很久沒有好好坐下來？";
   const latestPublished = [...igPosts].sort((a, b) => b.takenAt - a.takenAt)[0];
 
   const featuredProject = projects.find((p) => p.id === featured?.projectIds[0]);
@@ -90,7 +96,7 @@ export function HomePage() {
     setLastQuery(featured.name);
     void navigate({
       to: "/create",
-      search: { q: `幫我做 ${featured.name} 完整宣傳`, go: "1", campaign: featured.id },
+      search: { q: featuredSuggest?.query ?? `幫我做 ${featured.name} 完整宣傳`, go: "1", campaign: featured.id },
     });
   }
 
@@ -162,6 +168,7 @@ export function HomePage() {
               <p className="mt-1 text-sm text-muted">{remain > 0 ? `還有 ${remain} 天` : remain === 0 ? "就是今天" : "已過活動日"}</p>
               <p className="mt-5 text-sm text-muted">AI 建議做一篇</p>
               <p className="mt-1 font-display text-xl leading-snug">「{featuredHook}」</p>
+              {featuredSuggest ? <p className="mt-2 text-xs text-muted">{featuredSuggest.why}</p> : null}
               <p className="mt-2 text-xs tracking-[0.14em] text-subtle uppercase">IG Carousel</p>
               <div className="mt-6 flex flex-wrap gap-2">
                 <Button onClick={runFeatured} className="min-h-11 rounded-full px-5">
@@ -197,7 +204,13 @@ export function HomePage() {
             <p className="mt-1 text-xs text-muted">{lastLearn.visualLesson || insights.visualLesson}</p>
           ) : null}
           <Button asChild className="mt-4 min-h-11 rounded-full">
-            <Link to="/create" search={{ q: nextCreateFromLearn(lastLearn), go: "1" }}>
+            <Link
+              to="/create"
+              search={{
+                q: `${seasonCreateNote(season, lastLearn.hook)} ${nextCreateFromLearn(lastLearn)}`.slice(0, 360),
+                go: "1",
+              }}
+            >
               用這次學到的再創作
             </Link>
           </Button>

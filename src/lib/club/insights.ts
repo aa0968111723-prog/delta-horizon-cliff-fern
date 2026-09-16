@@ -73,7 +73,7 @@ export function clubInsightsFromPosts(
   const eventTop = top.find((post) => isEventAd(post.caption));
   const eventCopyLesson = eventTop
     ? "活動文也可以有效，但要先生活再出現時間地點。"
-    : "純招生文目前沒有進高收藏。活動資訊放後面，Hook 先對到課表、宿舍或期末。";
+    : "純招生文目前沒有進高收藏。活動資訊放後面，Hook 先對到課表、宿舍、捷運或學生正在過的事。";
 
   const carousel = ranked.find((post) => post.mediaType === "carousel");
   const carouselLesson = carousel?.analysis?.direction

@@ -29,7 +29,8 @@ test("zen mock plan opens with a lived hook not a formal invitation", () => {
   };
   const plan = buildZenMockPlan(data, mockDirections("浮游禪光"));
   assert.equal(plan.hook.includes("誠摯邀請"), false);
-  assert.ok(plan.hook.includes("坐") || plan.hook.includes("最近"));
+  assert.equal(plan.hook.includes("期末"), false);
+  assert.match(plan.hook, /坐|最近|淡水|朋友|課表|休息/);
   assert.equal(plan.directions?.length, 3);
   assert.ok(plan.studentSim);
   assert.equal(plan.carouselPages.length, 6);

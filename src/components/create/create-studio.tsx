@@ -15,6 +15,8 @@ import { analyzeImage, type VisionReport } from "@/lib/ai/vision";
 import { visionPromptBlock } from "@/lib/ai/vision-notes";
 import { clubDnaFromMemory, dnaPromptBlock } from "@/lib/club/dna";
 import { clubInsightsFromPosts, insightsPromptBlock, lastLearnPromptBlock } from "@/lib/club/insights";
+import { seasonCreateNote } from "@/lib/club/featured";
+import { academicMoment } from "@/lib/club/season";
 import { createCanvaDesign, pullCanvaExport, startConnection } from "@/lib/connect/oauth";
 import { buildCanvaKit, canvaDesignIdFromEditUrl, canvaReturnTitle, memoryFromCanvaKit } from "@/lib/connect/canva-kit";
 import { persistableImageSrc } from "@/lib/connect/next";
@@ -223,7 +225,7 @@ export function CreateStudio({
           oneLiner: campaign?.oneLiner,
           sources,
           visionNotes: report ? visionPromptBlock(report) : undefined,
-          dnaNotes: `${brands[0] ? brandMemoryBlock(brands[0]) : ""}\n${dnaPromptBlock(dna)}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}\n${lastLearnPromptBlock(useCreative.getState().lastLearn)}`.slice(
+          dnaNotes: `${seasonCreateNote(academicMoment(), useCreative.getState().lastLearn?.hook)}\n${brands[0] ? brandMemoryBlock(brands[0]) : ""}\n${dnaPromptBlock(dna)}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}\n${lastLearnPromptBlock(useCreative.getState().lastLearn)}`.slice(
             0,
             3600,
           ),
@@ -369,7 +371,7 @@ export function CreateStudio({
           kind: mode,
           when: campaign ? `${campaign.date} ${campaign.time}` : undefined,
           where: campaign?.location,
-          insightNotes: `${brands[0] ? brandMemoryBlock(brands[0]) : ""}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}\n${lastLearnPromptBlock(useCreative.getState().lastLearn)}\n${vision ? visionPromptBlock(vision) : ""}\n${dnaPromptBlock(
+          insightNotes: `${seasonCreateNote(academicMoment(), useCreative.getState().lastLearn?.hook)}\n${brands[0] ? brandMemoryBlock(brands[0]) : ""}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}\n${lastLearnPromptBlock(useCreative.getState().lastLearn)}\n${vision ? visionPromptBlock(vision) : ""}\n${dnaPromptBlock(
             clubDnaFromMemory({
               igPosts: useCreative.getState().igPosts,
               memory: useCreative.getState().memory,
