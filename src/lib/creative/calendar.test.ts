@@ -3,19 +3,6 @@ import test from "node:test";
 import { calendarCoverOf, calendarFrom } from "./calendar.ts";
 import { SEED_CAMPAIGNS } from "./memory-seed.ts";
 import { SEED_LIGHT_ID } from "../studio/seed-ids.ts";
-import type { CopyDeck } from "../studio/types.ts";
-
-const copy: CopyDeck = {
-  eyebrow: "",
-  headline: "最近是不是很久沒坐好？",
-  subhead: "",
-  body: "",
-  cta: "晚上來坐一下",
-  handle: "@tkuzen",
-  caption: "最近是不是很久沒坐好？",
-  hashtags: [],
-  altText: "",
-};
 
 test("calendar cover prefers a Canva-returned asset over the campaign poster", () => {
   const cover = calendarCoverOf({
@@ -77,7 +64,6 @@ test("排進月曆 keeps the Canva visual on the scheduled day", () => {
         scheduledAt: Date.parse("2026-09-16T19:00:00+08:00"),
         publishedAt: null,
         sourceRefs: [{ source: "canva", label: "Canva 微調後", id: "asset_canva_1" }],
-        copy,
       },
     ],
   );
