@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SEED_IG_POSTS } from "../creative/memory-seed.ts";
-import { clubInsightsFromPosts, insightsPromptBlock } from "./insights.ts";
+import { clubInsightsFromPosts, insightsPromptBlock, lastLearnFromPosts } from "./insights.ts";
 
 test("insights prefer high-save life posts over club invitations", () => {
   const insights = clubInsightsFromPosts(SEED_IG_POSTS);
@@ -13,6 +13,10 @@ test("insights prefer high-save life posts over club invitations", () => {
   assert.equal(block.includes("Z 世代"), false);
   assert.ok(block.includes("Hook"));
   assert.ok(insights.avgCaption > 10);
+  const learned = lastLearnFromPosts(SEED_IG_POSTS, "課表有了，人還在趕路。", 1);
+  assert.equal(learned.hook, "課表有了，人還在趕路。");
+  assert.ok(learned.mixLesson.length > 4);
+  assert.equal(learned.at, 1);
 });
 
 test("too many event ads produces a mix warning", () => {

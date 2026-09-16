@@ -4,6 +4,7 @@ import { parseFnInput } from "@/lib/ai/parse";
 import type { IgMemoryPost, MemoryItem } from "@/lib/creative/types";
 import { canvaSearchQuery, driveFileQuery, driveQueryFromNl } from "@/lib/creative/drive-query";
 import { envReady, oauthPath } from "./providers";
+import { canvaCreateBody, type CanvaKind } from "./canva-kit";
 import { captionForInstagram, publicImageUrl } from "./ig-publish";
 
 const Provider = z.enum(["google-drive", "canva", "instagram"]);
@@ -118,9 +119,65 @@ export const setDriveFolder = createServerFn({ method: "POST" })
     return { ok: true as const, name: data.name };
   });
 
+async function uploadCanvaImage(access: string, imageUrl: string, title: string) {
+  const publicUrl = publicImageUrl(imageUrl);
+  if (!publicUrl) return null;
+  const img = await fetch(publicUrl);
+  if (!img.ok) return null;
+  const buf = Buffer.from(await img.arrayBuffer());
+  if (!buf.byteLength || buf.byteLength > 8_000_000) return null;
+  const name = `${title.slice(0, 40) || "zen"}.png`;
+  const started = await fetch("https://api.canva.com/rest/v1/asset-uploads", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${access}`,
+      "Content-Type": "application/octet-stream",
+      "Asset-Upload-Metadata": JSON.stringify({ name_base64: Buffer.from(name).toString("base64") }),
+    },
+    body: buf,
+  });
+  if (!started.ok) return null;
+  const job = (await started.json()) as { job?: { id?: string; status?: string; asset?: { id?: string } } };
+  if (job.job?.asset?.id) return job.job.asset.id;
+  const jobId = job.job?.id;
+  if (!jobId) return null;
+  for (let i = 0; i < 8; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const poll = await fetch(`https://api.canva.com/rest/v1/asset-uploads/${jobId}`, {
+      headers: { Authorization: `Bearer ${access}` },
+    });
+    if (!poll.ok) continue;
+    const body = (await poll.json()) as { job?: { status?: string; asset?: { id?: string } } };
+    if (body.job?.status === "success" && body.job.asset?.id) return body.job.asset.id;
+    if (body.job?.status === "failed") return null;
+  }
+  return null;
+}
+
+async function postCanvaDesign(access: string, payload: Record<string, unknown>) {
+  const res = await fetch("https://api.canva.com/rest/v1/designs", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${access}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) return null;
+  const body = (await res.json()) as { design?: { urls?: { edit_url?: string } } };
+  return body.design?.urls?.edit_url ?? null;
+}
+
 export const createCanvaDesign = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
-    parseFnInput(z.object({ title: z.string().min(1).max(80), kind: z.enum(["post", "story", "carousel"]).optional() }), input),
+    parseFnInput(
+      z.object({
+        title: z.string().min(1).max(80),
+        kind: z.enum(["post", "story", "carousel", "reels"]).optional(),
+        imageUrl: z.string().max(2000).optional(),
+      }),
+      input,
+    ),
   )
   .handler(async ({ data }) => {
     const { readFreshTokens } = await import("./tokens.server");
@@ -129,31 +186,19 @@ export const createCanvaDesign = createServerFn({ method: "POST" })
       return {
         ok: false as const,
         reason: "connect" as const,
-        message: "先連接 Canva，再把這次文案送去微調。",
+        message: "清單可以先複製。連接 Canva 後會開對應尺寸，有公開主視覺就帶進去。",
       };
     }
-    const preset = data.kind === "story" ? "instagramStory" : data.kind === "carousel" ? "instagramCarousel" : "instagramPost";
     try {
-      const res = await fetch("https://api.canva.com/rest/v1/designs", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${tokens.access}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: data.title,
-          design_type: { type: "preset", name: preset },
-        }),
-      });
-      if (!res.ok) {
-        return { ok: false as const, reason: "api" as const, message: "Canva 暫時無法建設計。" };
-      }
-      const body = (await res.json()) as { design?: { urls?: { edit_url?: string } } };
-      const url = body.design?.urls?.edit_url;
-      if (!url) return { ok: false as const, reason: "api" as const, message: "沒有編輯連結。" };
-      return { ok: true as const, url };
+      const assetId = data.imageUrl ? await uploadCanvaImage(tokens.access, data.imageUrl, data.title) : null;
+      const kind = (data.kind ?? "post") as CanvaKind;
+      const url =
+        (await postCanvaDesign(tokens.access, canvaCreateBody({ title: data.title, kind, assetId: assetId ?? undefined }))) ??
+        (await postCanvaDesign(tokens.access, canvaCreateBody({ title: data.title, kind: "post" })));
+      if (!url) return { ok: false as const, reason: "api" as const, message: "Canva 暫時無法建設計。清單已可先貼上。" };
+      return { ok: true as const, url, withAsset: Boolean(assetId) };
     } catch {
-      return { ok: false as const, reason: "api" as const, message: "Canva 暫時無法建設計。" };
+      return { ok: false as const, reason: "api" as const, message: "Canva 暫時無法建設計。清單已可先貼上。" };
     }
   });
 

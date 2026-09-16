@@ -108,6 +108,13 @@ export type IgMemoryPost = {
   };
 };
 
+export type LastLearn = {
+  at: number;
+  hook: string;
+  mixLesson: string;
+  hookLesson: string;
+};
+
 export type Inspiration = {
   id: string;
   title: string;

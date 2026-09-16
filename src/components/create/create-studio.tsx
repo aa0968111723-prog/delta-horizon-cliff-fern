@@ -15,6 +15,8 @@ import { analyzeImage, type VisionReport } from "@/lib/ai/vision";
 import { clubDnaFromMemory, dnaPromptBlock } from "@/lib/club/dna";
 import { clubInsightsFromPosts, insightsPromptBlock } from "@/lib/club/insights";
 import { createCanvaDesign } from "@/lib/connect/oauth";
+import { buildCanvaKit } from "@/lib/connect/canva-kit";
+import { publicImageUrl } from "@/lib/connect/ig-publish";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { varyImagePrompt } from "@/lib/creative/image-vary";
 import { inferCampaignType, inferEventDate } from "@/lib/creative/schedule";
@@ -359,26 +361,61 @@ export function CreateStudio({
 
   async function sendCanva() {
     if (!pack) return;
-    const caption = copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook;
+    const activeCopy = copies.find((c) => c.tone === tone) ?? copies[0];
+    const dir = pack.directions.find((d) => d.id === dirId) ?? directions.find((d) => d.id === dirId);
+    const caption = activeCopy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook;
+    const kit = buildCanvaKit({
+      campaignName: pack.plan.campaignName,
+      hook: pack.plan.hook,
+      caption,
+      cta: activeCopy?.cta ?? pack.plan.cta,
+      hashtags: activeCopy?.hashtags ?? pack.plan.hashtags,
+      palette: dir?.palette,
+      composition: dir?.composition,
+      typeDirection: dir?.typeDirection,
+      imagePrompt: dir?.imagePrompt,
+      carousel: pack.conversions.carousel,
+    });
     try {
-      await navigator.clipboard.writeText(`${caption}\n\n${pack.plan.cta}\n${pack.plan.hashtags.join(" ")}`);
+      await navigator.clipboard.writeText(kit);
     } catch {
       /* 沒剪貼簿也繼續開 Canva */
     }
-    const result = await createCanvaDesign({ data: { title: pack.plan.campaignName, kind: "carousel" } });
+    const kind = aspect === "9:16" ? "story" : "carousel";
+    const result = await createCanvaDesign({
+      data: {
+        title: pack.plan.campaignName,
+        kind,
+        imageUrl: publicImageUrl(imageSrc) ?? undefined,
+      },
+    });
     if (!result.ok) {
       toast.message(result.message);
       if (result.reason === "connect") void navigate({ to: "/connect" });
       return;
     }
     window.open(result.url, "_blank", "noopener");
-    toast.success("已在 Canva 開一個新設計");
+    toast.success(result.withAsset ? "已把主視覺送進 Canva" : "已在 Canva 開對應尺寸，貼上清單繼續改");
   }
 
   const activeDir = pack?.directions.find((d) => d.id === dirId) ?? directions.find((d) => d.id === dirId);
   const copy = copies.find((c) => c.tone === tone) ?? copies[0];
   const sim = pack?.plan.studentSim;
   const insights = clubInsightsFromPosts(igPosts);
+  const canvaKit = pack
+    ? buildCanvaKit({
+        campaignName: pack.plan.campaignName,
+        hook: pack.plan.hook,
+        caption: copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook,
+        cta: copy?.cta ?? pack.plan.cta,
+        hashtags: copy?.hashtags ?? pack.plan.hashtags,
+        palette: activeDir?.palette,
+        composition: activeDir?.composition,
+        typeDirection: activeDir?.typeDirection,
+        imagePrompt: activeDir?.imagePrompt,
+        carousel: pack.conversions.carousel,
+      })
+    : "";
 
   function applySimFixes() {
     if (!copy || !sim) return;
@@ -619,6 +656,14 @@ export function CreateStudio({
           <div>
             <h2 className="text-sm font-medium">再轉一版</h2>
             <ConvertPreview title={pack.plan.campaignName} hook={pack.plan.hook} when={campaign?.date} where={campaign?.location} />
+          </div>
+
+          <div>
+            <h2 className="text-sm font-medium">送進 Canva 微調</h2>
+            <p className="mt-1 text-xs text-muted">AI 先給清單。連接後開 4:5 或限動尺寸；有公開主視覺會帶進畫布，不是空白檔。</p>
+            <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-2xl bg-surface p-4 font-sans text-xs leading-relaxed shadow-[var(--shadow-border)]">
+              {canvaKit}
+            </pre>
           </div>
 
           <div className="flex flex-wrap gap-2">

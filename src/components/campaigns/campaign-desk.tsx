@@ -76,12 +76,14 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
                 {wave.offsetDays === 0 ? "當天" : wave.offsetDays < 0 ? `提前 ${-wave.offsetDays} 天` : `隔 ${wave.offsetDays} 天`}
                 · {contentKindLabel(wave.contentKind)} · {STATUS_META[wave.status].label}
               </p>
-              {project ? (
-                <Link className="mt-1 inline-block text-xs underline" to="/studio/$projectId" params={{ projectId: project.id }}>
-                  打開作品
-                </Link>
-              ) : (
-                <div className="mt-2 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
+                {project ? (
+                  <Button asChild size="sm" variant="secondary">
+                    <Link to="/studio/$projectId" params={{ projectId: project.id }}>
+                      打開作品
+                    </Link>
+                  </Button>
+                ) : (
                   <Button
                     size="sm"
                     variant="secondary"
@@ -94,48 +96,48 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
                   >
                     生成這一波
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      void navigate({
-                        to: "/create",
-                        search: { q: `${campaign.name} ${wave.topic}`, campaign: campaign.id, auto: "1", mode: "post" },
-                      })
-                    }
-                  >
-                    改寫
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      void navigate({
-                        to: "/create",
-                        search: { q: `${campaign.name} ${wave.topic} 主視覺`, campaign: campaign.id, auto: "1", mode: "image" },
-                      })
-                    }
-                  >
-                    換視覺
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      void navigate({
-                        to: "/create",
-                        search: {
-                          q: `${campaign.name} ${wave.topic}。換一個生活角度，不要招生腔。`,
-                          campaign: campaign.id,
-                          auto: "1",
-                        },
-                      })
-                    }
-                  >
-                    換角度
-                  </Button>
-                </div>
-              )}
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    void navigate({
+                      to: "/create",
+                      search: { q: `${campaign.name} ${wave.topic}`, campaign: campaign.id, auto: "1", mode: "post" },
+                    })
+                  }
+                >
+                  改寫
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    void navigate({
+                      to: "/create",
+                      search: { q: `${campaign.name} ${wave.topic} 主視覺`, campaign: campaign.id, auto: "1", mode: "image" },
+                    })
+                  }
+                >
+                  換視覺
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    void navigate({
+                      to: "/create",
+                      search: {
+                        q: `${campaign.name} ${wave.topic}。換一個生活角度，不要招生腔。`,
+                        campaign: campaign.id,
+                        auto: "1",
+                      },
+                    })
+                  }
+                >
+                  換角度
+                </Button>
+              </div>
               {wave.status !== "published" ? (
                 <div className="mt-2">
                   <PublishButton

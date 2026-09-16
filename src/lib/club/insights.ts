@@ -1,4 +1,4 @@
-import type { IgMemoryPost } from "../creative/types.ts";
+import type { IgMemoryPost, LastLearn } from "../creative/types.ts";
 
 export type ClubInsights = {
   hookLesson: string;
@@ -101,4 +101,19 @@ ${insights.answers.join("\n")}
 高收藏 Hook：${insights.winningHooks.join(" ／ ") || "生活問句"}
 平均 Caption 約 ${insights.avgCaption} 字。
 不要用抽象客群稱呼。`;
+}
+
+export function lastLearnFromPosts(
+  posts: Parameters<typeof clubInsightsFromPosts>[0],
+  publishedHook: string,
+  at: number,
+): LastLearn {
+  const insights = clubInsightsFromPosts(posts);
+  const hook = publishedHook.split("\n").map((line) => line.trim()).find(Boolean) ?? insights.winningHooks[0] ?? "";
+  return {
+    at,
+    hook,
+    mixLesson: insights.mixLesson,
+    hookLesson: insights.hookLesson,
+  };
 }

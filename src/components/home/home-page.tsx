@@ -41,6 +41,7 @@ export function HomePage() {
   const memory = useCreative((s) => s.memory);
   const igPosts = useCreative((s) => s.igPosts);
   const inspirations = useCreative((s) => s.inspirations);
+  const lastLearn = useCreative((s) => s.lastLearn);
   const setLastQuery = useCreative((s) => s.setLastQuery);
   const [q, setQ] = useState("");
   const [searching, setSearching] = useState(false);
@@ -106,6 +107,10 @@ export function HomePage() {
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
           <Input
+            id="home-search"
+            name="creative-search"
+            autoComplete="off"
+            aria-label="搜尋 Drive、Canva、IG 與素材"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="搜尋浮游禪光、茶會、龜龜，或直接說你想做什麼"
@@ -132,6 +137,17 @@ export function HomePage() {
             }}
           />
         </div>
+      ) : null}
+
+      {lastLearn ? (
+        <section className="mt-6 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+          <p className="text-xs tracking-[0.16em] text-muted uppercase">
+            {Date.now() - lastLearn.at < 15 * 60 * 1000 ? "上次發布後學到" : "目前 IG 學到"}
+          </p>
+          <p className="mt-2 font-display text-xl leading-snug">「{lastLearn.hook}」</p>
+          <p className="mt-2 text-sm text-muted">{lastLearn.hookLesson}</p>
+          <p className="mt-1 text-xs text-muted">{lastLearn.mixLesson}</p>
+        </section>
       ) : null}
 
       <DuePublishBar />

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { suggestWaves, isoFromMs } from "@/lib/creative/schedule";
+import { lastLearnFromPosts } from "@/lib/club/insights";
 import { mergeIgPosts } from "@/lib/creative/ig-memory";
 import { applyMarkPublished } from "@/lib/creative/publish-flow";
 import {
@@ -17,6 +18,7 @@ import type {
   ConnectionState,
   IgMemoryPost,
   Inspiration,
+  LastLearn,
   MemoryItem,
 } from "@/lib/creative/types";
 import { uid } from "@/lib/studio/ids";
@@ -33,6 +35,7 @@ type CreativeState = {
   inspirations: Inspiration[];
   connections: ConnectionState[];
   lastQuery: string;
+  lastLearn: LastLearn | null;
   setHydrated: (v: boolean) => void;
   setLastQuery: (q: string) => void;
   addCampaign: (input: Partial<ClubCampaign> & { name: string }) => ClubCampaign;
@@ -135,6 +138,11 @@ export const useCreative = create<CreativeState>()(
       inspirations: SEED_INSPIRATION,
       connections: SEED_CONNECTIONS,
       lastQuery: "",
+      lastLearn: lastLearnFromPosts(
+        SEED_IG_POSTS,
+        SEED_IG_POSTS[0]?.analysis?.hook || SEED_IG_POSTS[0]?.caption || "",
+        SEED_IG_POSTS[0]?.takenAt ?? Date.parse("2025-09-18T19:12:00+08:00"),
+      ),
       setHydrated: (v) => set({ hydrated: v }),
       setLastQuery: (q) => set({ lastQuery: q }),
       addCampaign: (input) => {
@@ -220,6 +228,13 @@ export const useCreative = create<CreativeState>()(
         if (!result) return null;
         set({ campaigns: result.campaigns });
         get().ingestIgPosts([result.post]);
+        set({
+          lastLearn: lastLearnFromPosts(
+            get().igPosts,
+            result.post.analysis?.hook || result.post.caption,
+            result.post.takenAt,
+          ),
+        });
         return result.post;
       },
     }),
@@ -234,6 +249,7 @@ export const useCreative = create<CreativeState>()(
         inspirations: s.inspirations,
         connections: s.connections,
         lastQuery: s.lastQuery,
+        lastLearn: s.lastLearn,
       }),
     },
   ),
