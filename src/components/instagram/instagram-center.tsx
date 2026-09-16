@@ -480,8 +480,8 @@ export function InstagramCenter() {
               );
             })}
           </div>
-          <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-            <div className="rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-artboard)]">
+          <div className="mt-4 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+            <div className="min-w-0 rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-artboard)]">
               {previewPages[previewProject?.slideIndex ?? 0] && brand ? (
                 <ArtboardView
                   artboard={previewPages[previewProject?.slideIndex ?? 0]!}
@@ -495,33 +495,35 @@ export function InstagramCenter() {
                 <p className="py-16 text-center text-xs text-muted">還沒有這個尺寸的預覽，先去創作一則。</p>
               )}
               {lastSequence && lastSequence.assetIds.length > 1 ? (
-                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                  {lastSequence.assetIds.map((id, index) => {
-                    const seedSrc = assets.find((a) => a.id === id)?.seedSrc;
-                    const src = resolveAssetSrc(id, urls, seedSrc);
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => {
-                          setIgPreview(id, previewFormat);
-                          if (lastSequence.projectId) setSlide(lastSequence.projectId, index);
-                        }}
-                        className={cn(
-                          "h-20 w-16 shrink-0 overflow-hidden rounded-xl bg-bg",
-                          lastVisualAssetId === id && "ring-2 ring-accent",
-                        )}
-                      >
-                        {src ? (
-                          <img src={src} alt="" className="size-full object-cover" />
-                        ) : (
-                          <span className="flex size-full items-center justify-center px-1 text-xs text-muted">
-                            {lastSequence.labels[index] ?? index + 1}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                <div className="mt-3 max-w-full overflow-x-auto overscroll-x-contain">
+                  <div className="flex w-max gap-2 pb-1">
+                    {lastSequence.assetIds.map((id, index) => {
+                      const seedSrc = assets.find((a) => a.id === id)?.seedSrc;
+                      const src = resolveAssetSrc(id, urls, seedSrc);
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => {
+                            setIgPreview(id, previewFormat);
+                            if (lastSequence.projectId) setSlide(lastSequence.projectId, index);
+                          }}
+                          className={cn(
+                            "h-20 w-16 shrink-0 overflow-hidden rounded-xl bg-bg",
+                            lastVisualAssetId === id && "ring-2 ring-accent",
+                          )}
+                        >
+                          {src ? (
+                            <img src={src} alt="" className="size-full object-cover" />
+                          ) : (
+                            <span className="flex size-full items-center justify-center px-1 text-xs text-muted">
+                              {lastSequence.labels[index] ?? index + 1}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : null}
             </div>
