@@ -115,9 +115,14 @@ export async function applyFormatSuite(input: {
     useStudio.getState().setSlide(preferred.projectId, 0);
     useStudio.getState().setCopy(preferred.projectId, {
       headline: input.pack.copy.hook.slice(0, 80),
-      caption: [input.pack.copy.hook, "", input.pack.copy.body, "", input.pack.copy.cta, input.pack.copy.hashtags.join(" ")]
-        .join("\n")
-        .trim(),
+      caption: [
+        input.pack.copy.hook,
+        input.pack.copy.body.replace(input.pack.copy.hook, "").trim(),
+        input.pack.copy.cta,
+        input.pack.copy.hashtags.join(" "),
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
     });
     useCreative.getState().setLastSequence(preferred);
   }

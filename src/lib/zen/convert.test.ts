@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildMockPlan } from "../ai/mock.ts";
-import { convertFromPlan, formatIdForContentKind, formatScript, formatScriptClipboard, sequenceBeats } from "./convert.ts";
+import { convertFromPlan, captionForTarget, formatIdForContentKind, formatScript, formatScriptClipboard, sequenceBeats } from "./convert.ts";
 
 const converted = convertFromPlan(
   buildMockPlan({
@@ -70,4 +70,12 @@ test("formatIdForContentKind maps story and reels to 9:16 boards", () => {
   assert.equal(formatIdForContentKind("reels"), "reels-cover");
   assert.equal(formatIdForContentKind("carousel"), "feed-portrait");
   assert.equal(formatIdForContentKind("threads"), "threads");
+});
+
+test("post caption does not repeat the hook", () => {
+  const caption = captionForTarget(converted, "post");
+  const hook = converted.post.hook;
+  assert.ok(caption.startsWith(hook));
+  const rest = caption.slice(hook.length);
+  assert.equal(rest.split(hook).length, 1);
 });

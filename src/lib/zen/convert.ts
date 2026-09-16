@@ -232,7 +232,10 @@ export function sequenceBeats(
 }
 
 export function captionForTarget(converted: ConvertedFormats, id: ConvertTargetId) {
-  if (id === "post") return `${converted.post.hook}\n\n${converted.post.body}`;
+  if (id === "post") {
+    const body = converted.post.body.replace(converted.post.hook, "").trim();
+    return [converted.post.hook, body, converted.post.cta].filter(Boolean).join("\n\n");
+  }
   if (id === "carousel") return converted.carousel.map((p) => p.headline.replace(/\n/g, " ")).join(" → ");
   if (id === "story") return converted.story.map((p) => p.headline).join(" / ");
   if (id === "reels") return converted.reels.map((b) => b.caption).join(" / ");
