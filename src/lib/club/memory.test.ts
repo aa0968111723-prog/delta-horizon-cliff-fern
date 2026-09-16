@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FEATURED_EVENT, featuredCampaignIdea, searchMemory } from "./memory.ts";
+import { FEATURED_EVENT, featuredCampaignIdea, featuredHookFor, pickFeaturedCampaign, searchMemory } from "./memory.ts";
 import { parseIdea } from "./idea.ts";
 
 test("natural language memory search finds tea, turtle, floating light", () => {
@@ -23,4 +23,23 @@ test("campaign handoff for a tea event still searches tea, not a generic youth b
   });
   assert.equal(parseIdea(idea).eventName, "茶會");
   assert.match(idea, /最近是不是/);
+});
+
+test("homepage featured picks the soonest upcoming campaign, not a hardcoded 浮游禪光", () => {
+  const tea = { id: "camp_tea", date: "2026-09-23", updatedAt: 2, oneLiner: "最近是不是連休息都覺得有罪惡感？" };
+  const floating = { id: FEATURED_EVENT.id, date: "2026-09-24", updatedAt: 9, oneLiner: FEATURED_EVENT.oneLiner };
+  const today = "2026-09-16";
+  const picked = pickFeaturedCampaign([floating, tea], { today, lastCampaignId: FEATURED_EVENT.id });
+  assert.equal(picked?.id, "camp_tea");
+  assert.equal(
+    featuredHookFor(picked, { campaignId: "camp_tea", hook: tea.oneLiner }),
+    "最近是不是連休息都覺得有罪惡感？",
+  );
+});
+
+test("same-day featured prefers the last packed campaign", () => {
+  const teaA = { id: "camp_tea_a", date: "2026-09-23", updatedAt: 1 };
+  const teaB = { id: "camp_tea_b", date: "2026-09-23", updatedAt: 8 };
+  const picked = pickFeaturedCampaign([teaA, teaB], { today: "2026-09-16", lastCampaignId: "camp_tea_a" });
+  assert.equal(picked?.id, "camp_tea_a");
 });

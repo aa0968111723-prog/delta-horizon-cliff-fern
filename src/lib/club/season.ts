@@ -90,6 +90,14 @@ export function studentContext(date: Date = new Date()): StudentContext {
   };
 }
 
+export function isoTaipei(from: Date = new Date()) {
+  const local = atTaipei(from);
+  const y = local.getFullYear();
+  const m = String(local.getMonth() + 1).padStart(2, "0");
+  const d = String(local.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function daysUntil(isoDate: string, from: Date = new Date()) {
   const local = atTaipei(from);
   const [y, m, d] = isoDate.split("-").map(Number);

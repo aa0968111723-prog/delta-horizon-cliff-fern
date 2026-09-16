@@ -12,7 +12,7 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { IgThumb } from "@/components/create/ig-thumb";
 import { lastPackPreviewSrc, packAssetIds } from "@/lib/club/last-pack";
 import { lessonsFromIg, nextCreateIdeaFromLessons } from "@/lib/club/insights";
-import { FEATURED_EVENT, featuredCampaignIdea } from "@/lib/club/memory";
+import { FEATURED_EVENT, featuredCampaignIdea, featuredHookFor, pickFeaturedCampaign } from "@/lib/club/memory";
 import { publishScheduleRow } from "@/lib/club/run-schedule-publish";
 import { publishableScheduleRows } from "@/lib/club/schedule";
 import { handoffFromQuickStart, QUICK_STARTS } from "@/lib/club/quick-starts";
@@ -45,7 +45,8 @@ export function HomePage() {
   const [open, setOpen] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const ctx = studentContext();
-  const featured = campaigns.find((c) => c.id === FEATURED_EVENT.id) ?? campaigns[0];
+  const featured = pickFeaturedCampaign(campaigns, { lastCampaignId: lastPack?.campaignId });
+  const featuredHook = featuredHookFor(featured, lastPack);
 
   const urls = useAssetUrls([...assets.map((a) => a.id), ...packAssetIds(lastPack)]);
   const recent = useMemo(() => uniqueById([...projects].sort((a, b) => b.updatedAt - a.updatedAt)).slice(0, 6), [projects]);
@@ -80,7 +81,7 @@ export function HomePage() {
         date: featured.date,
         time: featured.time,
         location: featured.location,
-        oneLiner: featured.oneLiner || FEATURED_EVENT.oneLiner,
+        oneLiner: featuredHook,
       }),
       tab: "campaign",
       autoRun: true,
@@ -112,15 +113,19 @@ export function HomePage() {
         </div>
 
         {featured ? (
-          <section className="glass-card mt-8 rounded-3xl p-5 md:p-8">
+          <section className="glass-card mt-8 rounded-3xl p-5 md:p-8" data-testid="home-featured">
             <p className="text-xs tracking-[0.16em] text-muted">今天推薦創作</p>
             <div className="mt-3 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <p className="text-sm text-muted">
-                  {featured.date.slice(5).replace("-", "/")} {featured.name}
+                  <span data-testid="home-featured-name">
+                    {featured.date.slice(5).replace("-", "/")} {featured.name}
+                  </span>
                   <span className="ml-2 text-accent">{formatDaysUntil(featured.date)}</span>
                 </p>
-                <h2 className="mt-2 max-w-xl font-display text-2xl md:text-4xl">「{featured.oneLiner}」</h2>
+                <h2 className="mt-2 max-w-xl font-display text-2xl md:text-4xl" data-testid="home-featured-hook">
+                  「{featuredHook}」
+                </h2>
                 <p className="mt-3 text-sm text-muted">AI 建議做成 IG Carousel · {featured.location}</p>
               </div>
               <Button size="lg" className="h-12 rounded-full px-6" data-testid="home-featured-create" onClick={startFeatured}>

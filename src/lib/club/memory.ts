@@ -1,5 +1,6 @@
 import { CLUB, DEFAULT_CTAS, DEFAULT_HASHTAGS } from "./identity.ts";
 import { matchHit, rankHits } from "./rank.ts";
+import { isoTaipei } from "./season.ts";
 import type { ContentKind, CreativeSourceKind } from "../studio/types.ts";
 
 export type MemoryItem = {
@@ -34,6 +35,40 @@ export const FEATURED_EVENT = {
 
 export function featuredCampaignIdea(event = FEATURED_EVENT) {
   return `${event.oneLiner}\n${event.name}｜${event.date} ${event.time}｜${event.location}`;
+}
+
+export type FeaturedCampaignPick = {
+  id: string;
+  date: string;
+  updatedAt?: number;
+};
+
+export function pickFeaturedCampaign<T extends FeaturedCampaignPick>(
+  campaigns: T[],
+  opts?: { lastCampaignId?: string | null; today?: string | Date },
+): T | undefined {
+  const today =
+    typeof opts?.today === "string"
+      ? opts.today
+      : isoTaipei(opts?.today instanceof Date ? opts.today : new Date());
+  const upcoming = [...campaigns]
+    .filter((campaign) => campaign.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date) || (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+  const soonest = upcoming[0]?.date;
+  const sameDay = soonest ? upcoming.filter((campaign) => campaign.date === soonest) : [];
+  if (opts?.lastCampaignId) {
+    const packed = sameDay.find((campaign) => campaign.id === opts.lastCampaignId);
+    if (packed) return packed;
+  }
+  return upcoming[0] ?? campaigns.find((campaign) => campaign.id === FEATURED_EVENT.id) ?? campaigns[0];
+}
+
+export function featuredHookFor(
+  featured: { id: string; oneLiner: string } | undefined,
+  lastPack?: { campaignId?: string; hook?: string } | null,
+) {
+  if (featured && lastPack?.campaignId === featured.id && lastPack.hook) return lastPack.hook;
+  return featured?.oneLiner || FEATURED_EVENT.oneLiner;
 }
 
 export const IG_DNA = {

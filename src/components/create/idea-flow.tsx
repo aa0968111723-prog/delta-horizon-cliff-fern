@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { FormatPreview } from "@/components/create/format-preview";
+import { IgThumb } from "@/components/create/ig-thumb";
 import { generateCampaignPlan } from "@/lib/ai/campaign";
 import { takeAutoRun } from "@/lib/create/handoff";
 import { applyStudentReviewToPlan } from "@/lib/copy/review";
@@ -768,6 +769,24 @@ export function IdeaFlow({
               {publishHint}
             </p>
           ) : null}
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">這篇會出現在 IG Grid</p>
+            <ul className="grid grid-cols-3 gap-1 overflow-hidden rounded-2xl" data-testid="idea-ig-grid">
+              <li className="relative">
+                <IgThumb src={previewSrc} caption={plan.hook} />
+                <span className="absolute left-1 top-1 rounded-full bg-accent px-2 py-0.5 text-[10px] text-accent-fg">
+                  草稿
+                </span>
+              </li>
+              {igPosts.slice(0, 5).map((post) => (
+                <li key={post.id}>
+                  <IgThumb src={post.thumb} caption={post.caption} />
+                </li>
+              ))}
+            </ul>
+          </div>
+
           {lastPackState?.canvaEditUrl ? (
             <p className="text-sm">
               <a
