@@ -44,6 +44,10 @@ export function InstagramCenter() {
     try {
       const result = await completePackPublish(pack, lastPackPreviewSrc(pack, urls));
       setLastPack(result.pack);
+      if (result.videoPending) {
+        toast.message(result.message);
+        return;
+      }
       if (result.needsConnect) {
         const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
         if (started.ok) {
@@ -196,6 +200,7 @@ export function InstagramCenter() {
                 src={lastPackPreviewSrc(lastPack, urls)}
                 hook={lastPack.hook}
                 items={lastPack.converted ?? lastPack.packs?.[lastPack.kind] ?? []}
+                videoUrl={lastPack.kind === "reels" ? lastPack.reelsVideoUrl : undefined}
               />
               <p className="mt-3 text-sm font-medium">{lastPack.hook}</p>
               <p className="mt-1 whitespace-pre-wrap text-xs text-muted">{lastPack.caption.slice(0, 160)}</p>

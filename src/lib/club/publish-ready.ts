@@ -1,13 +1,25 @@
 import { generateStudioImage } from "@/lib/image/studio";
+import { reelsVideoPrompt } from "../convert/pack.ts";
 import { ensurePublicRaster } from "./canva-push.ts";
-import { formatIdFromKind, httpsRasterUrl, needsPublicRaster, withPublicRaster, type LastPack } from "./last-pack.ts";
-import { publishNeedsVideo } from "./publish.ts";
+import {
+  applyReelsClip,
+  formatIdFromKind,
+  httpsRasterUrl,
+  httpsVideoUrl,
+  needsPublicRaster,
+  publicReelsCoverUrl,
+  skipRasterPrep,
+  withPublicRaster,
+  type LastPack,
+} from "./last-pack.ts";
+import { memoryPostFromPublish } from "./publish.ts";
+import { generateReelsClip } from "./reels-video.ts";
 import { runPackPublish } from "./run-publish.ts";
 
 export type RasterSource = "existing" | "imagine" | "canva" | "none" | "video";
 
 export async function preparePackForPublish(pack: LastPack, previewSrc: string) {
-  if (publishNeedsVideo(pack.kind, pack.reelsVideoUrl)) {
+  if (skipRasterPrep(pack)) {
     return { pack, previewSrc, source: "video" as const };
   }
   if (!needsPublicRaster(pack)) {
@@ -37,8 +49,40 @@ export async function preparePackForPublish(pack: LastPack, previewSrc: string) 
   return { pack: canva.pack, previewSrc: ready, source: canva.changed ? ("canva" as const) : ("none" as const) };
 }
 
+export async function prepareReelsClip(pack: LastPack, previewSrc: string) {
+  if (httpsVideoUrl(pack.reelsVideoUrl)) {
+    return { pack, videoReady: true as const, videoPending: false as const };
+  }
+  const cover = publicReelsCoverUrl(pack) || httpsRasterUrl(previewSrc);
+  const clip = await generateReelsClip({
+    data: {
+      prompt: reelsVideoPrompt(pack.hook, pack.packs?.reels ?? pack.converted ?? []),
+      imageUrl: cover || undefined,
+      requestId: pack.reelsJobId,
+    },
+  });
+  return applyReelsClip(pack, clip);
+}
+
 export async function completePackPublish(pack: LastPack, previewSrc: string) {
   const prepared = await preparePackForPublish(pack, previewSrc);
-  const result = await runPackPublish(prepared.pack, prepared.previewSrc);
-  return { ...result, pack: prepared.pack, rasterSource: prepared.source };
+  let next = prepared.pack;
+  if (next.kind === "reels" && !httpsVideoUrl(next.reelsVideoUrl)) {
+    const clip = await prepareReelsClip(next, prepared.previewSrc);
+    next = clip.pack;
+    if (clip.videoPending) {
+      return {
+        live: false,
+        error: "",
+        needsConnect: false,
+        post: memoryPostFromPublish({ pack: next, thumb: prepared.previewSrc, live: false }),
+        message: "Reels 影片還在生成。再按一次發布可以接續。",
+        pack: next,
+        rasterSource: prepared.source,
+        videoPending: true as const,
+      };
+    }
+  }
+  const result = await runPackPublish(next, prepared.previewSrc);
+  return { ...result, pack: next, rasterSource: prepared.source, videoPending: false as const };
 }

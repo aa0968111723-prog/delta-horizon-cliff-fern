@@ -1,3 +1,6 @@
+import type { IgLessonPost } from "./insights.ts";
+import { formatLessons, lessonsFromIg, quotedHookFromLessons } from "./insights.ts";
+
 export type InspirationCard = {
   id: string;
   pattern: string;
@@ -70,4 +73,53 @@ export const INSPIRATION: InspirationCard[] = [
 
 export function inspirationQuery(card: InspirationCard) {
   return `${card.clubUse}\n視覺：${card.composition}。${card.palette}。`;
+}
+
+export function inspirationFromIg(posts: IgLessonPost[]): InspirationCard[] {
+  if (!posts.length) return [];
+  const lessons = lessonsFromIg(posts);
+  const hook = quotedHookFromLessons(formatLessons(lessons));
+  const cards: InspirationCard[] = [];
+  if (hook) {
+    cards.push({
+      id: "from-ig-hook",
+      pattern: "延續自己比較有停留的第一句",
+      abstractedFrom: "從淡江禪學社自己的 IG 成效抽象，不是抄別的帳號。",
+      composition: lessons.visual,
+      palette: "夜間暖光與三色光，不要廟宇金箔",
+      layout: "字少、問句在上",
+      hookShape: "這好像在講我",
+      form: "單張 IG / Carousel 封面",
+      clubUse: hook,
+    });
+  }
+  cards.push({
+    id: "from-ig-carousel",
+    pattern: "用自己的 Carousel 節奏",
+    abstractedFrom: lessons.carousel,
+    composition: "每頁一件事，中段變成對話",
+    palette: "同一組品牌色",
+    layout: "大標 + 一句",
+    hookShape: "封面不問活動名",
+    form: "Carousel",
+    clubUse: "Hook → 淡江情境 → 痛點 → 活動 → CTA",
+  });
+  cards.push({
+    id: "from-ig-story",
+    pattern: "Story 問一句真話",
+    abstractedFrom: lessons.story,
+    composition: "一張、一句、一個問題",
+    palette: "宣紙底、苔綠字",
+    layout: "中段安全區",
+    hookShape: "你現在卡在哪",
+    form: "Story",
+    clubUse: "問學生此刻卡在哪，而不是再貼一次主視覺。",
+  });
+  return cards;
+}
+
+export function studioInspiration(posts: IgLessonPost[]) {
+  const own = inspirationFromIg(posts);
+  const rest = INSPIRATION.filter((card) => !own.some((item) => item.id === card.id));
+  return [...own, ...rest];
 }

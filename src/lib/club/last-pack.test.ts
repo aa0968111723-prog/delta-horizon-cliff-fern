@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fallbackHeroThumb, formatIdFromKind, httpsVideoUrl, ideaFlowRestore, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, needsPublicRaster, packForScheduleRow, persistablePack, publicReelsCoverUrl, rasterReadyMessage, withCanvaExport, withPackKind, withReelsVideo } from "./last-pack.ts";
+import { applyReelsClip, fallbackHeroThumb, formatIdFromKind, httpsVideoUrl, ideaFlowRestore, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, needsPublicRaster, packForScheduleRow, persistablePack, publicReelsCoverUrl, rasterReadyMessage, skipRasterPrep, withCanvaExport, withPackKind, withReelsVideo } from "./last-pack.ts";
 
 test("lastPackFromPlan keeps hook, caption, and a public hero fallback", () => {
   const pack = lastPackFromPlan({
@@ -221,4 +221,15 @@ test("https video urls persist on a reels pack", () => {
   assert.equal(next.reelsVideoUrl, "https://imgen.x.ai/clip.mp4");
   assert.equal(next.reelsJobId, "job_1");
   assert.equal(persistablePack(next)?.reelsVideoUrl, "https://imgen.x.ai/clip.mp4");
+  assert.equal(skipRasterPrep(pack), false);
+  assert.equal(skipRasterPrep(next), true);
+  const pending = applyReelsClip(pack, { ok: true, pending: true, requestId: "job_2" });
+  assert.equal(pending.videoPending, true);
+  assert.equal(pending.pack.reelsJobId, "job_2");
+  const ready = applyReelsClip(pack, { ok: true, url: "https://imgen.x.ai/clip.mp4", requestId: "job_3" });
+  assert.equal(ready.videoReady, true);
+  assert.equal(ready.pack.reelsVideoUrl, "https://imgen.x.ai/clip.mp4");
+  const failed = applyReelsClip(pack, { ok: false, error: "生成 Reels 影片需要公開封面 JPG（Canva 匯出或 Imagine）。" });
+  assert.equal(failed.videoReady, false);
+  assert.match(failed.videoError ?? "", /公開封面/);
 });

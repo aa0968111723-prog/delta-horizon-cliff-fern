@@ -223,6 +223,36 @@ export function withReelsVideo(pack: LastPack, input: { url?: string; requestId?
   })!;
 }
 
+export type ReelsClipResult =
+  | { ok: false; error: string }
+  | { ok: true; url?: string; pending?: boolean; requestId?: string };
+
+/** Skip Imagine/Canva cover work only when Reels already has a public video. */
+export function skipRasterPrep(pack: LastPack) {
+  return pack.kind === "reels" && Boolean(httpsVideoUrl(pack.reelsVideoUrl));
+}
+
+export function applyReelsClip(pack: LastPack, clip: ReelsClipResult) {
+  if (!clip.ok) {
+    return { pack, videoReady: false as const, videoPending: false as const, videoError: clip.error };
+  }
+  if (clip.pending && clip.requestId) {
+    return {
+      pack: withReelsVideo(pack, { requestId: clip.requestId }),
+      videoReady: false as const,
+      videoPending: true as const,
+    };
+  }
+  if (clip.url && httpsVideoUrl(clip.url)) {
+    return {
+      pack: withReelsVideo(pack, { url: clip.url, requestId: clip.requestId }),
+      videoReady: true as const,
+      videoPending: false as const,
+    };
+  }
+  return { pack, videoReady: false as const, videoPending: false as const };
+}
+
 export function persistablePack(pack: LastPack | null): LastPack | null {
   if (!pack) return null;
   return {

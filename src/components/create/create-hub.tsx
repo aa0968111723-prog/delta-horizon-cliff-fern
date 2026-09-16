@@ -168,18 +168,19 @@ function CopyStudio({ seedIdea }: { seedIdea?: string }) {
         toast.error(result.error);
         return;
       }
-      setPack(result.pack);
+      const reviewed = applyStudentReviewToPack(result.pack);
+      setPack(reviewed.pack);
       const current = useCreative.getState().lastPack;
-      const nextCaption = `${result.pack.hook}\n\n${result.pack.body}`;
+      const nextCaption = `${reviewed.pack.hook}\n\n${reviewed.pack.body}`;
       if (current) {
-        setLastPack({ ...current, hook: result.pack.hook, caption: nextCaption, hashtags: result.pack.hashtags, updatedAt: Date.now() });
+        setLastPack({ ...current, hook: reviewed.pack.hook, caption: nextCaption, hashtags: reviewed.pack.hashtags, updatedAt: Date.now() });
       } else {
         setLastPack(
           lastPackFromPlan({
             projectId: lastProjectId || "proj_copy",
             campaignId: campaigns[0]?.id || "",
             eventName: idea.slice(0, 16) || "文案",
-            plan: { hook: result.pack.hook, captions: [{ style: tone, text: nextCaption }], hashtags: result.pack.hashtags },
+            plan: { hook: reviewed.pack.hook, captions: [{ style: tone, text: nextCaption }], hashtags: reviewed.pack.hashtags },
           }),
         );
       }
@@ -227,7 +228,7 @@ function CopyStudio({ seedIdea }: { seedIdea?: string }) {
             data-testid="copy-apply-review"
             onClick={() => setPack(applyStudentReviewToPack(pack).pack)}
           >
-            套用淡江學生視角
+            再對一次淡江學生視角
           </Button>
           {project ? (
             <Button
@@ -269,6 +270,7 @@ function ImageStudio({
   const addAsset = useStudio((s) => s.addAsset);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const setLastPack = useCreative((s) => s.setLastPack);
+  const lastPack = useCreative((s) => s.lastPack);
   const campaigns = useCreative((s) => s.campaigns);
   const igPosts = useCreative((s) => s.igPosts);
   const [idea, setIdea] = useState(seedIdea || "我要宣傳茶會");
@@ -307,9 +309,14 @@ function ImageStudio({
     }
   }
 
-  async function render(direction: CreativeDirection, variation?: "regen" | "compose" | "mood" | "background" | "style" | "text") {
+  async function render(
+    direction: CreativeDirection,
+    variation?: "regen" | "compose" | "mood" | "background" | "style" | "text",
+    nextFormat = formatId,
+  ) {
     setBusy(true);
     setPicked(direction);
+    setFormatId(nextFormat);
     try {
       const editUrl = referenceImage ? compactDataUrl(referenceImage) : null;
       const result = await generateStudioImage({
@@ -318,7 +325,7 @@ function ImageStudio({
           variation,
           headline: direction.headline,
           eventName: idea.slice(0, 40),
-          formatId,
+          formatId: nextFormat,
           editUrls: editUrl ? [editUrl] : undefined,
         },
       });
@@ -332,7 +339,7 @@ function ImageStudio({
       const blob = await res.blob();
       const id = uid("asset");
       await getAssetStorage().put(id, blob);
-      const format = formatById(formatId);
+      const format = formatById(nextFormat);
       addAsset(
         createGeneratedAsset({
           id,
@@ -346,7 +353,7 @@ function ImageStudio({
       );
       toast.success(sourceLabel ? `已存進素材庫 · 來源：AI Generated（參考 ${sourceLabel}）` : "已存進素材庫 · 來源：AI Generated");
       const current = useCreative.getState().lastPack;
-      const kind = kindFromFormat(formatId);
+      const kind = kindFromFormat(nextFormat);
       setLastPack(
         lastPackFromPlan({
           projectId: lastProjectId || current?.projectId || "proj_image",
@@ -423,12 +430,31 @@ function ImageStudio({
         ))}
       </ul>
       {urls[0] ? (
+        <>
         <FormatPreview
           kind={kindFromFormat(formatId)}
           src={urls[0]}
           hook={picked?.headline || idea}
           items={[{ heading: picked?.name || "主視覺", body: picked?.headline || idea, visual: picked?.composition || "主畫面" }]}
+          videoUrl={kindFromFormat(formatId) === "reels" ? lastPack?.reelsVideoUrl : undefined}
         />
+        {picked ? (
+          <div className="flex flex-wrap gap-2">
+            {IMAGE_ASPECTS.filter((item) => item.id !== formatId).map((item) => (
+              <Button
+                key={item.id}
+                size="sm"
+                variant="secondary"
+                data-testid={`image-extend-${item.id}`}
+                disabled={busy}
+                onClick={() => void render(picked, "regen", item.id)}
+              >
+                延伸 {item.label}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+        </>
       ) : null}
     </div>
   );
@@ -634,7 +660,7 @@ function ConvertStudio({
           </Button>
         ))}
       </div>
-      <FormatPreview kind={kind} src={previewSrc} hook={project.plan.hook} items={converted.items} handle={project.copy.handle} />
+      <FormatPreview kind={kind} src={previewSrc} hook={project.plan.hook} items={converted.items} handle={project.copy.handle} videoUrl={kind === "reels" ? lastPack?.reelsVideoUrl : undefined} />
       <div className="rounded-2xl bg-bg p-4">
         <p className="font-display text-xl">{converted.title}</p>
         <ul className="mt-3 space-y-3">

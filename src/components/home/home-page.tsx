@@ -65,6 +65,10 @@ export function HomePage() {
     try {
       const result = await publishScheduleRow({ row, lastPack, assetUrls: urls });
       setLastPack(result.pack);
+      if (result.videoPending) {
+        toast.message(result.message);
+        return;
+      }
       if (result.needsConnect) {
         const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
         if (started.ok) {

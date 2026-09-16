@@ -12,14 +12,13 @@ import { applyStudentReviewToPlan } from "@/lib/copy/review";
 import { toBriefInput } from "@/lib/ai/payload";
 import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, notesFromHits, summarizeFound } from "@/lib/club/compose";
 import { applyCanvaPush, canvaPushMessage, ensurePublicRaster, pushHeroToCanva } from "@/lib/club/canva-push";
-import { formatIdFromKind, httpsRasterUrl, ideaFlowRestore, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, publicReelsCoverUrl, rasterReadyMessage, withPackKind, withReelsVideo } from "@/lib/club/last-pack";
+import { formatIdFromKind, httpsRasterUrl, ideaFlowRestore, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, rasterReadyMessage, withPackKind } from "@/lib/club/last-pack";
 import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
 import { convertedScheduleUpserts } from "@/lib/club/schedule";
-import { generateReelsClip } from "@/lib/club/reels-video";
-import { completePackPublish } from "@/lib/club/publish-ready";
+import { completePackPublish, preparePackForPublish, prepareReelsClip } from "@/lib/club/publish-ready";
 import { styleBriefFromPublish } from "@/lib/club/publish";
-import { CONVERT_TARGETS, allConvertedPacks, convertPlan, reelsVideoPrompt } from "@/lib/convert/pack";
+import { CONVERT_TARGETS, allConvertedPacks, convertPlan } from "@/lib/convert/pack";
 import { folderSearchInput } from "@/lib/connections/presets";
 import { beginOAuth } from "@/lib/connections/begin";
 import { takeOAuthResume } from "@/lib/connections/resume";
@@ -172,7 +171,7 @@ if (seedAutoRun) return;
         setPhase("idea");
         return;
       }
-      const nextPlan = mergePlanSources(result.plan, foundHits);
+      const nextPlan = applyStudentReviewToPlan(mergePlanSources(result.plan, foundHits)).plan;
       setPlan(nextPlan);
       setPhase("directions");
       setStatus(summarizeFound(search.groups).line + "。根據過去內容生成 3 個方向。");
@@ -409,6 +408,10 @@ if (seedAutoRun) return;
     try {
       const result = await completePackPublish(current, previewSrc);
       setLastPack(result.pack);
+      if (result.videoPending) {
+        toast.message(result.message);
+        return;
+      }
       if (result.needsConnect) {
         const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
         if (started.ok) {
@@ -586,31 +589,26 @@ if (seedAutoRun) return;
       toast.message("先做成一篇，才能生成 Reels 影片。");
       return;
     }
-    const cover = publicReelsCoverUrl(current);
-    const items = convertPlan(plan, "reels").items;
     setBusy(true);
     setPackKind("reels");
     try {
-      const result = await generateReelsClip({
-        data: {
-          prompt: reelsVideoPrompt(plan.hook, items),
-          imageUrl: cover || undefined,
-          requestId: current.reelsJobId,
-        },
-      });
-      if (!result.ok) {
-        toast.message(result.error);
+      const prepared = await preparePackForPublish(withPackKind(current, "reels", convertPlan(plan, "reels").items), previewSrc);
+      setLastPack(prepared.pack);
+      const clip = await prepareReelsClip(prepared.pack, prepared.previewSrc);
+      setLastPack(clip.pack);
+      if ("videoError" in clip && clip.videoError) {
+        toast.message(clip.videoError);
         return;
       }
-      if ("pending" in result && result.pending) {
-        setLastPack(withReelsVideo(current, { requestId: result.requestId }));
+      if (clip.videoPending) {
         toast.message("影片還在生成，再按一次可以接續。");
         return;
       }
-      if ("url" in result && result.url) {
-        setLastPack(withReelsVideo(current, { url: result.url, requestId: result.requestId }));
+      if (clip.videoReady) {
         toast.success("Reels 影片已就緒，可以用官方 API 發布。");
+        return;
       }
+      toast.message("還沒有公開封面。連接 Canva 或等 Imagine 出圖後再生成影片。");
     } finally {
       setBusy(false);
     }
@@ -717,6 +715,7 @@ if (seedAutoRun) return;
               hook={plan.hook}
               handle={brand?.handle ?? "@tku.zen"}
               items={converted?.items ?? []}
+              videoUrl={packKind === "reels" ? lastPackState?.reelsVideoUrl : undefined}
             />
             {artboard && brand ? (
                 <div className="mt-3 border-t border-border bg-[#1c2422]/[0.04] p-3" data-testid="idea-artboard">

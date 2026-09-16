@@ -12,6 +12,7 @@ export function FormatPreview({
   hook,
   handle = "@tku.zen",
   items,
+  videoUrl,
   className,
 }: {
   kind: ContentKind;
@@ -19,6 +20,7 @@ export function FormatPreview({
   hook: string;
   handle?: string;
   items: ConvertedPack["items"];
+  videoUrl?: string;
   className?: string;
 }) {
   const [page, setPage] = useState(0);
@@ -75,6 +77,21 @@ export function FormatPreview({
               <IgThumb src={frameSrc} caption={current.body} className={kindAspectClass(kind)} />
             </div>
           ) : kind === "reels" ? (
+            videoUrl ? (
+              <div className="relative">
+                <video
+                  src={videoUrl}
+                  controls
+                  playsInline
+                  className={cn("w-full object-cover", kindAspectClass(kind))}
+                  data-testid="reels-video"
+                  poster={src}
+                />
+                <span className="absolute right-3 bottom-10 z-10 rounded-full bg-black/50 px-2 py-1 text-[10px] text-white">
+                  {current.heading}
+                </span>
+              </div>
+            ) : (
             <button type="button" className="relative block w-full" onClick={() => setPage((safePage + 1) % slides.length)}>
               <IgThumb src={frameSrc} caption={current.body.split("\n")[0]} className={kindAspectClass(kind)} />
               <span className="absolute left-1/2 top-1/2 z-10 flex size-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white">
@@ -84,6 +101,7 @@ export function FormatPreview({
                 {current.heading}
               </span>
             </button>
+            )
           ) : kind === "carousel" ? (
             <div>
               <IgThumb src={frameSrc} caption={current.body} className={kindAspectClass(kind)} />
