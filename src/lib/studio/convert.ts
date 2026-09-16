@@ -219,10 +219,10 @@ export function applyKindLayout(project: Project, brand: BrandKit, kind: Content
     pages = [
       sourcePage
         ? adaptArtboard(sourcePage, meta.formatId, brand, {
-            templateId: kind === "line" ? "offer" : project.templateId,
+            templateId: project.templateId,
             copy,
           })
-        : buildLayout(meta.formatId, copy, brand, kind === "line" ? "offer" : project.templateId),
+        : buildLayout(meta.formatId, copy, brand, project.templateId),
     ];
   }
   return {
@@ -292,8 +292,8 @@ export function convertContent(source: Project, brand: BrandKit, kind: ContentKi
     const sourcePage = pagesOf(source)[0];
     pages = [
       sourcePage
-        ? adaptArtboard(sourcePage, meta.formatId, brand, { templateId: kind === "line" ? "offer" : source.templateId, copy })
-        : buildLayout(meta.formatId, copy, brand, kind === "line" ? "offer" : source.templateId),
+        ? adaptArtboard(sourcePage, meta.formatId, brand, { templateId: source.templateId, copy })
+        : buildLayout(meta.formatId, copy, brand, source.templateId),
     ];
   }
 
