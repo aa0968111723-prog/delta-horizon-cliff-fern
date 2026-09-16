@@ -14,6 +14,8 @@ export type CreativeMemoryResult = {
   campaignId?: string;
   contentId?: string;
   externalId?: string;
+  webUrl?: string;
+  providerKind?: "google-drive" | "canva" | "instagram";
 };
 
 function terms(query: string) {
@@ -95,22 +97,33 @@ export function searchCreativeMemory(
   });
 
   const externalItems = (input.externalItems ?? []).flatMap((item) => {
-    const fields = [item.title, item.mimeType, item.snippet, item.parentId].join(" ");
-    const found = matches(fields, needles);
-    if (!found.length) return [];
     const provider = item.provider === "google-drive"
       ? "Google Drive"
       : item.provider === "canva"
         ? "Canva"
         : "Instagram";
+    const fields = [
+      item.title,
+      item.mimeType,
+      item.snippet,
+      item.collection,
+      item.sourceDate,
+      item.parentId,
+      provider,
+      item.provider,
+    ].join(" ");
+    const found = matches(fields, needles);
+    if (!found.length) return [];
     return [{
       id: `external:${item.provider}:${item.id}`,
       kind: "external" as const,
       title: item.title,
-      subtitle: item.snippet || item.mimeType || "外部來源",
+      subtitle: item.snippet || item.collection || item.mimeType || "外部來源",
       provider,
       matchedBy: found,
       externalId: item.id,
+      webUrl: item.webUrl,
+      providerKind: item.provider,
     }];
   });
 

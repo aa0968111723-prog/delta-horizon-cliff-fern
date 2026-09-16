@@ -99,6 +99,31 @@ test("creativeMemoryStats counts analyzed and reusable memory", () => {
   );
 });
 
+test("searchCreativeMemory includes Canva designs with provenance", () => {
+  const results = searchCreativeMemory("茶會 Canva", {
+    assets: [],
+    campaigns: [],
+    contentItems: [],
+    externalItems: [{
+      id: "DAFtea",
+      provider: "canva",
+      title: "歷屆茶會主視覺",
+      mimeType: "canva/design",
+      isFolder: false,
+      modifiedAt: "",
+      webUrl: "https://www.canva.com/design/DAFtea/edit",
+      thumbnailUrl: "",
+      parentId: "canva",
+      snippet: "夜間茶會",
+      syncedAt: 1,
+      collection: "茶會",
+    }],
+  });
+  assert.equal(results[0]?.provider, "Canva");
+  assert.equal(results[0]?.providerKind, "canva");
+  assert.equal(results[0]?.webUrl?.includes("canva.com"), true);
+});
+
 test("searchCreativeMemory includes synced external references with attribution", () => {
   const results = searchCreativeMemory("歷屆 茶會", {
     assets: [],

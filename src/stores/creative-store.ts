@@ -35,6 +35,7 @@ type CreativeState = {
   updateCampaign: (id: string, patch: Partial<Campaign>) => void;
   generateRhythm: (campaignId: string) => ContentItem[];
   setContentStatus: (id: string, status: ContentStatus) => void;
+  rescheduleContent: (id: string, plannedAt: string) => void;
   linkProject: (id: string, projectId: string) => void;
 };
 
@@ -108,6 +109,12 @@ export const useCreative = create<CreativeState>()(
                   updatedAt: Date.now(),
                 }
               : item,
+          ),
+        })),
+      rescheduleContent: (id, plannedAt) =>
+        set((state) => ({
+          contentItems: state.contentItems.map((item) =>
+            item.id === id ? { ...item, plannedAt, updatedAt: Date.now() } : item,
           ),
         })),
       linkProject: (id, projectId) =>

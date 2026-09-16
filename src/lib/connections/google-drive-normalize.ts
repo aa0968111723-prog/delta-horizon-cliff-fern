@@ -1,48 +1,12 @@
 import type { ExternalMemoryItem } from "./types.ts";
+import { asObject, asText, findRows, parseJsonText } from "./json.ts";
 
-function parseJsonText(value: unknown): unknown {
-  if (typeof value !== "string") return value;
-  const trimmed = value.trim();
-  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return value;
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    return value;
-  }
-}
-
-function object(value: unknown): Record<string, unknown> | null {
-  const parsed = parseJsonText(value);
-  return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-    ? parsed as Record<string, unknown>
-    : null;
+function object(value: unknown) {
+  return asObject(value);
 }
 
 function text(value: unknown) {
-  return typeof value === "string" ? value : "";
-}
-
-function findRows(value: unknown, depth = 0): unknown[] {
-  if (depth > 4) return [];
-  const parsed = parseJsonText(value);
-  if (Array.isArray(parsed)) return parsed;
-  const row = object(parsed);
-  if (!row) return [];
-  for (const key of ["files", "items", "results", "entries", "data"]) {
-    if (key in row) {
-      const found = findRows(row[key], depth + 1);
-      if (found.length) return found;
-    }
-  }
-  const content = row.content;
-  if (Array.isArray(content)) {
-    for (const part of content) {
-      const partObject = object(part);
-      const found = findRows(partObject?.text ?? partObject?.data ?? part, depth + 1);
-      if (found.length) return found;
-    }
-  }
-  return [];
+  return asText(value);
 }
 
 export function normalizeDriveFiles(value: unknown, parentId = "root"): ExternalMemoryItem[] {

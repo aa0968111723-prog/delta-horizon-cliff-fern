@@ -4,12 +4,20 @@ import type { Brief } from "@/lib/studio/types";
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 export type EditorPanel = "layers" | "assets" | "copy" | "inspect" | "ai" | "versions" | "qa";
 
+export type StylePrompt = {
+  title: string;
+  collection: string;
+  notes: string;
+  provider: string;
+};
+
 type UiState = {
   assistantOpen: boolean;
   creativePreset: Partial<Brief> | null;
   saveStatus: SaveStatus;
   editorPanel: EditorPanel | null;
   carouselPreview: boolean;
+  stylePrompt: StylePrompt | null;
   setAssistantOpen: (open: boolean) => void;
   startCreative: (preset?: Partial<Brief>) => void;
   clearCreativePreset: () => void;
@@ -17,6 +25,7 @@ type UiState = {
   setSaveStatus: (status: SaveStatus) => void;
   setEditorPanel: (panel: EditorPanel | null) => void;
   setCarouselPreview: (open: boolean) => void;
+  setStylePrompt: (prompt: StylePrompt | null) => void;
 };
 
 export const useUi = create<UiState>((set) => ({
@@ -25,6 +34,7 @@ export const useUi = create<UiState>((set) => ({
   saveStatus: "idle",
   editorPanel: null,
   carouselPreview: false,
+  stylePrompt: null,
   setAssistantOpen: (open) => set({ assistantOpen: open }),
   startCreative: (creativePreset = {}) => set({ assistantOpen: true, creativePreset }),
   clearCreativePreset: () => set({ creativePreset: null }),
@@ -32,4 +42,5 @@ export const useUi = create<UiState>((set) => ({
   setSaveStatus: (saveStatus) => set({ saveStatus }),
   setEditorPanel: (editorPanel) => set({ editorPanel }),
   setCarouselPreview: (carouselPreview) => set({ carouselPreview }),
+  setStylePrompt: (stylePrompt) => set({ stylePrompt }),
 }));

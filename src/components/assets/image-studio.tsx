@@ -19,6 +19,7 @@ import { uid } from "@/lib/studio/ids";
 import type { AssetMeta } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
+import { useUi } from "@/stores/ui-store";
 
 const FORMATS = [
   { id: "4:5", label: "IG 貼文 4:5" },
@@ -47,6 +48,8 @@ const DIRECTIONS = [
 export function ImageStudio() {
   const addAsset = useStudio((state) => state.addAsset);
   const brand = useStudio((state) => state.brands[0]);
+  const stylePrompt = useUi((state) => state.stylePrompt);
+  const setStylePrompt = useUi((state) => state.setStylePrompt);
   const [idea, setIdea] = useState("下週晚上的茶會，讓剛開學很忙的淡江學生下課後喘口氣");
   const [directionId, setDirectionId] = useState<(typeof DIRECTIONS)[number]["id"]>("campus");
   const [aspectRatio, setAspectRatio] = useState<(typeof FORMATS)[number]["id"]>("4:5");
@@ -57,6 +60,11 @@ export function ImageStudio() {
     () => DIRECTIONS.find((item) => item.id === directionId) ?? DIRECTIONS[0],
     [directionId],
   );
+
+  useEffect(() => {
+    if (!stylePrompt) return;
+    setIdea(`${stylePrompt.title}。風格參考：${stylePrompt.provider}／${stylePrompt.collection}。${stylePrompt.notes}`);
+  }, [stylePrompt]);
 
   useEffect(() => {
     let alive = true;
@@ -81,7 +89,7 @@ export function ImageStudio() {
     try {
       const result = await generateCreativeImage({
         data: {
-          idea,
+          idea: stylePrompt ? `${idea}\n參考來源：${stylePrompt.provider}／${stylePrompt.collection}` : idea,
           direction: direction.detail,
           aspectRatio,
           brandMemory: brand ? buildBrandMemoryPrompt(brand) : undefined,
@@ -141,6 +149,13 @@ export function ImageStudio() {
           <p className="mt-2 max-w-md text-sm leading-6 text-accent-fg/70">
             不是只寫「禪風海報」。先選淡江學生會有感的視覺角度，再生成一張可放進 Studio 的主視覺。
           </p>
+          {stylePrompt ? (
+            <div className="mt-4 rounded-2xl bg-accent-fg/10 px-4 py-3">
+              <p className="text-xs text-accent-fg/70">風格參考</p>
+              <p className="mt-1 text-sm">{stylePrompt.provider}／{stylePrompt.collection}</p>
+              <button type="button" className="mt-2 text-xs underline" onClick={() => setStylePrompt(null)}>清除參考</button>
+            </div>
+          ) : null}
           <div className="mt-5">
             <label htmlFor="image-idea" className="text-xs font-medium text-accent-fg/70">活動或想法</label>
             <Textarea

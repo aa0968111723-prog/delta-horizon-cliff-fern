@@ -9,9 +9,11 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { CanvaCard } from "@/components/connections/canva-card";
+import { InstagramCard } from "@/components/connections/instagram-card";
+import { ConnectionBadge, ConnectionMessage } from "@/components/connections/connection-status";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { PageHeader } from "@/components/shared/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { redirectToLoginIfRequired } from "@/lib/app-data";
@@ -126,7 +128,7 @@ export function ConnectionCenter() {
       <PageHeader
         kicker="淡江禪學社 Creative Brain"
         title="連接"
-        description="從已授權的 Google Drive 找歷屆企劃、文宣與照片。憑證由 Grok gate 管理，不會進入前端、瀏覽器儲存或 repository。"
+        description="從已授權的 Google Drive、Canva、Instagram 找回歷屆企劃與畫面。憑證只留在伺服器，不會進入前端、瀏覽器儲存或 repository。"
         actions={<BrandSubnav current="connections" />}
       />
 
@@ -279,32 +281,9 @@ export function ConnectionCenter() {
           </div>
         </section>
       ) : null}
+
+      <CanvaCard />
+      <InstagramCard />
     </main>
-  );
-}
-
-function ConnectionBadge({ status }: { status: ConnectorUiState }) {
-  if (status === "connected") return <Badge variant="success">Connected</Badge>;
-  if (status === "checking") return <Badge variant="default">Checking</Badge>;
-  if (status === "login") return <Badge variant="warn">需要授權</Badge>;
-  if (status === "idle") return <Badge variant="default">尚未檢查</Badge>;
-  return <Badge variant="danger">未連接</Badge>;
-}
-
-function ConnectionMessage({
-  title,
-  detail,
-  action,
-}: {
-  title: string;
-  detail: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="p-6 text-center md:p-10">
-      <p className="font-medium">{title}</p>
-      <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted">{detail}</p>
-      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
-    </div>
   );
 }

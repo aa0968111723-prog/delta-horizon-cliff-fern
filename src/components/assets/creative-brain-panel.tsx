@@ -3,30 +3,38 @@ import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { creativeMemoryStats, searchCreativeMemory } from "@/lib/creative/memory";
+import { emptySearchHint, GLOBAL_SEARCH_FILTERS, searchGlobalCreative, type GlobalSearchFilter } from "@/lib/creative/global-search";
+import { creativeMemoryStats } from "@/lib/creative/memory";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
-import { useConnectionStore } from "@/stores/connection-store";
+import { allExternalItems, useConnectionStore } from "@/stores/connection-store";
 import { useStudio } from "@/stores/studio-store";
 
-export function CreativeBrainPanel({ onOpenAsset }: { onOpenAsset: (id: string) => void }) {
+export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAsset: (id: string) => void; compact?: boolean }) {
   const navigate = useNavigate();
   const assets = useStudio((state) => state.assets);
   const campaigns = useCreative((state) => state.campaigns);
   const contentItems = useCreative((state) => state.contentItems);
-  const externalItems = useConnectionStore((state) => state.driveItems);
+  const driveItems = useConnectionStore((state) => state.driveItems);
+  const canvaItems = useConnectionStore((state) => state.canvaItems);
+  const instagramItems = useConnectionStore((state) => state.instagramItems);
+  const externalItems = useMemo(
+    () => allExternalItems({ driveItems, canvaItems, instagramItems }),
+    [driveItems, canvaItems, instagramItems],
+  );
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<GlobalSearchFilter>("all");
   const stats = useMemo(
     () => creativeMemoryStats({ assets, campaigns, contentItems, externalItems }),
     [assets, campaigns, contentItems, externalItems],
   );
   const results = useMemo(
-    () => searchCreativeMemory(query, { assets, campaigns, contentItems, externalItems }),
-    [query, assets, campaigns, contentItems, externalItems],
+    () => searchGlobalCreative(query, { assets, campaigns, contentItems, externalItems }, filter),
+    [query, assets, campaigns, contentItems, externalItems, filter],
   );
 
   return (
-    <section className="mt-6 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)] md:p-6">
+    <section className={cn("rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)] md:p-6", !compact && "mt-6")}>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <Badge variant="default">
@@ -35,7 +43,7 @@ export function CreativeBrainPanel({ onOpenAsset }: { onOpenAsset: (id: string) 
           </Badge>
           <h2 className="mt-3 text-xl font-semibold tracking-tight">從做過的內容開始，不再每次從零</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
-            同時找目前的素材、Campaign 與內容節奏。未來連接 Google Drive、Canva、Instagram 後，會沿用同一個搜尋與來源標示。
+            同一個搜尋框會同時找素材、Campaign、內容節奏、Drive、Canva 與 Instagram。沒連接的來源不會假裝有結果。
           </p>
         </div>
         <div className="grid grid-cols-4 gap-2 text-center">
@@ -52,8 +60,24 @@ export function CreativeBrainPanel({ onOpenAsset }: { onOpenAsset: (id: string) 
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           className="h-12 pl-10"
-          placeholder="試著找：浮游禪光、期中、茶會、龜龜、社員互動"
+          placeholder="找以前茶會 Canva、浮游禪光、期中、龜龜、Drive 企劃"
         />
+      </div>
+
+      <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
+        {GLOBAL_SEARCH_FILTERS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setFilter(item.id)}
+            className={cn(
+              "min-h-10 shrink-0 rounded-full px-3 text-xs",
+              filter === item.id ? "bg-accent text-accent-fg" : "bg-bg text-muted",
+            )}
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
 
       {query.trim() ? (
@@ -65,7 +89,9 @@ export function CreativeBrainPanel({ onOpenAsset }: { onOpenAsset: (id: string) 
                   type="button"
                   onClick={() => {
                     if (result.assetId) onOpenAsset(result.assetId);
+                    else if (result.providerKind === "instagram") void navigate({ to: "/instagram" });
                     else if (result.externalId) void navigate({ to: "/connections" });
+                    else if (result.kind === "content") void navigate({ to: "/calendar" });
                     else void navigate({ to: "/campaigns" });
                   }}
                   className="flex min-h-20 w-full items-start gap-3 rounded-2xl bg-bg p-3 text-left transition-colors hover:bg-surface-2"
@@ -89,12 +115,12 @@ export function CreativeBrainPanel({ onOpenAsset }: { onOpenAsset: (id: string) 
           </ul>
         ) : (
           <p className="mt-3 rounded-2xl bg-bg px-4 py-6 text-center text-sm text-muted">
-            目前的 Creative Brain 找不到這個內容。連接外部來源前，不會假裝已搜尋 Drive、Canva 或 Instagram。
+            {emptySearchHint(filter)}
           </p>
         )
       ) : (
         <p className="mt-3 text-xs text-subtle">
-          目前記得 {stats.sources} 種素材來源、{stats.reusableContent} 則可重用完成內容。
+          目前記得 {stats.sources} 種素材來源、{stats.reusableContent} 則可重用完成內容、{stats.externalItems} 筆外部索引。
         </p>
       )}
     </section>

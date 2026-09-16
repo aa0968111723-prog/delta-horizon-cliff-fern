@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle2, Copy, Sparkles } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -177,6 +178,9 @@ export function CopyStudio({ projectId }: { projectId: string }) {
               ))}
             </div>
           </div>
+          <Button asChild variant="ghost" className="mt-3">
+            <Link to="/instagram">打開 Reels 工作流與 IG 預覽</Link>
+          </Button>
         </div>
       ) : null}
     </section>

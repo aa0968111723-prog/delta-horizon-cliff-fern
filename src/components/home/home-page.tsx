@@ -1,6 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  BrainCircuit,
   CalendarDays,
   Camera,
   ChevronRight,
@@ -13,11 +12,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useMemo } from "react";
+import { CreativeBrainPanel } from "@/components/assets/creative-brain-panel";
 import { ProjectCard } from "@/components/shared/project-card";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
+import { upcomingItems } from "@/lib/creative/calendar";
 import { categoryLabel } from "@/lib/studio/assets";
 import type { Brief } from "@/lib/studio/types";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
@@ -71,7 +73,9 @@ export function HomePage() {
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
+  const contentItems = useCreative((s) => s.contentItems);
   const startCreative = useUi((s) => s.startCreative);
+  const upcoming = useMemo(() => upcomingItems(contentItems), [contentItems]);
   const recent = useMemo(
     () => [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4),
     [projects],
@@ -223,7 +227,7 @@ export function HomePage() {
 
         <aside className="space-y-3">
           <Link
-            to="/campaigns"
+            to="/calendar"
             className="block rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-border-hover)]"
           >
             <div className="flex items-center gap-2">
@@ -231,32 +235,23 @@ export function HomePage() {
               <h2 className="font-display text-lg">接下來的內容節奏</h2>
             </div>
             <ol className="mt-4 space-y-4">
-              {[
-                ["今天", "情緒共鳴", "先說出開學後的忙亂"],
-                ["09/18", "活動主視覺", "讓時間地點一眼可見"],
-                ["09/22", "Story 倒數", "用投票問最近的狀態"],
-              ].map(([date, title, note]) => (
-                <li key={date} className="grid grid-cols-[3.5rem_1fr] gap-2">
-                  <span className="text-xs font-medium text-accent">{date}</span>
+              {upcoming.length ? upcoming.map((item) => (
+                <li key={item.id} className="grid grid-cols-[3.5rem_1fr] gap-2">
+                  <span className="text-xs font-medium text-accent">{item.plannedAt.slice(5, 10).replace("-", "/")}</span>
                   <span>
-                    <span className="block text-sm font-medium">{title}</span>
-                    <span className="mt-0.5 block text-xs leading-5 text-muted">{note}</span>
+                    <span className="block text-sm font-medium">{item.title}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-muted">{item.type}｜{item.angle}</span>
                   </span>
                 </li>
-              ))}
+              )) : (
+                <li className="text-sm text-muted">還沒有節奏。到排程依活動生成一版。</li>
+              )}
             </ol>
           </Link>
-          <div className="rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
-            <div className="flex items-center gap-2">
-              <BrainCircuit className="size-5 text-accent" />
-              <h2 className="font-display text-lg">Creative Brain</h2>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-muted">
-              目前會讀取品牌規範、最近創作與此裝置素材。Drive、Canva、Instagram 將在連接後加入來源記憶。
-            </p>
-          </div>
         </aside>
       </div>
+
+      <CreativeBrainPanel onOpenAsset={() => void navigate({ to: "/assets" })} compact />
 
       <section className="mt-8">
         <div className="flex items-end justify-between gap-3">
