@@ -1,3 +1,4 @@
+import { useRouterState } from "@tanstack/react-router";
 import { Star, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -62,6 +63,7 @@ export function BrandEditor() {
   const contentItems = useCreative((s) => s.contentItems);
   const styleReferences = useConnectionStore((s) => s.styleReferences);
   const [activeId, setActiveId] = useState(brands[0]?.id ?? "");
+  const locationHash = useRouterState({ select: (state) => state.location.hash });
   const [section, setSection] = useState<(typeof SECTIONS)[number]["id"]>("identity");
   const brand = brands.find((b) => b.id === activeId) ?? brands[0];
   const fileRef = useRef<HTMLInputElement>(null);
@@ -72,11 +74,16 @@ export function BrandEditor() {
   const memory = brand?.memory ?? emptyBrandMemory();
 
   useEffect(() => {
-    const hash = window.location.hash.replace("#", "");
-    if (SECTIONS.some((item) => item.id === hash)) {
-      setSection(hash as (typeof SECTIONS)[number]["id"]);
+    function applyHash() {
+      const hash = window.location.hash.replace("#", "");
+      if (SECTIONS.some((item) => item.id === hash)) {
+        setSection(hash as (typeof SECTIONS)[number]["id"]);
+      }
     }
-  }, []);
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
+  }, [locationHash]);
 
   if (!brand) {
     return (
