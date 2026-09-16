@@ -19,6 +19,7 @@ import {
 } from "@/lib/ai/image-studio";
 import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
 import { createCanvaDesign } from "@/lib/connect/canva";
+import { canvaRemoteFromDesign } from "@/lib/connect/canva-format";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
 import { persistGeneratedImage } from "@/lib/studio/raster";
 import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
@@ -53,6 +54,7 @@ export function ImageStudioPage() {
   const navigate = useNavigate();
   const addAsset = useStudio((s) => s.addAsset);
   const updateAsset = useStudio((s) => s.updateAsset);
+  const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
   const brands = useStudio((s) => s.brands);
   const igMemory = useStudio((s) => s.igMemory);
   const campaigns = useStudio((s) => s.campaigns);
@@ -231,6 +233,11 @@ export function ImageStudioPage() {
       }
       await navigator.clipboard.writeText(result.brief).catch(() => undefined);
       window.open(result.editUrl, "_blank", "noopener,noreferrer");
+      if (result.connected && result.designId) {
+        upsertRemoteFiles([
+          canvaRemoteFromDesign({ designId: result.designId, title: result.title, editUrl: result.editUrl }),
+        ]);
+      }
       toast.success(result.note);
     } finally {
       setBusy(false);

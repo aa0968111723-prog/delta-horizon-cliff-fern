@@ -18,4 +18,5 @@ test("parseCanvaExportUrl only returns a finished HTTPS url", () => {
     }),
     "https://export-download.canva.com/tea.png",
   );
+  assert.equal(parseCanvaExportUrl({ job: { status: "success", urls: ["http://127.0.0.1/tea.png"] } }), null);
 });

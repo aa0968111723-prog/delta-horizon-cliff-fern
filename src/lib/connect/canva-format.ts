@@ -74,6 +74,25 @@ export function mapAutofillData(
   return out;
 }
 
+export function canvaRemoteFromDesign(opts: {
+  designId: string;
+  title: string;
+  editUrl: string;
+  now?: number;
+}) {
+  const title = opts.title.trim().slice(0, 80) || "禪光";
+  return {
+    id: `canva:${opts.designId}`,
+    provider: "canva" as const,
+    name: title,
+    mime: "application/canva",
+    url: opts.editUrl,
+    modifiedAt: opts.now ?? Date.now(),
+    tags: ["Canva", "AI 送出"],
+    summary: `Canva / ${title}`,
+  };
+}
+
 export function parseCanvaDisplayName(json: unknown): string | undefined {
   const row = json as {
     team_user?: { display_name?: string };

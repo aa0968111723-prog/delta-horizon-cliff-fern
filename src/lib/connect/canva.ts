@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { accessTokenFor } from "./tokens";
 import { canvaBrief, canvaNameBase64, canvaSize, mapAutofillData, type CanvaCopy } from "./canva-format";
+import { exportDesignPng } from "./canva-export";
 
 export type CanvaCreateResult =
   | {
@@ -218,5 +219,59 @@ export const createCanvaDesign = createServerFn({ method: "POST" })
       placedImage: Boolean(assetId),
       autofilled: false,
       note: assetId ? "已把主視覺放進 IG 尺寸畫布，文案在剪貼簿。" : "已開 IG 尺寸畫布，文案在剪貼簿。",
+    };
+  });
+
+export type CanvaPullResult =
+  | { ok: true; imageUrl: string; imageBase64?: string; mime: "image/png"; note: string }
+  | { ok: false; reason: "not-connected" | "api"; note: string };
+
+const PullInput = z.object({
+  designId: z.string().min(1).max(80),
+  format: z.string().max(40).optional(),
+  title: z.string().max(80).optional(),
+});
+
+function parsePull(input: unknown) {
+  if (input && typeof input === "object" && "data" in input) {
+    const inner = (input as { data: unknown }).data;
+    if (inner && typeof inner === "object" && "designId" in inner) return PullInput.parse(inner);
+  }
+  return PullInput.parse(input);
+}
+
+export const pullCanvaDesign = createServerFn({ method: "POST" })
+  .validator((input: unknown) => parsePull(input))
+  .handler(async ({ data }): Promise<CanvaPullResult> => {
+    const bundle = await accessTokenFor("canva");
+    if (!bundle) {
+      return { ok: false, reason: "not-connected", note: "先到「連接」連 Canva，微調後再拉回主視覺。" };
+    }
+    const size = canvaSize(data.format || "feed-portrait");
+    const imageUrl = await exportDesignPng({
+      token: bundle.accessToken,
+      designId: data.designId,
+      width: size.width,
+      height: size.height,
+    }).catch(() => null);
+    if (!imageUrl) {
+      return { ok: false, reason: "api", note: "Canva 還沒匯出好。可再開一次設計、稍後再拉回。" };
+    }
+    let imageBase64: string | undefined;
+    try {
+      const res = await fetch(imageUrl);
+      if (res.ok) {
+        const bytes = Buffer.from(await res.arrayBuffer());
+        if (bytes.length && bytes.length < 4_000_000) imageBase64 = bytes.toString("base64");
+      }
+    } catch {
+      /* Graph can still fetch the HTTPS export URL */
+    }
+    return {
+      ok: true,
+      imageUrl,
+      imageBase64,
+      mime: "image/png",
+      note: "已從 Canva 拉回 IG 尺寸。可看 Preview 或排進月曆。",
     };
   });

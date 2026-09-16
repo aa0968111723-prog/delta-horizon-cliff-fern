@@ -1,4 +1,5 @@
 import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
+import { pullCanvaDesign } from "@/lib/connect/canva";
 import { publishInstagramMedia } from "@/lib/connect/instagram-publish";
 import { carouselPosterInputs, pickCarouselPages } from "@/lib/connect/publish-slides";
 import { getAssetBlob } from "@/lib/studio/assets-idb";
@@ -44,15 +45,28 @@ async function pngFromAsset(assetId?: string) {
   return pngFromBase64(bytesToBase64(new Uint8Array(await blob.arrayBuffer())), blob.type || "image/png");
 }
 
-async function collectSlides(item: ScheduleItem): Promise<string[]> {
+async function collectSlides(item: ScheduleItem): Promise<{ slides: string[]; imageUrl?: string }> {
   const projects = useStudio.getState().projects;
   const pages = pickCarouselPages(projects, item);
   const project = item.projectId
     ? projects.find((row) => row.id === item.projectId)
     : projects.find((row) => row.campaignId === item.campaignId);
-  const hero = await pngFromAsset(item.imageAssetId);
+  let hero = await pngFromAsset(item.imageAssetId);
+  let imageUrl = item.mediaUrl;
+  if (item.canvaDesignId) {
+    const pulled = await pullCanvaDesign({
+      data: { designId: item.canvaDesignId, format: "feed-portrait", title: item.title },
+    }).catch(() => null);
+    if (pulled?.ok) {
+      imageUrl = pulled.imageUrl || imageUrl;
+      if (pulled.imageBase64) {
+        const fromCanva = await pngFromBase64(pulled.imageBase64, pulled.mime);
+        if (fromCanva) hero = fromCanva;
+      }
+    }
+  }
   if (!shouldPublishCarousel(item.kind, pages.length)) {
-    return hero ? [hero] : [];
+    return { slides: hero ? [hero] : [], imageUrl };
   }
   const slides: string[] = [];
   const inputs = carouselPosterInputs(pages, { title: item.title, name: project?.name });
@@ -65,7 +79,7 @@ async function collectSlides(item: ScheduleItem): Promise<string[]> {
     const png = await pngFromBase64(encodeUtf8Base64(svg), "image/svg+xml");
     if (png) slides.push(png);
   }
-  return slides;
+  return { slides, imageUrl };
 }
 
 export async function runPublishItem(item: ScheduleItem): Promise<PublishItemResult> {
@@ -74,11 +88,11 @@ export async function runPublishItem(item: ScheduleItem): Promise<PublishItemRes
   if (!canGraphPublish(item.kind)) {
     return { note: "限動／Reels／Threads 請在 IG App 發。文案已複製。", marked: true };
   }
-  const slides = await collectSlides(item);
+  const { slides, imageUrl } = await collectSlides(item);
   const result = await publishInstagramMedia({
     data: {
       caption,
-      imageUrl: item.mediaUrl,
+      imageUrl,
       imageBase64: slides[0],
       imageBase64s: slides.length >= 2 ? slides : undefined,
       mime: "image/png",

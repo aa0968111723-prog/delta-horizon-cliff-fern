@@ -528,6 +528,8 @@ export type ClubCampaign = {
   imageAssetId: string | null;
   assetIds: string[];
   waves: CampaignWave[];
+  canvaDesignId?: string;
+  canvaEditUrl?: string;
   createdAt: number;
   updatedAt: number;
 };
@@ -548,6 +550,8 @@ export type ScheduleItem = {
   imageAssetId?: string;
   permalink?: string;
   igMediaId?: string;
+  canvaDesignId?: string;
+  canvaEditUrl?: string;
 };
 
 export type ConnectionProvider = "drive" | "canva" | "instagram";

@@ -14,7 +14,8 @@ import {
 } from "@/lib/ai/image-studio";
 import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
 import { toBriefInput } from "@/lib/ai/payload";
-import { createCanvaDesign } from "@/lib/connect/canva";
+import { createCanvaDesign, pullCanvaDesign } from "@/lib/connect/canva";
+import { canvaRemoteFromDesign } from "@/lib/connect/canva-format";
 import { runPublishItem } from "@/lib/connect/publish-item";
 import { searchDriveLive } from "@/lib/connect/sync";
 import { emptyBrief, migrateBrief } from "@/lib/studio/brief";
@@ -151,6 +152,7 @@ export function CreateStudio() {
     headline?: string;
     directionName?: string;
   } | null>(null);
+  const [lastCanva, setLastCanva] = useState<{ designId: string; editUrl: string; title: string } | null>(null);
   const [sourcePreview, setSourcePreview] = useState<{
     id: string;
     name: string;
@@ -730,6 +732,8 @@ export function CreateStudio() {
       signupUrl,
       waves,
       imageAssetId: assetId ?? existing?.imageAssetId ?? null,
+      canvaDesignId: lastCanva?.designId ?? existing?.canvaDesignId,
+      canvaEditUrl: lastCanva?.editUrl ?? existing?.canvaEditUrl,
     };
     let created: ClubCampaign;
     if (existing) {
@@ -753,6 +757,9 @@ export function CreateStudio() {
         body: description || nextPlan?.body,
         hashtags: nextPlan?.hashtags,
         imageAssetId: wave.imageAssetId ?? assetId,
+        ...(wave.kind === "hero" && lastCanva
+          ? { canvaDesignId: lastCanva.designId, canvaEditUrl: lastCanva.editUrl }
+          : {}),
       });
     }
     setCampaign(created);
@@ -846,6 +853,94 @@ export function CreateStudio() {
       }
       await navigator.clipboard.writeText(result.brief).catch(() => undefined);
       window.open(result.editUrl, "_blank", "noopener,noreferrer");
+      if (result.connected && result.designId) {
+        rememberCanva({ designId: result.designId, editUrl: result.editUrl, title: result.title });
+      }
+      toast.success(result.note);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function rememberCanva(next: { designId: string; editUrl: string; title: string }) {
+    setLastCanva(next);
+    upsertRemoteFiles([canvaRemoteFromDesign(next)]);
+    if (campaign) {
+      updateCampaign(campaign.id, { canvaDesignId: next.designId, canvaEditUrl: next.editUrl });
+      setCampaign({ ...campaign, canvaDesignId: next.designId, canvaEditUrl: next.editUrl });
+      for (const item of scheduleItemsForWave(useStudio.getState().schedule, campaign.id, "hero")) {
+        upsertSchedule({ ...item, canvaDesignId: next.designId, canvaEditUrl: next.editUrl });
+      }
+    }
+  }
+
+  async function pullFromCanva() {
+    const designId = lastCanva?.designId || campaign?.canvaDesignId;
+    if (!designId) {
+      toast.error("先送進 Canva 微調，再拉回主視覺。");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await pullCanvaDesign({
+        data: {
+          designId,
+          format: mode === "story" ? "story" : mode === "reels" ? "reels-cover" : "feed-portrait",
+          title: plan?.campaignName || eventName || "茶會",
+        },
+      });
+      if (!result.ok) {
+        toast.error(result.note);
+        return;
+      }
+      if (result.imageBase64) {
+        const png = await persistGeneratedImage({
+          base64: result.imageBase64,
+          mime: result.mime,
+          width: 1080,
+          height: 1350,
+        });
+        const id = uid("asset");
+        await putAssetBlob(id, png.blob);
+        addAsset({
+          id,
+          name: `Canva · ${plan?.campaignName || eventName || "茶會"}`,
+          kind: "image",
+          category: "poster",
+          mime: png.mime,
+          width: 1080,
+          height: 1350,
+          tags: ["Canva", eventName || "茶會"],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          source: "canva",
+          licenseNotes: `來源：Canva / ${plan?.campaignName || eventName || "茶會"}`,
+          licenseOwner: "禪光",
+          favorite: false,
+          lastUsedAt: Date.now(),
+          useCount: 0,
+        });
+        setLastImage({
+          base64: png.base64,
+          mime: png.mime,
+          assetId: id,
+          headline: pickedDirection?.headline || plan?.hook,
+          directionName: pickedDirection?.name,
+        });
+        if (campaign) {
+          updateCampaign(campaign.id, { imageAssetId: id });
+          setCampaign({ ...campaign, imageAssetId: id });
+          for (const item of scheduleItemsForWave(useStudio.getState().schedule, campaign.id, "hero")) {
+            upsertSchedule({
+              ...item,
+              imageAssetId: id,
+              mediaUrl: result.imageUrl,
+              canvaDesignId: designId,
+              canvaEditUrl: lastCanva?.editUrl || campaign.canvaEditUrl,
+            });
+          }
+        }
+      }
       toast.success(result.note);
     } finally {
       setBusy(false);
@@ -1226,7 +1321,7 @@ export function CreateStudio() {
             <div className="mt-4 rounded-2xl bg-accent/15 p-4" data-testid="kit-ready">
               <p className="text-sm font-medium">下一步</p>
               <p className="mt-1 text-xs text-muted">
-                已用這個方向做出整套。可送 Canva 微調、看 IG Preview、或到月曆改時間。發布後會寫進過去 IG。
+                一人走完：Canva 微調 → 拉回主視覺 → IG Preview → 月曆 → 發布。
               </p>
               <p className="mt-3 font-display text-lg leading-snug" data-testid="kit-hook">
                 {plan.hook}
@@ -1234,15 +1329,37 @@ export function CreateStudio() {
               <p className="mt-3 text-xs text-muted">
                 已建立 {campaign.name}，節奏含 {campaign.waves.map((w) => waveLabel(w.kind)).join("、") || "預熱到回顧"}。
               </p>
+              {lastCanva || campaign.canvaEditUrl ? (
+                <p className="mt-2 text-xs text-muted" data-testid="canva-source">
+                  來源：Canva / {lastCanva?.title || campaign.name}
+                  {lastCanva?.editUrl || campaign.canvaEditUrl ? (
+                    <>
+                      {" "}
+                      ·{" "}
+                      <a
+                        href={lastCanva?.editUrl || campaign.canvaEditUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline"
+                      >
+                        開 Canva
+                      </a>
+                    </>
+                  ) : null}
+                </p>
+              ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button size="sm" disabled={busy} data-testid="send-to-canva" onClick={() => void sendToCanva()}>
                   送進 Canva
                 </Button>
-                <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/calendar" })}>
-                  看月曆
+                <Button size="sm" variant="secondary" disabled={busy} data-testid="pull-from-canva" onClick={() => void pullFromCanva()}>
+                  拉回主視覺
                 </Button>
                 <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/ig" })}>
                   IG Preview
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/calendar" })}>
+                  看月曆
                 </Button>
                 <Button size="sm" disabled={busy} data-testid="publish-hero" onClick={() => void publishHero()}>
                   發布主視覺

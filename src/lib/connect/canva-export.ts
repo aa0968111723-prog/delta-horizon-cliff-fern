@@ -11,7 +11,8 @@ export function parseCanvaExportUrl(json: unknown): string | null {
   const job = (json as { job?: { status?: string; urls?: string[] } }).job;
   if (job?.status !== "success") return null;
   const url = job.urls?.[0];
-  return url || null;
+  if (!url || !url.startsWith("https://")) return null;
+  return url;
 }
 
 export function parseCanvaJobId(json: unknown): string | null {
@@ -72,25 +73,21 @@ async function createDesign(token: string, title: string, format: string, assetI
   return json.design?.id || null;
 }
 
-export async function hostImageOnCanva(opts: {
+export async function exportDesignPng(opts: {
   token: string;
-  imageBase64: string;
-  title: string;
-  format?: string;
+  designId: string;
+  width?: number;
+  height?: number;
 }): Promise<string | null> {
-  const assetId = await uploadPng(opts.token, opts.imageBase64, opts.title);
-  if (!assetId) return null;
-  const format = opts.format || "feed-portrait";
-  const size = canvaSize(format);
-  const designId = await createDesign(opts.token, opts.title, format, assetId);
-  if (!designId) return null;
+  const width = opts.width ?? 1080;
+  const height = opts.height ?? 1350;
   const started = await fetch("https://api.canva.com/rest/v1/exports", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${opts.token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(canvaExportBody(designId, size.width, size.height)),
+    body: JSON.stringify(canvaExportBody(opts.designId, width, height)),
   });
   if (!started.ok) return null;
   const startedJson = await started.json();
@@ -108,4 +105,19 @@ export async function hostImageOnCanva(opts: {
     if (url) return url;
   }
   return null;
+}
+
+export async function hostImageOnCanva(opts: {
+  token: string;
+  imageBase64: string;
+  title: string;
+  format?: string;
+}): Promise<string | null> {
+  const assetId = await uploadPng(opts.token, opts.imageBase64, opts.title);
+  if (!assetId) return null;
+  const format = opts.format || "feed-portrait";
+  const size = canvaSize(format);
+  const designId = await createDesign(opts.token, opts.title, format, assetId);
+  if (!designId) return null;
+  return exportDesignPng({ token: opts.token, designId, width: size.width, height: size.height });
 }

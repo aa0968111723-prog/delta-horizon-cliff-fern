@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canvaBrief, canvaNameBase64, canvaSize, mapAutofillData, parseCanvaDisplayName } from "./canva-format.ts";
+import {
+  canvaBrief,
+  canvaNameBase64,
+  canvaRemoteFromDesign,
+  canvaSize,
+  mapAutofillData,
+  parseCanvaDisplayName,
+} from "./canva-format.ts";
 
 test("canvaSize uses IG custom pixels instead of invalid presets", () => {
   assert.deepEqual(canvaSize("story"), { width: 1080, height: 1920 });
@@ -50,4 +57,18 @@ test("canvaNameBase64 stays short enough for Canva headers", () => {
 test("parseCanvaDisplayName reads team user without tokens", () => {
   assert.equal(parseCanvaDisplayName({ team_user: { display_name: "禪學社" } }), "禪學社");
   assert.equal(parseCanvaDisplayName({}), undefined);
+});
+
+test("canvaRemoteFromDesign marks source as Canva, never a copied poster", () => {
+  const file = canvaRemoteFromDesign({
+    designId: "DAFtea",
+    title: "茶會",
+    editUrl: "https://www.canva.com/design/DAFtea/edit",
+    now: 1,
+  });
+  assert.equal(file.id, "canva:DAFtea");
+  assert.equal(file.provider, "canva");
+  assert.equal(file.summary, "Canva / 茶會");
+  assert.match(file.summary, /Canva \//);
+  assert.doesNotMatch(file.summary, /複製舊作品/);
 });
