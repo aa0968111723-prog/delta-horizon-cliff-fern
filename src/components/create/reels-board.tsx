@@ -100,7 +100,9 @@ export function ReelsBoard({
         </Button>
         {videoId || coverId ? (
           <Button size="sm" variant="secondary" asChild>
-            <Link to="/ig">看 IG Preview</Link>
+            <Link to="/ig" search={campaignId ? { campaign: campaignId } : {}}>
+              看 IG Preview
+            </Link>
           </Button>
         ) : null}
         {onSchedule ? (

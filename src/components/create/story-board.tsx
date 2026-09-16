@@ -78,7 +78,9 @@ export function StoryBoard({
         </Button>
         {ids.length ? (
           <Button size="sm" variant="secondary" asChild>
-            <Link to="/ig">看 IG 限動圈</Link>
+            <Link to="/ig" search={campaignId ? { campaign: campaignId } : {}}>
+              看 IG 限動圈
+            </Link>
           </Button>
         ) : null}
         {onSchedule ? (

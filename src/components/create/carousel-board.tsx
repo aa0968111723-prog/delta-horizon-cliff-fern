@@ -75,7 +75,9 @@ export function CarouselBoard({
         </Button>
         {ids.length ? (
           <Button size="sm" variant="secondary" asChild>
-            <Link to="/ig">看 IG Feed</Link>
+            <Link to="/ig" search={campaignId ? { campaign: campaignId } : {}}>
+              看 IG Feed
+            </Link>
           </Button>
         ) : null}
         {onSchedule ? (

@@ -13,6 +13,8 @@ import { syncConnection } from "@/lib/connect/sync";
 import { pagesOf } from "@/lib/studio/layers";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { feelLabel, type PostFeel } from "@/lib/zen/feel";
+import { igSearchParams } from "@/lib/studio/ig-search";
+import { scheduleForCampaign } from "@/lib/studio/calendar-search";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { igNextReels, igStoryStrip, soonestScheduled } from "@/lib/zen/schedule";
 import { igHookAnalysis } from "@/lib/zen/review";
@@ -23,27 +25,32 @@ import { AssetMedia } from "@/components/shared/asset-media";
 
 export function InstagramCenter() {
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { posted?: string };
+  const search = useSearch({ strict: false }) as { posted?: string; campaign?: string };
   const hydrated = useStudio((s) => s.hydrated);
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
   const igMemory = useStudio((s) => s.igMemory);
   const assets = useStudio((s) => s.assets);
   const campaigns = useStudio((s) => s.campaigns);
-  const schedule = useStudio((s) => s.schedule);
+  const scheduleAll = useStudio((s) => s.schedule);
   const publishSchedule = useStudio((s) => s.publishSchedule);
   const rateIgMemory = useStudio((s) => s.rateIgMemory);
   const upsertIgMemory = useStudio((s) => s.upsertIgMemory);
   const setConnection = useStudio((s) => s.setConnection);
   const brand = brands[0];
   const postedId = search.posted;
+  const campaignId = search.campaign;
+  const focused = campaigns.find((row) => row.id === campaignId);
+  const schedule = useMemo(() => scheduleForCampaign(scheduleAll, campaignId), [scheduleAll, campaignId]);
   const [selected, setSelected] = useState<string | null>(postedId ?? igMemory[0]?.id ?? null);
   const [analysis, setAnalysis] = useState<ReturnType<typeof igHookAnalysis> | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const urls = useAssetUrls(assets.map((a) => a.id));
-  const gridProjects = projects.filter((p) => p.activeFormatId.startsWith("feed") || p.contentKind === "carousel");
-  const upcoming = soonestScheduled(schedule, 12);
+  const gridProjects = campaignId
+    ? []
+    : projects.filter((p) => p.activeFormatId.startsWith("feed") || p.contentKind === "carousel");
+  const upcoming = soonestScheduled(schedule, campaignId ? 40 : 12);
   const stories = igStoryStrip(schedule, 8);
   const reels = igNextReels(schedule);
   const videoIds = assets.filter((asset) => asset.kind === "video" || asset.mime.startsWith("video/")).map((asset) => asset.id);
@@ -74,7 +81,10 @@ export function InstagramCenter() {
           igMediaId: result.extra?.igMediaId ?? item.igMediaId,
         });
         toast.success("已寫進過去 IG。可標記學生會不會停，下次生成會學。");
-        void navigate({ to: "/ig", search: { posted: memory.id } });
+        void navigate({
+          to: "/ig",
+          search: igSearchParams({ posted: memory.id, campaign: campaignId ?? item.campaignId ?? undefined }),
+        });
       }
     } finally {
       setPublishingId(null);
@@ -110,8 +120,12 @@ export function InstagramCenter() {
     <main className="mx-auto w-full max-w-4xl px-4 py-6 pb-nav md:px-8 md:py-10" data-testid="ig-ready">
       <PageHeader
         kicker="Instagram"
-        title="IG 是產品出口"
-        description="Feed、Grid、文案、歷史、DNA。官方連接在「連接」。"
+        title={focused ? `「${focused.name}」的 IG Preview` : "IG 是產品出口"}
+        description={
+          focused
+            ? "只看這一場的 Feed、Carousel、限動、Reels。過去 IG 仍是社團記憶。"
+            : "Feed、Grid、文案、歷史、DNA。官方連接在「連接」。"
+        }
         actions={
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="secondary" disabled={syncing} data-testid="ig-pull-insights" onClick={() => void pullInsights()}>
@@ -123,6 +137,17 @@ export function InstagramCenter() {
           </div>
         }
       />
+
+      {focused ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2" data-testid="ig-campaign">
+          <p className="text-sm">只看 {focused.name}</p>
+          <Button size="sm" variant="secondary" asChild>
+            <Link to="/ig" search={{}}>
+              看全部
+            </Link>
+          </Button>
+        </div>
+      ) : null}
 
       <section className="mt-6 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
         <p className="text-sm font-medium">{brand?.handle ?? "@tamkang.zen"}</p>

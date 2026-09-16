@@ -21,6 +21,7 @@ import { searchDriveLive } from "@/lib/connect/sync";
 import { emptyBrief, migrateBrief } from "@/lib/studio/brief";
 import { getAssetBlob, hydrateSeedAsset, putAssetBlob } from "@/lib/studio/assets-idb";
 import { canvaHeroAssetId } from "@/lib/studio/calendar-search";
+import { igSearchParams } from "@/lib/studio/ig-search";
 import { persistGeneratedImage } from "@/lib/studio/raster";
 import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById, FORMATS } from "@/lib/studio/formats";
@@ -944,7 +945,10 @@ export function CreateStudio() {
           igMediaId: result.extra?.igMediaId ?? item.igMediaId,
         });
         toast.success("已寫進過去 IG。可在 Feed 標記學生會不會停。");
-        void navigate({ to: "/ig", search: { posted: memory.id } });
+        void navigate({
+          to: "/ig",
+          search: igSearchParams({ posted: memory.id, campaign: campaign?.id }),
+        });
       }
     } finally {
       setBusy(false);
@@ -1487,7 +1491,15 @@ export function CreateStudio() {
             <Button variant="secondary" disabled={busy} onClick={() => void sendToCanva()}>
               送進 Canva
             </Button>
-            <Button variant="secondary" onClick={() => void navigate({ to: "/ig" })}>
+            <Button
+              variant="secondary"
+              onClick={() =>
+                void navigate({
+                  to: "/ig",
+                  search: igSearchParams({ campaign: campaign?.id }),
+                })
+              }
+            >
               IG Preview
             </Button>
           </div>
@@ -1549,7 +1561,17 @@ export function CreateStudio() {
                 <Button size="sm" variant="secondary" data-testid="pull-from-canva" onClick={() => void pullFromCanva()}>
                   拉回主視覺
                 </Button>
-                <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/ig" })}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  data-testid="kit-ig"
+                  onClick={() =>
+                    void navigate({
+                      to: "/ig",
+                      search: igSearchParams({ campaign: campaign?.id }),
+                    })
+                  }
+                >
                   IG Preview
                 </Button>
                 <Button

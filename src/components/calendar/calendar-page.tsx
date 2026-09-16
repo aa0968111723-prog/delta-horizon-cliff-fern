@@ -10,6 +10,7 @@ import { runPublishItem } from "@/lib/connect/publish-item";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { agendaSorted, firstPublishable, isDue } from "@/lib/zen/schedule";
 import { campaignsForCalendar, scheduleForCampaign } from "@/lib/studio/calendar-search";
+import { igSearchParams } from "@/lib/studio/ig-search";
 import { contentKindLabel, contentStatusLabel } from "@/lib/studio/content";
 import { uid } from "@/lib/studio/ids";
 import { cn } from "@/lib/utils";
@@ -113,7 +114,10 @@ export function CalendarPage() {
           igMediaId: result.extra?.igMediaId ?? item.igMediaId,
         });
         toast.success("已寫進過去 IG");
-        void navigate({ to: "/ig", search: { posted: memory.id } });
+        void navigate({
+          to: "/ig",
+          search: igSearchParams({ posted: memory.id, campaign: item.campaignId ?? campaignId }),
+        });
       }
     } finally {
       setPublishingId(null);
