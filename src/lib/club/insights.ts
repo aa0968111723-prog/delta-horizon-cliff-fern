@@ -100,5 +100,5 @@ ${insights.answers.join("\n")}
 節奏：${insights.mixLesson}
 高收藏 Hook：${insights.winningHooks.join(" ／ ") || "生活問句"}
 平均 Caption 約 ${insights.avgCaption} 字。
-不要寫年輕人、Z 世代。`;
+不要用抽象客群稱呼。`;
 }

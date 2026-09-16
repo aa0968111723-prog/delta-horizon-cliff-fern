@@ -8,7 +8,7 @@ test("insights prefer high-save life posts over club invitations", () => {
   assert.equal(insights.winningHooks[0].includes("誠摯邀請"), false);
   assert.ok(insights.winningHooks.some((hook) => /期末|休息|課表/.test(hook)));
   assert.equal(insights.answers.length, 5);
-  assert.ok(insights.visualLesson.includes("寺廟") === false || insights.visualLesson.includes("比寺廟"));
+  assert.ok(/寺廟金|僧袍/.test(insights.visualLesson));
   const block = insightsPromptBlock(insights);
   assert.equal(block.includes("Z 世代"), false);
   assert.ok(block.includes("Hook"));
