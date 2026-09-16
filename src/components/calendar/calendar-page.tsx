@@ -260,46 +260,6 @@ export function CalendarPage() {
         </p>
       ) : null}
 
-      {waiting.length ? (
-        <section className="mt-6">
-          <SectionHeader title="完成了、還沒排" hint="同一則做成的全套會併成一列。排這套、或複製文案下載圖就能發。" />
-          <ul className="grid gap-3 lg:grid-cols-2">
-            {waiting.map((row) => (
-              <li key={row.rootId} className="min-w-0 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
-                <div className="flex items-start justify-between gap-2">
-                  <Link
-                    to="/studio/$projectId"
-                    params={{ projectId: row.primary.id }}
-                    className="min-w-0"
-                  >
-                    <span className="block truncate text-sm font-medium">{row.primary.name}</span>
-                    <span className="block truncate text-xs text-muted">
-                      {row.pack.length > 1
-                        ? row.pack.map((item) => contentKindLabel(item.contentKind)).join("、")
-                        : contentKindLabel(row.primary.contentKind)}
-                    </span>
-                  </Link>
-                  <StatusBadge status={row.primary.status} />
-                </div>
-                {row.pack.length > 1 ? (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <PackFlowBar projectId={row.primary.id} />
-                    <DownloadPackButton projectId={row.primary.id} size="sm" variant="secondary" />
-                  </div>
-                ) : null}
-                <PostPackBar
-                  copy={row.primary.copy}
-                  kind={row.primary.contentKind}
-                  projectId={row.primary.id}
-                  variant="compact"
-                  className="mt-3 pt-2"
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
       {view !== "agenda" ? (
         <div className="mt-6 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1">
@@ -407,6 +367,46 @@ export function CalendarPage() {
           </p>
         </>
       )}
+
+      {waiting.length ? (
+        <section className="mt-6">
+          <SectionHeader title="完成了、還沒排" hint="同一則做成的全套會併成一列。排這套、或複製文案下載圖就能發。" />
+          <ul className="grid gap-3 lg:grid-cols-2">
+            {waiting.map((row) => (
+              <li key={row.rootId} className="min-w-0 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
+                <div className="flex items-start justify-between gap-2">
+                  <Link
+                    to="/studio/$projectId"
+                    params={{ projectId: row.primary.id }}
+                    className="min-w-0"
+                  >
+                    <span className="block truncate text-sm font-medium">{row.primary.name}</span>
+                    <span className="block truncate text-xs text-muted">
+                      {row.pack.length > 1
+                        ? row.pack.map((item) => contentKindLabel(item.contentKind)).join("、")
+                        : contentKindLabel(row.primary.contentKind)}
+                    </span>
+                  </Link>
+                  <StatusBadge status={row.primary.status} />
+                </div>
+                {row.pack.length > 1 ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <PackFlowBar projectId={row.primary.id} />
+                    <DownloadPackButton projectId={row.primary.id} size="sm" variant="secondary" />
+                  </div>
+                ) : null}
+                <PostPackBar
+                  copy={row.primary.copy}
+                  kind={row.primary.contentKind}
+                  projectId={row.primary.id}
+                  variant="compact"
+                  className="mt-3 pt-2"
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {items.length === 0 ? (
         <div className="mt-8 rounded-2xl bg-surface p-8 text-center shadow-[var(--shadow-border)]">
