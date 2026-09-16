@@ -47,7 +47,7 @@ export function CreateHub() {
       const result = await generateCreativePack({
         data: {
           ...toBriefInput(brief, brand),
-          memoryNotes: memory.map((m) => `${m.source} / ${m.subtitle} ${m.title}`).join("\n"),
+          memoryNotes: memory.map((m) => m.subtitle).join("\n"),
         },
       });
       if (!result.ok) {

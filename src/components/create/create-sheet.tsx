@@ -3,6 +3,7 @@ import {
   CalendarPlus,
   Clapperboard,
   ImageIcon,
+  Instagram,
   Layers,
   Lightbulb,
   PenLine,
@@ -24,6 +25,8 @@ const ACTIONS = [
   { id: "reels", label: "生成 Reels", hint: "0–20 秒分鏡", to: "/create" },
   { id: "campaign", label: "建立活動", hint: "茶會、禪光、社課", to: "/campaigns" },
   { id: "idea", label: "從一句想法開始", hint: "先寫感覺再變內容", to: "/create" },
+  { id: "drive", label: "從 Google Drive 開始", hint: "找歷屆照片與企劃", to: "/connect" },
+  { id: "ig", label: "從以前 IG 開始", hint: "用自己的帳號記憶", to: "/instagram" },
 ] as const;
 
 const ICONS = {
@@ -34,6 +37,8 @@ const ICONS = {
   reels: Clapperboard,
   campaign: CalendarPlus,
   idea: Lightbulb,
+  drive: Lightbulb,
+  ig: Instagram,
 };
 
 export function CreateLaunchSheet({
@@ -63,6 +68,14 @@ export function CreateLaunchSheet({
                     onOpenChange(false);
                     if (action.id === "campaign") {
                       void navigate({ to: "/campaigns" });
+                      return;
+                    }
+                    if (action.id === "drive") {
+                      void navigate({ to: "/connect" });
+                      return;
+                    }
+                    if (action.id === "ig") {
+                      void navigate({ to: "/instagram" });
                       return;
                     }
                     void navigate({ to: action.to });

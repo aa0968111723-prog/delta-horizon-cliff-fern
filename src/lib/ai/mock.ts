@@ -50,7 +50,7 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
   const headline = clipHeadline(name.replace(/[（(].*$/, ""));
   const isZen = /禪|淡江|禪學/.test(`${data.brandName}${data.audience}${data.eventName}`);
   const hook = isZen
-    ? stripForbidden(slogan || "最近是不是很久沒有好好坐下來？", data.forbiddenWords)
+    ? stripForbidden("最近是不是很久沒有好好坐下來？", data.forbiddenWords)
     : stripForbidden(slogan || (offer ? `${name}，${offer}。` : `${name}，只在${when}。`), data.forbiddenWords);
   const concept = stripForbidden(
     `${name}把「${features}」講給${audience}聽。目的是${goalLabel(data.goal)}，語氣維持${style}，不靠叫賣。`,

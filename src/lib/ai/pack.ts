@@ -79,8 +79,8 @@ function defaultSources(notes?: string): CitedSource[] {
         })
     : [];
   return [
-    { source: "brand", label: "Brand Memory", detail: "龜龜、三色光、語氣" },
-    { source: "instagram", label: "Instagram / 歷史", detail: "高收藏 Hook 句型" },
+    { source: "brand", label: "龜龜、三色光、語氣", detail: "Brand Memory" },
+    { source: "instagram", label: "歷史貼文", detail: "高收藏 Hook 句型" },
     ...extra,
   ];
 }

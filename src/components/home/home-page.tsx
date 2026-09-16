@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ProjectCard } from "@/components/shared/project-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAssetUrls } from "@/hooks/use-asset-urls";
+import { useAssetUrls, resolveAssetSrc } from "@/hooks/use-asset-urls";
 import { generateCreativePack } from "@/lib/ai/pack";
 import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
@@ -73,7 +73,7 @@ export function HomePage() {
       const result = await generateCreativePack({
         data: {
           ...toBriefInput(brief, brand),
-          memoryNotes: memory.map((m) => `${m.source} / ${m.subtitle} ${m.title}`).join("\n"),
+          memoryNotes: memory.map((m) => m.subtitle).join("\n"),
         },
       });
       if (!result.ok) {
@@ -154,7 +154,7 @@ export function HomePage() {
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
           {hits.slice(0, 6).map((hit) => (
             <li key={`${hit.source}-${hit.id}`} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
-              <p className="text-[11px] tracking-wide text-muted uppercase">{hit.source}</p>
+              <p className="text-[11px] tracking-wide text-muted uppercase">{sourceLabel(hit.source)}</p>
               <p className="mt-1 text-sm font-medium">{hit.title}</p>
               <p className="text-xs text-muted">{hit.subtitle}</p>
             </li>
@@ -278,8 +278,8 @@ export function HomePage() {
             <li key={asset.id} className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
               <Link to="/assets">
                 <div className="aspect-square bg-bg">
-                  {urls[asset.id] ? (
-                    <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" />
+                  {resolveAssetSrc(asset.id, urls, asset.seedSrc) ? (
+                    <img src={resolveAssetSrc(asset.id, urls, asset.seedSrc)} alt={asset.name} className="size-full object-cover" />
                   ) : (
                     <div className="flex size-full items-center justify-center text-xs text-muted">載入中</div>
                   )}
@@ -294,4 +294,14 @@ export function HomePage() {
       <CreateLaunchSheet open={createOpen} onOpenChange={setCreateOpen} />
     </main>
   );
+}
+
+function sourceLabel(source: string) {
+  if (source === "drive") return "Google Drive";
+  if (source === "canva") return "Canva";
+  if (source === "instagram") return "Instagram";
+  if (source === "generated") return "AI Generated";
+  if (source === "campaign") return "活動";
+  if (source === "brand") return "Brand";
+  return "素材";
 }

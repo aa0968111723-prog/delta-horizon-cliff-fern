@@ -22,7 +22,7 @@ export function PackResult({
       <div className="mt-3 flex flex-wrap gap-2">
         {pack.citedSources.map((src) => (
           <Badge key={`${src.source}-${src.label}`} variant="default">
-            {labelSource(src.source)} / {src.label}
+            {sourceLine(src.source, src.label)}
           </Badge>
         ))}
       </div>
@@ -70,6 +70,14 @@ function reviewText(pack: CreativePack) {
     `時間地點？ ${r.knowsWhenWhere}`,
     `找朋友？ ${r.wouldBringFriend}`,
   ].join("\n");
+}
+
+function sourceLine(source: string, label: string) {
+  const pretty = labelSource(source);
+  if (!label) return pretty;
+  if (label.includes("/")) return label;
+  if (label.startsWith(pretty)) return label;
+  return `${pretty} / ${label}`;
 }
 
 function labelSource(source: string) {

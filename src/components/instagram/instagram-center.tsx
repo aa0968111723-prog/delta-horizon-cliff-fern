@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { useAssetUrls } from "@/hooks/use-asset-urls";
+import { useAssetUrls, resolveAssetSrc } from "@/hooks/use-asset-urls";
 import { IG_DNA } from "@/lib/zen/memory";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -30,20 +30,23 @@ export function InstagramCenter() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_18rem]">
         <div>
           <div className="grid grid-cols-3 gap-1">
-            {igPosts.map((item) => (
+            {igPosts.map((item) => {
+              const src = resolveAssetSrc(item.assetId, urls, assets.find((a) => a.id === item.assetId)?.seedSrc);
+              return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setActive(item.id)}
                 className="aspect-square overflow-hidden bg-surface"
               >
-                {urls[item.assetId] ? (
-                  <img src={urls[item.assetId]} alt="" className="size-full object-cover" />
+                {src ? (
+                  <img src={src} alt="" className="size-full object-cover" />
                 ) : (
                   <span className="flex size-full items-center justify-center text-xs text-muted">{item.mediaType}</span>
                 )}
               </button>
-            ))}
+              );
+            })}
           </div>
           {post ? (
             <article className="mt-6 rounded-[1.5rem] bg-surface p-5 shadow-[var(--shadow-border)]">

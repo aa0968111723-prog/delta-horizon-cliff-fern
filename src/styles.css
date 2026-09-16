@@ -31,8 +31,8 @@
   --radius-xl: 24px;
   --radius-2xl: 28px;
 
-  --spacing-nav: 3.5rem;
-  --spacing-nav-safe: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  --spacing-nav: 5.5rem;
+  --spacing-nav-safe: calc(var(--spacing-nav) + env(safe-area-inset-bottom, 0px));
   --spacing-header: 3.5rem;
 
   --shadow-border:

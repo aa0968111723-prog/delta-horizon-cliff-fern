@@ -126,10 +126,10 @@ export interface FileRoutesByFullPath {
   '/instagram': typeof InstagramRoute
   '/studio': typeof StudioRouteWithChildren
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
-  '/campaigns/': typeof CampaignsIndexRoute
   '/create/image': typeof CreateImageRoute
-  '/create/': typeof CreateIndexRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns/': typeof CampaignsIndexRoute
+  '/create/': typeof CreateIndexRoute
   '/studio/': typeof StudioIndexRoute
 }
 export interface FileRoutesByTo {
@@ -138,14 +138,14 @@ export interface FileRoutesByTo {
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
   '/calendar': typeof CalendarRoute
-  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
-  '/campaigns': typeof CampaignsIndexRoute
   '/connect': typeof ConnectRoute
-  '/create/image': typeof CreateImageRoute
-  '/create': typeof CreateIndexRoute
   '/export': typeof ExportRoute
   '/instagram': typeof InstagramRoute
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
+  '/create/image': typeof CreateImageRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns': typeof CampaignsIndexRoute
+  '/create': typeof CreateIndexRoute
   '/studio': typeof StudioIndexRoute
 }
 export interface FileRoutesById {
@@ -162,10 +162,10 @@ export interface FileRoutesById {
   '/instagram': typeof InstagramRoute
   '/studio': typeof StudioRouteWithChildren
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
-  '/campaigns/': typeof CampaignsIndexRoute
   '/create/image': typeof CreateImageRoute
-  '/create/': typeof CreateIndexRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns/': typeof CampaignsIndexRoute
+  '/create/': typeof CreateIndexRoute
   '/studio/': typeof StudioIndexRoute
 }
 export interface FileRouteTypes {
@@ -183,10 +183,10 @@ export interface FileRouteTypes {
     | '/instagram'
     | '/studio'
     | '/campaigns/$campaignId'
-    | '/campaigns/'
     | '/create/image'
-    | '/create/'
     | '/studio/$projectId'
+    | '/campaigns/'
+    | '/create/'
     | '/studio/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -195,14 +195,14 @@ export interface FileRouteTypes {
     | '/assistant'
     | '/brand'
     | '/calendar'
-    | '/campaigns/$campaignId'
-    | '/campaigns'
     | '/connect'
-    | '/create/image'
-    | '/create'
     | '/export'
     | '/instagram'
+    | '/campaigns/$campaignId'
+    | '/create/image'
     | '/studio/$projectId'
+    | '/campaigns'
+    | '/create'
     | '/studio'
   id:
     | '__root__'
@@ -218,10 +218,10 @@ export interface FileRouteTypes {
     | '/instagram'
     | '/studio'
     | '/campaigns/$campaignId'
-    | '/campaigns/'
     | '/create/image'
-    | '/create/'
     | '/studio/$projectId'
+    | '/campaigns/'
+    | '/create/'
     | '/studio/'
   fileRoutesById: FileRoutesById
 }
@@ -373,8 +373,9 @@ const CampaignsRouteChildren: CampaignsRouteChildren = {
   CampaignsIndexRoute: CampaignsIndexRoute,
 }
 
-const CampaignsRouteWithChildren =
-  CampaignsRoute._addFileChildren(CampaignsRouteChildren)
+const CampaignsRouteWithChildren = CampaignsRoute._addFileChildren(
+  CampaignsRouteChildren,
+)
 
 interface CreateRouteChildren {
   CreateImageRoute: typeof CreateImageRoute
@@ -386,7 +387,8 @@ const CreateRouteChildren: CreateRouteChildren = {
   CreateIndexRoute: CreateIndexRoute,
 }
 
-const CreateRouteWithChildren = CreateRoute._addFileChildren(CreateRouteChildren)
+const CreateRouteWithChildren =
+  CreateRoute._addFileChildren(CreateRouteChildren)
 
 interface StudioRouteChildren {
   StudioProjectIdRoute: typeof StudioProjectIdRoute
