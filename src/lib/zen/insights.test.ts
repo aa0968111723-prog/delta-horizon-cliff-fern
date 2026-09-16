@@ -40,6 +40,29 @@ test("learnFromIg prefers question hooks with higher saves", () => {
   assert.doesNotMatch(learning.promptBlock, /Assignee|Reviewer/);
 });
 
+test("local posts without metrics do not beat real IG saves", () => {
+  const learning = learnFromIg([
+    {
+      id: "local",
+      caption: "隨便一則還沒有效果",
+      date: "2026-09-16",
+      kind: "post",
+      source: "local",
+    },
+    {
+      id: "a",
+      caption: "最近是不是很久沒有好好坐下來？",
+      date: "2026-09-17",
+      kind: "carousel",
+      saves: 21,
+      comments: 7,
+      likes: 86,
+      source: "local",
+    },
+  ]);
+  assert.match(learning.bestHookShape, /坐下來/);
+});
+
 test("rhythm avoids consecutive promo ads", () => {
   assert.equal(nextKindAfter(["carousel", "ig-post"]), "member-story");
   assert.match(rhythmHint(["carousel", "poster"]), /生活|故事/);

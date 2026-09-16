@@ -539,6 +539,12 @@ export type ScheduleItem = {
   scheduledAt: number;
   publishedAt: number | null;
   status: ContentStatus;
+  caption?: string;
+  body?: string;
+  hashtags?: string[];
+  mediaUrl?: string;
+  imageAssetId?: string;
+  permalink?: string;
 };
 
 export type ConnectionProvider = "drive" | "canva" | "instagram";

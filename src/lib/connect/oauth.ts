@@ -52,7 +52,7 @@ export function providerConfig(provider: ProviderId): { configured: boolean; aut
     configured: Boolean(id && (process.env.INSTAGRAM_CLIENT_SECRET || process.env.META_APP_SECRET)),
     label: "Instagram",
     authorize: id
-      ? `https://www.facebook.com/v21.0/dialog/oauth?client_id=${encodeURIComponent(id)}&response_type=code&scope=${encodeURIComponent("instagram_basic,pages_show_list,instagram_manage_insights")}`
+        ? `https://www.facebook.com/v21.0/dialog/oauth?client_id=${encodeURIComponent(id)}&response_type=code&scope=${encodeURIComponent("instagram_basic,pages_show_list,instagram_manage_insights,instagram_content_publish")}`
       : undefined,
   };
 }

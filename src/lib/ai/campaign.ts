@@ -1,5 +1,6 @@
 import { completeCarouselPages } from "@/lib/studio/carousel";
 import { zenSystemPrompt } from "@/lib/zen/context";
+import { labelDirections } from "@/lib/zen/direction";
 import { createServerFn } from "@tanstack/react-start";
 import type { CampaignPlan, TemplateId } from "@/lib/studio/types";
 import { buildMockPlan } from "./mock";
@@ -59,7 +60,7 @@ function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: Campaig
     qaNotes: parsed.qaNotes,
     generatedAt: Date.now(),
     source,
-    directions: parsed.directions?.length ? parsed.directions : undefined,
+    directions: parsed.directions?.length ? labelDirections(parsed.directions) : undefined,
     copyPacks: parsed.copyPacks?.length ? parsed.copyPacks : undefined,
     threadsPost: parsed.threadsPost || undefined,
     lineCopy: parsed.lineCopy || undefined,
@@ -157,7 +158,7 @@ checklist 5-8 則發布前檢查,
 altText, qaNotes 2-4 則設計注意,
 threadsPost, lineCopy,
 storyFrames 3-5 則,
-directions[{id,name,concept,palette,composition,typeDirection,prompt,headline,subhead}] 3 個視覺方向,
+directions[{id,name,concept,palette,composition,typeDirection,prompt,headline,subhead}] 3 個視覺方向，name 必須是「方向 A · …」「方向 B · …」「方向 C · …」,
 copyPacks[{tone:short|normal|emotional|student|life|humor,hook,body,cta,hashtags}],
 reelsScript:{hook,beats:[{start,end,onScreen,caption,voice,transition,assetHint}]},
 studentReview:{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,tooLong,knowsWhat,knowsWhenWhere,wouldBringFriend,knowsHowToSignup,rewriteHook,notes[]}

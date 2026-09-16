@@ -76,3 +76,11 @@ export function convertPlan(plan: CampaignPlan, kind: ContentKind): ConvertedPac
     items: [plan.captions[0]?.text || `${plan.hook}\n${plan.body}`],
   };
 }
+
+export function packCaption(plan: CampaignPlan, pack: ConvertedPack) {
+  if (pack.kind === "ig-post" || pack.kind === "threads" || pack.kind === "line") {
+    return pack.items.join("\n");
+  }
+  const tags = plan.hashtags.join(" ");
+  return [plan.hook, plan.body, plan.cta, tags].filter(Boolean).join("\n");
+}

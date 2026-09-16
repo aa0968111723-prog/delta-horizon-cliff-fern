@@ -1,4 +1,5 @@
 import { HOOK_EXAMPLES, isZenClubBrief } from "../zen/context.ts";
+import { labelDirections } from "../zen/direction.ts";
 import { proposedHook, tidyCopy } from "../zen/review.ts";
 import { goalLabel } from "../studio/goals.ts";
 import type { CampaignPlan, CarouselPagePlan, CopyPack, StudentReview, TemplateId, VisualDirection } from "../studio/types.ts";
@@ -159,7 +160,7 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
       ].filter(Boolean);
 
   const directions: VisualDirection[] | undefined = zen
-    ? [
+    ? labelDirections([
         {
           id: "dir_night",
           name: "淡水夜燈",
@@ -193,14 +194,17 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
           headline,
           subhead: hook,
         },
-      ]
+      ])
     : undefined;
 
   const copyPacks: CopyPack[] | undefined = zen
     ? [
         { tone: "student", hook, body: captionCore, cta, hashtags },
         { tone: "short", hook, body: `${when} ${where}。${cta}`, cta, hashtags },
+        { tone: "normal", hook, body: captionCore, cta, hashtags },
         { tone: "emotional", hook, body: `${hook}\n${when}，${where}。`, cta, hashtags },
+        { tone: "life", hook, body: `${hook}\n淡水的晚上可以只是坐一下。`, cta, hashtags },
+        { tone: "humor", hook, body: `不是要你頓悟，就是來坐一下。\n${when} ${where}`, cta, hashtags },
       ]
     : undefined;
 

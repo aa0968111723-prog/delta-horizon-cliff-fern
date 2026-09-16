@@ -1,6 +1,17 @@
 import type { CampaignPlan, StudentReview, VisualDirection } from "../studio/types.ts";
 import { proposedHook } from "./review.ts";
 
+const LETTERS = ["A", "B", "C"] as const;
+
+/** Spec §8: three named directions, always 方向 A/B/C. */
+export function labelDirections(dirs: VisualDirection[]): VisualDirection[] {
+  return dirs.slice(0, 3).map((dir, i) => {
+    const letter = LETTERS[i] ?? String(i + 1);
+    if (/方向\s*[ABC]/.test(dir.name)) return dir;
+    return { ...dir, name: `方向 ${letter} · ${dir.name}` };
+  });
+}
+
 /** User picked a visual direction — copy and canvas follow it, not a generic poster. */
 export function applyDirectionToPlan(plan: CampaignPlan, dir: VisualDirection): CampaignPlan {
   const hook = /[？?]/.test(dir.headline) ? dir.headline : plan.hook;

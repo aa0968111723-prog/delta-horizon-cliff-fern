@@ -18,6 +18,7 @@ export function CalendarPage() {
   const campaigns = useStudio((s) => s.campaigns);
   const moveSchedule = useStudio((s) => s.moveSchedule);
   const upsertSchedule = useStudio((s) => s.upsertSchedule);
+  const publishSchedule = useStudio((s) => s.publishSchedule);
   const setCreateOpen = useUi((s) => s.setCreateOpen);
   const [cursor, setCursor] = useState(new Date("2026-09-16T00:00:00+08:00"));
   const [view, setView] = useState<View>("month");
@@ -126,13 +127,7 @@ export function CalendarPage() {
                           <button
                             type="button"
                             className="text-[10px] text-muted"
-                            onClick={() =>
-                              upsertSchedule({
-                                ...item,
-                                status: "published",
-                                publishedAt: item.publishedAt ?? Date.now(),
-                              })
-                            }
+                            onClick={() => publishSchedule(item.id)}
                           >
                             已發布
                           </button>
@@ -173,13 +168,7 @@ export function CalendarPage() {
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={() =>
-                      upsertSchedule({
-                        ...item,
-                        status: "published",
-                        publishedAt: item.publishedAt ?? Date.now(),
-                      })
-                    }
+                    onClick={() => publishSchedule(item.id)}
                   >
                     標記已發布
                   </Button>

@@ -31,6 +31,7 @@ import {
   pagesOf,
 } from "@/lib/studio/layers";
 import { inferContentKind, kindFromFormat, legacyFromContent, statusFromLegacy } from "@/lib/studio/content";
+import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import {
   DEFAULT_CONNECTIONS,
   SEED_ASSETS,
@@ -127,6 +128,7 @@ type StudioState = {
   updateCampaign: (id: string, patch: Partial<ClubCampaign> | ((c: ClubCampaign) => ClubCampaign)) => void;
   deleteCampaign: (id: string) => void;
   upsertSchedule: (item: ScheduleItem) => void;
+  publishSchedule: (id: string, extra?: { permalink?: string; mediaUrl?: string }) => void;
   moveSchedule: (id: string, scheduledAt: number) => void;
   removeSchedule: (id: string) => void;
   setContentStatus: (projectId: string, status: ContentStatus, scheduledAt?: number | null) => void;
@@ -269,6 +271,14 @@ function withPages(project: Project, formatId: FormatId, pages: Artboard[], slid
     slides: { ...project.slides, [formatId]: stamped },
     slideIndex: idx,
     updatedAt: Date.now(),
+  };
+}
+
+function migrateScheduleItem(raw: ScheduleItem): ScheduleItem {
+  return {
+    ...raw,
+    caption: raw.caption ?? "",
+    hashtags: raw.hashtags ?? [],
   };
 }
 
@@ -529,6 +539,28 @@ export const useStudio = create<StudioState>()(
           const exists = s.schedule.some((row) => row.id === item.id);
           return {
             schedule: exists ? s.schedule.map((row) => (row.id === item.id ? item : row)) : [item, ...s.schedule],
+          };
+        }),
+      publishSchedule: (id, extra) =>
+        set((s) => {
+          const item = s.schedule.find((row) => row.id === id);
+          if (!item) return {};
+          const published: ScheduleItem = {
+            ...item,
+            status: "published",
+            publishedAt: item.publishedAt ?? Date.now(),
+            permalink: extra?.permalink ?? item.permalink,
+            mediaUrl: extra?.mediaUrl ?? item.mediaUrl,
+          };
+          const memory = igMemoryFromSchedule(published);
+          return {
+            schedule: s.schedule.map((row) => (row.id === id ? published : row)),
+            igMemory: [memory, ...s.igMemory.filter((row) => row.id !== memory.id && row.id !== `local:${id}`)],
+            projects: s.projects.map((p) =>
+              published.projectId && p.id === published.projectId
+                ? { ...p, contentStatus: "published" as const, status: "exported" as const, publishedAt: published.publishedAt }
+                : p,
+            ),
           };
         }),
       moveSchedule: (id, scheduledAt) =>
@@ -1209,7 +1241,7 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 2,
+      version: 3,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,
@@ -1243,7 +1275,7 @@ export const useStudio = create<StudioState>()(
           assets,
           projects,
           campaigns: p.campaigns ?? current.campaigns,
-          schedule: p.schedule ?? current.schedule,
+          schedule: (p.schedule ?? current.schedule).map(migrateScheduleItem),
           connections: p.connections?.length ? p.connections : current.connections,
           igMemory: p.igMemory ?? current.igMemory,
           remoteFiles: p.remoteFiles?.length ? p.remoteFiles : current.remoteFiles,
@@ -1270,7 +1302,7 @@ export const useStudio = create<StudioState>()(
           assets,
           projects,
           campaigns: state.campaigns ?? SEED_CAMPAIGNS,
-          schedule: state.schedule ?? SEED_SCHEDULE,
+          schedule: (state.schedule ?? SEED_SCHEDULE).map(migrateScheduleItem),
           connections: state.connections?.length ? state.connections : DEFAULT_CONNECTIONS,
           igMemory: state.igMemory ?? SEED_IG_MEMORY,
           remoteFiles: state.remoteFiles?.length ? state.remoteFiles : SEED_REMOTE_FILES,

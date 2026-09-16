@@ -1,5 +1,6 @@
 import { uid } from "../studio/ids.ts";
 import type { CampaignWave, CampaignWaveKind, ClubCampaign, ContentKind, EventKind } from "../studio/types.ts";
+import { nextKindAfter } from "./rhythm.ts";
 
 const WAVE_LABEL: Record<CampaignWaveKind, string> = {
   warmup: "預熱",
@@ -28,14 +29,25 @@ function daysBetween(from: Date, to: Date) {
 }
 
 /** Soft rhythm, not a hardcoded blast of ads. */
-export function suggestWaves(campaign: Pick<ClubCampaign, "date" | "type" | "name">, now = new Date()): CampaignWave[] {
+export function suggestWaves(
+  campaign: Pick<ClubCampaign, "date" | "type" | "name">,
+  now = new Date(),
+  opts?: { recentKinds?: ContentKind[] },
+): CampaignWave[] {
   const event = new Date(`${campaign.date}T19:00:00+08:00`);
   const lead = daysBetween(now, event);
   const longLead = lead >= 12;
   const kinds: Array<{ kind: CampaignWaveKind; offset: number; hour: number; notes: string }> = [];
+  const recent = opts?.recentKinds ?? [];
+  const needsBreath = recent.length >= 2 && ["member-story", "knowledge"].includes(nextKindAfter(recent));
 
-  if (longLead) {
-    kinds.push({ kind: "warmup", offset: -Math.min(14, lead - 1), hour: 20, notes: "生活感，不硬推活動名。" });
+  if (longLead || needsBreath) {
+    kinds.push({
+      kind: "warmup",
+      offset: -Math.min(14, lead - 1),
+      hour: 20,
+      notes: needsBreath ? "最近連續宣傳，先插一則生活。" : "生活感，不硬推活動名。",
+    });
     kinds.push({ kind: "emotion", offset: -Math.min(10, lead - 1), hour: 21, notes: "讓學生覺得被看見。" });
   } else {
     kinds.push({ kind: "emotion", offset: -Math.min(6, Math.max(lead - 1, 1)), hour: 21, notes: "先共鳴再宣傳。" });

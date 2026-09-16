@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -23,6 +23,7 @@ export function ScheduleEditor({
   onClose: () => void;
 }) {
   const [title, setTitle] = useState(item.title);
+  const [caption, setCaption] = useState(item.caption ?? "");
   const [when, setWhen] = useState(format(item.scheduledAt, "yyyy-MM-dd'T'HH:mm"));
   const [kind, setKind] = useState<ContentKind>(item.kind);
   const [status, setStatus] = useState<ContentStatus>(item.status);
@@ -34,6 +35,10 @@ export function ScheduleEditor({
         <div>
           <Label>標題</Label>
           <Input className="mt-1" value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        <div>
+          <Label>Caption</Label>
+          <Textarea className="mt-1" rows={4} value={caption} onChange={(e) => setCaption(e.target.value)} />
         </div>
         <div>
           <Label>預計發布</Label>
@@ -79,6 +84,7 @@ export function ScheduleEditor({
             onSave({
               ...item,
               title: title.trim() || item.title,
+              caption: caption.trim(),
               kind,
               status,
               scheduledAt: Number.isNaN(scheduledAt) ? item.scheduledAt : scheduledAt,

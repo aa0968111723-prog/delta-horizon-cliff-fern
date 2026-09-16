@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { studentSituation, zenSystemPrompt } from "@/lib/zen/context";
+import { labelDirections } from "@/lib/zen/direction";
 import type { FormatId, VisualDirection } from "@/lib/studio/types";
 
 export const IMAGE_FORMAT_IDS = [
@@ -121,7 +122,7 @@ function parseIdeaInput(input: unknown) {
 export const generateVisualDirections = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseIdeaInput(input))
   .handler(async ({ data }): Promise<DirectionResult> => {
-    const mock = mockDirections(data.idea, data.eventName);
+    const mock = labelDirections(mockDirections(data.idea, data.eventName));
     const apiKey = process.env.XAI_API_KEY;
     if (!apiKey || data.forceMock) return { ok: true, adapter: "mock", directions: mock };
     const res = await fetch("https://api.x.ai/v1/chat/completions", {
@@ -142,7 +143,7 @@ export const generateVisualDirections = createServerFn({ method: "POST" })
             content: `為「${data.idea}」${data.eventName ? `（${data.eventName}）` : ""}提出 3 個 IG 視覺方向。
 學生情境：${studentSituation()}
 品牌記憶與過去 IG：${data.memoryHint || "問句 Hook、夜晚座位、三色光。學自己的 IG。"}
-JSON:{directions:[{id,name,concept,palette,composition,typeDirection,prompt,headline,subhead}]} prompt 用英文、具體、不要寺廟、不要宗教海報。headline 先像在講淡江學生。`,
+JSON:{directions:[{id,name,concept,palette,composition,typeDirection,prompt,headline,subhead}]} name 用「方向 A · …」這種形式。prompt 用英文、具體、不要寺廟、不要宗教海報。headline 先像在講淡江學生。`,
           },
         ],
       }),
@@ -152,7 +153,7 @@ JSON:{directions:[{id,name,concept,palette,composition,typeDirection,prompt,head
     try {
       const parsed = JSON.parse(body.choices?.[0]?.message?.content ?? "{}") as { directions?: VisualDirection[] };
       if (!parsed.directions?.length) throw new Error("empty");
-      return { ok: true, adapter: "live", directions: parsed.directions };
+      return { ok: true, adapter: "live", directions: labelDirections(parsed.directions) };
     } catch {
       return { ok: false, adapter: "live", error: "視覺方向無法解析。" };
     }

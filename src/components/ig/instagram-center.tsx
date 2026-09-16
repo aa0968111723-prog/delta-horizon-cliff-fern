@@ -1,14 +1,18 @@
 import { InsightLessons } from "@/components/ig/insight-lessons";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
+import { publishInstagramMedia } from "@/lib/connect/instagram-publish";
 import { pagesOf } from "@/lib/studio/layers";
 import { clubCreativeDna } from "@/lib/zen/dna";
+import { canGraphPublish } from "@/lib/zen/memory";
 import { igHookAnalysis } from "@/lib/zen/review";
 import { useStudio } from "@/stores/studio-store";
+import type { ScheduleItem } from "@/lib/studio/types";
 
 export function InstagramCenter() {
   const navigate = useNavigate();
@@ -18,18 +22,43 @@ export function InstagramCenter() {
   const assets = useStudio((s) => s.assets);
   const campaigns = useStudio((s) => s.campaigns);
   const schedule = useStudio((s) => s.schedule);
-  const upsertSchedule = useStudio((s) => s.upsertSchedule);
+  const publishSchedule = useStudio((s) => s.publishSchedule);
   const brand = brands[0];
   const [selected, setSelected] = useState<string | null>(igMemory[0]?.id ?? null);
   const [analysis, setAnalysis] = useState<ReturnType<typeof igHookAnalysis> | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
   const urls = useAssetUrls(assets.map((a) => a.id));
   const gridProjects = projects.filter((p) => p.activeFormatId.startsWith("feed") || p.contentKind === "carousel");
+  const upcoming = schedule.filter((item) => item.status === "scheduled");
   const post = igMemory.find((p) => p.id === selected);
 
   const dna = useMemo(
     () => clubCreativeDna({ brand, igMemory, campaigns, assets }),
     [igMemory, brand, assets, campaigns],
   );
+
+  async function publishItem(item: ScheduleItem) {
+    const caption = (item.caption || item.title).slice(0, 2200);
+    setPublishingId(item.id);
+    try {
+      await navigator.clipboard.writeText(caption).catch(() => undefined);
+      if (canGraphPublish(item.kind)) {
+        const result = await publishInstagramMedia({ data: { caption, imageUrl: item.mediaUrl } });
+        if (result.ok) {
+          publishSchedule(item.id, { mediaUrl: item.mediaUrl });
+          toast.success(result.note);
+          return;
+        }
+        toast.message(result.note);
+      } else {
+        toast.message("限動／Reels／Threads 請在 IG App 發。文案已複製。");
+      }
+      publishSchedule(item.id);
+      toast.success("已標記發布，並寫進過去 IG 記憶");
+    } finally {
+      setPublishingId(null);
+    }
+  }
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-10">
@@ -57,7 +86,22 @@ export function InstagramCenter() {
       <section className="mt-8">
         <h2 className="text-sm font-medium">Grid Preview</h2>
         <ul className="mt-3 grid grid-cols-3 gap-1">
-          {gridProjects.map((project) => {
+          {upcoming
+            .filter((item) => item.projectId)
+            .slice(0, 3)
+            .map((item) => {
+              const project = projects.find((p) => p.id === item.projectId);
+              const page = project ? pagesOf(project)[0] : null;
+              return (
+                <li key={`up-${item.id}`} className="relative aspect-square overflow-hidden bg-surface-2">
+                  {page && brand ? <ArtboardView artboard={page} brand={brand} urls={urls} width={140} /> : null}
+                  <span className="absolute bottom-1 left-1 rounded-full bg-surface px-2 py-0.5 text-[10px] text-fg">即將</span>
+                </li>
+              );
+            })}
+          {gridProjects
+            .filter((project) => !upcoming.some((item) => item.projectId === project.id))
+            .map((project) => {
             const page = pagesOf(project)[0];
             return (
               <li key={project.id} className="aspect-square overflow-hidden bg-surface-2">
@@ -131,27 +175,30 @@ export function InstagramCenter() {
       <section className="mt-8">
         <h2 className="text-sm font-medium">即將發布</h2>
         <ul className="mt-3 space-y-2">
-          {schedule
-            .filter((item) => item.status === "scheduled")
-            .slice(0, 4)
-            .map((item) => (
+          {upcoming.slice(0, 6).map((item) => (
               <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]">
                 {item.title}
                 <span className="mt-1 block text-xs text-muted">{item.kind}</span>
-                <Button
-                  className="mt-2"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() =>
-                    upsertSchedule({
-                      ...item,
-                      status: "published",
-                      publishedAt: item.publishedAt ?? Date.now(),
-                    })
-                  }
-                >
-                  標記已發布
-                </Button>
+                {item.caption ? <p className="mt-2 line-clamp-3 text-xs text-muted">{item.caption}</p> : null}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    disabled={publishingId === item.id}
+                    onClick={() => void publishItem(item)}
+                  >
+                    發布到 IG
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      publishSchedule(item.id);
+                      toast.success("已寫進過去 IG");
+                    }}
+                  >
+                    標記已發布
+                  </Button>
+                </div>
               </li>
             ))}
         </ul>

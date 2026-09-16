@@ -1,7 +1,7 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { convertPlan, type ConvertedPack } from "@/lib/ai/convert";
+import { convertPlan, packCaption, type ConvertedPack } from "@/lib/ai/convert";
 import { generateCampaignPlan, getCampaignAiStatus, describeAdapter, type AiStatus } from "@/lib/ai/campaign";
 import { generateCopyPacks } from "@/lib/ai/copy-studio";
 import { analyzeStudioImage, generateStudioImage, generateVisualDirections, type VisionAnalysis } from "@/lib/ai/image-studio";
@@ -94,7 +94,7 @@ export function CreateStudio() {
   const [pickedDirection, setPickedDirection] = useState<VisualDirection | null>(null);
   const [campaign, setCampaign] = useState<ClubCampaign | null>(null);
   const [vision, setVision] = useState<VisionAnalysis | null>(null);
-  const [lastImage, setLastImage] = useState<{ base64: string; mime: string } | null>(null);
+  const [lastImage, setLastImage] = useState<{ base64: string; mime: string; assetId?: string } | null>(null);
   const autoRan = useRef(false);
 
   useEffect(() => {
@@ -302,7 +302,7 @@ export function CreateStudio() {
     const result = await generateStudioImage({ data: { prompt: dir.prompt, format } });
     if (!result.ok) {
       toast.message("主視覺先用畫布方向。連上圖片生成後可以再出圖。");
-      return false;
+      return null;
     }
     const spec = formatById(format);
     const blob = blobFromBase64(result.imageBase64, result.mime);
@@ -326,9 +326,9 @@ export function CreateStudio() {
       lastUsedAt: Date.now(),
       useCount: 0,
     });
-    setLastImage({ base64: result.imageBase64, mime: result.mime });
+    setLastImage({ base64: result.imageBase64, mime: result.mime, assetId: id });
     toast.success("圖片已進素材庫（AI Generated）");
-    return true;
+    return id;
   }
 
   async function generateFromDirection(dir: VisualDirection) {
@@ -367,11 +367,11 @@ export function CreateStudio() {
     return project;
   }
 
-  function saveCampaignAndWaves(nextPlan = plan) {
+  function saveCampaignAndWaves(nextPlan = plan, assetId = lastImage?.assetId, projectId: string | null = null) {
     const name = eventName.trim() || guessEventName(`${idea} ${nextPlan?.campaignName ?? ""}`) || nextPlan?.campaignName || "未命名活動";
     const date = parseEventDate(schedule);
     const type = eventKindFromText(`${name} ${idea}`);
-    const waves = suggestWaves({ date, type, name });
+    const waves = suggestWaves({ date, type, name }, new Date(), { recentKinds });
     const created = createCampaign({
       name,
       type,
@@ -385,18 +385,23 @@ export function CreateStudio() {
       cta: nextPlan?.cta || "來坐一下",
       signupUrl,
       waves,
+      imageAssetId: assetId ?? null,
     });
     for (const wave of waves) {
       if (!wave.scheduledAt) continue;
       upsertSchedule({
         id: wave.id,
-        projectId: null,
+        projectId,
         campaignId: created.id,
         kind: contentKindForWave(wave.kind),
         title: wave.title,
         scheduledAt: wave.scheduledAt,
         publishedAt: null,
         status: "scheduled",
+        caption: oneLiner || nextPlan?.hook || idea,
+        body: description || nextPlan?.body,
+        hashtags: nextPlan?.hashtags,
+        imageAssetId: assetId,
       });
     }
     setCampaign(created);
@@ -405,20 +410,25 @@ export function CreateStudio() {
     return created;
   }
 
-  function scheduleConverted(nextPlan: CampaignPlan, created: ClubCampaign) {
+  function scheduleConverted(nextPlan: CampaignPlan, created: ClubCampaign, projectId: string | null = null, assetId = lastImage?.assetId) {
     const date = parseEventDate(schedule);
     const when = Date.parse(`${date}T19:00:00+08:00`);
     for (const pack of KINDS.map((kind) => convertPlan(nextPlan, kind))) {
       const scheduledAt = Number.isNaN(when) ? Date.now() : when + offsetDaysForConvertedKind(pack.kind) * 86_400_000;
       upsertSchedule({
         id: uid("sch"),
-        projectId: null,
+        projectId,
         campaignId: created.id,
         kind: pack.kind,
         title: `${pack.title} · ${eventName || nextPlan.campaignName || idea.slice(0, 12)}`,
         scheduledAt,
         publishedAt: null,
         status: "scheduled",
+        caption: packCaption(nextPlan, pack),
+        body: pack.items.join("\n"),
+        hashtags: nextPlan.hashtags,
+        imageAssetId: assetId,
+        mediaUrl: undefined,
       });
     }
   }
@@ -479,10 +489,10 @@ export function CreateStudio() {
     setPlan(next);
     setBusy(true);
     try {
-      await saveGeneratedImage(dir);
-      applyToCanvas(next, false);
-      const created = saveCampaignAndWaves(next);
-      scheduleConverted(next, created);
+      const imageId = (await saveGeneratedImage(dir)) ?? undefined;
+      const project = applyToCanvas(next, false);
+      const created = saveCampaignAndWaves(next, imageId, project?.id ?? null);
+      scheduleConverted(next, created, project?.id ?? null, imageId);
       toast.success("已用這個方向做出整套：主視覺、文案、各平台、月曆");
     } finally {
       setBusy(false);
@@ -504,6 +514,10 @@ export function CreateStudio() {
       scheduledAt,
       publishedAt: null,
       status: "scheduled",
+      caption: plan ? packCaption(plan, pack) : pack.items.join("\n"),
+      body: pack.items.join("\n"),
+      hashtags: plan?.hashtags,
+      imageAssetId: lastImage?.assetId,
     });
     toast.success(`${pack.title}已進月曆`);
     toast.message(rhythmHint([...recentKinds, pack.kind]));
@@ -710,9 +724,15 @@ export function CreateStudio() {
             </Button>
           </div>
           {campaign ? (
-            <p className="mt-3 text-xs text-muted">
-              已建立 {campaign.name}，節奏含 {campaign.waves.map((w) => waveLabel(w.kind)).join("、") || "預熱到回顧"}。
-            </p>
+            <div className="mt-4 rounded-2xl bg-accent/15 p-4">
+              <p className="text-sm font-medium">下一步</p>
+              <p className="mt-1 text-xs text-muted">
+                已用這個方向做出整套。可送 Canva 微調、看 IG Preview、或到月曆改時間。發布後會寫進過去 IG。
+              </p>
+              <p className="mt-3 text-xs text-muted">
+                已建立 {campaign.name}，節奏含 {campaign.waves.map((w) => waveLabel(w.kind)).join("、") || "預熱到回顧"}。
+              </p>
+            </div>
           ) : null}
         </section>
       ) : null}

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyDirectionToPlan, ensureRewriteDiffers } from "./direction.ts";
-import { contentKindForWave } from "./schedule.ts";
+import { applyDirectionToPlan, ensureRewriteDiffers, labelDirections } from "./direction.ts";
+import { contentKindForWave, suggestWaves } from "./schedule.ts";
 import { proposedHook } from "./review.ts";
 
 test("applyDirectionToPlan follows the picked visual, not a temple poster", () => {
@@ -77,8 +77,25 @@ test("wave kinds mix life and promo so the grid is not all ads", () => {
   assert.equal(contentKindForWave("hero"), "carousel");
   assert.equal(contentKindForWave("reason"), "knowledge");
   assert.equal(contentKindForWave("recap"), "recap");
+  const waves = suggestWaves(
+    { date: "2026-09-24", type: "tea", name: "茶會" },
+    new Date("2026-09-16T10:00:00+08:00"),
+    { recentKinds: ["ig-post", "carousel"] },
+  );
+  assert.ok(waves.some((w) => w.kind === "warmup"));
+  assert.ok(waves.some((w) => w.kind === "hero"));
 });
 
 test("proposedHook leaves 誠摯邀請 behind", () => {
   assert.doesNotMatch(proposedHook("淡江大學禪學社誠摯邀請您"), /誠摯/);
 });
+
+test("labelDirections prefixes 方向 A/B/C without doubling", () => {
+  const labeled = labelDirections([
+    { id: "1", name: "淡水夜燈", concept: "", palette: "", composition: "", typeDirection: "", prompt: "p", headline: "", subhead: "" },
+    { id: "2", name: "方向 B · 朋友位", concept: "", palette: "", composition: "", typeDirection: "", prompt: "p", headline: "", subhead: "" },
+  ]);
+  assert.equal(labeled[0]?.name, "方向 A · 淡水夜燈");
+  assert.equal(labeled[1]?.name, "方向 B · 朋友位");
+});
+

@@ -584,6 +584,8 @@ export const SEED_SCHEDULE: ScheduleItem[] = [
     scheduledAt: Date.parse("2026-09-17T19:00:00+08:00"),
     publishedAt: null,
     status: "scheduled",
+    caption: "最近是不是很久沒有好好坐下來？\n9/24 晚上，淡水校園。來坐一下。",
+    hashtags: ["#淡江禪學社", "#浮游禪光", "#淡水"],
   },
   {
     id: "sch_story",

@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { StudentReviewCard } from "@/components/create/student-review-card";
 import { VisionCard } from "@/components/create/vision-card";
@@ -67,8 +67,18 @@ export function ImageStudioPage() {
   const [tone, setTone] = useState<CopyPack["tone"]>("student");
   const [lastImage, setLastImage] = useState<{ base64: string; mime: string } | null>(null);
   const [review, setReview] = useState<StudentReview | null>(null);
+  const autoRan = useRef(false);
 
   const activePack = packs.find((p) => p.tone === tone) ?? packs[0];
+
+  useEffect(() => {
+    if (autoRan.current) return;
+    autoRan.current = true;
+    void (async () => {
+      await copyGo();
+      await directionsGo();
+    })();
+  }, []);
 
   async function directionsGo(nextIdea = idea, formatOverride?: FormatId) {
     setBusy(true);
@@ -106,7 +116,7 @@ export function ImageStudioPage() {
       }
       setPacks(result.packs);
       setReview(result.review);
-      toast.success("已從畫面生成文案");
+      toast.success("已生成文案");
     } finally {
       setBusy(false);
     }

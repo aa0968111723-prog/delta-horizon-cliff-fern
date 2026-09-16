@@ -41,8 +41,13 @@ function kindLabel(kind: IgMemoryPost["kind"]) {
   return "單張";
 }
 
+function hasMetrics(post: IgMemoryPost) {
+  return post.saves != null || post.likes != null || post.reach != null || post.comments != null;
+}
+
 export function learnFromIg(posts: IgMemoryPost[]): IgLearning {
-  const ranked = [...posts].sort((a, b) => score(b) - score(a));
+  const measured = posts.filter(hasMetrics);
+  const ranked = [...(measured.length ? measured : posts)].sort((a, b) => score(b) - score(a));
   const top = ranked[0];
   const weak = ranked[ranked.length - 1];
   const questionWins = ranked.slice(0, Math.max(1, Math.ceil(ranked.length / 2))).filter((p) => firstLine(p.caption).includes("？")).length;
