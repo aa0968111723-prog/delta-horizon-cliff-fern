@@ -79,6 +79,7 @@ test("nextCreateHint switches off promo after a studio-published knowledge post"
   assert.equal(post.contentKind, "knowledge");
   assert.match(recentPostedNotes([post, ...SEED_IG_POSTS], now), /剛發過活動向/);
   const hint = nextCreateHint([post, ...SEED_IG_POSTS], now);
+  assert.match(hint.line, /剛發過/);
   assert.match(hint.line, /生活或互動/);
   assert.doesNotMatch(hint.line, /Carousel/);
 });
@@ -102,5 +103,6 @@ test("nextCreateHint asks for event info after a studio-published life post", as
     },
   });
   const hint = nextCreateHint([post, ...SEED_IG_POSTS], now);
+  assert.match(hint.line, /剛發過/);
   assert.match(hint.line, /活動內容或倒數/);
 });

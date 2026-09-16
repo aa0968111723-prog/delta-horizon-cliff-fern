@@ -117,9 +117,17 @@ export function nextCreateHint(posts: IgMemoryPost[] = SEED_IG_POSTS, now = Date
   } else if (learned.reelsSaveRate > 0 && learned.reelsSaveRate >= learned.imageSaveRate) {
     form = "Reels，前 3 秒生活畫面";
   }
+  const prefix = (() => {
+    const latest = [...posts]
+      .filter((post) => post.id.startsWith("ig_studio_"))
+      .sort((a, b) => b.postedAt - a.postedAt)[0];
+    if (!latest || now - latest.postedAt >= 21 * 86_400_000) return "";
+    const hook = (latest.hook || latest.caption.split("\n")[0] || "").replace(/[。．.!?！？]+$/u, "");
+    return hook ? `剛發過「${hook}」。` : "";
+  })();
   return {
     form,
-    line: `做一篇${form}。先讓學生覺得「這好像在講我」，再進活動。`,
+    line: `${prefix}做一篇${form}。先讓學生覺得「這好像在講我」，再進活動。`,
     why: learned.whatWorks,
     avoid: learned.whatFails,
     rates: `問句收藏率 ${(learned.questionSaveRate * 100).toFixed(1)}% · 公告 ${(learned.announceSaveRate * 100).toFixed(1)}% · Carousel ${(learned.carouselSaveRate * 100).toFixed(1)}% · Reels ${(learned.reelsSaveRate * 100).toFixed(1)}%`,

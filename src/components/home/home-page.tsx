@@ -160,7 +160,8 @@ export function HomePage() {
               </p>
               {justLearned ? (
                 <p className="mt-2 text-sm text-dusk" data-testid="home-learned">
-                  剛寫進過去 IG：{justLearned.hook}。下次生成會避開連續招生。
+                  剛寫進過去 IG：{(justLearned.hook || "").replace(/[。．.!?！？]+$/u, "")}
+                  。下次生成會避開連續招生。
                 </p>
               ) : null}
               {dueAll.length ? (

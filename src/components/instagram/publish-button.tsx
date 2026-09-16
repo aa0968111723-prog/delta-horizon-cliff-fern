@@ -58,7 +58,7 @@ export function PublishIgButton({
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-2">
+    <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto">
       <Button
         size="sm"
         variant="secondary"
