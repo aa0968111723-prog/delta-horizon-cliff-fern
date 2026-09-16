@@ -23,6 +23,7 @@ export function PhotoHeroButtons({
           <button
             type="button"
             aria-label={`${asset.name} 當主視覺`}
+            data-testid={`hero-photo-${asset.id}`}
             onClick={() => onPick(asset.id, asset.name)}
             className="overflow-hidden rounded-lg bg-surface-2 text-left shadow-[var(--shadow-border)]"
           >
