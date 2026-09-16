@@ -71,6 +71,30 @@ export function upcomingSlotId(projectId: string) {
   return `up-${projectId}`;
 }
 
+/** 發布後預覽格會消失；改看剛寫進 Content Memory 的那則。 */
+export function followPublishedSlot(input: {
+  slots: IgGridSlot[];
+  projectId?: string;
+  caption?: string;
+  assetIds?: string[];
+}) {
+  if (input.projectId) {
+    const upcoming = input.slots.find((slot) => slot.id === upcomingSlotId(input.projectId!));
+    if (upcoming) return upcoming;
+  }
+  const published = input.slots.filter((slot) => slot.origin === "published");
+  const assetId = input.assetIds?.[0];
+  if (assetId) {
+    const hit = published.find((slot) => slot.assetIds.includes(assetId));
+    if (hit) return hit;
+  }
+  if (input.caption) {
+    const hit = published.find((slot) => slot.caption === input.caption);
+    if (hit) return hit;
+  }
+  return [...published].sort((a, b) => b.takenAt - a.takenAt)[0];
+}
+
 export function upcomingStatusCopy(input: { status?: ProjectStatus; takenAt: number; scheduledAt?: number | null }) {
   const at = input.scheduledAt ?? (input.status === "scheduled" ? input.takenAt : null);
   if (at) {

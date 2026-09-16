@@ -11,7 +11,7 @@ import { clubDnaFromMemory } from "@/lib/club/dna";
 import { clubInsightsFromPosts, nextCreateFromLearn } from "@/lib/club/insights";
 import { analyzeIgMemoryPost, applyStudentSimToCopy } from "@/lib/club/ig-analyze";
 import { captionFromProject } from "@/lib/creative/publish";
-import { igGridSlots, upcomingSlotId, upcomingStatusCopy, type IgGridSlot } from "@/lib/creative/ig-feed";
+import { coverFromSourceRefs, followPublishedSlot, igGridSlots, upcomingSlotId, upcomingStatusCopy, type IgGridSlot } from "@/lib/creative/ig-feed";
 import { planPreviewSchedule } from "@/lib/creative/schedule";
 import { syncConnectionMemory } from "@/lib/connect/oauth";
 import { uid } from "@/lib/studio/ids";
@@ -46,10 +46,15 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
   const slots = useMemo(() => {
     const all = igGridSlots({ projects, posts: igPosts });
     if (!focusProjectId) return all;
-    const focused = upcomingSlotId(focusProjectId);
-    const hit = all.find((slot) => slot.id === focused);
-    if (!hit) return all;
-    return [hit, ...all.filter((slot) => slot.id !== focused)];
+    const project = projects.find((item) => item.id === focusProjectId);
+    const followed = followPublishedSlot({
+      slots: all,
+      projectId: focusProjectId,
+      caption: project ? captionFromProject(project) : undefined,
+      assetIds: coverFromSourceRefs(project?.sourceRefs).assetIds,
+    });
+    if (!followed) return all;
+    return [followed, ...all.filter((slot) => slot.id !== followed.id)];
   }, [projects, igPosts, focusProjectId]);
   const [activeId, setActiveId] = useState<string | null>(
     focusProjectId ? upcomingSlotId(focusProjectId) : slots[0]?.id ?? null,
@@ -66,8 +71,16 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
     : undefined;
 
   useEffect(() => {
-    if (focusProjectId) setActiveId(upcomingSlotId(focusProjectId));
-  }, [focusProjectId]);
+    if (!focusProjectId) return;
+    const project = projects.find((item) => item.id === focusProjectId);
+    const followed = followPublishedSlot({
+      slots,
+      projectId: focusProjectId,
+      caption: project ? captionFromProject(project) : undefined,
+      assetIds: coverFromSourceRefs(project?.sourceRefs).assetIds,
+    });
+    if (followed) setActiveId(followed.id);
+  }, [focusProjectId, slots, projects]);
 
   function analyze() {
     if (!active) return;
@@ -270,9 +283,15 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
             {active.mediaType}
           </p>
           <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed">{active.caption}</pre>
-          {activeProject?.sourceRefs.some((ref) => ref.source === "canva") ? (
+          {active.origin === "published" ? (
+            <p className="mt-2 text-sm" data-published-memory="">
+              已進 Content Memory
+            </p>
+          ) : null}
+          {activeProject?.sourceRefs.some((ref) => ref.source === "canva") ||
+          assets.find((asset) => asset.id === active.assetIds[0])?.source === "canva" ? (
             <p className="mt-2 text-sm" data-canva-source="returned">
-              來源：{activeProject.sourceRefs.find((ref) => ref.source === "canva")?.label ?? "Canva"}
+              來源：Canva 微調後
             </p>
           ) : null}
           {active.origin === "published" ? (

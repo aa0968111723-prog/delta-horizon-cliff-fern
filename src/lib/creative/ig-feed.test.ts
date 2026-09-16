@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { coverFromSourceRefs, igGridSlots, publishCoverFromRefs, upcomingSlotId, upcomingStatusCopy } from "./ig-feed.ts";
+import { followPublishedSlot, igGridSlots, upcomingSlotId, upcomingStatusCopy, coverFromSourceRefs, publishCoverFromRefs } from "./ig-feed.ts";
 import type { CopyDeck } from "../studio/types.ts";
 
 const copy: CopyDeck = {
@@ -175,4 +175,37 @@ test("earlier scheduled date comes first among upcoming", () => {
     slots.map((slot) => slot.projectId),
     ["sooner", "later"],
   );
+});
+
+test("after publish, follow the Content Memory post not another upcoming", () => {
+  const slots = igGridSlots({
+    projects: [
+      {
+        id: "still_up",
+        name: "還沒發",
+        status: "done",
+        contentKind: "carousel",
+        scheduledAt: null,
+        copy,
+      },
+    ],
+    posts: [
+      {
+        id: "pub_tea",
+        source: "seed",
+        mediaType: "carousel",
+        caption: "課表有了，人還在趕路。",
+        takenAt: 9,
+        assetIds: ["asset_canva_1"],
+      },
+    ],
+  });
+  const followed = followPublishedSlot({
+    slots,
+    projectId: "proj_tea",
+    caption: "課表有了，人還在趕路。",
+    assetIds: ["asset_canva_1"],
+  });
+  assert.equal(followed?.id, "pub_tea");
+  assert.equal(followed?.origin, "published");
 });
