@@ -3,7 +3,7 @@ import type { BrandBoilerplate, CampaignPlan, CopyDeck } from "./types";
 export function emptyCopy(handle = "", boilerplate?: BrandBoilerplate): CopyDeck {
   return {
     eyebrow: "",
-    headline: "新的網宣",
+    headline: "新的貼文",
     subhead: "",
     body: "",
     cta: boilerplate?.cta || "了解更多",

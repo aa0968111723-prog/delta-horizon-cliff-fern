@@ -10,9 +10,9 @@ function AssistantPage() {
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="AI 助手"
-        title="畫布與企劃"
-        description="對目前編輯器下指令（放大標題、換圖、改尺寸），或填活動需求生成企劃。大幅修改會先預覽，每次操作都可撤銷。"
+        kicker="畫布指令"
+        title="改畫面"
+        description="對目前編輯器下指令。完整多模態創作請用 AI 創作台。"
       />
       <div className="mt-8 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] sm:p-6">
         <AssistantForm variant="page" projectId={lastProjectId} />

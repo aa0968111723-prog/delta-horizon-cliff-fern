@@ -62,6 +62,26 @@ export const FORMATS: IgFormat[] = [
     usage: "Reels 封面與預覽",
     safe: { top: 250, right: 80, bottom: 250, left: 80 },
   },
+  {
+    id: "threads",
+    name: "Threads 圖",
+    short: "Threads",
+    ratio: "4:5",
+    width: 1080,
+    height: 1350,
+    usage: "Threads 主圖",
+    safe: { top: 80, right: 72, bottom: 88, left: 72 },
+  },
+  {
+    id: "line",
+    name: "LINE 宣傳圖",
+    short: "LINE",
+    ratio: "1:1",
+    width: 1040,
+    height: 1040,
+    usage: "LINE 社群／官方帳號",
+    safe: { top: 72, right: 72, bottom: 72, left: 72 },
+  },
 ];
 
 export const FORMAT_BY_ID: Record<FormatId, IgFormat> = Object.fromEntries(
@@ -69,5 +89,5 @@ export const FORMAT_BY_ID: Record<FormatId, IgFormat> = Object.fromEntries(
 ) as Record<FormatId, IgFormat>;
 
 export function formatById(id: FormatId): IgFormat {
-  return FORMAT_BY_ID[id];
+  return FORMAT_BY_ID[id] ?? FORMAT_BY_ID["feed-portrait"];
 }

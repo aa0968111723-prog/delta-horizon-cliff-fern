@@ -136,13 +136,47 @@ export function AssetDetailSheet({
           <Input
             value={asset.licenseOwner}
             onChange={(e) => patch("licenseOwner", e.target.value)}
-            placeholder="例如：日食咖啡、攝影師姓名"
+            placeholder="例如：淡江禪學社、社員姓名"
           />
         </div>
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
         <div className="flex flex-wrap gap-2 pb-4">
           <Button onClick={place} disabled={!lastProjectId}>
             放到目前畫布
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              void navigate({
+                to: "/create",
+                search: { q: `用「${asset.name}」做新的網宣`, mode: "vision", run: "1" },
+              });
+              onOpenChange(false);
+            }}
+          >
+            加入創作
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              void navigate({
+                to: "/create",
+                search: { q: `延續「${asset.name}」的風格生成相似視覺`, mode: "image", run: "1" },
+              });
+              onOpenChange(false);
+            }}
+          >
+            生成相似視覺
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              const tags = Array.from(new Set([...asset.tags, asset.category, asset.name.slice(0, 6)].filter(Boolean)));
+              patch("tags", tags);
+              toast.success("已補上 AI 標籤草稿，可再改");
+            }}
+          >
+            AI Tag
           </Button>
           <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}

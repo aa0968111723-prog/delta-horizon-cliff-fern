@@ -133,6 +133,13 @@ export function migratePlan(raw?: Partial<CampaignPlan> | null): CampaignPlan | 
     qaNotes: Array.isArray(raw.qaNotes) ? raw.qaNotes : [],
     generatedAt: raw.generatedAt ?? Date.now(),
     source: raw.source === "mock" || raw.source === "live" ? raw.source : "live",
+    studentSim: raw.studentSim,
+    directions: raw.directions,
+    threadsPost: raw.threadsPost,
+    reelsScript: raw.reelsScript,
+    lineCopy: raw.lineCopy,
+    sources: raw.sources,
+    scheduleNotes: raw.scheduleNotes,
   };
 }
 

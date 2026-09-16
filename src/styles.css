@@ -6,16 +6,16 @@
   --font-display: "Noto Serif TC", "Source Han Serif TC", "Noto Serif", ui-serif, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-bg: #f3f0ea;
-  --color-surface: #fffcf7;
-  --color-surface-2: #ebe6dc;
-  --color-fg: #1a1814;
-  --color-muted: #6f6a63;
+  --color-bg: #f3eee4;
+  --color-surface: #fffbf5;
+  --color-surface-2: #ebe4d8;
+  --color-fg: #1c1a16;
+  --color-muted: #6b675f;
   --color-subtle: #9a948c;
-  --color-border: #ddd6ca;
+  --color-border: #ddd4c6;
   --color-border-strong: #c9c1b4;
-  --color-accent: #1e4a45;
-  --color-accent-fg: #f3f0ea;
+  --color-accent: #2a6a64;
+  --color-accent-fg: #f3eee4;
   --color-danger: #a33b2a;
   --color-warn: #9a6b2f;
   --color-success: #2f6a4a;
@@ -49,7 +49,9 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background: var(--color-bg);
+    background:
+      radial-gradient(90rem 36rem at 12% -20%, color-mix(in oklab, var(--color-accent) 8%, transparent), transparent),
+      var(--color-bg);
     color: var(--color-fg);
   }
 

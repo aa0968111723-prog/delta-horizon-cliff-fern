@@ -17,6 +17,7 @@ import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
 import { uid } from "@/lib/studio/ids";
 import { applyCopyToArtboard, buildLayout, extractImageAssetId } from "@/lib/studio/layout";
+import { inferContentKind, migrateStatus } from "@/lib/studio/content";
 import { inspectProject } from "@/lib/studio/quality";
 import { applyQaFixToPages } from "@/lib/studio/quality-fix";
 import {
@@ -39,6 +40,7 @@ import type {
   BrandKit,
   Brief,
   CampaignPlan,
+  ContentKind,
   CopyDeck,
   EditorTool,
   ExportVersion,
@@ -48,6 +50,7 @@ import type {
   ProjectStatus,
   QaIssue,
   Snapshot,
+  SourceRef,
   TemplateId,
 } from "@/lib/studio/types";
 
@@ -195,9 +198,21 @@ function migrateProject(raw: Project): Project {
   const slideIndex = Math.min(Math.max(0, raw.slideIndex ?? 0), Math.max(0, pages.length - 1));
   if (pages[slideIndex]) artboards[formatId] = pages[slideIndex];
   const plan = migratePlan(raw.plan);
+  const contentKind: ContentKind =
+    raw.contentKind ??
+    inferContentKind({
+      activeFormatId: formatId,
+      slides,
+      contentKind: raw.contentKind,
+    });
   return {
     ...raw,
-    status: raw.status ?? (plan ? "ready" : "draft"),
+    status: migrateStatus(raw.status ?? (plan ? "done" : "creating")),
+    contentKind,
+    campaignId: raw.campaignId ?? null,
+    scheduledAt: raw.scheduledAt ?? null,
+    publishedAt: raw.publishedAt ?? null,
+    sourceRefs: Array.isArray(raw.sourceRefs) ? (raw.sourceRefs as SourceRef[]) : [],
     exports: raw.exports ?? [],
     artboards,
     slides,
@@ -379,7 +394,21 @@ export const useStudio = create<StudioState>()(
           brandId,
           templateId: tpl,
           activeFormatId: formatId,
-          status: "draft",
+          status: "creating",
+          contentKind:
+            formatId === "story"
+              ? "story"
+              : formatId === "reels-cover"
+                ? "reels"
+                : formatId === "threads"
+                  ? "threads"
+                  : formatId === "line"
+                    ? "line"
+                    : "ig-post",
+          campaignId: null,
+          scheduledAt: null,
+          publishedAt: null,
+          sourceRefs: [],
           brief: migrateBrief(brief),
           copy,
           plan: null,
@@ -409,7 +438,17 @@ export const useStudio = create<StudioState>()(
           brandId,
           templateId,
           activeFormatId: starter.formatId,
-          status: "draft",
+          status: "creating",
+          contentKind:
+            starter.formatId === "story"
+              ? "story"
+              : starter.formatId === "feed-square"
+                ? "ig-post"
+                : "ig-post",
+          campaignId: null,
+          scheduledAt: null,
+          publishedAt: null,
+          sourceRefs: [],
           brief: migrateBrief(starter.brief),
           copy,
           plan: null,
@@ -453,7 +492,8 @@ export const useStudio = create<StudioState>()(
           artboards: boards.artboards,
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
-          status: "ready" as const,
+          status: "done" as const,
+          contentKind: nextBrief.deliverables.carousel ? "carousel" : p.contentKind,
           planVersions: [version, ...(p.planVersions ?? [])].slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, nextPlan.source === "mock" ? "本機草案" : "AI 企劃", "manual");
@@ -477,7 +517,7 @@ export const useStudio = create<StudioState>()(
           artboards: boards.artboards,
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
-          status: "ready" as const,
+          status: "done" as const,
           planVersions: [version, p.planVersions.filter((v) => v.id !== versionId)].flat().slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, `還原 ${version.name}`, "manual");
@@ -548,7 +588,7 @@ export const useStudio = create<StudioState>()(
           name: `${src.name} 副本`,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          status: "draft",
+          status: "creating",
           exports: [],
         };
         set((s) => ({ projects: [copy, ...s.projects], lastProjectId: copy.id }));
@@ -557,7 +597,8 @@ export const useStudio = create<StudioState>()(
       recordExport: (id, version) =>
         get().updateProject(id, (p) => ({
           ...p,
-          status: "exported",
+          status: "published",
+          publishedAt: Date.now(),
           exports: [version, ...p.exports].slice(0, 20),
         })),
       ensureArtboard: (projectId, formatId) => {
@@ -1058,7 +1099,7 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 6,
+      version: 7,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,
@@ -1084,7 +1125,15 @@ export const useStudio = create<StudioState>()(
           lastProjectId: p.lastProjectId ?? projects[0]?.id ?? current.lastProjectId,
         };
       },
-      migrate: (persisted) => {
+      migrate: (persisted, version) => {
+        if (version < 7) {
+          return {
+            brands: [SEED_BRAND],
+            assets: SEED_ASSETS,
+            projects: [createSeedProject(), createSeedDraft()],
+            lastProjectId: SEED_PROJECT_ID,
+          };
+        }
         const state = persisted as {
           brands?: BrandKit[];
           assets?: AssetMeta[];

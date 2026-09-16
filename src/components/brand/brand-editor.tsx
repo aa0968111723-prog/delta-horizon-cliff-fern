@@ -129,9 +129,9 @@ export function BrandEditor() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="品牌中心"
-        title="品牌規範"
-        description="名稱、Logo 版本、色彩、字體、標語、CTA、圖片風格與禁用規則會套進排版、AI 企劃與品質檢查。"
+        kicker="Brand Memory"
+        title="品牌記憶"
+        description="Logo、龜龜、三色光、語氣、喜歡與不喜歡的風格。每次 AI 生成前會先讀這裡。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="brand" />
