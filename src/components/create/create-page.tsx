@@ -31,7 +31,8 @@ import { generateVisualDirections, type VisualDirection } from "@/lib/ai/image-a
 import { formatBrandMemory } from "@/lib/studio/brand";
 import { saveDataUrlAsAsset } from "@/lib/studio/generated-image";
 import { sourceFromAsset, sourceFromExtend } from "@/lib/studio/sources";
-import { CONTENT_KIND_META, CONTENT_KIND_ORDER, contentKindLabel, kindUsesPagedLayout } from "@/lib/studio/status";
+import { CONTENT_KIND_META, CONTENT_KIND_ORDER, contentKindLabel, deliverablesForKind, kindUsesPagedLayout } from "@/lib/studio/status";
+import { shouldAutofillCopy, topicForKind } from "@/lib/studio/wave-draft";
 import type { ContentKind, CopyDraft, CopyTone, StudentReview } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { AUDIENCE_SEGMENTS, DEFAULT_AUDIENCE_IDS } from "@/lib/zen/audience";
@@ -72,6 +73,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const applyCoverAsset = useStudio((s) => s.applyCoverAsset);
   const applyVisualAsset = useStudio((s) => s.applyVisualAsset);
   const layoutFromKind = useStudio((s) => s.layoutFromKind);
+  const hydrated = useStudio((s) => s.hydrated);
   const igDnaText = useIgDnaText();
   const insightsText = useIgInsightsText();
 
@@ -99,7 +101,12 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       linkedProject?.contentKind ??
       "ig-post",
   );
-  const [topic, setTopic] = useState<CopyTopic>(campaign ? "event" : "emotion");
+  const [topic, setTopic] = useState<CopyTopic>(
+    topicForKind(
+      (search.kind && search.kind in CONTENT_KIND_META ? (search.kind as ContentKind) : "ig-post"),
+      Boolean(search.campaignId),
+    ),
+  );
   const [tones, setTones] = useState<CopyTone[]>(["student", "short", "emotional"]);
   const [idea, setIdea] = useState(search.seed ?? "");
   const [eventName, setEventName] = useState(campaign?.name ?? linkedProject?.brief.eventName ?? "");
@@ -127,6 +134,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const [reelsBusy, setReelsBusy] = useState(false);
   const [imageSourceAssetId, setImageSourceAssetId] = useState<string | null>(search.asset ?? null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const autofillRan = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -144,6 +152,21 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [search.step, directions.length, visualBusy]);
+
+  useEffect(() => {
+    if (!campaign) return;
+    setTopic(topicForKind(kind, true));
+    setEventName((value) => value || campaign.name);
+    setSchedule((value) => value || `${campaign.date} ${campaign.time}`.trim());
+    setLocation((value) => value || campaign.location);
+    setPainPoint((value) => value || campaign.painPoint);
+    setSignupUrl((value) => value || campaign.signupUrl);
+    if (campaign.audienceIds.length) {
+      setAudienceIds((ids) => (ids.length ? ids : campaign.audienceIds));
+    }
+    // 只在這場活動第一次進來時帶入欄位，之後讓人自己改。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaign?.id]);
 
   const briefPayload = useMemo(
     () => ({
@@ -166,14 +189,31 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     [topic, eventName, schedule, location, idea, painPoint, signupUrl, audienceIds, brand, campaign, igDnaText, insightsText, memoryText],
   );
 
-  async function runCopy() {
-    if (!idea.trim() && !eventName.trim() && !painPoint.trim()) {
+  async function runCopy(overrides?: { topic?: CopyTopic }) {
+    const event = eventName.trim() || campaign?.name || "";
+    const sched = schedule.trim() || (campaign ? `${campaign.date} ${campaign.time}`.trim() : "");
+    const loc = location.trim() || campaign?.location || "";
+    const pain = painPoint.trim() || campaign?.painPoint || "";
+    const ideaText = idea.trim() || search.seed?.trim() || "";
+    if (!ideaText && !event && !pain) {
       toast.error("先寫一句想法，或填活動名稱。");
       return;
     }
     setCopyBusy(true);
     try {
-      const res = await generateIgCopy({ data: { ...briefPayload, tones } });
+      const res = await generateIgCopy({
+        data: {
+          ...briefPayload,
+          topic: overrides?.topic ?? topic,
+          eventName: event,
+          schedule: sched,
+          location: loc,
+          painPoint: pain,
+          detail: [ideaText, campaign?.intro ?? ""].filter(Boolean).join("\n"),
+          cta: campaign?.cta ?? briefPayload.cta,
+          tones,
+        },
+      });
       setDrafts(res.drafts);
       if (!res.ok) toast.warning(res.error);
       else if (res.adapter === "local") toast.info("目前是本機草稿，可以直接編輯。");
@@ -184,6 +224,27 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       setCopyBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (autofillRan.current) return;
+    const hasPrompt = Boolean(
+      idea.trim() || search.seed?.trim() || eventName.trim() || campaign?.name || painPoint.trim() || campaign?.painPoint,
+    );
+    if (
+      !shouldAutofillCopy(search, {
+        hydrated,
+        hasDrafts: drafts.length > 0 || Boolean(linkedProject?.copyDrafts.length),
+        hasPrompt,
+      })
+    ) {
+      return;
+    }
+    if ((search.campaignId || linkedProject?.campaignId) && !campaign) return;
+    autofillRan.current = true;
+    void runCopy({ topic: topicForKind(kind, Boolean(campaign)) });
+    // 進頁一次：從首頁／活動節奏／延續這則進來就先寫一版。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, campaign, drafts.length, idea, eventName, painPoint, search.seed, search.campaignId, search.contentId, search.from, search.asset]);
 
   async function runVisuals() {
     const intent = [idea.trim(), eventName.trim() ? `活動：${eventName.trim()}` : ""].filter(Boolean).join("／");
@@ -271,12 +332,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           features: idea.trim(),
           style: "安靜、具體、不說教",
           notes: painPoint.trim(),
-          deliverables: {
-            post: kind === "ig-post",
-            story: kind === "story" || kind === "countdown",
-            carousel: kind === "carousel" || kind === "knowledge" || kind === "qa",
-            reels: kind === "reels",
-          },
+          deliverables: deliverablesForKind(kind),
         },
         sources: [
           ...(campaign ? [{ kind: "local" as const, label: `活動 / ${campaign.name}`, detail: "活動資訊" }] : []),
@@ -491,6 +547,13 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           ) : null
         }
       />
+
+      {copyBusy && !drafts.length ? (
+        <p className="mt-4 flex items-center gap-2 text-sm text-muted">
+          <Loader2 className="size-4 animate-spin" />
+          正在依這場活動寫文案…
+        </p>
+      ) : null}
 
       {linkedProject?.sources.length ? (
         <div className="mt-4 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
@@ -710,7 +773,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
         </div>
 
         <div className="flex flex-wrap gap-2 pt-1">
-          <Button onClick={runCopy} disabled={copyBusy}>
+          <Button onClick={() => void runCopy()} disabled={copyBusy}>
             {copyBusy ? <Loader2 className="size-4 animate-spin" /> : <PenLine className="size-4" />}
             生成文案
           </Button>
@@ -734,7 +797,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
             title="文案版本"
             hint="每一版都是 Hook / 正文 / CTA / Hashtags"
             action={
-              <Button variant="ghost" size="sm" onClick={runCopy} disabled={copyBusy}>
+              <Button variant="ghost" size="sm" onClick={() => void runCopy()} disabled={copyBusy}>
                 重新生成
               </Button>
             }

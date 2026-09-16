@@ -40,7 +40,8 @@ import {
 } from "@/lib/studio/campaign";
 import { suggestSchedule } from "@/lib/studio/schedule";
 import { SOURCE_KIND_LABEL } from "@/lib/studio/sources";
-import { CONTENT_KIND_META, contentKindLabel } from "@/lib/studio/status";
+import { contentKindLabel } from "@/lib/studio/status";
+import { waveCreateSearch, waveProjectFields } from "@/lib/studio/wave-draft";
 import type { CampaignWave } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { eventKindLabel } from "@/lib/zen/club";
@@ -141,40 +142,13 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
 
   function createContentForWave(wave: CampaignWave) {
     if (!brand || !campaign) return;
-    const meta = CONTENT_KIND_META[wave.kind];
-    const project = createProject({
-      name: wave.title || `${campaign.name} · ${wave.stage}`,
-      brandId: brand.id,
-      formatId: meta.formatId,
-      contentKind: wave.kind,
-      campaignId: campaign.id,
-      status: "making",
-      brief: {
-        product: campaign.name,
-        eventName: campaign.name,
-        schedule: `${campaign.date} ${campaign.time}`.trim(),
-        location: campaign.location,
-        offer: campaign.oneLiner,
-        audience: campaign.audienceIds.join("、"),
-        goal: "awareness",
-        features: campaign.intro,
-        style: "安靜、具體、不說教",
-        notes: wave.note,
-        deliverables: {
-          post: wave.kind === "ig-post",
-          story: wave.kind === "story" || wave.kind === "countdown",
-          carousel: wave.kind === "carousel",
-          reels: wave.kind === "reels",
-        },
-      },
-      sources: [{ kind: "local", label: `活動 / ${campaign.name}`, detail: `${wave.stage}·${wave.title}` }],
-    });
+    const project = createProject(waveProjectFields({ brandId: brand.id, campaign, wave }));
     updateCampaign(campaign.id, {
       waves: campaign.waves.map((w) => (w.id === wave.id ? { ...w, contentId: project.id } : w)),
     });
     void navigate({
       to: "/create",
-      search: { contentId: project.id, kind: wave.kind, campaignId: campaign.id, seed: wave.hook },
+      search: waveCreateSearch(project.id, wave, campaign.id),
     });
   }
 
@@ -329,7 +303,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                       ) : (
                         <Button size="sm" onClick={() => createContentForWave(wave)}>
                           <Sparkles className="size-4" />
-                          建立這篇
+                          做成這篇
                         </Button>
                       )}
                     </div>

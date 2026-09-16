@@ -1,4 +1,4 @@
-import type { ContentKind, ContentStatus, FormatId } from "./types";
+import type { ContentKind, ContentStatus, DeliverableFlags, FormatId } from "./types";
 
 export const STATUS_META: Record<
   ContentStatus,
@@ -63,6 +63,16 @@ export function isContentKind(value: unknown): value is ContentKind {
 /** 輪播、知識卡、回顧、限動這類要拆成多頁，不能只留一張圖。 */
 export function kindUsesPagedLayout(kind: ContentKind): boolean {
   return CONTENT_KIND_META[kind].slides > 1;
+}
+
+/** 依內容型態勾選 brief.deliverables，首頁／活動／轉換共用。 */
+export function deliverablesForKind(kind: ContentKind): DeliverableFlags {
+  return {
+    post: kind === "ig-post",
+    story: kind === "story" || kind === "countdown" || kind === "poll",
+    carousel: kind === "carousel" || kind === "knowledge" || kind === "qa" || kind === "recap",
+    reels: kind === "reels",
+  };
 }
 
 export function isContentStatus(value: unknown): value is ContentStatus {

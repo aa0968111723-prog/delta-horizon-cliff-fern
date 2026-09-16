@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { atLocalTime, postingTime, startOfLocalDay, suggestSchedule } from "./schedule.ts";
+import { atLocalTime, offsetDaysFromEventDate, postingTime, startOfLocalDay, suggestSchedule } from "./schedule.ts";
 import type { Brief, Campaign, CampaignWave, CopyDeck, Project } from "./types.ts";
 
 const NOW = Date.parse("2026-09-16T10:00:00+08:00");
@@ -159,4 +159,11 @@ test("published and idea drafts are not auto-scheduled", () => {
   });
   const idea = project({ id: "idea", status: "idea" });
   assert.deepEqual(suggestSchedule([live, idea], [], NOW), []);
+});
+
+test("offsetDaysFromEventDate is relative to the campaign day", () => {
+  assert.equal(offsetDaysFromEventDate("2026-09-24", Date.parse("2026-09-17T12:00:00")), -7);
+  assert.equal(offsetDaysFromEventDate("2026-09-24", Date.parse("2026-09-24T08:00:00")), 0);
+  assert.equal(offsetDaysFromEventDate("2026-09-24", Date.parse("2026-09-26T08:00:00")), 2);
+  assert.equal(offsetDaysFromEventDate("", Date.now()), null);
 });

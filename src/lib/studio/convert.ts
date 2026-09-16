@@ -9,10 +9,76 @@ import { convertCopy } from "./convert-copy.ts";
 import { uid } from "./ids.ts";
 import { buildLayout, extractImageAssetId } from "./layout.ts";
 import { MAX_SLIDES, pagesOf } from "./layers.ts";
-import { CONTENT_KIND_META, contentKindLabel, kindUsesPagedLayout } from "./status.ts";
-import type { Artboard, BrandKit, ContentKind, CopyDeck, Project } from "./types.ts";
+import { CONTENT_KIND_META, contentKindLabel, deliverablesForKind, kindUsesPagedLayout } from "./status.ts";
+import type { Artboard, BrandKit, ContentKind, CopyDeck, Project, ReelsScript } from "./types.ts";
 
 export { CONVERT_TARGETS, convertCopy, convertTargetLabel } from "./convert-copy.ts";
+
+function firstLine(text: string): string {
+  return text.split("\n").map((line) => line.trim()).filter(Boolean)[0] ?? "";
+}
+
+/**
+ * 把現有文案拆成 20 秒 Reels 腳本。轉換時沒有再打一次模型，
+ * 所以 source 是 mock，但字幕／旁白都來自這則內容，不是寫死的示範句。
+ */
+export function reelsFromCopy(
+  copy: CopyDeck,
+  brief: { schedule?: string; location?: string; notes?: string },
+): ReelsScript {
+  const hook = firstLine(copy.headline) || firstLine(copy.caption) || "先坐一下再說";
+  const captionLines = copy.caption.split("\n").map((line) => line.trim()).filter(Boolean);
+  const where = [brief.schedule, brief.location].filter(Boolean).join(" ") || copy.subhead;
+  const mid = firstLine(copy.body) || copy.subhead || captionLines[1] || "一小時，什麼都不用做";
+  return {
+    hook,
+    cover: `紙白底＋一句「${hook}」，右下角三色光標誌。`,
+    beats: [
+      {
+        range: "0–3 秒",
+        visual: "安靜的窗邊或宿舍書桌",
+        caption: hook,
+        voice: "（無旁白）",
+        transition: "畫面變慢",
+        asset: "現有主視覺",
+      },
+      {
+        range: "3–7 秒",
+        visual: "從捷運站走上坡的第一人稱",
+        caption: firstLine(copy.subhead) || captionLines[0] || hook,
+        voice: brief.notes || captionLines[0] || hook,
+        transition: "推門",
+        asset: "校園實拍",
+      },
+      {
+        range: "7–12 秒",
+        visual: "坐墊、窗邊光、有人坐下",
+        caption: mid.slice(0, 28),
+        voice: copy.body || "不用盤腿，不用信什麼。",
+        transition: "淡入",
+        asset: "活動照片",
+      },
+      {
+        range: "12–17 秒",
+        visual: "時間地點大字",
+        caption: where || copy.subhead || copy.cta,
+        voice: copy.subhead || where,
+        transition: "切黑",
+        asset: "時間地點字卡",
+      },
+      {
+        range: "17–20 秒",
+        visual: "紙白底大字＋三色光",
+        caption: copy.cta || "來坐一下",
+        voice: copy.cta || "來坐一下",
+        transition: "停格",
+        asset: "三色光標誌",
+      },
+    ],
+    createdAt: Date.now(),
+    source: "mock",
+  };
+}
 
 function storyPages(source: Project, brand: BrandKit, copy: CopyDeck): Artboard[] {
   const imageAssetId = extractImageAssetId(pagesOf(source)[0]);
@@ -120,13 +186,16 @@ export function applyKindLayout(project: Project, brand: BrandKit, kind: Content
     slideIndex: 0,
     brief: {
       ...project.brief,
-      deliverables: {
-        post: kind === "ig-post",
-        story: kind === "story" || kind === "countdown",
-        carousel: kind === "carousel" || kind === "knowledge" || kind === "qa",
-        reels: kind === "reels",
-      },
+      deliverables: deliverablesForKind(kind),
     },
+    reels:
+      kind === "reels" && !project.reels
+        ? reelsFromCopy(copy, {
+            schedule: project.brief.schedule,
+            location: project.brief.location,
+            notes: project.brief.notes,
+          })
+        : project.reels,
   };
 }
 export function convertContent(source: Project, brand: BrandKit, kind: ContentKind): Project {
@@ -163,38 +232,11 @@ export function convertContent(source: Project, brand: BrandKit, kind: ContentKi
     });
     pages = [cover];
     if (!next.reels) {
-      next.reels = {
-        hook: copy.headline.split("\n")[0] || copy.headline,
-        cover: `紙白底＋「${copy.headline.split("\n")[0] || copy.headline}」，右下角三色光。`,
-        beats: [
-          {
-            range: "0–3 秒",
-            visual: "安靜的宿舍或窗邊",
-            caption: copy.headline.split("\n")[0] || copy.headline,
-            voice: "（無旁白）",
-            transition: "畫面變慢",
-            asset: "現有主視覺",
-          },
-          {
-            range: "3–12 秒",
-            visual: copy.body || "社課現場",
-            caption: copy.subhead,
-            voice: copy.body,
-            transition: "淡入時間地點",
-            asset: "活動照片",
-          },
-          {
-            range: "12–20 秒",
-            visual: "時間地點大字",
-            caption: copy.cta,
-            voice: copy.cta,
-            transition: "停格",
-            asset: "三色光標誌",
-          },
-        ],
-        createdAt: Date.now(),
-        source: "mock",
-      };
+      next.reels = reelsFromCopy(copy, {
+        schedule: source.brief.schedule,
+        location: source.brief.location,
+        notes: source.brief.notes,
+      });
     }
   } else {
     const sourcePage = pagesOf(source)[0];
@@ -211,12 +253,7 @@ export function convertContent(source: Project, brand: BrandKit, kind: ContentKi
   next.slideIndex = 0;
   next.brief = {
     ...next.brief,
-    deliverables: {
-      post: kind === "ig-post",
-      story: kind === "story" || kind === "countdown",
-      carousel: kind === "carousel" || kind === "knowledge" || kind === "qa",
-      reels: kind === "reels",
-    },
+    deliverables: deliverablesForKind(kind),
   };
   return next;
 }

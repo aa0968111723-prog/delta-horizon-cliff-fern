@@ -19,7 +19,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { campaignDateMs, waveDateMs } from "@/lib/studio/campaign";
-import { suggestSchedule } from "@/lib/studio/schedule";
+import { suggestSchedule, offsetDaysFromEventDate } from "@/lib/studio/schedule";
 import { contentKindLabel } from "@/lib/studio/status";
 import type { Campaign, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,10 @@ type DayItem =
   | { type: "content"; project: Project; at: number }
   | { type: "wave"; campaign: Campaign; waveId: string; title: string; stage: string; at: number }
   | { type: "event"; campaign: Campaign; at: number };
+
+type MoveTarget =
+  | { kind: "content"; id: string }
+  | { kind: "wave"; campaignId: string; waveId: string };
 
 function initialView(): View {
   if (typeof window === "undefined") return "month";
@@ -47,10 +51,11 @@ export function CalendarPage() {
   const campaigns = useStudio((s) => s.campaigns);
   const setSchedule = useStudio((s) => s.setSchedule);
   const applySchedule = useStudio((s) => s.applySchedule);
+  const updateWave = useStudio((s) => s.updateWave);
   const [cursor, setCursor] = useState(() => new Date());
   const [view, setView] = useState<View>(initialView);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [pickId, setPickId] = useState<string | null>(null);
+  const [drag, setDrag] = useState<MoveTarget | null>(null);
+  const [pick, setPick] = useState<MoveTarget | null>(null);
   const [tapMove] = useState(prefersTapMove);
 
   const items = useMemo<DayItem[]>(() => {
@@ -108,15 +113,30 @@ export function CalendarPage() {
     const next = new Date(day);
     next.setHours(prev?.getHours() ?? 19, prev?.getMinutes() ?? 0, 0, 0);
     setSchedule(project.id, next.getTime());
-    setDragId(null);
-    setPickId(null);
+    setDrag(null);
+    setPick(null);
     toast.success(`已改到 ${format(next, "M/d HH:mm")}`);
   }
 
+  function moveWave(campaignId: string, waveId: string, day: Date) {
+    const campaign = campaigns.find((item) => item.id === campaignId);
+    if (!campaign) return;
+    const offset = offsetDaysFromEventDate(campaign.date, day.getTime());
+    if (offset == null) {
+      toast.info("這場活動還沒定日期，節奏沒辦法改期。");
+      return;
+    }
+    updateWave(campaignId, waveId, { offsetDays: offset });
+    setDrag(null);
+    setPick(null);
+    toast.success(`節奏改到 ${format(day, "M/d")}`);
+  }
+
   function dropOn(day: Date) {
-    const id = dragId ?? pickId;
-    if (!id) return;
-    moveProject(id, day);
+    const target = drag ?? pick;
+    if (!target) return;
+    if (target.kind === "content") moveProject(target.id, day);
+    else moveWave(target.campaignId, target.waveId, day);
   }
 
   function runAutoSchedule() {
@@ -129,7 +149,12 @@ export function CalendarPage() {
     toast.success(`已依宣傳節奏排了 ${count} 則，預設晚上發出。`);
   }
 
-  const picked = pickId ? projects.find((p) => p.id === pickId) : null;
+  const pickedLabel = (() => {
+    if (!pick) return null;
+    if (pick.kind === "content") return projects.find((p) => p.id === pick.id)?.name ?? null;
+    const campaign = campaigns.find((item) => item.id === pick.campaignId);
+    return campaign?.waves.find((wave) => wave.id === pick.waveId)?.title ?? campaign?.name ?? null;
+  })();
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
@@ -168,10 +193,10 @@ export function CalendarPage() {
         }
       />
 
-      {picked ? (
+      {pickedLabel ? (
         <p className="mt-4 rounded-xl bg-surface px-3 py-2 text-xs text-muted shadow-[var(--shadow-border)]">
-          已選「{picked.name}」。點一個日期改過去。
-          <button type="button" className="ml-2 underline" onClick={() => setPickId(null)}>
+          已選「{pickedLabel}」。點一個日期改過去。
+          <button type="button" className="ml-2 underline" onClick={() => setPick(null)}>
             取消
           </button>
         </p>
@@ -209,7 +234,8 @@ export function CalendarPage() {
       {view === "agenda" ? (
         <AgendaList
           items={agenda}
-          onReschedule={(projectId, day) => moveProject(projectId, day)}
+          onRescheduleContent={(projectId, day) => moveProject(projectId, day)}
+          onRescheduleWave={(campaignId, waveId, day) => moveWave(campaignId, waveId, day)}
         />
       ) : (
         <>
@@ -226,11 +252,11 @@ export function CalendarPage() {
                 <div
                   key={day.toISOString()}
                   onDragOver={(e) => {
-                    if (dragId) e.preventDefault();
+                    if (drag) e.preventDefault();
                   }}
                   onDrop={() => dropOn(day)}
                   onClick={(e) => {
-                    if (!pickId) return;
+                    if (!pick) return;
                     if ((e.target as HTMLElement).closest("a")) return;
                     dropOn(day);
                   }}
@@ -238,7 +264,7 @@ export function CalendarPage() {
                     "min-h-24 rounded-xl bg-surface p-1.5 shadow-[var(--shadow-border)] transition-shadow sm:min-h-28",
                     dim && "opacity-45",
                     isSameDay(day, new Date()) && "ring-2 ring-ring",
-                    (dragId || pickId) && "hover:shadow-[var(--shadow-lift)]",
+                    (drag || pick) && "hover:shadow-[var(--shadow-lift)]",
                   )}
                 >
                   <p className="px-0.5 text-xs tabular-nums text-muted">{format(day, "d")}</p>
@@ -247,10 +273,17 @@ export function CalendarPage() {
                       <li key={keyOf(item)}>
                         <CalendarChip
                           item={item}
-                          selected={item.type === "content" && pickId === item.project.id}
+                          selected={
+                            (item.type === "content" &&
+                              pick?.kind === "content" &&
+                              pick.id === item.project.id) ||
+                            (item.type === "wave" &&
+                              pick?.kind === "wave" &&
+                              pick.waveId === item.waveId)
+                          }
                           tapMove={tapMove}
-                          onDragStart={setDragId}
-                          onPick={(id) => setPickId(id)}
+                          onDragStart={setDrag}
+                          onPick={setPick}
                         />
                       </li>
                     ))}
@@ -264,8 +297,8 @@ export function CalendarPage() {
           </div>
           <p className="mt-3 text-xs text-subtle">
             {tapMove
-              ? "點一則內容再點日期就能改期。灰色的是 AI 排好但還沒建立的那幾篇。"
-              : "已排程的內容可以直接拖到別的日期。手機點內容再點日期也能改。灰色的是還沒建立的節奏。"}
+              ? "點一則內容或灰色節奏再點日期就能改期。"
+              : "已排程的內容和還沒建立的節奏都可以拖到別的日期。手機點再點日期也能改。"}
           </p>
         </>
       )}
@@ -310,8 +343,8 @@ function CalendarChip({
   item: DayItem;
   selected?: boolean;
   tapMove?: boolean;
-  onDragStart: (id: string | null) => void;
-  onPick: (id: string) => void;
+  onDragStart: (target: MoveTarget | null) => void;
+  onPick: (target: MoveTarget) => void;
 }) {
   if (item.type === "event") {
     return (
@@ -325,30 +358,45 @@ function CalendarChip({
     );
   }
   if (item.type === "wave") {
+    const target: MoveTarget = { kind: "wave", campaignId: item.campaign.id, waveId: item.waveId };
     return (
       <Link
         to="/campaigns/$campaignId"
         params={{ campaignId: item.campaign.id }}
-        className="block truncate rounded-lg bg-surface-2 px-1.5 py-1 text-xs text-muted"
-        title={`${item.stage}·${item.title}（還沒建立）`}
+        draggable={!tapMove}
+        onDragStart={() => onDragStart(target)}
+        onDragEnd={() => onDragStart(null)}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!tapMove && !e.metaKey && !e.ctrlKey) return;
+          if (e.metaKey || e.ctrlKey) return;
+          e.preventDefault();
+          onPick(target);
+        }}
+        className={cn(
+          "block truncate rounded-lg px-1.5 py-1 text-xs text-muted",
+          selected && "bg-accent text-accent-fg",
+        )}
+        title={tapMove ? "點選後再點日期改期" : `${item.stage}·${item.title}（還沒建立，可拖去改期）`}
       >
         {item.title || item.stage}
       </Link>
     );
   }
+  const target: MoveTarget = { kind: "content", id: item.project.id };
   return (
     <Link
       to="/studio/$projectId"
       params={{ projectId: item.project.id }}
       draggable={!tapMove}
-      onDragStart={() => onDragStart(item.project.id)}
+      onDragStart={() => onDragStart(target)}
       onDragEnd={() => onDragStart(null)}
       onClick={(e) => {
         e.stopPropagation();
         if (!tapMove && !e.metaKey && !e.ctrlKey) return;
         if (e.metaKey || e.ctrlKey) return;
         e.preventDefault();
-        onPick(item.project.id);
+        onPick(target);
       }}
       className={cn(
         "block truncate rounded-lg px-1.5 py-1 text-xs font-medium",
@@ -365,10 +413,12 @@ function CalendarChip({
 
 function AgendaList({
   items,
-  onReschedule,
+  onRescheduleContent,
+  onRescheduleWave,
 }: {
   items: DayItem[];
-  onReschedule: (projectId: string, day: Date) => void;
+  onRescheduleContent: (projectId: string, day: Date) => void;
+  onRescheduleWave: (campaignId: string, waveId: string, day: Date) => void;
 }) {
   if (!items.length) return null;
   return (
@@ -386,7 +436,7 @@ function AgendaList({
                   value={format(item.at, "yyyy-MM-dd")}
                   onChange={(e) => {
                     if (!e.target.value) return;
-                    onReschedule(item.project.id, new Date(`${e.target.value}T00:00:00`));
+                    onRescheduleContent(item.project.id, new Date(`${e.target.value}T00:00:00`));
                   }}
                   className="mt-1 w-full min-h-8 rounded-lg bg-surface-2 px-1 text-xs text-fg"
                 />
@@ -416,19 +466,30 @@ function AgendaList({
               </span>
             </Link>
           ) : (
-            <Link
-              to="/campaigns/$campaignId"
-              params={{ campaignId: item.campaign.id }}
-              className="flex items-center gap-3"
-            >
-              <span className="w-14 shrink-0 text-xs tabular-nums text-subtle">{format(item.at, "M/d")}</span>
-              <span className="min-w-0 flex-1">
+            <div className="flex items-center gap-3">
+              <label className="w-16 shrink-0 text-xs tabular-nums text-subtle">
+                <span className="block">{format(item.at, "M/d")}</span>
+                <span className="block">節奏</span>
+                <input
+                  type="date"
+                  aria-label={`改期 ${item.title || item.stage}`}
+                  value={format(item.at, "yyyy-MM-dd")}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    onRescheduleWave(item.campaign.id, item.waveId, new Date(`${e.target.value}T00:00:00`));
+                  }}
+                  className="mt-1 w-full min-h-8 rounded-lg bg-surface-2 px-1 text-xs text-fg"
+                />
+              </label>
+              <Link
+                to="/campaigns/$campaignId"
+                params={{ campaignId: item.campaign.id }}
+                className="min-w-0 flex-1"
+              >
                 <span className="block truncate text-sm">{item.title}</span>
-                <span className="block truncate text-xs text-subtle">
-                  {item.stage}·還沒建立
-                </span>
-              </span>
-            </Link>
+                <span className="block truncate text-xs text-subtle">{item.stage}·還沒建立</span>
+              </Link>
+            </div>
           )}
         </li>
       ))}

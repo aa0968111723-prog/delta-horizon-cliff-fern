@@ -50,10 +50,18 @@ try {
   await page.waitForURL(/\/create/, { timeout: 15000 });
   await page.waitForLoadState("networkidle");
   await expectText("創作頁", "一句想法");
+  const ideaVal = await page.locator("#idea").inputValue();
+  record("首頁帶入想法", ideaVal.length > 0, "想法欄是空的");
 
-  // 3. 生成文案（沒有 API key 時會退回本機草稿）
-  await page.getByRole("button", { name: /^生成文案$/ }).click();
-  await page.waitForSelector("text=文案版本", { timeout: 30000 });
+  // 3. 從活動節奏進來會自動寫文案；沒出現再按生成
+  const autoDrafts = await page
+    .waitForSelector("text=文案版本", { timeout: 30000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!autoDrafts) {
+    await page.getByRole("button", { name: /^生成文案$/ }).click();
+    await page.waitForSelector("text=文案版本", { timeout: 30000 });
+  }
   await expectText("文案版本", "文案版本");
   const draftCount = await page.locator("article").count();
   record("文案版本數量", draftCount >= 2, `只有 ${draftCount} 篇`);
@@ -124,6 +132,7 @@ try {
   await page.screenshot({ path: `${prefix}-brand-legacy.png` });
 
   await page.goto(`${base}/calendar`, { waitUntil: "networkidle" });
+  await expectText("日曆可改節奏", "還沒建立");
   await page.getByRole("button", { name: "依宣傳節奏排程" }).click();
   await page.waitForTimeout(800);
   const cal = await text();
@@ -141,11 +150,25 @@ try {
   // 用戶端換頁要等新的 route chunk 載完，networkidle 這時已經是 idle 了。
   await page.waitForSelector("text=宣傳節奏", { timeout: 20000 });
   await expectText("活動詳情", "宣傳節奏");
+  await expectText("做成這篇入口", "做成這篇");
   await page.getByRole("button", { name: /AI 生成完整宣傳/ }).click();
   await page.waitForTimeout(2500);
   const waves = await page.locator("ol > li").count();
   record("宣傳節奏波次", waves >= 4, `只有 ${waves} 波`);
   await page.screenshot({ path: `${prefix}-campaign.png`, fullPage: false });
+
+  await page.getByRole("button", { name: "做成這篇" }).first().evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForURL(/\/create/, { timeout: 15000 });
+  const madeIdea = await page.locator("#idea").inputValue();
+  record("做成這篇帶入想法", madeIdea.length > 0, "想法欄沒有帶入節奏 hook");
+  const madeDrafts = await page
+    .waitForSelector("text=文案版本", { timeout: 30000 })
+    .then(() => true)
+    .catch(() => false);
+  record("做成這篇自動文案", madeDrafts, "做成這篇之後沒有自動寫文案");
+  await page.screenshot({ path: `${prefix}-from-wave.png` });
 
   // 8b. 從一張圖片 → 不用先分析就能做成限動；改這張圖要看得到
   await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });

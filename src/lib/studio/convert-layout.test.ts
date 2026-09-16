@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createEmptyBrand } from "./brand.ts";
-import { applyKindLayout } from "./convert.ts";
+import { applyKindLayout, convertContent, reelsFromCopy } from "./convert.ts";
 import { emptyCopy } from "./copy.ts";
 import { pagesOf } from "./layers.ts";
 import { buildLayout, extractImageAssetId } from "./layout.ts";
@@ -80,4 +80,25 @@ test("applyKindLayout turns one photo into a knowledge carousel", () => {
   assert.ok(pages.length >= 4, `expected 4+ knowledge pages, got ${pages.length}`);
   assert.equal(kindUsesPagedLayout("knowledge"), true);
   assert.equal(kindUsesPagedLayout("ig-post"), false);
+});
+
+test("convertContent to reels builds beats from the original copy", () => {
+  const brand = createEmptyBrand("禪學社");
+  const source = sampleProject();
+  const next = convertContent(source, brand, "reels");
+  assert.equal(next.contentKind, "reels");
+  assert.ok(next.reels);
+  assert.equal(next.reels.hook, "第一次來，會經歷什麼？");
+  assert.ok(next.reels.beats.some((beat) => beat.caption === "來坐一下" || beat.voice.includes("來坐一下")));
+  assert.ok(next.reels.beats.some((beat) => /週三|B302|19:00/.test(`${beat.caption}${beat.voice}`)));
+  assert.equal(next.reels.beats.length, 5);
+});
+
+test("reelsFromCopy uses headline and schedule instead of generic mock lines", () => {
+  const copy = sampleProject().copy;
+  const reels = reelsFromCopy(copy, { schedule: "週三 19:00", location: "商管 B302" });
+  assert.equal(reels.hook, "第一次來，會經歷什麼？");
+  assert.match(reels.cover, /第一次來/);
+  assert.ok(reels.beats[0]?.caption.includes("第一次來"));
+  assert.ok(reels.beats.some((beat) => beat.caption.includes("週三") || beat.caption.includes("B302")));
 });

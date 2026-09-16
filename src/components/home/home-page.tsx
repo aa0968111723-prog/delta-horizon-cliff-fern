@@ -20,6 +20,7 @@ import { countdownLabel, formatCampaignDate, nextCampaign, sortByUpcoming } from
 import { localTodayIdeas } from "@/lib/studio/ideas";
 import { assetPreviewFitClass } from "@/lib/studio/assets";
 import { contentKindLabel } from "@/lib/studio/status";
+import { waveCreateSearch, waveProjectFields } from "@/lib/studio/wave-draft";
 import type { Campaign, CampaignWave } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { APP_TAGLINE, CLUB_NAME, eventKindLabel } from "@/lib/zen/club";
@@ -78,34 +79,13 @@ export function HomePage() {
 
   function createFromWave() {
     if (!brand || !focus || !todaysWave) return;
-    const project = createProject({
-      name: todaysWave.title || focus.name,
-      brandId: brand.id,
-      formatId: "feed-portrait",
-      contentKind: todaysWave.kind,
-      campaignId: focus.id,
-      status: "making",
-      brief: {
-        product: focus.name,
-        eventName: focus.name,
-        schedule: `${focus.date} ${focus.time}`.trim(),
-        location: focus.location,
-        offer: focus.oneLiner,
-        audience: focus.audienceIds.join("、"),
-        goal: "awareness",
-        features: focus.intro,
-        style: "安靜、具體、不說教",
-        notes: todaysWave.note,
-        deliverables: { post: true, story: false, carousel: todaysWave.kind === "carousel", reels: false },
-      },
-      sources: [{ kind: "local", label: `活動 / ${focus.name}`, detail: todaysWave.stage }],
-    });
+    const project = createProject(waveProjectFields({ brandId: brand.id, campaign: focus, wave: todaysWave }));
     updateCampaign(focus.id, {
       waves: focus.waves.map((wave) =>
         wave.id === todaysWave.id ? { ...wave, contentId: project.id } : wave,
       ),
     });
-    void navigate({ to: "/create", search: { contentId: project.id, kind: todaysWave.kind } });
+    void navigate({ to: "/create", search: waveCreateSearch(project.id, todaysWave, focus.id) });
   }
 
   const suggestion =

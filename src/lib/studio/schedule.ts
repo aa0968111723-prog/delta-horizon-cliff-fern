@@ -21,6 +21,14 @@ export function atLocalTime(dayMs: number, hour = DEFAULT_HOUR, minute = 0): num
   return d.getTime();
 }
 
+/** 把節奏拖到某天時，算出相對活動日的 offsetDays。 */
+export function offsetDaysFromEventDate(eventDate: string, dayMs: number): number | null {
+  if (!eventDate) return null;
+  const parsed = Date.parse(`${eventDate}T00:00:00`);
+  if (Number.isNaN(parsed)) return null;
+  return Math.round((startOfLocalDay(dayMs) - startOfLocalDay(parsed)) / DAY);
+}
+
 /** 活動時間字串（19:00、晚上七點）→ 當天發文時刻。解不出來就晚上七點。 */
 export function postingTime(campaign?: Pick<Campaign, "time"> | null): { hour: number; minute: number } {
   const raw = campaign?.time?.trim() ?? "";
