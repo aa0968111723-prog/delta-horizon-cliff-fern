@@ -4,7 +4,7 @@ import { zhTW } from "date-fns/locale";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { contentKindLabel } from "@/lib/studio/content";
+import { contentKindLabel, contentStatusLabel } from "@/lib/studio/content";
 import { uid } from "@/lib/studio/ids";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
@@ -123,6 +123,19 @@ export function CalendarPage() {
                           <button type="button" className="text-[10px] text-muted" onClick={() => setEditingId(item.id)}>
                             編輯
                           </button>
+                          <button
+                            type="button"
+                            className="text-[10px] text-muted"
+                            onClick={() =>
+                              upsertSchedule({
+                                ...item,
+                                status: "published",
+                                publishedAt: item.publishedAt ?? Date.now(),
+                              })
+                            }
+                          >
+                            已發布
+                          </button>
                           <Link
                             to="/create"
                             search={{ mode: "idea", idea: item.title }}
@@ -148,7 +161,7 @@ export function CalendarPage() {
               <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
                 <p className="text-sm">{item.title}</p>
                 <p className="text-xs text-muted">
-                  {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })} · {contentKindLabel(item.kind)} · {item.status}
+                  {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })} · {contentKindLabel(item.kind)} · {contentStatusLabel(item.status)}
                 </p>
                 <div className="mt-2 flex gap-2">
                   <Button size="sm" variant="secondary" onClick={() => duplicate(item.id)}>
@@ -156,6 +169,19 @@ export function CalendarPage() {
                   </Button>
                   <Button size="sm" variant="secondary" onClick={() => setEditingId(item.id)}>
                     直接編輯
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      upsertSchedule({
+                        ...item,
+                        status: "published",
+                        publishedAt: item.publishedAt ?? Date.now(),
+                      })
+                    }
+                  >
+                    標記已發布
                   </Button>
                   <Button size="sm" variant="secondary" asChild>
                     <Link to="/create" search={{ mode: "idea", idea: item.title }}>

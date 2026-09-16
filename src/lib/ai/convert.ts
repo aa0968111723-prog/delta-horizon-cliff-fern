@@ -1,4 +1,4 @@
-import type { CampaignPlan, ContentKind } from "@/lib/studio/types";
+import type { CampaignPlan, CarouselPagePlan, ContentKind } from "@/lib/studio/types";
 
 export type ConvertedPack = {
   kind: ContentKind;
@@ -6,17 +6,31 @@ export type ConvertedPack = {
   items: string[];
 };
 
+const PAGE_ROLE: Record<string, string> = {
+  cover: "封面 Hook",
+  problem: "情境",
+  detail: "痛點",
+  proof: "活動內容",
+  cta: "CTA",
+  close: "收束",
+};
+
+export function carouselPageLine(page: Pick<CarouselPagePlan, "role" | "headline">, index: number) {
+  const role = PAGE_ROLE[page.role] ?? page.role;
+  return `第 ${index + 1} 頁 ${role}：${page.headline.replace(/\n/g, " ")}`;
+}
+
 export function convertPlan(plan: CampaignPlan, kind: ContentKind): ConvertedPack {
   const when = plan.subhead || plan.cta;
   if (kind === "carousel") {
     const pages = plan.carouselPages.length
-      ? plan.carouselPages.map((page, i) => `Page ${i + 1} ${page.role}：${page.headline.replace(/\n/g, " ")}`)
+      ? plan.carouselPages.map((page, i) => carouselPageLine(page, i))
       : [
-          `Page 1 Hook：${plan.hook}`,
-          `Page 2 情境：${plan.insight}`,
-          `Page 3 痛點：${plan.concept}`,
-          `Page 4 活動：${plan.body}`,
-          `Page 5 CTA：${plan.cta}`,
+          `第 1 頁 封面 Hook：${plan.hook}`,
+          `第 2 頁 情境：${plan.insight}`,
+          `第 3 頁 痛點：${plan.concept}`,
+          `第 4 頁 活動內容：${plan.body}`,
+          `第 5 頁 CTA：${plan.cta}`,
         ];
     return { kind, title: "Carousel", items: pages };
   }
@@ -27,7 +41,7 @@ export function convertPlan(plan: CampaignPlan, kind: ContentKind): ConvertedPac
   if (kind === "reels") {
     const beats = plan.reelsScript?.beats?.length
       ? [
-          `Hook ${plan.reelsScript.hook}`,
+          `0–3 秒 Hook：${plan.reelsScript.hook}`,
           ...plan.reelsScript.beats.map(
             (b) =>
               `${b.start}–${b.end} 秒｜畫面：${b.onScreen}／字幕：${b.caption}／旁白：${b.voice}／轉場：${b.transition}／素材：${b.assetHint}`,

@@ -53,6 +53,10 @@ export function contentStatusMeta(id: ContentStatus) {
   return CONTENT_STATUS.find((item) => item.id === id) ?? CONTENT_STATUS[1];
 }
 
+export function contentStatusLabel(id: ContentStatus) {
+  return contentStatusMeta(id).label;
+}
+
 export function eventKindLabel(id: EventKind) {
   return EVENT_KINDS.find((item) => item.id === id)?.label ?? id;
 }

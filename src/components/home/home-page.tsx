@@ -272,7 +272,10 @@ export function HomePage() {
                   void navigate({ to: "/image" });
                   return;
                 }
-                void navigate({ to: "/create", search: { mode } });
+                void navigate({
+                  to: "/create",
+                  search: mode === "idea" ? { mode, idea: "下週有一場茶會" } : { mode },
+                });
               }}
             >
               {label}

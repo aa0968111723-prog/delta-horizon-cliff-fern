@@ -131,16 +131,10 @@ export function CreateStudio() {
 
   useEffect(() => {
     if (!status || !brand || autoRan.current) return;
-    const should =
-      mode === "from-drive" ||
-      mode === "from-canva" ||
-      mode === "from-ig" ||
-      (Boolean(search.idea) &&
-        (mode === "carousel" || mode === "campaign" || mode === "idea" || mode === "from-image"));
-    if (!should) return;
+    if (mode === "from-image" && !search.idea) return;
     autoRan.current = true;
     void runKit();
-  }, [status, brand]);
+  }, [status, brand, mode]);
 
   async function gatherHits(query: string) {
     let remotes = remoteFiles;
@@ -303,50 +297,55 @@ export function CreateStudio() {
     }
   }
 
+  async function saveGeneratedImage(dir: VisualDirection) {
+    const format = toCreateImageFormat(mode);
+    const result = await generateStudioImage({ data: { prompt: dir.prompt, format } });
+    if (!result.ok) {
+      toast.message("主視覺先用畫布方向。連上圖片生成後可以再出圖。");
+      return false;
+    }
+    const spec = formatById(format);
+    const blob = blobFromBase64(result.imageBase64, result.mime);
+    const id = uid("asset");
+    await putAssetBlob(id, blob);
+    addAsset({
+      id,
+      name: dir.name,
+      kind: "image",
+      category: "ai",
+      mime: result.mime,
+      width: spec.width,
+      height: spec.height,
+      tags: ["AI 生成", eventName || idea],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      source: "generated",
+      licenseNotes: "來源：AI Generated",
+      licenseOwner: "禪光",
+      favorite: false,
+      lastUsedAt: Date.now(),
+      useCount: 0,
+    });
+    setLastImage({ base64: result.imageBase64, mime: result.mime });
+    toast.success("圖片已進素材庫（AI Generated）");
+    return true;
+  }
+
   async function generateFromDirection(dir: VisualDirection) {
     setBusy(true);
     try {
-      const format = toCreateImageFormat(mode);
-      const result = await generateStudioImage({ data: { prompt: dir.prompt, format } });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      const spec = formatById(format);
-      const blob = blobFromBase64(result.imageBase64, result.mime);
-      const id = uid("asset");
-      await putAssetBlob(id, blob);
-      addAsset({
-        id,
-        name: dir.name,
-        kind: "image",
-        category: "ai",
-        mime: result.mime,
-        width: spec.width,
-        height: spec.height,
-        tags: ["AI 生成", eventName || idea],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        source: "generated",
-        licenseNotes: "來源：AI Generated",
-        licenseOwner: "禪光",
-        favorite: false,
-        lastUsedAt: Date.now(),
-        useCount: 0,
-      });
-      setLastImage({ base64: result.imageBase64, mime: result.mime });
-      toast.success("圖片已進素材庫（AI Generated）");
+      await saveGeneratedImage(dir);
     } finally {
       setBusy(false);
     }
   }
 
-  function applyToCanvas() {
-    if (!brand || !plan) return;
+  function applyToCanvas(nextPlan = plan, navigateAfter = true) {
+    if (!brand || !nextPlan) return null;
     const brief = migrateBrief({
       ...emptyBrief(),
-      eventName: plan.campaignName,
-      product: plan.campaignName,
+      eventName: nextPlan.campaignName,
+      product: nextPlan.campaignName,
       schedule,
       location,
       audience: DEFAULT_AUDIENCE,
@@ -355,20 +354,21 @@ export function CreateStudio() {
       deliverables: { post: true, story: true, carousel: true, reels: true },
     });
     const project = createProject({
-      name: plan.campaignName,
+      name: nextPlan.campaignName,
       brandId: brand.id,
       formatId: mode === "story" ? "story" : mode === "reels" ? "reels-cover" : "feed-portrait",
       brief,
-      templateId: plan.templateId,
+      templateId: nextPlan.templateId,
       campaignId: campaign?.id,
       contentKind: mode === "story" ? "story" : mode === "reels" ? "reels" : "carousel",
     });
-    applyCampaignPlan(project.id, plan, brief);
-    void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+    applyCampaignPlan(project.id, nextPlan, brief);
+    if (navigateAfter) void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+    return project;
   }
 
-  function saveCampaignAndWaves() {
-    const name = eventName.trim() || guessEventName(`${idea} ${plan?.campaignName ?? ""}`) || plan?.campaignName || "未命名活動";
+  function saveCampaignAndWaves(nextPlan = plan) {
+    const name = eventName.trim() || guessEventName(`${idea} ${nextPlan?.campaignName ?? ""}`) || nextPlan?.campaignName || "未命名活動";
     const date = parseEventDate(schedule);
     const type = eventKindFromText(`${name} ${idea}`);
     const waves = suggestWaves({ date, type, name });
@@ -378,11 +378,11 @@ export function CreateStudio() {
       date,
       time: parseEventTime(schedule),
       location,
-      oneLiner: oneLiner || plan?.hook || idea,
-      description: description || plan?.concept || "",
-      theme: theme || plan?.visualTheme || "",
+      oneLiner: oneLiner || nextPlan?.hook || idea,
+      description: description || nextPlan?.concept || "",
+      theme: theme || nextPlan?.visualTheme || "",
       studentPain,
-      cta: plan?.cta || "來坐一下",
+      cta: nextPlan?.cta || "來坐一下",
       signupUrl,
       waves,
     });
@@ -396,7 +396,7 @@ export function CreateStudio() {
         title: wave.title,
         scheduledAt: wave.scheduledAt,
         publishedAt: null,
-        status: "idea",
+        status: "scheduled",
       });
     }
     setCampaign(created);
@@ -405,23 +405,28 @@ export function CreateStudio() {
     return created;
   }
 
-  function scheduleAllFormats() {
-    const created = saveCampaignAndWaves();
+  function scheduleConverted(nextPlan: CampaignPlan, created: ClubCampaign) {
     const date = parseEventDate(schedule);
     const when = Date.parse(`${date}T19:00:00+08:00`);
-    for (const pack of converted) {
+    for (const pack of KINDS.map((kind) => convertPlan(nextPlan, kind))) {
       const scheduledAt = Number.isNaN(when) ? Date.now() : when + offsetDaysForConvertedKind(pack.kind) * 86_400_000;
       upsertSchedule({
         id: uid("sch"),
         projectId: null,
         campaignId: created.id,
         kind: pack.kind,
-        title: `${pack.title} · ${eventName || plan?.campaignName || idea.slice(0, 12)}`,
+        title: `${pack.title} · ${eventName || nextPlan.campaignName || idea.slice(0, 12)}`,
         scheduledAt,
         publishedAt: null,
-        status: "idea",
+        status: "scheduled",
       });
     }
+  }
+
+  function scheduleAllFormats() {
+    if (!plan) return;
+    const created = saveCampaignAndWaves(plan);
+    scheduleConverted(plan, created);
     toast.success("IG／Story／Reels／Threads 已依節奏排進月曆");
   }
 
@@ -455,7 +460,7 @@ export function CreateStudio() {
     }
   }
 
-  function adoptDirection(dir: VisualDirection) {
+  function adoptDirection(dir: VisualDirection, silent = false) {
     setPickedDirection(dir);
     setPlan((current) => (current ? applyDirectionToPlan(current, dir) : current));
     setPacks((rows) =>
@@ -464,7 +469,24 @@ export function CreateStudio() {
         hook: /[？?]/.test(dir.headline) ? dir.headline : pack.hook,
       })),
     );
-    toast.success(`已選「${dir.name}」，文案與視覺會跟著走`);
+    if (!silent) toast.success(`已選「${dir.name}」，文案與視覺會跟著走`);
+  }
+
+  async function realizeDirection(dir: VisualDirection) {
+    if (!plan) return;
+    const next = applyDirectionToPlan(plan, dir);
+    adoptDirection(dir, true);
+    setPlan(next);
+    setBusy(true);
+    try {
+      await saveGeneratedImage(dir);
+      applyToCanvas(next, false);
+      const created = saveCampaignAndWaves(next);
+      scheduleConverted(next, created);
+      toast.success("已用這個方向做出整套：主視覺、文案、各平台、月曆");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function schedulePack(pack: ConvertedPack) {
@@ -481,7 +503,7 @@ export function CreateStudio() {
       title: `${pack.title} · ${eventName || plan?.campaignName || idea.slice(0, 12)}`,
       scheduledAt,
       publishedAt: null,
-      status: "idea",
+      status: "scheduled",
     });
     toast.success(`${pack.title}已進月曆`);
     toast.message(rhythmHint([...recentKinds, pack.kind]));
@@ -641,8 +663,8 @@ export function CreateStudio() {
                 <p className="mt-2 text-xs text-muted">{dir.palette} · {dir.composition}</p>
                 <p className="mt-1 text-sm">{dir.headline} · {dir.subhead}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button size="sm" variant={pickedDirection?.name === dir.name ? "default" : "secondary"} onClick={() => adoptDirection(dir)}>
-                    {pickedDirection?.name === dir.name ? "已選這個方向" : "用這個方向"}
+                  <Button size="sm" variant={pickedDirection?.name === dir.name ? "default" : "secondary"} onClick={() => void realizeDirection(dir)}>
+                    {pickedDirection?.name === dir.name ? "已做出這套" : "用這個方向做出整套"}
                   </Button>
                   <Button size="sm" disabled={busy} onClick={() => void generateFromDirection(dir)}>
                     生成圖片
@@ -673,8 +695,8 @@ export function CreateStudio() {
             ))}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={applyToCanvas}>套用到畫布</Button>
-            <Button variant="secondary" onClick={saveCampaignAndWaves}>
+            <Button onClick={() => applyToCanvas(plan, true)}>套用到畫布</Button>
+            <Button variant="secondary" onClick={() => saveCampaignAndWaves()}>
               排入 Calendar
             </Button>
             <Button variant="secondary" onClick={scheduleAllFormats}>
@@ -696,7 +718,7 @@ export function CreateStudio() {
       ) : null}
 
       {plan?.reelsScript ? (
-        <ReelsBoard script={plan.reelsScript} eventName={eventName || plan.campaignName} onSchedule={saveCampaignAndWaves} />
+        <ReelsBoard script={plan.reelsScript} eventName={eventName || plan.campaignName} onSchedule={() => saveCampaignAndWaves()} />
       ) : null}
 
       {campaign?.waves.length ? (

@@ -18,6 +18,7 @@ export function InstagramCenter() {
   const assets = useStudio((s) => s.assets);
   const campaigns = useStudio((s) => s.campaigns);
   const schedule = useStudio((s) => s.schedule);
+  const upsertSchedule = useStudio((s) => s.upsertSchedule);
   const brand = brands[0];
   const [selected, setSelected] = useState<string | null>(igMemory[0]?.id ?? null);
   const [analysis, setAnalysis] = useState<ReturnType<typeof igHookAnalysis> | null>(null);
@@ -137,6 +138,20 @@ export function InstagramCenter() {
               <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]">
                 {item.title}
                 <span className="mt-1 block text-xs text-muted">{item.kind}</span>
+                <Button
+                  className="mt-2"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() =>
+                    upsertSchedule({
+                      ...item,
+                      status: "published",
+                      publishedAt: item.publishedAt ?? Date.now(),
+                    })
+                  }
+                >
+                  標記已發布
+                </Button>
               </li>
             ))}
         </ul>
