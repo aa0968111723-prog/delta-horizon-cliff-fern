@@ -323,7 +323,25 @@ export const useCreative = create<CreativeState>()(
             driveFolder: p.folder?.driveFolder || current.folder.driveFolder,
             driveFolderId: p.folder?.driveFolderId || "",
           },
-          lastPack: p.lastPack ?? current.lastPack ?? null,
+          lastPack: p.lastPack
+            ? {
+                ...(current.lastPack ?? {
+                  projectId: "",
+                  campaignId: "",
+                  eventName: "",
+                  hook: "",
+                  caption: "",
+                  hashtags: [],
+                  heroAssetId: null,
+                  heroThumb: "/seed/tea.svg",
+                  kind: "ig-post",
+                  converted: [],
+                  updatedAt: 0,
+                }),
+                ...p.lastPack,
+                converted: p.lastPack.converted ?? current.lastPack?.converted ?? [],
+              }
+            : current.lastPack ?? null,
         };
       },
     },

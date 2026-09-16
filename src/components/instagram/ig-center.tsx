@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
+import { FormatPreview } from "@/components/create/format-preview";
 import { IgThumb } from "@/components/create/ig-thumb";
 import { IG_DNA } from "@/lib/club/memory";
 import { lastPackPreviewSrc } from "@/lib/club/last-pack";
@@ -97,9 +98,12 @@ export function InstagramCenter() {
           <h2 className="text-sm font-medium">IG Preview</h2>
           {lastPack ? (
             <div className="mt-4" data-testid="ig-preview">
-              <div className="overflow-hidden rounded-2xl bg-bg">
-                <IgThumb src={draftThumb} caption={lastPack.hook} className="aspect-[4/5] w-full" />
-              </div>
+              <FormatPreview
+                kind={lastPack.kind}
+                src={draftThumb}
+                hook={lastPack.hook}
+                items={lastPack.converted ?? []}
+              />
               <p className="mt-3 text-sm font-medium">{lastPack.hook}</p>
               <p className="mt-1 whitespace-pre-wrap text-xs text-muted">{lastPack.caption.slice(0, 160)}</p>
               <p className="mt-2 text-[11px] text-subtle">{lastPack.hashtags.join(" ")}</p>

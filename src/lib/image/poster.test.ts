@@ -26,3 +26,13 @@ test("variations map to poster moods without inventing religious art", () => {
   assert.equal(moodFromVariation("style"), "lights");
   assert.equal(moodFromVariation(undefined), "sit");
 });
+
+test("story posters use 9:16 viewBox", () => {
+  const svg = composePosterSvg({
+    hook: "明天這個點，燈會先亮。",
+    eventName: "浮游禪光",
+    width: 1080,
+    height: 1920,
+  });
+  assert.match(svg, /viewBox="0 0 1080 1920"/);
+});

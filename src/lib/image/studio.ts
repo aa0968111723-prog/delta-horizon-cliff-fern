@@ -5,6 +5,7 @@ import { studentContext } from "@/lib/club/season";
 import { extractJson } from "@/lib/ai/json";
 import { chatGrok, editImage, hasXaiKey, imagineImage } from "@/lib/ai/xai";
 import { moodFromVariation, posterDataUrl } from "@/lib/image/poster";
+import { formatById } from "@/lib/studio/formats";
 import type { CreativeDirection, FormatId } from "@/lib/studio/types";
 
 const DirectionInput = z.object({
@@ -97,6 +98,7 @@ const RenderInput = z.object({
   eventName: z.string().max(80).optional(),
   schedule: z.string().max(80).optional(),
   location: z.string().max(80).optional(),
+  formatId: z.enum(["feed-square", "feed-portrait", "story", "reels-cover", "threads", "line-promo"]).optional(),
   forceMock: z.boolean().optional(),
 });
 
@@ -106,12 +108,15 @@ export const generateStudioImage = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const prompt = `${data.prompt}. Variation: ${data.variation ?? "regen"}. Natural Taiwan university students, Tamsui/Tamkang feeling, soft tricolor lights, not religious temple poster, not overly AI-smooth.`;
+    const format = data.formatId ? formatById(data.formatId) : formatById("feed-portrait");
     const composed = posterDataUrl({
       hook: data.headline || "最近是不是很久沒有好好坐下來？",
       eventName: data.eventName,
       schedule: data.schedule,
       location: data.location,
       mood: moodFromVariation(data.variation),
+      width: format.width,
+      height: format.height,
     });
     if (!hasXaiKey() || data.forceMock) {
       return { ok: true as const, urls: [composed], adapter: "compose" as const };

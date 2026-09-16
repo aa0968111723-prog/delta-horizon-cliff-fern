@@ -13,6 +13,7 @@ import { generateImageDirections } from "@/lib/image/studio";
 import { emptyBrief } from "@/lib/studio/brief";
 import { lessonPrompt } from "@/lib/club/insights";
 import { lastPackFromPlan } from "@/lib/club/last-pack";
+import { convertPlan } from "@/lib/convert/pack";
 import { buildCampaignRhythm } from "@/lib/club/schedule";
 import { CONTENT_KIND_META } from "@/lib/studio/status";
 import { useCreative } from "@/stores/creative-store";
@@ -138,6 +139,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
           eventName: current.name,
           plan: result.plan,
           kind: "ig-post",
+          converted: convertPlan(result.plan, "ig-post").items,
           directionName: result.plan.directions?.[0]?.name,
         }),
       );

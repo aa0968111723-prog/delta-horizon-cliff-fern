@@ -4,13 +4,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { ArtboardView } from "@/components/studio/artboard-view";
-import { IgThumb } from "@/components/create/ig-thumb";
+import { FormatPreview } from "@/components/create/format-preview";
 import { generateCampaignPlan } from "@/lib/ai/campaign";
 import { takeAutoRun } from "@/lib/create/handoff";
 import { applyStudentReviewToPlan } from "@/lib/copy/review";
 import { toBriefInput } from "@/lib/ai/payload";
 import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, notesFromHits, summarizeFound } from "@/lib/club/compose";
-import { lastPackFromPlan } from "@/lib/club/last-pack";
+import { formatIdFromKind, lastPackFromPlan, withPackKind } from "@/lib/club/last-pack";
 import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
 import { CONVERT_TARGETS, convertPlan } from "@/lib/convert/pack";
@@ -194,6 +194,7 @@ export function IdeaFlow({
         eventName: parsed.eventName,
         plan: nextPlan,
         kind: packKind,
+        converted: convertPlan(nextPlan, packKind).items,
         directionName: direction.name,
         heroAssetId,
         heroThumb: currentHits[0]?.thumb,
@@ -213,11 +214,13 @@ export function IdeaFlow({
   }
 
   async function paintHero(direction: CreativeDirection, currentPlan = plan, raw = idea) {
+    const format = formatById(formatIdFromKind(packKind));
     const result = await generateStudioImage({
       data: {
         prompt: direction.imagePrompt,
         headline: direction.headline || currentPlan?.hook,
         eventName: parseIdea(raw).eventName,
+        formatId: format.id,
       },
     });
     const url = result.urls[0];
@@ -227,7 +230,6 @@ export function IdeaFlow({
     const blob = await res.blob();
     const id = uid("asset");
     await getAssetStorage().put(id, blob);
-    const format = formatById("feed-portrait");
     addAsset(
       createGeneratedAsset({
         id,
@@ -352,23 +354,44 @@ export function IdeaFlow({
       {phase === "pack" && plan && picked ? (
         <section className="space-y-4" data-testid="idea-pack">
           <div className="rounded-3xl bg-bg p-4" data-testid="idea-preview">
-            <p className="text-xs tracking-[0.16em] text-muted">IG Preview · {brand?.handle ?? "@tku.zen"}</p>
-            <div className="mt-3 overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-float)]">
-              <IgThumb src={heroUrl || thumb} caption={plan.hook} className="aspect-[4/5] w-full" />
-              {artboard && brand ? (
-                <div className="border-t border-border bg-[#1c2422]/[0.04] p-3" data-testid="idea-artboard">
+            <FormatPreview
+              kind={packKind}
+              src={heroUrl || thumb}
+              hook={plan.hook}
+              handle={brand?.handle ?? "@tku.zen"}
+              items={converted?.items ?? []}
+            />
+            {artboard && brand ? (
+                <div className="mt-3 border-t border-border bg-[#1c2422]/[0.04] p-3" data-testid="idea-artboard">
                   <p className="mb-2 text-[10px] tracking-[0.16em] text-muted">畫布主視覺</p>
                   <div className="flex justify-center">
                     <ArtboardView artboard={artboard} brand={brand} urls={urls} width={220} />
                   </div>
                 </div>
               ) : null}
-              <div className="space-y-2 px-4 py-3">
+              <div className="mt-3 space-y-2 px-1">
                 <p className="text-sm font-medium">{plan.hook}</p>
                 <p className="whitespace-pre-wrap text-sm text-muted">{plan.captions[0]?.text}</p>
                 <p className="text-xs text-subtle">{plan.hashtags.join(" ")}</p>
               </div>
-            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {CONVERT_TARGETS.map((item) => (
+              <Button
+                key={item.id}
+                size="sm"
+                variant={packKind === item.id ? "default" : "secondary"}
+                data-testid={`convert-kind-${item.id}`}
+                onClick={() => {
+                  setPackKind(item.id);
+                  const current = useCreative.getState().lastPack;
+                  if (current) setLastPack(withPackKind(current, item.id, convertPlan(plan, item.id).items));
+                }}
+              >
+                {item.label}
+              </Button>
+            ))}
           </div>
 
           {plan.studentReview ? (
@@ -406,6 +429,7 @@ export function IdeaFlow({
                         eventName: parsed.eventName,
                         plan: reviewed.plan,
                         kind: packKind,
+                        converted: convertPlan(reviewed.plan, packKind).items,
                         directionName: picked?.name ?? current?.directionName,
                         heroAssetId: current?.heroAssetId,
                         heroThumb: current?.heroThumb,
@@ -420,14 +444,7 @@ export function IdeaFlow({
             </div>
           ) : null}
 
-          <div className="flex flex-wrap gap-2">
-            {CONVERT_TARGETS.map((item) => (
-              <Button key={item.id} size="sm" variant={packKind === item.id ? "default" : "secondary"} onClick={() => setPackKind(item.id)}>
-                {item.label}
-              </Button>
-            ))}
-          </div>
-          {converted ? (
+          {converted && packKind !== "ig-post" ? (
             <div className="rounded-2xl bg-bg p-4">
               <p className="font-display text-xl">{converted.title}</p>
               <ul className="mt-3 space-y-3">

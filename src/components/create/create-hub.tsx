@@ -5,6 +5,7 @@ import { IdeaFlow } from "@/components/create/idea-flow";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
+import { FormatPreview } from "@/components/create/format-preview";
 import { CONVERT_TARGETS, convertPlan } from "@/lib/convert/pack";
 import { COPY_INTENTS, COPY_TONES, generateCopyPack, type CopyPack } from "@/lib/copy/generate";
 import { applyStudentReviewToPack } from "@/lib/copy/review";
@@ -24,7 +25,9 @@ import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { useStudio } from "@/stores/studio-store";
 import { useCreative } from "@/stores/creative-store";
+import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { lessonPrompt } from "@/lib/club/insights";
+import { kindFromFormat, lastPackFromPlan, lastPackPreviewSrc, withPackKind } from "@/lib/club/last-pack";
 import type { ContentKind, CreativeDirection, FormatId } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 
@@ -143,6 +146,8 @@ function CopyStudio({ seedIdea }: { seedIdea?: string }) {
   const setCopy = useStudio((s) => s.setCopy);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const igPosts = useCreative((s) => s.igPosts);
+  const setLastPack = useCreative((s) => s.setLastPack);
+  const campaigns = useCreative((s) => s.campaigns);
   const [idea, setIdea] = useState(seedIdea || "最近是不是很久沒有好好坐下來？");
   const [intent, setIntent] = useState("情緒共鳴");
   const [tone, setTone] = useState("學生版");
@@ -162,6 +167,20 @@ function CopyStudio({ seedIdea }: { seedIdea?: string }) {
         return;
       }
       setPack(result.pack);
+      const current = useCreative.getState().lastPack;
+      const nextCaption = `${result.pack.hook}\n\n${result.pack.body}`;
+      if (current) {
+        setLastPack({ ...current, hook: result.pack.hook, caption: nextCaption, hashtags: result.pack.hashtags, updatedAt: Date.now() });
+      } else {
+        setLastPack(
+          lastPackFromPlan({
+            projectId: lastProjectId || "proj_copy",
+            campaignId: campaigns[0]?.id || "",
+            eventName: idea.slice(0, 16) || "文案",
+            plan: { hook: result.pack.hook, captions: [{ style: tone, text: nextCaption }], hashtags: result.pack.hashtags },
+          }),
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -244,6 +263,9 @@ function ImageStudio({
   seedAction?: string;
 }) {
   const addAsset = useStudio((s) => s.addAsset);
+  const lastProjectId = useStudio((s) => s.lastProjectId);
+  const setLastPack = useCreative((s) => s.setLastPack);
+  const campaigns = useCreative((s) => s.campaigns);
   const [idea, setIdea] = useState(seedIdea || "我要宣傳茶會");
   const [formatId, setFormatId] = useState<(typeof IMAGE_ASPECTS)[number]["id"]>(
     seedFormat && IMAGE_ASPECTS.some((item) => item.id === seedFormat) ? seedFormat : "feed-portrait",
@@ -283,6 +305,7 @@ function ImageStudio({
           variation,
           headline: direction.headline,
           eventName: idea.slice(0, 40),
+          formatId,
           editUrls: editUrl ? [editUrl] : undefined,
         },
       });
@@ -309,6 +332,25 @@ function ImageStudio({
         }),
       );
       toast.success(sourceLabel ? `已存進素材庫 · 來源：AI Generated（參考 ${sourceLabel}）` : "已存進素材庫 · 來源：AI Generated");
+      const current = useCreative.getState().lastPack;
+      const kind = kindFromFormat(formatId);
+      setLastPack(
+        lastPackFromPlan({
+          projectId: lastProjectId || current?.projectId || "proj_image",
+          campaignId: current?.campaignId || campaigns[0]?.id || "",
+          eventName: idea.slice(0, 16) || current?.eventName || "主視覺",
+          plan: {
+            hook: direction.headline || current?.hook || idea,
+            captions: [{ style: "視覺", text: current?.caption || direction.subhead || idea }],
+            hashtags: current?.hashtags ?? [],
+          },
+          kind,
+          converted: current?.converted,
+          directionName: direction.name,
+          heroAssetId: id,
+          heroThumb: current?.heroThumb,
+        }),
+      );
     } finally {
       setBusy(false);
     }
@@ -356,7 +398,14 @@ function ImageStudio({
           </li>
         ))}
       </ul>
-      {urls[0] ? <img src={urls[0]} alt="生成結果" className="w-full rounded-2xl" /> : null}
+      {urls[0] ? (
+        <FormatPreview
+          kind={kindFromFormat(formatId)}
+          src={urls[0]}
+          hook={picked?.headline || idea}
+          items={[{ heading: picked?.name || "主視覺", body: picked?.headline || idea, visual: picked?.composition || "主畫面" }]}
+        />
+      ) : null}
     </div>
   );
 }
@@ -472,8 +521,11 @@ function ConvertStudio({
 }) {
   const projects = useStudio((s) => s.projects);
   const lastProjectId = useStudio((s) => s.lastProjectId);
+  const lastPack = useCreative((s) => s.lastPack);
+  const setLastPack = useCreative((s) => s.setLastPack);
   const project = projects.find((p) => p.id === lastProjectId);
   const [kind, setKind] = useState<ContentKind>(seedKind || "carousel");
+  const urls = useAssetUrls(lastPack?.heroAssetId ? [lastPack.heroAssetId] : []);
 
   useEffect(() => {
     if (seedKind) setKind(seedKind);
@@ -492,17 +544,33 @@ function ConvertStudio({
     );
   }
 
-  const converted = convertPlan(project.plan, kind);
+  const plan = project.plan;
+  const converted = convertPlan(plan, kind);
+  const previewSrc = lastPack ? lastPackPreviewSrc(lastPack, urls) : "/seed/tea.svg";
+
+  function pickKind(next: ContentKind) {
+    setKind(next);
+    const pack = convertPlan(plan, next);
+    const current = useCreative.getState().lastPack;
+    if (current) setLastPack(withPackKind(current, next, pack.items));
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
         {CONVERT_TARGETS.map((item) => (
-          <Button key={item.id} size="sm" variant={kind === item.id ? "default" : "secondary"} onClick={() => setKind(item.id)}>
+          <Button
+            key={item.id}
+            size="sm"
+            variant={kind === item.id ? "default" : "secondary"}
+            data-testid={`convert-kind-${item.id}`}
+            onClick={() => pickKind(item.id)}
+          >
             {item.label}
           </Button>
         ))}
       </div>
+      <FormatPreview kind={kind} src={previewSrc} hook={project.plan.hook} items={converted.items} handle={project.copy.handle} />
       <div className="rounded-2xl bg-bg p-4">
         <p className="font-display text-xl">{converted.title}</p>
         <ul className="mt-3 space-y-3">
