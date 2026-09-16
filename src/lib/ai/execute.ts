@@ -1,6 +1,7 @@
 import { actionLabel, type EditPlan, type EditorAction } from "@/lib/ai/actions";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { createGeneratedAsset } from "@/lib/studio/assets";
+import { sourceFromAsset } from "@/lib/studio/sources";
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import {
@@ -141,6 +142,7 @@ async function applyQr(projectId: string, action: Extract<EditorAction, { type: 
     category: "icon",
   });
   store.addAsset(meta);
+  store.addSources(projectId, [sourceFromAsset(meta, "報名 QR")]);
   store.addLayer(
     projectId,
     createImageLayer(assetId, action.caption || "報名 QR", { x, y, w: size, h: size, objectFit: "contain" }),
@@ -168,7 +170,7 @@ async function applyQr(projectId: string, action: Extract<EditorAction, { type: 
 function applyLayoutVersions(projectId: string, count: number): string[] {
   const store = useStudio.getState();
   const templates = ["editorial", "product", "quote"] as const;
-  const names = ["排版 A · 編輯封面", "排版 B · 商品主圖", "排版 C · 引言卡片"];
+  const names = ["排版 A · 編輯封面", "排版 B · 活動主視覺", "排版 C · 引言卡片"];
   const n = Math.min(3, Math.max(2, count));
   let firstId: string | null = null;
   for (let i = 0; i < n; i++) {

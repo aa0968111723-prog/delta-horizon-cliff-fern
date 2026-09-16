@@ -40,7 +40,7 @@ export const PlanJsonSchema = z.object({
         text: z.string().catch(""),
       }),
     )
-    .max(4)
+    .max(8)
     .catch([]),
   hashtags: z.array(z.string()).max(20).catch([]),
   storyBeats: z.array(z.string()).max(5).catch([]),
@@ -66,6 +66,8 @@ export const BriefInputSchema = z.object({
   wantStory: z.boolean(),
   wantCarousel: z.boolean(),
   wantReels: z.boolean(),
+  wantThreads: z.boolean().optional(),
+  wantLine: z.boolean().optional(),
   brandName: z.string().min(1).max(80),
   handle: z.string().max(60),
   voice: z.string().max(400),
@@ -76,6 +78,19 @@ export const BriefInputSchema = z.object({
   preferredCtas: z.string().max(160).optional(),
   imageStyle: z.string().max(400).optional(),
   forceMock: z.boolean().optional(),
+  dnaNotes: z.string().max(2000).optional(),
+  memoryNotes: z.string().max(4000).optional(),
+  foundCount: z.number().int().min(0).max(99).optional(),
+  citedSources: z
+    .array(
+      z.object({
+        source: z.enum(["drive", "canva", "instagram", "generated", "brand"]).catch("brand"),
+        label: z.string().max(80).catch(""),
+        detail: z.string().max(160).catch(""),
+      }),
+    )
+    .max(16)
+    .optional(),
 });
 
 export type BriefInput = z.infer<typeof BriefInputSchema>;

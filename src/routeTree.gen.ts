@@ -16,9 +16,13 @@ import { Route as BrandRouteImport } from './routes/brand'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as ExportRouteImport } from './routes/export'
 import { Route as InstagramRouteImport } from './routes/instagram'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as StudioIndexRouteImport } from './routes/studio.index'
 import { Route as StudioProjectIdRouteImport } from './routes/studio.$projectId'
+import { Route as ApiConnectionsCallbackRouteImport } from './routes/api/connections/callback'
+import { Route as ApiConnectionsIdStartRouteImport } from './routes/api/connections/$id.start'
+import { Route as ApiConnectionsIdSyncRouteImport } from './routes/api/connections/$id.sync'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -55,6 +59,11 @@ const InstagramRoute = InstagramRouteImport.update({
   path: '/instagram',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudioRoute = StudioRouteImport.update({
   id: '/studio',
   path: '/studio',
@@ -70,6 +79,21 @@ const StudioProjectIdRoute = StudioProjectIdRouteImport.update({
   path: '/$projectId',
   getParentRoute: () => StudioRoute,
 } as any)
+const ApiConnectionsCallbackRoute = ApiConnectionsCallbackRouteImport.update({
+  id: '/api/connections/callback',
+  path: '/api/connections/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiConnectionsIdStartRoute = ApiConnectionsIdStartRouteImport.update({
+  id: '/api/connections/$id/start',
+  path: '/api/connections/$id/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiConnectionsIdSyncRoute = ApiConnectionsIdSyncRouteImport.update({
+  id: '/api/connections/$id/sync',
+  path: '/api/connections/$id/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -79,9 +103,13 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof CalendarRoute
   '/export': typeof ExportRoute
   '/instagram': typeof InstagramRoute
+  '/search': typeof SearchRoute
   '/studio': typeof StudioRouteWithChildren
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio/': typeof StudioIndexRoute
+  '/api/connections/callback': typeof ApiConnectionsCallbackRoute
+  '/api/connections/$id/start': typeof ApiConnectionsIdStartRoute
+  '/api/connections/$id/sync': typeof ApiConnectionsIdSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -93,6 +121,9 @@ export interface FileRoutesByTo {
   '/instagram': typeof InstagramRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio': typeof StudioIndexRoute
+  '/api/connections/callback': typeof ApiConnectionsCallbackRoute
+  '/api/connections/$id/start': typeof ApiConnectionsIdStartRoute
+  '/api/connections/$id/sync': typeof ApiConnectionsIdSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -103,9 +134,13 @@ export interface FileRoutesById {
   '/calendar': typeof CalendarRoute
   '/export': typeof ExportRoute
   '/instagram': typeof InstagramRoute
+  '/search': typeof SearchRoute
   '/studio': typeof StudioRouteWithChildren
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio/': typeof StudioIndexRoute
+  '/api/connections/callback': typeof ApiConnectionsCallbackRoute
+  '/api/connections/$id/start': typeof ApiConnectionsIdStartRoute
+  '/api/connections/$id/sync': typeof ApiConnectionsIdSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,9 +152,13 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/export'
     | '/instagram'
+    | '/search'
     | '/studio'
     | '/studio/$projectId'
     | '/studio/'
+    | '/api/connections/callback'
+    | '/api/connections/$id/start'
+    | '/api/connections/$id/sync'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -131,6 +170,9 @@ export interface FileRouteTypes {
     | '/instagram'
     | '/studio/$projectId'
     | '/studio'
+    | '/api/connections/callback'
+    | '/api/connections/$id/start'
+    | '/api/connections/$id/sync'
   id:
     | '__root__'
     | '/'
@@ -140,9 +182,13 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/export'
     | '/instagram'
+    | '/search'
     | '/studio'
     | '/studio/$projectId'
     | '/studio/'
+    | '/api/connections/callback'
+    | '/api/connections/$id/start'
+    | '/api/connections/$id/sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -153,6 +199,7 @@ export interface RootRouteChildren {
   CalendarRoute: typeof CalendarRoute
   ExportRoute: typeof ExportRoute
   InstagramRoute: typeof InstagramRoute
+  SearchRoute: typeof SearchRoute
   StudioRoute: typeof StudioRouteWithChildren
 }
 
@@ -207,6 +254,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InstagramRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/studio': {
       id: '/studio'
       path: '/studio'
@@ -227,6 +281,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/studio/$projectId'
       preLoaderRoute: typeof StudioProjectIdRouteImport
       parentRoute: typeof StudioRoute
+    }
+    '/api/connections/callback': {
+      id: '/api/connections/callback'
+      path: '/api/connections/callback'
+      fullPath: '/api/connections/callback'
+      preLoaderRoute: typeof ApiConnectionsCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/$id/start': {
+      id: '/api/connections/$id/start'
+      path: '/api/connections/$id/start'
+      fullPath: '/api/connections/$id/start'
+      preLoaderRoute: typeof ApiConnectionsIdStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/$id/sync': {
+      id: '/api/connections/$id/sync'
+      path: '/api/connections/$id/sync'
+      fullPath: '/api/connections/$id/sync'
+      preLoaderRoute: typeof ApiConnectionsIdSyncRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -252,6 +327,7 @@ const rootRouteChildren: RootRouteChildren = {
   CalendarRoute: CalendarRoute,
   ExportRoute: ExportRoute,
   InstagramRoute: InstagramRoute,
+  SearchRoute: SearchRoute,
   StudioRoute: StudioRouteWithChildren,
 }
 export const routeTree = rootRouteImport

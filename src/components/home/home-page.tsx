@@ -32,6 +32,7 @@ import { useStudio } from "@/stores/studio-store";
 export function HomePage() {
   const navigate = useNavigate();
   const projects = useStudio((s) => s.projects);
+  const campaigns = useStudio((s) => s.campaigns);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
   const duplicateProject = useStudio((s) => s.duplicateProject);
@@ -83,6 +84,12 @@ export function HomePage() {
     if (camp) selectCampaign(camp.id);
     setAiModalOpen(true);
   }
+
+  const suggestion =
+    todaysWave?.hook ||
+    focus?.painPoint ||
+    localTodayIdeas()[0]?.hook ||
+    "第一次來，會經歷什麼？";
 
   return (
     <main className="mx-auto w-full max-w-6xl space-y-8 px-4 py-5 md:px-8 md:py-8">
@@ -359,4 +366,14 @@ export function HomePage() {
       <NewProjectDialog open={newProjectOpen} onOpenChange={setNewProjectOpen} />
     </main>
   );
+}
+
+function sourceLabel(source: string) {
+  if (source === "drive") return "Google Drive";
+  if (source === "canva") return "Canva";
+  if (source === "instagram") return "Instagram";
+  if (source === "generated") return "AI Generated";
+  if (source === "campaign") return "活動";
+  if (source === "brand") return "Brand";
+  return "素材";
 }

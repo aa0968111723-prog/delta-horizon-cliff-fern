@@ -11,8 +11,12 @@
       "bodyTextHash": "a2fd7288a75a34855c3abb8e6ca4774039e147b2e24d51f8004c038e4eef55b6",
       "bodyTextPrefix": "禪 首頁 日曆 畫布 IG 品牌 禪 淡江大學禪學社 一人網宣創作中控台 企劃、文案、畫布、IG 排程。穩定、陪伴，不說教。 跨",
       "horizontalOverflow": false,
-      "consoleErrors": [],
-      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 504 (Outdated Optimize Dep)"
+      ],
+      "pageErrors": [
+        "Failed to fetch dynamically imported module: http://127.0.0.1:8080/node_modules/@tanstack/react-start/dist/plugin/default-entry/client.tsx"
+      ],
       "screenshot": "/workspace/screenshots/app-builder-preview.png"
     },
     "mobile": {

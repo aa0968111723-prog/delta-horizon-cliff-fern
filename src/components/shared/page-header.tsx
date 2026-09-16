@@ -23,7 +23,7 @@ export function PageHeader({
     >
       <div className="min-w-0">
         {kicker ? (
-          <p className="text-xs tracking-[0.18em] text-muted uppercase">{kicker}</p>
+          <p className="text-xs tracking-[0.18em] text-muted">{kicker}</p>
         ) : null}
         <h1 className="mt-1 font-display text-3xl tracking-tight md:text-4xl">{title}</h1>
         {description ? (

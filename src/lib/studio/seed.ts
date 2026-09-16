@@ -1,4 +1,20 @@
+import {
+  CLUB_CTAS,
+  CLUB_DONT_SAY,
+  CLUB_DO_SAY,
+  CLUB_HANDLE,
+  CLUB_HASHTAGS,
+  CLUB_INTRO_SHORT,
+  CLUB_NAME,
+  CLUB_PALETTE,
+  CLUB_SLOGANS,
+  CLUB_VOICE,
+  MASCOT,
+  VISUAL_ANCHORS,
+} from "@/lib/zen/club";
+import { clubBrandMemory } from "./brand";
 import { emptyBoilerplate } from "./boilerplate";
+import { defaultWavePlan, migrateCampaign } from "./campaign";
 import { migrateBrief, migratePlan, migratePlanVersions } from "./brief";
 import { buildLayout } from "./layout";
 import { DEFAULT_SHADOW } from "./layers";
@@ -14,7 +30,7 @@ export const SEED_BEANS_ID = "asset_beans";
 export const SEED_TIME = Date.parse("2026-09-01T00:00:00+08:00");
 
 export const SEED_ASSETS: AssetMeta[] = [
-  {
+  seedAsset({
     id: SEED_LOGO_ID,
     name: "淡江禪學社三色光標誌",
     kind: "logo",
@@ -95,7 +111,7 @@ export const SEED_BRAND: BrandKit = {
     { id: "c4", hex: "#D97736", role: "accent", label: "晨曦暖光" },
     { id: "c5", hex: "#1A202C", role: "ink", label: "深墨黑" },
   ],
-  fontDisplay: "Noto Serif TC",
+  fontDisplay: "Noto Sans TC",
   fontBody: "Noto Sans TC",
   logoAssetId: SEED_LOGO_ID,
   logos: [
@@ -135,8 +151,13 @@ export const SEED_BRAND: BrandKit = {
     hashtags: ["#淡江大學", "#淡江禪學社", "#淡水生活", "#心靈綠洲", "#大學生活"],
     captionClose: "歡迎來活動中心找我們坐坐，或私訊 IG 詢問。",
   },
+  memory: clubBrandMemory([SEED_LOGO_ID, SEED_MASCOT_ID, SEED_DUSK_ID]),
   updatedAt: SEED_TIME,
 };
+
+/* ------------------------------------------------------------------ */
+/* 示範活動：浮游禪光                                                     */
+/* ------------------------------------------------------------------ */
 
 const copy = {
   eyebrow: "09/24 浮游禪光",
@@ -152,10 +173,7 @@ const copy = {
 };
 
 function stabilize(layers: Layer[], prefix: string): Layer[] {
-  return layers.map((layer, index) => ({
-    ...layer,
-    id: `${prefix}${index}`,
-  }));
+  return layers.map((layer, index) => ({ ...layer, id: `${prefix}${index}` }));
 }
 
 export function createSeedProject(): Project {
@@ -165,7 +183,7 @@ export function createSeedProject(): Project {
   });
   page1.layers = stabilize(page1.layers, "seed_ly_");
   page1.role = "cover";
-  page1.templateId = "product";
+  page1.templateId = "editorial";
 
   const page2 = buildLayout(
     "feed-portrait",
@@ -179,6 +197,7 @@ export function createSeedProject(): Project {
     },
     SEED_BRAND,
     "quote",
+    { imageAssetId: SEED_NIGHT_ID },
   );
   page2.layers = stabilize(page2.layers, "seed_p2_ly_");
   page2.role = "problem";
@@ -235,7 +254,7 @@ export function createSeedProject(): Project {
   );
   page4.layers = stabilize(page4.layers, "seed_p4_ly_");
   page4.role = "proof";
-  page4.templateId = "product";
+  page4.templateId = "quote";
 
   const page5 = buildLayout(
     "feed-portrait",
@@ -250,9 +269,9 @@ export function createSeedProject(): Project {
     SEED_BRAND,
     "offer",
   );
-  page5.layers = stabilize(page5.layers, "seed_p5_ly_");
-  page5.role = "cta";
-  page5.templateId = "offer";
+  page4.layers = stabilize(page4.layers, "seed_p4_ly_");
+  page4.role = "cta";
+  page4.templateId = "offer";
 
   const page6 = buildLayout(
     "feed-portrait",
@@ -387,7 +406,7 @@ export function createSeedProject(): Project {
     createdAt: now,
     updatedAt: now,
     brandId: SEED_BRAND_ID,
-    templateId: "product",
+    templateId: "editorial",
     activeFormatId: "feed-portrait",
     status: "ready",
     brief,
@@ -403,7 +422,7 @@ export function createSeedProject(): Project {
     snapshots: [
       {
         id: "snap_seed_v1",
-        name: "初稿 · 六頁輪播",
+        name: "初稿 · 五頁輪播",
         createdAt: now,
         kind: "manual",
         formatId: "feed-portrait",
@@ -414,6 +433,10 @@ export function createSeedProject(): Project {
     ],
     planVersions: migratePlanVersions(undefined, plan),
     exports: [],
+    campaignId: "camp_floating_light",
+    contentKind: "carousel",
+    scheduledAt: Date.parse("2026-09-17T20:00:00+08:00"),
+    publishedAt: null,
   };
 }
 
@@ -443,7 +466,7 @@ export function createSeedDraft(): Project {
     createdAt: now,
     updatedAt: now,
     brandId: SEED_BRAND_ID,
-    templateId: "offer",
+    templateId: "quote",
     activeFormatId: "story",
     status: "draft",
     brief: migrateBrief({
@@ -471,7 +494,65 @@ export function createSeedDraft(): Project {
     snapshots: [],
     planVersions: [],
     exports: [],
+    campaignId: "camp_welcome_tea",
+    contentKind: "story",
+    scheduledAt: null,
+    publishedAt: null,
   };
 }
+
+function createSeedCampaign(): Campaign {
+  const base = migrateCampaign({
+    id: SEED_CAMPAIGN_ID,
+    name: "浮游禪光",
+    kind: "sit",
+    date: "2026-09-24",
+    time: "19:00",
+    location: "淡江大學 商管大樓 B302",
+    oneLiner: "一小時的空白，讓開學後的自己喘一口氣。",
+    intro:
+      "「浮游禪光」是一場給完全沒接觸過靜坐的人的體驗。前十五分鐘由社員帶著坐，之後想繼續坐、想講話、想安靜都可以。不用盤腿、不用穿特別的衣服，直接來就好。",
+    theme: "在忙起來之前，先幫自己留一小時。",
+    painPoint: "開學一個多月，行程被塞滿，卻沒有一段時間是自己的",
+    cta: "來坐一下",
+    signupUrl: "",
+    coverAssetId: SEED_DUSK_ID,
+    assetIds: [SEED_DUSK_ID, SEED_WINDOW_ID, SEED_NIGHT_ID],
+    audienceIds: ["freshman", "study-pressure", "zen-stranger", "wants-belonging"],
+    axis: "不是招生，是先讓人覺得被理解，再邀他來坐一小時。",
+    directions: [
+      {
+        id: "dir_quiet_hour",
+        title: "一小時的空白",
+        concept: "把活動說成「一小時什麼都不用做」，訴求最低門檻。",
+        visual: "淡水傍晚的光＋大量留白，標題只有一句。",
+        sampleHook: "最近是不是連休息都覺得有罪惡感？",
+      },
+      {
+        id: "dir_first_time",
+        title: "第一次來也可以",
+        concept: "正面回應「怕被傳教、怕坐不住」的顧慮。",
+        visual: "白天窗邊光與坐墊，畫面像社課現場而不是宗教場所。",
+        sampleHook: "不用盤腿，不用信什麼，坐下來就好。",
+      },
+      {
+        id: "dir_night_walk",
+        title: "夜晚的淡水",
+        concept: "從宿舍夜燈與河邊夜色切入，talk to 住宿生與通勤生。",
+        visual: "夜光為主色，暖燈作點光，畫面偏安靜。",
+        sampleHook: "有時候我們需要的不是答案，只是一個安靜的晚上。",
+      },
+    ],
+    createdAt: SEED_TIME,
+    updatedAt: SEED_TIME,
+    planSource: "live",
+  });
+  const waves = defaultWavePlan(base).map((wave) =>
+    wave.offsetDays === -7 ? { ...wave, contentId: SEED_PROJECT_ID } : wave,
+  );
+  return { ...base, waves };
+}
+
+export const SEED_CAMPAIGNS: Campaign[] = [createSeedCampaign()];
 
 export const SEED_PROJECT = createSeedProject();

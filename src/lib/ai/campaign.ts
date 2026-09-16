@@ -4,6 +4,7 @@ import type { CampaignPlan, TemplateId } from "@/lib/studio/types";
 import { extractJsonObject, grokAvailable, grokChat } from "./grok";
 import { buildMockPlan } from "./mock";
 import { BriefInputSchema, PlanJsonSchema, type BriefInput } from "./schema";
+import { buildZenContext, ZEN_SYSTEM_PROMPT } from "./zen-context";
 
 export type PlanResult =
   | {

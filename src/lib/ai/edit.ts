@@ -90,7 +90,7 @@ function parsePlan(raw: unknown): EditPlan | null {
 async function interpretLive(command: string, scene: EditorScene): Promise<EditResult> {
   if (!grokAvailable()) return { ok: true, plan: interpretMock(command, scene), adapter: "mock" };
 
-  const prompt = `你是 Instagram 畫布操作代理。只能輸出 JSON，不要 markdown。
+  const prompt = `你是淡江禪學社畫布編輯助手。只能輸出 JSON，不要 markdown。
 根據「目前畫布」把使用者的話變成 actions。禁止只說已完成；沒有對應物件就給空 actions 並在 notes 說明。
 可用 type：
 update-layer{layerId,patch{x,y,w,h,text,fontSize,color,align,fill,opacity,hidden,brightness,contrast,saturate,assetId},label}
@@ -145,7 +145,7 @@ function parseEditInput(input: unknown) {
 export function describeEditAdapter(available: boolean): AiStatus {
   const base = describeAdapter(available);
   if (available) {
-    return { ...base, label: "已連線畫布代理", detail: "會先讀目前圖層與品牌，再真正改畫布。不是只回「已完成」。" };
+    return { ...base, label: "已連線畫布指令", detail: "會先讀目前圖層與品牌，再真正改畫布。不是只回「已完成」。" };
   }
   return {
     ...base,

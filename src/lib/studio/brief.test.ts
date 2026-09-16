@@ -33,7 +33,7 @@ test("formatsFromBrief picks feed, story and reels from flags", () => {
   const brief = migrateBrief({
     eventName: "活動",
     audience: "客人",
-    deliverables: { post: false, story: true, carousel: true, reels: true },
+    deliverables: { post: false, story: true, carousel: true, reels: true, threads: false, line: false },
   });
   assert.deepEqual(formatsFromBrief(brief, "feed-square"), ["feed-square", "story", "reels-cover"]);
 });
@@ -46,7 +46,7 @@ test("migratePlan fills concept, visualTheme, checklist and source", () => {
     visualDirection: "上圖下文",
     colorMood: "亞麻",
     captions: [{ style: "敘事", text: "文案" }],
-    hashtags: ["#日食"],
+    hashtags: ["#淡江禪學社"],
     qaNotes: ["Logo 不壓杯緣"],
     generatedAt: 1,
   });

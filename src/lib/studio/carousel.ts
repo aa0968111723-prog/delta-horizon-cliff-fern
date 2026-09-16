@@ -19,7 +19,7 @@ export const CAROUSEL_SEQUENCE: {
   label: string;
   hint: string;
 }[] = [
-  { role: "cover", templateId: "product", eyebrow: "COVER", label: "封面", hint: "主視覺與標題" },
+  { role: "cover", templateId: "quote", eyebrow: "COVER", label: "封面", hint: "Hook 先行，活動名可小" },
   { role: "problem", templateId: "quote", eyebrow: "ISSUE", label: "痛點", hint: "為什麼現在要看" },
   { role: "detail", templateId: "editorial", eyebrow: "FOCUS", label: "重點", hint: "內容與規格" },
   { role: "proof", templateId: "product", eyebrow: "PROOF", label: "案例", hint: "現場或證明" },
@@ -33,7 +33,7 @@ export const PAGE_ROLE_LABEL: Record<CarouselPageRole, string> = {
   cover: "封面",
   problem: "痛點",
   detail: "重點",
-  proof: "案例",
+  proof: "現場",
   cta: "行動",
   close: "結尾",
 };
@@ -49,7 +49,7 @@ export function roleTemplate(role?: CarouselPageRole, fallback: TemplateId = "ed
 }
 
 export function roleEyebrow(role?: CarouselPageRole, coverEyebrow = ""): string {
-  if (!role || role === "cover") return coverEyebrow || "EVENT";
+  if (!role || role === "cover") return coverEyebrow || "活動";
   return CAROUSEL_SEQUENCE.find((item) => item.role === role)?.eyebrow ?? role.toUpperCase();
 }
 
@@ -184,7 +184,7 @@ export function completeCarouselPages(
       };
     }
     const defaults: Record<CarouselPageRole, Pick<CarouselPagePlan, "headline" | "subhead" | "body">> = {
-      cover: { headline: fallback.headline, subhead: fallback.subhead, body: fallback.hook || fallback.body },
+      cover: { headline: fallback.hook || fallback.headline, subhead: fallback.headline, body: fallback.hook || fallback.body },
       problem: {
         headline: "為什麼現在看",
         subhead: fallback.insight || fallback.subhead,

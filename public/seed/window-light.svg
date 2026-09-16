@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350" role="img" aria-label="Window light and cushions">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F8F4EC" />
+      <stop offset="100%" stop-color="#E7E0D1" />
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFF0D2" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#FFF0D2" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#DCCFB6" />
+      <stop offset="100%" stop-color="#C8B899" />
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#wall)" />
+
+  
+  <rect x="128" y="150" width="420" height="520" rx="14" fill="#FFFDF6" />
+  <rect x="128" y="150" width="420" height="520" rx="14" fill="none" stroke="#23211C" stroke-opacity="0.14" stroke-width="8" />
+  <path d="M338 150v520M128 410h420" stroke="#23211C" stroke-opacity="0.14" stroke-width="8" />
+
+  
+  <path d="M148 170l380 0 300 660-560 0z" fill="url(#beam)" />
+
+  
+  <rect y="980" width="1080" height="370" fill="url(#floor)" />
+
+  
+  <ellipse cx="700" cy="1122" rx="188" ry="34" fill="#23211C" opacity="0.1" />
+  <rect x="536" y="1024" width="330" height="96" rx="44" fill="#3F9E93" />
+  <rect x="536" y="1024" width="330" height="96" rx="44" fill="none" stroke="#23211C" stroke-opacity="0.12" stroke-width="4" />
+  <path d="M566 1072h270" stroke="#F7F4ED" stroke-opacity="0.6" stroke-width="6" stroke-linecap="round" />
+
+  
+  <rect x="228" y="1046" width="104" height="74" rx="16" fill="#FBF8F2" />
+  <rect x="228" y="1046" width="104" height="74" rx="16" fill="none" stroke="#23211C" stroke-opacity="0.14" stroke-width="4" />
+  <path d="M332 1064h34a20 20 0 010 40h-34" fill="none" stroke="#23211C" stroke-opacity="0.14" stroke-width="4" />
+  <path d="M262 1020c8-14-6-22 2-36M300 1020c8-14-6-22 2-36" stroke="#B7A98D" stroke-width="5" stroke-linecap="round" fill="none" />
+</svg>

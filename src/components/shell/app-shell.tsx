@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
   Compass,
@@ -6,21 +6,23 @@ import {
   PenTool,
   Sparkles,
   SwatchBook,
+  Tent,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { AssistantSheet } from "@/components/assistant/assistant-sheet";
 import { SaveIndicator } from "@/components/shared/save-indicator";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
+import { useState } from "react";
 
 const NAV: { to: string; label: string; icon: LucideIcon; match: "home" | "calendar" | "studio" | "instagram" | "brand" }[] = [
   { to: "/", label: "首頁", icon: Compass, match: "home" },
   { to: "/calendar", label: "日曆", icon: CalendarDays, match: "calendar" },
   { to: "/studio", label: "畫布", icon: PenTool, match: "studio" },
   { to: "/instagram", label: "IG", icon: Instagram, match: "instagram" },
-  { to: "/brand", label: "品牌", icon: SwatchBook, match: "brand" },
 ];
 
 function activeKey(pathname: string) {
@@ -36,6 +38,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const setAssistantOpen = useUi((s) => s.setAssistantOpen);
   const current = activeKey(pathname);
+  const [createOpen, setCreateOpen] = useState(false);
+  const navigate = useNavigate();
+
+  function hrefFor(item: NavItem) {
+    if (item.match === "studio" && lastProjectId) {
+      return { to: "/studio/$projectId" as const, params: { projectId: lastProjectId } };
+    }
+    return { to: item.to };
+  }
 
   function hrefFor(item: (typeof NAV)[number]) {
     if (item.match === "studio" && lastProjectId) {
@@ -52,7 +63,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="flex h-14 items-center justify-center font-display text-base font-bold tracking-tight text-accent"
           aria-label="淡江禪學社首頁"
         >
-          禪
+          <span className="three-lights size-6 rounded-full" aria-hidden />
+          <span className="font-display text-[0.7rem] tracking-tight text-muted">{CLUB_SHORT}</span>
         </Link>
         <nav className="flex flex-1 flex-col gap-1 p-2">
           {NAV.map((item) => {
@@ -64,11 +76,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 to={dest.to}
                 params={"params" in dest ? dest.params : undefined}
                 className={cn(
-                  "flex min-h-12 flex-col items-center justify-center gap-1 rounded-md text-xs transition-colors",
+                  "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[0.68rem] transition-colors",
                   active ? "bg-surface-2 text-fg" : "text-muted hover:bg-surface-2 hover:text-fg",
                 )}
               >
-                <item.icon className="size-4" />
+                <item.icon className="size-[1.15rem]" />
                 {item.label}
               </Link>
             );
