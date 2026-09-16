@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { launchVisionAction } from "@/components/create/from-asset";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -8,12 +9,9 @@ import { analyzeStudioImage, generateStudioImage, proposeStudioDirections } from
 import {
   applyImageTweak,
   IMAGE_TWEAKS,
-  promptFromVisionAction,
   proposeVisualDirections,
-  VISION_ACTIONS,
   type ImageAspect,
   type ImageTweakId,
-  type VisionActionId,
 } from "@/lib/ai/image-directions";
 import { generateCopyPack } from "@/lib/ai/copy";
 import { generateCreativePack } from "@/lib/ai/pack";
@@ -25,6 +23,7 @@ import { uid } from "@/lib/studio/ids";
 import type { AssetCategory, VisualDirection } from "@/lib/studio/types";
 import type { VisionAnalysis } from "@/lib/ai/image";
 import { canvaDraftNotes, canvaPresetForAspect } from "@/lib/zen/canva-draft";
+import { LAUNCH_ACTIONS, launchSuccessMessage, type LaunchAction } from "@/lib/zen/from-asset";
 import { materializeCampaignFromPack, parseEventIdea } from "@/lib/zen/from-idea";
 import { clientMemoryLines, composeMemoryNotes, parseDataUrl } from "@/lib/zen/ingest";
 import { igDnaBlock } from "@/lib/zen/insights";
@@ -145,6 +144,7 @@ export function ImageStudio() {
   const [directions, setDirections] = useState<VisualDirection[]>(() => proposeVisualDirections("我要宣傳茶會", "4:5"));
   const [picked, setPicked] = useState<string>("dir_a");
   const [preview, setPreview] = useState<string | null>(null);
+  const [lastAssetId, setLastAssetId] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<VisionAnalysis | null>(null);
   const [ideaCampaignId, setIdeaCampaignId] = useState<string | null>(null);
 
@@ -213,6 +213,7 @@ export function ImageStudio() {
         lastUsedAt: Date.now(),
         useCount: 1,
       });
+      setLastAssetId(id);
       if (current) setAnalysis(visionFromDirection(current, prompt));
       toast.success(result.adapter === "mock" ? "已生成本機主視覺，並存進素材庫" : "已存進素材庫");
     } finally {
@@ -315,14 +316,26 @@ export function ImageStudio() {
     }
   }
 
-  async function runVisionAction(action: VisionActionId) {
+  async function runVisionAction(action: LaunchAction) {
     if (!analysis) return;
-    if (action === "story" || action === "carousel") {
-      await packIntoCampaign(action === "story" ? "story" : "carousel");
-      return;
+    setBusy(action);
+    try {
+      const result = await launchVisionAction({
+        idea: prompt,
+        action,
+        analysis,
+        reuseAssetId: action === "copy" ? lastAssetId ?? undefined : undefined,
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setIdeaCampaignId(result.campaignId);
+      toast.success(launchSuccessMessage(action));
+      void navigate({ to: "/instagram" });
+    } finally {
+      setBusy(null);
     }
-    const nextAspect: ImageAspect = action === "reels-cover" ? "9:16" : aspect;
-    await generate(promptFromVisionAction(action, analysis), nextAspect, action === "reels-cover" ? "reels-cover" : undefined);
   }
 
   async function extendCopy() {
@@ -552,7 +565,7 @@ export function ImageStudio() {
             <Pair label="太 AI？" value={analysis.tooAi} />
           </dl>
           <div className="mt-4 flex flex-wrap gap-2">
-            {VISION_ACTIONS.map((action) => (
+            {LAUNCH_ACTIONS.map((action) => (
               <Button
                 key={action.id}
                 size="sm"
@@ -560,7 +573,7 @@ export function ImageStudio() {
                 disabled={busy !== null}
                 onClick={() => void runVisionAction(action.id)}
               >
-                {action.label}
+                {busy === action.id ? "生成中…" : action.label}
               </Button>
             ))}
           </div>

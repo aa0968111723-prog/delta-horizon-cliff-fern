@@ -107,6 +107,12 @@ export function promptFromVisionAction(
   const base = `Tamkang Zen Club Instagram, based on this image: ${analysis.content}. Color ${analysis.color}. Composition ${analysis.composition}. Brand ${analysis.brand}. Photographic, airy, Tamsui campus, not temple, not incense, not plastic AI.`;
   if (action === "continue-style") return `${base} Continue the same visual DNA for a new night gathering.`;
   if (action === "redesign") return `${base} Keep the subject, redesign layout with more air and a spoken Chinese hook.`;
+  if (action === "story") {
+    return `${base} Vertical 9:16 Instagram story, one spoken Chinese hook, time and place small at the bottom, not a poster.`;
+  }
+  if (action === "carousel") {
+    return `${base} Instagram carousel cover 4:5, large hook, activity name small, page 1 of a sequence.`;
+  }
   if (action === "reels-cover") return `${base} Vertical 9:16 reels cover, one large hook line, face or light in the upper half.`;
   if (action === "similar") return `${base} Generate a sibling frame in the same style, different crop.`;
   return base;

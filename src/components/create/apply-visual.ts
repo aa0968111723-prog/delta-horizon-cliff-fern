@@ -3,7 +3,7 @@ import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { migrateBrief } from "@/lib/studio/brief";
 import { FORMATS } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
-import type { FormatId } from "@/lib/studio/types";
+import type { ContentKind, FormatId } from "@/lib/studio/types";
 import {
   aspectForTarget,
   briefFlagsForTarget,
@@ -12,6 +12,7 @@ import {
   convertFromPlan,
   convertTargetForFormat,
   planForConvertTarget,
+  type ConvertTargetId,
 } from "@/lib/zen/convert";
 import type { CreativePack } from "@/lib/zen/types";
 import { useCreative } from "@/stores/creative-store";
@@ -26,7 +27,10 @@ export async function applyVisualDirection(input: {
   directionId?: string;
   campaignId?: string | null;
   formatId?: FormatId;
+  convertTarget?: ConvertTargetId;
+  contentKind?: ContentKind;
   caption?: string;
+  reuseAssetId?: string;
 }): Promise<ApplyVisualResult> {
   const studio = useStudio.getState();
   const creative = useCreative.getState();
@@ -34,7 +38,7 @@ export async function applyVisualDirection(input: {
   if (!brand) return { ok: false, error: "還沒有品牌記憶。" };
 
   const formatId = input.formatId ?? "feed-portrait";
-  const targetId = convertTargetForFormat(formatId);
+  const targetId = input.convertTarget ?? convertTargetForFormat(formatId);
   const aspect = aspectForTarget(targetId);
   const formatMeta = FORMATS.find((item) => item.id === formatId);
   const dir = input.pack.directions?.find((item) => item.id === input.directionId) ?? input.pack.directions?.[0];
@@ -65,42 +69,58 @@ export async function applyVisualDirection(input: {
   });
   studio.applyCampaignPlan(project.id, plan, brief);
   studio.setActiveFormat(project.id, formatId);
-  studio.updateProject(project.id, { contentKind: contentKindForFormat(formatId) });
+  studio.updateProject(project.id, {
+    contentKind: input.contentKind ?? contentKindForFormat(formatId),
+  });
 
   const headline = (dir?.headline || input.pack.copy.hook).replace(/\n/g, " ").slice(0, 80);
-  const result = await generateStudioImage({
-    data: {
-      prompt: `${dir?.imagePrompt || plan.visualDirection || input.pack.copy.hook}. ${formatMeta?.usage ?? targetId}`,
-      aspect,
-      headline,
-      subhead: (dir?.subhead || input.pack.campaignName).slice(0, 80),
-    },
-  });
-  if (!result.ok) return { ok: false, error: result.error };
+  let assetId = input.reuseAssetId ?? "";
+  let adapter: "live" | "mock" = "mock";
 
-  const dataUrl = `data:${result.mime};base64,${result.b64}`;
-  const blob = await (await fetch(dataUrl)).blob();
-  const assetId = uid("asset");
-  await getAssetStorage().put(assetId, blob);
-  studio.addAsset({
-    id: assetId,
-    name: headline.slice(0, 24) || "主視覺",
-    kind: "image",
-    category: categoryForTarget(targetId),
-    mime: result.mime,
-    width: formatMeta?.width ?? 1080,
-    height: formatMeta?.height ?? 1350,
-    tags: ["AI 生成", targetId, input.pack.campaignName, dir?.title ?? "方向"],
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    source: "generated",
-    licenseNotes: result.adapter === "mock" ? "本機主視覺，可再進畫布或 Canva。" : "AI 生成，可再進畫布或 Canva。",
-    licenseOwner: "禪光",
-    favorite: false,
-    lastUsedAt: Date.now(),
-    useCount: 1,
-  });
-  studio.placeAsset(project.id, assetId);
+  if (input.reuseAssetId) {
+    const existing = studio.assets.find((item) => item.id === input.reuseAssetId);
+    if (!existing) return { ok: false, error: "找不到這張素材。" };
+    studio.placeAsset(project.id, existing.id);
+    studio.updateAsset(existing.id, {
+      lastUsedAt: Date.now(),
+      useCount: existing.useCount + 1,
+    });
+    assetId = existing.id;
+  } else {
+    const result = await generateStudioImage({
+      data: {
+        prompt: `${dir?.imagePrompt || plan.visualDirection || input.pack.copy.hook}. ${formatMeta?.usage ?? targetId}`,
+        aspect,
+        headline,
+        subhead: (dir?.subhead || input.pack.campaignName).slice(0, 80),
+      },
+    });
+    if (!result.ok) return { ok: false, error: result.error };
+    adapter = result.adapter;
+    const dataUrl = `data:${result.mime};base64,${result.b64}`;
+    const blob = await (await fetch(dataUrl)).blob();
+    assetId = uid("asset");
+    await getAssetStorage().put(assetId, blob);
+    studio.addAsset({
+      id: assetId,
+      name: headline.slice(0, 24) || "主視覺",
+      kind: "image",
+      category: categoryForTarget(targetId),
+      mime: result.mime,
+      width: formatMeta?.width ?? 1080,
+      height: formatMeta?.height ?? 1350,
+      tags: ["AI 生成", targetId, input.pack.campaignName, dir?.title ?? "方向"],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      source: "generated",
+      licenseNotes: result.adapter === "mock" ? "本機主視覺，可再進畫布或 Canva。" : "AI 生成，可再進畫布或 Canva。",
+      licenseOwner: "禪光",
+      favorite: false,
+      lastUsedAt: Date.now(),
+      useCount: 1,
+    });
+    studio.placeAsset(project.id, assetId);
+  }
   const caption =
     input.caption ??
     [input.pack.copy.hook, "", input.pack.copy.body, "", input.pack.copy.cta, input.pack.copy.hashtags.join(" ")]
@@ -134,5 +154,5 @@ export async function applyVisualDirection(input: {
   }
 
   creative.setIgPreview(assetId, formatId);
-  return { ok: true, assetId, projectId: project.id, adapter: result.adapter, formatId };
+  return { ok: true, assetId, projectId: project.id, adapter, formatId };
 }

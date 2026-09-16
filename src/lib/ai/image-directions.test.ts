@@ -23,11 +23,18 @@ test("vision actions cover story carousel reels", () => {
   assert.ok(labels.includes("限動"));
   assert.ok(labels.includes("Carousel"));
   assert.ok(labels.includes("Reels"));
-  const similar = promptFromVisionAction("similar", {
+  const analysis = {
     content: "night tea",
     color: "sage",
     composition: "side face",
     brand: "turtle",
-  });
+  };
+  const similar = promptFromVisionAction("similar", analysis);
   assert.ok(similar.includes("sibling"));
+  const story = promptFromVisionAction("story", analysis);
+  assert.ok(story.includes("9:16"));
+  assert.ok(/story/i.test(story));
+  const carousel = promptFromVisionAction("carousel", analysis);
+  assert.ok(/carousel/i.test(carousel));
+  assert.ok(carousel.includes("4:5"));
 });

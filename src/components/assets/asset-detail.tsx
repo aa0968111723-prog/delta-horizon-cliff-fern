@@ -1,5 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
+import { launchFromAsset } from "@/components/create/from-asset";
 import { createFromHit } from "@/components/create/from-hit";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -15,6 +17,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ASSET_CATEGORIES, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import { kindFromCategory } from "@/lib/studio/assets";
 import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
+import { LAUNCH_ACTIONS, launchSuccessMessage } from "@/lib/zen/from-asset";
 import { useStudio } from "@/stores/studio-store";
 
 export function AssetDetailSheet({
@@ -37,6 +40,7 @@ export function AssetDetailSheet({
   const placeAsset = useStudio((s) => s.placeAsset);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
+  const [busy, setBusy] = useState<string | null>(null);
 
   if (!asset) return null;
   const current = asset;
@@ -141,9 +145,10 @@ export function AssetDetailSheet({
           />
         </div>
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
-        <div className="flex flex-wrap gap-2 pb-4">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="secondary"
+            disabled={busy !== null}
             onClick={async () => {
               const ok = await createFromHit({
                 id: current.id,
@@ -161,11 +166,12 @@ export function AssetDetailSheet({
           >
             加入創作
           </Button>
-          <Button onClick={place} disabled={!lastProjectId}>
+          <Button onClick={place} disabled={!lastProjectId || busy !== null}>
             放到目前畫布
           </Button>
           <Button
             variant="secondary"
+            disabled={busy !== null}
             onClick={async () => {
               if (!url) {
                 toast.error("還沒有預覽可以分析。");
@@ -206,18 +212,41 @@ export function AssetDetailSheet({
           >
             AI 分析／打標
           </Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              void navigate({ to: "/create/image" });
-            }}
-          >
-            延伸生成
-          </Button>
-          <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
+        </div>
+        <div>
+          <p className="text-xs text-muted">從這張開始</p>
+          <div className="mt-2 flex flex-wrap gap-2 pb-4">
+          {LAUNCH_ACTIONS.map((action) => (
+            <Button
+              key={action.id}
+              variant="secondary"
+              disabled={busy !== null}
+              onClick={async () => {
+                setBusy(action.id);
+                try {
+                  const result = await launchFromAsset({ asset: current, action: action.id });
+                  if (!result.ok) {
+                    toast.error(result.error);
+                    return;
+                  }
+                  toast.success(launchSuccessMessage(action.id));
+                  onOpenChange(false);
+                  void navigate({ to: "/instagram" });
+                } finally {
+                  setBusy(null);
+                }
+              }}
+            >
+              {busy === action.id ? "生成中…" : action.label}
+            </Button>
+          ))}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 pb-4">
+          <Button variant="secondary" disabled={busy !== null} onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}
           </Button>
-          <Button variant="outline" onClick={onDelete}>
+          <Button variant="outline" disabled={busy !== null} onClick={onDelete}>
             刪除
           </Button>
         </div>

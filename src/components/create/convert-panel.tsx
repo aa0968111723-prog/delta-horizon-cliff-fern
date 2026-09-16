@@ -38,6 +38,8 @@ export function ConvertPanel({
         pack,
         campaignId,
         formatId: target.formatId,
+        convertTarget: target.id,
+        contentKind: target.contentKind,
         caption: captionForTarget(converted, id),
       });
       if (!result.ok) {
