@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { looksEnglish } from "./zh.ts";
-import { buildZenMockPlan, mockDirections, applyStudentRevisions, mockStudentSim } from "./pack-mock.ts";
+import { buildZenMockPlan, mockDirections, applyStudentRevisions, mockStudentSim, reviseCopiesForStudent } from "./pack-mock.ts";
 import type { BriefInput } from "./schema.ts";
 
 test("zen mock plan opens with a lived hook not a formal invitation", () => {
@@ -48,4 +48,15 @@ test("student-sim revisions add time and a way to come", () => {
   );
   assert.ok(next.body.includes("9/24"));
   assert.ok(/留言|連結/.test(next.body));
+  const batch = reviseCopiesForStudent(
+    [
+      { tone: "student", hook: "最近是不是很久沒坐好？", body: "坐一下就好。", cta: "晚上來坐一下", hashtags: ["#淡江禪學社"] },
+      { tone: "short", hook: "先坐。", body: "不用先懂禪。", cta: "來坐", hashtags: ["#淡江禪學社"] },
+    ],
+    sim,
+    "9/24 19:30",
+    "圖書館前",
+  );
+  assert.equal(batch.applied, true);
+  assert.ok(batch.copies.every((item) => item.body.includes("9/24")));
 });

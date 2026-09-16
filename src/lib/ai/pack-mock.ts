@@ -28,6 +28,16 @@ export function applyStudentRevisions(
   return { ...copy, body: body.trim() };
 }
 
+export function reviseCopiesForStudent<
+  T extends { tone: CopyTone; hook: string; body: string; cta: string; hashtags: string[] },
+>(copies: T[], sim: StudentSim | undefined, when?: string, where?: string) {
+  if (!sim?.revisions.length) return { copies, applied: false as const };
+  return {
+    copies: copies.map((item) => applyStudentRevisions(item, sim, when, where)),
+    applied: true as const,
+  };
+}
+
 export function mockStudentSim(input: {
   hook: string;
   caption: string;

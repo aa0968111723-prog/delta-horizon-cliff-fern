@@ -1,4 +1,4 @@
-import type { AssetMeta, Project } from "../studio/types.ts";
+import type { AssetMeta, Project, SourceRef } from "../studio/types.ts";
 import type { ClubCampaign, IgMemoryPost, MemoryItem, MemorySource, SearchHit } from "./types.ts";
 
 function blobOf(parts: Array<string | undefined>) {
@@ -153,6 +153,15 @@ export function groupHits(hits: SearchHit[]) {
   );
 }
 
+export function gatherStatusLine(hitCount: number, liveSources: string[]) {
+  const labels = liveSources.map((id) =>
+    id === "google-drive" ? "Drive" : id === "canva" ? "Canva" : id === "instagram" ? "Instagram" : id,
+  );
+  if (labels.length) return `已搜 ${labels.join("、")}，找到 ${hitCount} 個相關素材`;
+  if (hitCount) return `找到 ${hitCount} 個相關素材。根據過去內容生成 3 個方向`;
+  return "先用品牌記憶生成 3 個方向";
+}
+
 export function sourceGroupLabel(source: MemorySource) {
   if (source === "drive") return "Google Drive";
   if (source === "canva") return "Canva";
@@ -160,4 +169,27 @@ export function sourceGroupLabel(source: MemorySource) {
   if (source === "generated") return "AI 生成";
   if (source === "brand") return "品牌／活動";
   return "本機上傳";
+}
+
+export function selectSourcesForPack(
+  picked: Array<Pick<SearchHit, "id" | "title" | "source" | "sourceLabel">>,
+  live: Array<Pick<SearchHit, "id" | "title" | "source" | "sourceLabel">>,
+  extra: SourceRef[] = [],
+): SourceRef[] {
+  const out: SourceRef[] = [];
+  const seen = new Set<string>();
+  const push = (item: SourceRef) => {
+    const key = `${item.source}:${item.id ?? item.label}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(item);
+  };
+  extra.forEach(push);
+  for (const hit of picked) {
+    push({ source: hit.source, label: hit.sourceLabel || hit.title, id: hit.id.slice(0, 160) });
+  }
+  for (const hit of live.slice(0, 12)) {
+    push({ source: hit.source, label: hit.sourceLabel || hit.title, id: hit.id.slice(0, 160) });
+  }
+  return out.slice(0, 24);
 }

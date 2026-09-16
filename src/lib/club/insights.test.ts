@@ -22,13 +22,16 @@ test("insights prefer high-save life posts over club invitations", () => {
   const learned = lastLearnFromPosts(SEED_IG_POSTS, "課表有了，人還在趕路。", 1);
   assert.equal(learned.hook, "課表有了，人還在趕路。");
   assert.ok(learned.mixLesson.length > 4);
+  assert.ok(/茶會圍坐|龜|黃昏/.test(learned.visualLesson ?? ""));
   assert.equal(learned.at, 1);
   const nextBlock = lastLearnPromptBlock(learned);
   assert.ok(nextBlock.includes("不要重複同一句"));
   assert.ok(nextBlock.includes("課表有了"));
+  assert.ok(nextBlock.includes("畫面") || /停/.test(nextBlock));
   const nextQuery = nextCreateFromLearn(learned);
   assert.ok(nextQuery.startsWith("下一篇不要重複"));
   assert.equal(nextQuery.includes("年輕人"), false);
+  assert.ok(/畫面|停/.test(nextQuery));
 });
 
 test("too many event ads produces a mix warning", () => {

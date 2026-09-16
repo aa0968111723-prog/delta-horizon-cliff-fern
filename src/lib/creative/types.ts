@@ -113,6 +113,7 @@ export type LastLearn = {
   hook: string;
   mixLesson: string;
   hookLesson: string;
+  visualLesson?: string;
 };
 
 export type Inspiration = {

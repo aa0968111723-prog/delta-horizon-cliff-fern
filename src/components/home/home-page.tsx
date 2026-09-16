@@ -12,7 +12,7 @@ import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { clubDnaFromMemory } from "@/lib/club/dna";
 import { clubInsightsFromPosts, nextCreateFromLearn } from "@/lib/club/insights";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
-import { searchCreative } from "@/lib/creative/search";
+import { gatherStatusLine, searchCreative } from "@/lib/creative/search";
 import { calendarFrom, useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
@@ -45,6 +45,7 @@ export function HomePage() {
   const setLastQuery = useCreative((s) => s.setLastQuery);
   const [q, setQ] = useState("");
   const [searching, setSearching] = useState(false);
+  const [liveSources, setLiveSources] = useState<string[]>([]);
   const featured = campaigns[0];
   const remain = featured ? daysUntil(featured.date) : 0;
   const brand = brands[0];
@@ -57,10 +58,15 @@ export function HomePage() {
 
   useEffect(() => {
     const term = q.trim();
-    if (term.length < 2) return;
+    if (term.length < 2) {
+      setLiveSources([]);
+      return;
+    }
     const timer = window.setTimeout(() => {
       setSearching(true);
-      void gatherIntoStore(term).finally(() => setSearching(false));
+      void gatherIntoStore(term)
+        .then((gathered) => setLiveSources(gathered.sources))
+        .finally(() => setSearching(false));
     }, 480);
     return () => window.clearTimeout(timer);
   }, [q]);
@@ -124,7 +130,7 @@ export function HomePage() {
       {searching || hits.length ? (
         <div>
           <p className="mt-3 text-sm text-muted">
-            {searching ? "正在找 Drive、Canva、IG…" : `找到 ${hits.length} 個相關素材`}
+            {searching ? "正在找 Drive、Canva、IG…" : gatherStatusLine(hits.length, liveSources)}
           </p>
           <CreativeHits
             hits={hits}
@@ -152,6 +158,9 @@ export function HomePage() {
           <p className="mt-2 font-display text-xl leading-snug">「{lastLearn.hook}」</p>
           <p className="mt-2 text-sm text-muted">{lastLearn.hookLesson}</p>
           <p className="mt-1 text-xs text-muted">{lastLearn.mixLesson}</p>
+          {lastLearn.visualLesson || insights.visualLesson ? (
+            <p className="mt-1 text-xs text-muted">{lastLearn.visualLesson || insights.visualLesson}</p>
+          ) : null}
           <Button asChild className="mt-4 min-h-11 rounded-full">
             <Link to="/create" search={{ q: nextCreateFromLearn(lastLearn), go: "1" }}>
               用這次學到的再創作

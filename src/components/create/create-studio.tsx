@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/input";
 import { convertContent, type ConvertResult } from "@/lib/ai/convert";
 import { generateCopy, type CopyBlock } from "@/lib/ai/copy";
 import { generateStudioImage, listVisualDirections } from "@/lib/ai/image";
-import { applyStudentRevisions } from "@/lib/ai/pack-mock";
+import { applyStudentRevisions, reviseCopiesForStudent } from "@/lib/ai/pack-mock";
 import { generateCreativePack, type CreativePack } from "@/lib/ai/pack";
 import { analyzeImage, type VisionReport } from "@/lib/ai/vision";
 import { visionPromptBlock } from "@/lib/ai/vision-notes";
@@ -22,7 +22,8 @@ import { publicImageUrl } from "@/lib/connect/ig-publish";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { varyImagePrompt } from "@/lib/creative/image-vary";
 import { inferCampaignType, inferEventDate, isoFromMs, scheduledAtFor } from "@/lib/creative/schedule";
-import { searchCreative } from "@/lib/creative/search";
+import { gatherStatusLine, searchCreative, selectSourcesForPack } from "@/lib/creative/search";
+import type { SearchHit } from "@/lib/creative/types";
 import type { CanvaLoopStep } from "@/lib/creative/session";
 import { readLastSession, writeLastSession } from "@/lib/creative/session";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
@@ -31,7 +32,7 @@ import { brandMemoryBlock } from "@/lib/studio/brand";
 import { emptyBrief } from "@/lib/studio/brief";
 import { uid } from "@/lib/studio/ids";
 import { COPY_TONES, formatForKind } from "@/lib/studio/content";
-import type { CarouselPagePlan, ContentKind, CreativeDirection, ReelsBeat, StoryFrame } from "@/lib/studio/types";
+import type { CarouselPagePlan, ContentKind, CreativeDirection, ReelsBeat, SourceRef, StoryFrame } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -168,18 +169,23 @@ export function CreateStudio({
   const ran = useRef(false);
   const restored = useRef(false);
   const retriedCanva = useRef(false);
+  const paintGen = useRef(0);
+  const [pickedHits, setPickedHits] = useState<SearchHit[]>([]);
+  const [gatherNote, setGatherNote] = useState("");
+  const [simApplied, setSimApplied] = useState(false);
 
   const hits = useMemo(
     () => searchCreative({ query, memory, assets, campaigns, igPosts, projects }),
     [query, memory, assets, campaigns, igPosts, projects],
   );
 
-  async function runPack(opts?: { vision?: VisionReport | null; query?: string }) {
+  async function runPack(opts?: { vision?: VisionReport | null; query?: string; skipHero?: boolean }) {
     const report = opts && "vision" in opts ? opts.vision : vision;
     const q = opts?.query ?? query;
+    paintGen.current += 1;
     setBusy(true);
     try {
-      await gatherIntoStore(q);
+      const gathered = await gatherIntoStore(q);
       const liveHits = searchCreative({
         query: q,
         memory: useCreative.getState().memory,
@@ -188,21 +194,17 @@ export function CreateStudio({
         igPosts: useCreative.getState().igPosts,
         projects,
       });
-      const sources = liveHits.slice(0, 12).map((hit) => ({
-        source: hit.source,
-        label: hit.sourceLabel || hit.title,
-        id: hit.id.slice(0, 160),
-      }));
+      const note = gatherStatusLine(liveHits.length, gathered.sources);
+      setGatherNote(note);
+      const extra: SourceRef[] = [];
       if (report || imageSrc || initialAssetId) {
-        const label = assets.find((item) => item.id === initialAssetId)?.name || "你丟進來的圖";
-        if (!sources.some((item) => item.id === initialAssetId || item.label === label)) {
-          sources.unshift({
-            source: "upload",
-            label,
-            id: (initialAssetId ?? "upload").slice(0, 160),
-          });
-        }
+        extra.push({
+          source: "upload",
+          label: assets.find((item) => item.id === initialAssetId)?.name || "你丟進來的圖",
+          id: (initialAssetId ?? "upload").slice(0, 160),
+        });
       }
+      const sources = selectSourcesForPack(pickedHits, liveHits, extra);
       const dna = clubDnaFromMemory({
         igPosts: useCreative.getState().igPosts,
         memory: useCreative.getState().memory,
@@ -231,20 +233,35 @@ export function CreateStudio({
         toast.error(result.error);
         return;
       }
-      setPack(result.pack);
-      setDirId(result.pack.directions[0]?.id ?? null);
-      setCopies(result.pack.copyVariants);
+      const when = campaign ? `${campaign.date} ${campaign.time}` : result.pack.plan.subhead;
+      const where = campaign?.location;
+      const revised = reviseCopiesForStudent(result.pack.copyVariants, result.pack.plan.studentSim, when, where);
+      const nextPack = {
+        ...result.pack,
+        sourceSummary: note,
+        copyVariants: revised.copies,
+      };
+      setPack(nextPack);
+      setDirId(nextPack.directions[0]?.id ?? null);
+      setCopies(revised.copies);
+      setSimApplied(revised.applied);
+      let heroSrc = imageSrc;
+      const heroPrompt = nextPack.directions[0]?.imagePrompt;
+      if (heroPrompt && !opts?.skipHero) {
+        heroSrc = (await runImage(heroPrompt, aspect, { silent: true, keepBusy: true })) ?? heroSrc;
+      }
       writeLastSession({
-        pack: result.pack,
-        dirId: result.pack.directions[0]?.id ?? null,
-        copies: result.pack.copyVariants,
+        pack: nextPack,
+        dirId: nextPack.directions[0]?.id ?? null,
+        copies: revised.copies,
         tone: "student",
-        imageSrc: persistableImageSrc(imageSrc),
+        imageSrc: persistableImageSrc(heroSrc),
         createdCampaignId,
         projectId: studioProjectId,
         aspect,
         savedAt: Date.now(),
       });
+      toast.success(heroPrompt && !opts?.skipHero ? "完整宣傳與主視覺好了" : "完整宣傳好了");
     } catch {
       toast.error("生成失敗，再試一次。");
     } finally {
@@ -368,19 +385,26 @@ export function CreateStudio({
     }
   }
 
-  async function runImage(prompt: string, ratio: (typeof ASPECTS)[number]["id"] = aspect) {
-    setBusy(true);
+  async function runImage(
+    prompt: string,
+    ratio: (typeof ASPECTS)[number]["id"] = aspect,
+    opts?: { silent?: boolean; keepBusy?: boolean },
+  ) {
+    const gen = ++paintGen.current;
+    if (!opts?.keepBusy) setBusy(true);
     try {
       if (ratio !== aspect) setAspect(ratio);
       const result = await generateStudioImage({ data: { prompt, topic: query, aspect: ratio } });
+      if (gen !== paintGen.current) return null;
       if (!result.ok) {
-        toast.error(result.error);
-        return;
+        if (!opts?.silent) toast.error(result.error);
+        return null;
       }
       setImageSrc(result.src);
       if (ratio === "9:16") setReelsCoverSrc(result.src);
       const id = uid("asset");
       const blob = await (await fetch(result.src)).blob();
+      if (gen !== paintGen.current) return null;
       await getAssetStorage().put(id, blob);
       addAsset(
         createGeneratedAsset({
@@ -406,9 +430,18 @@ export function CreateStudio({
           createdAt: Date.now(),
         });
       }
-      toast.success(ratio === "9:16" ? "Reels 封面已進素材庫" : "主視覺已進素材庫");
+      const session = readLastSession();
+      if (session) {
+        writeLastSession({
+          ...session,
+          imageSrc: persistableImageSrc(result.src),
+          savedAt: Date.now(),
+        });
+      }
+      if (!opts?.silent) toast.success(ratio === "9:16" ? "Reels 封面已進素材庫" : "主視覺已進素材庫");
+      return result.src;
     } finally {
-      setBusy(false);
+      if (!opts?.keepBusy && gen === paintGen.current) setBusy(false);
     }
   }
 
@@ -434,7 +467,7 @@ export function CreateStudio({
       const nextQuery = /延續/.test(query) ? query : `${query}。延續這張圖的風格做新網宣。`;
       setQuery(nextQuery);
       await runImage(vision.imagePrompt);
-      await runPack({ vision, query: nextQuery });
+      await runPack({ vision, query: nextQuery, skipHero: true });
       toast.success("已延續風格，文案和方向一起出來了");
       return;
     }
@@ -720,13 +753,9 @@ export function CreateStudio({
 
   function applySimFixes() {
     if (!copy || !sim) return;
-    setCopies((prev) =>
-      prev.map((item) =>
-        item.tone === copy.tone
-          ? applyStudentRevisions(item, sim, campaign ? `${campaign.date} ${campaign.time}` : pack?.plan.subhead, campaign?.location)
-          : item,
-      ),
-    );
+    const when = campaign ? `${campaign.date} ${campaign.time}` : pack?.plan.subhead;
+    setCopies((prev) => prev.map((item) => applyStudentRevisions(item, sim, when, campaign?.location)));
+    setSimApplied(true);
     toast.success("已依淡江學生視角改過這一版");
   }
 
@@ -839,13 +868,30 @@ export function CreateStudio({
         <img src={imageSrc} alt="生成或上傳的畫面" className="mt-6 w-full rounded-3xl shadow-[var(--shadow-artboard)]" />
       ) : null}
 
-      {hits.length ? (
+      {hits.length || gatherNote || pickedHits.length ? (
         <div className="mt-4">
-          <p className="text-sm text-muted">找到 {hits.length} 個相關素材 · 根據過去內容準備 3 個方向</p>
+          <p className="text-sm text-muted">{gatherNote || (hits.length ? `找到 ${hits.length} 個相關素材 · 根據過去內容準備 3 個方向` : "先用品牌記憶生成 3 個方向")}</p>
+          {pickedHits.length ? (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {pickedHits.map((hit) => (
+                <button
+                  key={`${hit.source}-${hit.id}`}
+                  type="button"
+                  className="rounded-full bg-surface px-3 py-1.5 text-xs shadow-[var(--shadow-border)]"
+                  onClick={() => setPickedHits((prev) => prev.filter((item) => item.id !== hit.id))}
+                >
+                  {hit.sourceLabel} ×
+                </button>
+              ))}
+            </div>
+          ) : null}
           <CreativeHits
             hits={hits}
+            pickedIds={new Set(pickedHits.map((hit) => hit.id))}
             onPick={(hit) => {
-              setQuery((prev) => `${prev}（參考 ${hit.sourceLabel}）`);
+              setPickedHits((prev) =>
+                prev.some((item) => item.id === hit.id) ? prev.filter((item) => item.id !== hit.id) : [...prev, hit],
+              );
             }}
             onAnalyze={(hit) => {
               const thumb = hit.thumbUrl;
@@ -874,7 +920,8 @@ export function CreateStudio({
       {pack ? (
         <section className="mt-8 space-y-6">
           <div className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
-            <p className="text-xs text-muted">{pack.sourceSummary}</p>
+            <p className="text-xs text-muted">{gatherNote || pack.sourceSummary}</p>
+            {simApplied ? <p className="mt-1 text-xs text-muted">已依淡江學生視角改過文案</p> : null}
             <p className="mt-1 text-sm">{pack.studentContext}</p>
             <p className="mt-3 font-display text-2xl">「{pack.plan.hook}」</p>
             <div className="mt-3 flex flex-wrap gap-1">
@@ -897,7 +944,12 @@ export function CreateStudio({
                 <li key={dir.id}>
                   <button
                     type="button"
-                    onClick={() => setDirId(dir.id)}
+                    onClick={() => {
+                      setDirId(dir.id);
+                      if (dir.id !== dirId && dir.imagePrompt) {
+                        void runImage(dir.imagePrompt, aspect, { silent: true });
+                      }
+                    }}
                     className={cn(
                       "h-full min-h-11 w-full rounded-2xl p-4 text-left shadow-[var(--shadow-border)]",
                       dirId === dir.id ? "bg-accent text-accent-fg" : "bg-surface",
@@ -988,10 +1040,12 @@ export function CreateStudio({
               </ul>
               <p className="mt-2 text-sm">{sim.notes.join(" ")}</p>
               {sim.revisions.length ? <p className="mt-1 text-xs text-muted">修改：{sim.revisions.join(" ")}</p> : null}
-              {sim.revisions.length ? (
+              {sim.revisions.length && !simApplied ? (
                 <Button className="mt-3" size="sm" variant="secondary" onClick={applySimFixes}>
                   套用學生視角修改
                 </Button>
+              ) : simApplied ? (
+                <p className="mt-3 text-xs text-muted">已自動套用學生視角修改</p>
               ) : null}
             </div>
           ) : null}

@@ -5,10 +5,12 @@ export function CreativeHits({
   hits,
   onPick,
   onAnalyze,
+  pickedIds,
 }: {
   hits: SearchHit[];
   onPick?: (hit: SearchHit) => void;
   onAnalyze?: (hit: SearchHit) => void;
+  pickedIds?: Set<string>;
 }) {
   const groups = groupHits(hits);
   if (!groups.length) return null;
@@ -27,7 +29,7 @@ export function CreativeHits({
                 ) : (
                   <button
                     type="button"
-                    className="min-w-0 flex-1 rounded-xl px-2 py-1.5 text-left hover:bg-surface-2"
+                    className={`min-w-0 flex-1 rounded-xl px-2 py-1.5 text-left hover:bg-surface-2 ${pickedIds?.has(hit.id) ? "bg-surface-2 ring-1 ring-accent/40" : ""}`}
                     onClick={() => onPick?.(hit)}
                   >
                     <HitBody hit={hit} />
