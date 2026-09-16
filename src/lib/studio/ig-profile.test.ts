@@ -4,6 +4,7 @@ import {
   igFeedPostCount,
   igGridProjects,
   igHighlights,
+  igPeekMode,
   indexOfId,
   isHighlightKind,
   isIgFeedKind,
@@ -75,6 +76,15 @@ test("igFeedPostCount skips ideas, highlights, LINE and Threads", () => {
     ]),
     2,
   );
+});
+
+test("igPeekMode routes stories to 9:16 and posts to the feed", () => {
+  assert.equal(igPeekMode("story"), "story");
+  assert.equal(igPeekMode("reels"), "story");
+  assert.equal(igPeekMode("ig-post"), "feed");
+  assert.equal(igPeekMode("carousel"), "feed");
+  assert.equal(igPeekMode("line"), null);
+  assert.equal(igPeekMode("threads"), null);
 });
 
 test("indexOfId starts the story viewer on the tapped highlight", () => {

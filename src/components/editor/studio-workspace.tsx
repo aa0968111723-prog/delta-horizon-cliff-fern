@@ -27,6 +27,7 @@ import { PublishPreview } from "@/components/create/publish-preview";
 import { ReelsTimeline } from "@/components/create/reels-timeline";
 import { ConvertBar } from "@/components/create/convert-bar";
 import { PackSyncButtons } from "@/components/shared/pack-sync";
+import { StudioIgPeekButton } from "@/components/instagram/studio-ig-peek";
 import { PlannerPanel } from "@/components/planner/planner-panel";
 import { QualityPanel } from "@/components/qa/quality-panel";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -219,6 +220,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
       <div className="shrink-0 space-y-2 overflow-x-auto border-b border-border bg-surface px-3 py-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <ConvertBar project={project} variant="compact" />
+          <StudioIgPeekButton project={project} brand={brand} />
           <PackSyncButtons projectId={project.id} />
         </div>
         <p className="text-xs text-subtle">點照片當主視覺。Logo 到左側素材放入。</p>

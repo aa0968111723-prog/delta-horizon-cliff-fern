@@ -526,6 +526,29 @@ try {
     storyPhoto > 0,
     storyPhoto > 0 ? `畫布上有 ${storyPhoto} 張主視覺` : "封面沒有主視覺照片",
   );
+  await page.getByTestId("studio-ig-peek").first().evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForSelector("[data-testid=ig-story-viewer]", { timeout: 8000 });
+  await expectText("編輯裡用限動看", "限動預覽");
+  const studioPeek = await page.evaluate(() => {
+    const viewer = document.querySelector("[data-testid=ig-story-viewer]");
+    const board = viewer?.querySelector('[data-ratio="9:16"]');
+    const box = board?.getBoundingClientRect();
+    const id = viewer?.getAttribute("data-story-id") ?? "";
+    if (!box) return { ok: false, detail: "沒有 9:16 畫面" };
+    return {
+      ok: box.height > box.width && box.height >= 180 && id.length > 0,
+      detail: `${id} ${Math.round(box.width)}×${Math.round(box.height)}`,
+    };
+  });
+  record("編輯裡限動是直式", Boolean(studioPeek.ok), studioPeek.detail);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${prefix}-studio-ig-peek.png` });
+  await page.getByTestId("ig-peek-close").evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForSelector("[data-testid=ig-peek]", { state: "hidden", timeout: 8000 }).catch(() => null);
   await page.screenshot({ path: `${prefix}-from-image.png` });
 
   // 8c. 從一張圖片做成 Reels：腳本 + 9:16 封面

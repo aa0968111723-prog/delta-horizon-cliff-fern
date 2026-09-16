@@ -50,6 +50,13 @@ export function storyPreviewProjects<T extends Pick<Project, "status" | "content
   return projects.filter((project) => project.status !== "idea" && HIGHLIGHT_KINDS.has(project.contentKind));
 }
 
+/** 編輯裡「用 IG 看」：限動走 9:16，貼文走 4:5。Threads／LINE 不是 IG 畫面。 */
+export function igPeekMode(kind: ContentKind): "story" | "feed" | null {
+  if (isHighlightKind(kind)) return "story";
+  if (isIgFeedKind(kind)) return "feed";
+  return null;
+}
+
 /** 精選圓圈點開時，從那一則開始看。找不到就從頭。 */
 export function indexOfId<T extends { id: string }>(rows: T[], id: string | null | undefined): number {
   if (!id) return 0;
