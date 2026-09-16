@@ -198,14 +198,13 @@ function ImageStudio() {
     setBusy(true);
     setPicked(direction);
     try {
-      const result = await generateStudioImage({ data: { prompt: direction.imagePrompt, variation } });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
+      const result = await generateStudioImage({ data: { prompt: direction.imagePrompt, variation, headline: direction.headline, eventName: idea } });
       setUrls(result.urls);
       const url = result.urls[0];
-      if (!url) return;
+      if (!url) {
+        toast.error("圖片暫時無法生成");
+        return;
+      }
       const res = await fetch(url);
       const blob = await res.blob();
       const id = uid("asset");

@@ -143,7 +143,7 @@ export function HomePage() {
 
         <section className="mt-8">
           <SectionHeader title="快速開始" hint="從一個動作進入創作" />
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+          <div className="flex flex-wrap gap-2">
             {QUICK_STARTS.map((item) => (
               <Button
                 key={item.id}

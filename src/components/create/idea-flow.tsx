@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
+import { ArtboardView } from "@/components/studio/artboard-view";
+import { IgThumb } from "@/components/create/ig-thumb";
 import { generateCampaignPlan } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
 import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, notesFromHits, summarizeFound } from "@/lib/club/compose";
@@ -16,10 +18,12 @@ import { createGeneratedAsset } from "@/lib/studio/assets";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
+import { pagesOf } from "@/lib/studio/layers";
 import { searchCreative, type SearchHit } from "@/lib/search/creative";
 import type { CampaignPlan, ContentKind, CreativeDirection } from "@/lib/studio/types";
 import { sourceLabel, useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
+import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { cn } from "@/lib/utils";
 
 type Phase = "idea" | "research" | "directions" | "pack";
@@ -53,6 +57,15 @@ export function IdeaFlow() {
   const [busy, setBusy] = useState(false);
 
   const brand = brands[0];
+  const projects = useStudio((s) => s.projects);
+  const previewProject = projects.find((item) => item.id === projectId);
+  const artboard = previewProject ? pagesOf(previewProject)[previewProject.slideIndex ?? 0] : undefined;
+  const assetIds = previewProject
+    ? pagesOf(previewProject).flatMap((page) =>
+        page.layers.flatMap((layer) => (layer.type === "image" || layer.type === "logo" ? [layer.assetId ?? ""] : [])),
+      )
+    : [];
+  const urls = useAssetUrls(assetIds);
 
   useEffect(() => {
     const stored = window.sessionStorage.getItem("zen-idea");
@@ -152,13 +165,18 @@ export function IdeaFlow() {
     if (!picked) return;
     setBusy(true);
     try {
-      const result = await generateStudioImage({ data: { prompt: picked.imagePrompt } });
-      if (!result.ok) {
-        toast.error(result.error);
+      const result = await generateStudioImage({
+        data: {
+          prompt: picked.imagePrompt,
+          headline: picked.headline || plan?.hook,
+          eventName: parseIdea(idea).eventName,
+        },
+      });
+      const url = result.urls[0];
+      if (!url) {
+        toast.error("圖片暫時無法生成");
         return;
       }
-      const url = result.urls[0];
-      if (!url) return;
       setHeroUrl(url);
       const res = await fetch(url);
       const blob = await res.blob();
@@ -279,7 +297,15 @@ export function IdeaFlow() {
           <div className="rounded-3xl bg-bg p-4" data-testid="idea-preview">
             <p className="text-xs tracking-[0.16em] text-muted">IG Preview · {brand?.handle ?? "@tku.zen"}</p>
             <div className="mt-3 overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-float)]">
-              <img src={thumb} alt="" className="aspect-square w-full bg-surface-2 object-cover object-center ring-1 ring-border" />
+              {heroUrl ? (
+                <img src={heroUrl} alt="" className="aspect-[4/5] w-full bg-surface-2 object-cover object-center" />
+              ) : artboard && brand ? (
+                <div className="flex justify-center bg-[#1c2422]/10 p-4" data-testid="idea-artboard">
+                  <ArtboardView artboard={artboard} brand={brand} urls={urls} width={280} />
+                </div>
+              ) : (
+                <IgThumb src={thumb} caption={plan.hook} className="aspect-[4/5]" />
+              )}
               <div className="space-y-2 px-4 py-3">
                 <p className="text-sm font-medium">{plan.hook}</p>
                 <p className="whitespace-pre-wrap text-sm text-muted">{plan.captions[0]?.text}</p>

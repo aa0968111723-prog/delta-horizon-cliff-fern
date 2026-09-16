@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
+import { IgThumb } from "@/components/create/ig-thumb";
 import { IG_DNA } from "@/lib/club/memory";
 import { lessonsFromIg } from "@/lib/club/insights";
 import { listConnectedMedia } from "@/lib/connections/oauth";
@@ -75,7 +76,7 @@ export function InstagramCenter() {
             {grid.map((post) => (
               <li key={post.id}>
                 <button type="button" className="block w-full" onClick={() => setActive(post)}>
-                  <img src={post.thumb} alt="" className="aspect-square w-full object-cover" />
+                  <IgThumb src={post.thumb} caption={post.caption} />
                 </button>
               </li>
             ))}

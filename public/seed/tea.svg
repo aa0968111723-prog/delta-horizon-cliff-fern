@@ -1,13 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" role="img" aria-label="“6">
-  <rect width="1080" height="1080" fill="#F6F1E8"/>
-  <ellipse cx="540" cy="760" rx="340" ry="70" fill="#E7DCC8"/>
-  <ellipse cx="540" cy="560" rx="210" ry="80" fill="#2F5F56"/>
-  <ellipse cx="540" cy="530" rx="150" ry="48" fill="#F6F1E8"/>
-  <circle cx="390" cy="430" r="28" fill="#7EB8C9" opacity=".8"/>
-  <circle cx="540" cy="390" r="34" fill="#E0B07A" opacity=".85"/>
-  <circle cx="690" cy="430" r="28" fill="#D9A3A3" opacity=".8"/>
-  <circle cx="300" cy="700" r="18" fill="#2F5F56"/>
-  <circle cx="780" cy="700" r="18" fill="#2F5F56"/>
-  <circle cx="430" cy="740" r="14" fill="#2F5F56" opacity=".7"/>
-  <circle cx="650" cy="740" r="14" fill="#2F5F56" opacity=".7"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" role="img" aria-label="????">
+  <rect width="1080" height="1080" fill="#1C2422"/>
+  <circle cx="260" cy="360" r="220" fill="#7EB8C9" opacity=".45"/>
+  <circle cx="540" cy="280" r="200" fill="#E0B07A" opacity=".5"/>
+  <circle cx="820" cy="380" r="230" fill="#D9A3A3" opacity=".42"/>
+  <ellipse cx="540" cy="860" rx="360" ry="80" fill="#2A3431"/>
+  <ellipse cx="540" cy="640" rx="230" ry="86" fill="#2F5F56"/>
+  <ellipse cx="540" cy="608" rx="168" ry="50" fill="#F6F1E8"/>
+  <circle cx="300" cy="780" r="22" fill="#2F5F56"/>
+  <circle cx="780" cy="780" r="22" fill="#2F5F56"/>
+  <rect x="90" y="820" width="900" height="180" rx="28" fill="#F6F1E8"/>
+  <text x="540" y="900" text-anchor="middle" font-family="Noto Serif TC, Georgia, serif" font-size="48" fill="#1C2422">??????</text>
+  <text x="540" y="960" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="24" fill="#2F5F56">???? · ??</text>
 </svg>

@@ -4,6 +4,7 @@ import { systemPlanner } from "@/lib/club/prompts";
 import { studentContext } from "@/lib/club/season";
 import { extractJson } from "@/lib/ai/json";
 import { chatGrok, editImage, hasXaiKey, imagineImage } from "@/lib/ai/xai";
+import { moodFromVariation, posterDataUrl } from "@/lib/image/poster";
 import type { CreativeDirection, FormatId } from "@/lib/studio/types";
 
 const DirectionInput = z.object({
@@ -92,6 +93,11 @@ const RenderInput = z.object({
   n: z.number().min(1).max(3).optional(),
   editUrls: z.array(z.string().min(8)).max(3).optional(),
   variation: z.enum(["regen", "compose", "mood", "background", "style", "text"]).optional(),
+  headline: z.string().max(80).optional(),
+  eventName: z.string().max(80).optional(),
+  schedule: z.string().max(80).optional(),
+  location: z.string().max(80).optional(),
+  forceMock: z.boolean().optional(),
 });
 
 export const generateStudioImage = createServerFn({ method: "POST" })
@@ -100,12 +106,24 @@ export const generateStudioImage = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const prompt = `${data.prompt}. Variation: ${data.variation ?? "regen"}. Natural Taiwan university students, Tamsui/Tamkang feeling, soft tricolor lights, not religious temple poster, not overly AI-smooth.`;
+    const composed = posterDataUrl({
+      hook: data.headline || "最近是不是很久沒有好好坐下來？",
+      eventName: data.eventName,
+      schedule: data.schedule,
+      location: data.location,
+      mood: moodFromVariation(data.variation),
+    });
+    if (!hasXaiKey() || data.forceMock) {
+      return { ok: true as const, urls: [composed], adapter: "compose" as const };
+    }
     if (data.editUrls?.length) {
       const edited = await editImage({ prompt, imageUrls: data.editUrls });
-      if (!edited.ok) return edited;
-      return { ok: true as const, urls: edited.urls };
+      if (!edited.ok) return { ok: true as const, urls: [composed], adapter: "compose" as const };
+      return { ok: true as const, urls: edited.urls, adapter: "live" as const };
     }
-    return imagineImage({ prompt, n: data.n ?? 1 });
+    const imagined = await imagineImage({ prompt, n: data.n ?? 1 });
+    if (!imagined.ok) return { ok: true as const, urls: [composed], adapter: "compose" as const };
+    return { ok: true as const, urls: imagined.urls, adapter: "live" as const };
   });
 
 export type AspectPreset = { id: FormatId; label: string };

@@ -15,6 +15,7 @@ export function CalendarPage() {
   const moveSchedule = useCreative((s) => s.moveSchedule);
   const duplicateSchedule = useCreative((s) => s.duplicateSchedule);
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
+  const setScheduleStatus = useCreative((s) => s.setScheduleStatus);
   const [cursor, setCursor] = useState(() => new Date(2026, 8, 16));
   const [view, setView] = useState<"month" | "week" | "agenda">("month");
   const [title, setTitle] = useState("");
@@ -135,6 +136,13 @@ export function CalendarPage() {
               <p className="mt-1 font-medium">{row.title}</p>
               <div className="mt-2 flex gap-2">
                 <Button size="sm" variant="secondary" onClick={() => duplicateSchedule(row.id)}>複製</Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setScheduleStatus(row.id, row.status === "published" ? "scheduled" : "published")}
+                >
+                  {row.status === "published" ? "改回已排程" : "標記已發布"}
+                </Button>
                 <Button size="sm" variant="ghost" asChild>
                   <Link to="/create" search={{ tab: "copy" }}>AI 延伸</Link>
                 </Button>
