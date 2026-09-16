@@ -3,6 +3,7 @@ import { z } from "zod";
 import { clubSystemPrompt, HASHTAG_BANK } from "@/lib/club/identity";
 import { academicMoment } from "@/lib/club/season";
 import { seasonCreateNote } from "@/lib/club/featured";
+import { resolvePromoEvent } from "@/lib/creative/schedule";
 import type { CampaignPlan, CopyTone, CreativeDirection, SourceRef } from "@/lib/studio/types";
 import { buildZenMockPlan, mockDirections, mockReels, mockStoryFrames, mockStudentSim } from "./pack-mock";
 import { extractJson, hasXai, xaiChat } from "./xai";
@@ -56,11 +57,17 @@ const PackInput = z.object({
 });
 
 function briefFromPack(data: z.infer<typeof PackInput>): BriefInput {
-  const eventName = data.eventName?.trim() || data.query.trim().slice(0, 40) || "未命名活動";
+  const event = resolvePromoEvent({
+    query: data.query,
+    eventName: data.eventName,
+    schedule: data.schedule,
+    location: data.location,
+  });
+  const eventName = event.eventName || "未命名活動";
   return {
     eventName,
-    schedule: data.schedule ?? "",
-    location: data.location ?? "淡江校園",
+    schedule: event.schedule,
+    location: event.location,
     product: eventName,
     offer: "",
     audience: data.audience || "淡江大一新生、住宿生、通勤生、想找一個不用熱場的晚上的人",

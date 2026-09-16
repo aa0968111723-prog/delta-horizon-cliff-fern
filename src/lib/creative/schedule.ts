@@ -254,6 +254,64 @@ export function inferEventDate(query: string, from = new Date()): string {
   return isoFromMs(from.getTime() + 7 * 86400000);
 }
 
+/** Caption／Story 用的晚上時間，不要丟 ISO 日期進學生文案。 */
+export function displayEventWhen(isoDate: string, time = "19:30") {
+  const trimmed = isoDate.trim();
+  if (!trimmed) return time;
+  if (/^\d{1,2}\/\d{1,2}/.test(trimmed)) {
+    return /\d{1,2}:\d{2}/.test(trimmed) ? trimmed : `${trimmed} ${time}`;
+  }
+  const parts = trimmed.split("-");
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  if (!month || !day) return `${trimmed} ${time}`.trim();
+  return `${month}/${day} ${time}`;
+}
+
+export function eventNameFromQuery(query: string, fallback = "茶會") {
+  const q = query.replace(/\s+/g, " ").trim();
+  const named = q.match(/浮游禪光|三色光|茶會|坐禪|社課|迎新|招新/);
+  if (named) return named[0];
+  const stripped = q
+    .replace(/^(我要|幫我|想要)?/, "")
+    .replace(/^(宣傳|做一篇|生成|做)/, "")
+    .replace(/完整宣傳$/, "")
+    .trim();
+  if (stripped.length >= 2 && stripped.length <= 18 && !/https?:/.test(stripped)) return stripped;
+  return fallback;
+}
+
+export function queryMentionsWhen(query: string) {
+  return /明天|下週|下周|今晚|\d{1,2}[/／月]\d{1,2}/.test(query);
+}
+
+/** 問句裡有「下週／9/24」才寫進文案；情緒貼文不要硬塞一個假日期。 */
+export function eventWhenFromQuery(query: string, from = new Date(), time = "19:30") {
+  if (!queryMentionsWhen(query)) return "";
+  return displayEventWhen(inferEventDate(query, from), time);
+}
+
+/** 沒有 Campaign 時，從「下週有一場茶會」推出名稱、晚上、地點。 */
+export function resolvePromoEvent(
+  input: {
+    query: string;
+    eventName?: string;
+    schedule?: string;
+    location?: string;
+    campaign?: { name?: string; date?: string; time?: string; location?: string } | null;
+  },
+  from = new Date(),
+) {
+  const campaign = input.campaign;
+  return {
+    eventName: input.eventName?.trim() || campaign?.name?.trim() || eventNameFromQuery(input.query),
+    schedule:
+      input.schedule?.trim() ||
+      (campaign?.date ? displayEventWhen(campaign.date, campaign.time?.trim() || "19:30") : eventWhenFromQuery(input.query, from)),
+    location: input.location?.trim() || campaign?.location?.trim() || "淡江校園",
+  };
+}
+
 export function inferCampaignType(query: string) {
   if (/茶/.test(query)) return "tea" as const;
   if (/光|禪光|靜心/.test(query)) return "light" as const;

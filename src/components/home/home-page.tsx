@@ -110,7 +110,8 @@ export function HomePage() {
       </p>
 
       <form
-        className="mt-6 flex gap-2"
+        data-home-search=""
+        className="mt-6 flex flex-col gap-2 min-[420px]:flex-row"
         onSubmit={(e) => {
           e.preventDefault();
           if (!q.trim()) return;
@@ -131,7 +132,7 @@ export function HomePage() {
             className="h-12 rounded-2xl pl-10"
           />
         </div>
-        <Button type="submit" className="h-12 rounded-2xl px-5">
+        <Button type="submit" className="h-12 w-full rounded-2xl px-5 min-[420px]:w-auto">
           AI 創作
         </Button>
       </form>

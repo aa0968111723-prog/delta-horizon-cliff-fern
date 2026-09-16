@@ -30,6 +30,13 @@ export function applyStudentRevisions(
   return { ...copy, body: body.trim() };
 }
 
+export function stampEventWhen<T extends { body: string }>(copies: T[], when?: string, where?: string): T[] {
+  const day = when?.match(/\d{1,2}\/\d{1,2}/)?.[0];
+  if (!day) return copies;
+  const line = [when, where].filter(Boolean).join(" · ");
+  return copies.map((item) => (item.body.includes(day) ? item : { ...item, body: `${item.body}\n${line}`.trim() }));
+}
+
 export function reviseCopiesForStudent<
   T extends { tone: CopyTone; hook: string; body: string; cta: string; hashtags: string[] },
 >(copies: T[], sim: StudentSim | undefined, when?: string, where?: string) {
@@ -51,7 +58,8 @@ export function mockStudentSim(input: {
   const religious = /修行|開示|法會|佛|虔誠|往生/.test(caption);
   const formal = /誠摯邀請|敬邀|蒞臨/.test(caption);
   const long = caption.length > 280;
-  const knowsWhenWhere = Boolean(input.when && input.where);
+  const vagueWhen = !input.when || /近期|未定/.test(input.when);
+  const knowsWhenWhere = Boolean(input.when && input.where) && !vagueWhen;
   const hasJoin = /報名|連結|來坐|留言/.test(`${caption}${input.cta}`);
   return {
     wouldStop: !formal && input.hook.length > 8,

@@ -7,6 +7,9 @@ import {
   createSearchForCalendarItem,
   createSearchForWave,
   inferEventDate,
+  displayEventWhen,
+  eventWhenFromQuery,
+  resolvePromoEvent,
   isoFromMs,
   planPreviewSchedule,
   scheduledAtFor,
@@ -22,6 +25,15 @@ test("inferEventDate reads 下週 and 9/24", () => {
   const from = new Date("2026-09-16T12:00:00+08:00");
   assert.equal(inferEventDate("下週有一場茶會", from), "2026-09-23");
   assert.equal(inferEventDate("9/24 浮游禪光", from), "2026-09-24");
+  assert.equal(displayEventWhen("2026-09-23"), "9/23 19:30");
+  assert.equal(displayEventWhen("9/23"), "9/23 19:30");
+  assert.equal(displayEventWhen("9/23 19:30"), "9/23 19:30");
+  assert.equal(eventWhenFromQuery("下週有一場茶會", from), "9/23 19:30");
+  assert.equal(eventWhenFromQuery("幫我做一篇情緒貼文", from), "");
+  const tea = resolvePromoEvent({ query: "下週有一場茶會" }, from);
+  assert.equal(tea.eventName, "茶會");
+  assert.equal(tea.schedule, "9/23 19:30");
+  assert.equal(tea.location, "淡江校園");
 });
 
 test("IG grid titles keep the event name without the format suffix", () => {

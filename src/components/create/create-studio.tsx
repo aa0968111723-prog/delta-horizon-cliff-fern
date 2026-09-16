@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/input";
 import { convertContent, type ConvertResult } from "@/lib/ai/convert";
 import { generateCopy, type CopyBlock } from "@/lib/ai/copy";
 import { generateStudioImage, listVisualDirections } from "@/lib/ai/image";
-import { applyStudentRevisions, reviseCopiesForStudent } from "@/lib/ai/pack-mock";
+import { applyStudentRevisions, reviseCopiesForStudent, stampEventWhen } from "@/lib/ai/pack-mock";
 import { generateCreativePack, type CreativePack } from "@/lib/ai/pack";
 import { analyzeImage, type VisionReport } from "@/lib/ai/vision";
 import { visionPromptBlock } from "@/lib/ai/vision-notes";
@@ -23,7 +23,7 @@ import { persistableImageSrc } from "@/lib/connect/next";
 import { publicImageUrl } from "@/lib/connect/ig-publish";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { varyImagePrompt, type ImageVaryKind } from "@/lib/creative/image-vary";
-import { inferCampaignType, inferEventDate, isoFromMs, scheduledAtFor } from "@/lib/creative/schedule";
+import { inferCampaignType, inferEventDate, isoFromMs, scheduledAtFor, displayEventWhen, resolvePromoEvent } from "@/lib/creative/schedule";
 import { alignPackToDirection } from "@/lib/creative/pack-align";
 import { posterKindFromAspect, posterPackFromDirection } from "@/lib/creative/poster-pack";
 import { annotateWavesFromPack, captionForPackKind, coverForKind, PACK_SCHEDULE_KINDS, remainingPackKinds, topicForPackKind, usesStoryCover } from "@/lib/creative/pack-schedule";
@@ -244,6 +244,19 @@ export function CreateStudio({
     paintGen.current += 1;
     setBusy(true);
     try {
+      const localHits = searchCreative({
+        query: q,
+        memory,
+        assets,
+        campaigns,
+        igPosts,
+        projects,
+      });
+      setGatherNote(
+        localHits.length
+          ? `正在找 Drive、Canva、IG 與品牌記憶… 已見 ${localHits.length} 筆`
+          : "正在找 Drive、Canva、IG 與品牌記憶…",
+      );
       const gathered = await gatherIntoStore(q);
       const liveHits = searchCreative({
         query: q,
@@ -268,12 +281,13 @@ export function CreateStudio({
         igPosts: useCreative.getState().igPosts,
         memory: useCreative.getState().memory,
       });
+      const event = resolvePromoEvent({ query: q, campaign });
       const result = await generateCreativePack({
         data: {
           query: q,
-          eventName: campaign?.name,
-          schedule: campaign ? `${campaign.date} ${campaign.time}` : undefined,
-          location: campaign?.location,
+          eventName: event.eventName,
+          schedule: event.schedule || undefined,
+          location: event.location,
           oneLiner: campaign?.oneLiner,
           sources,
           visionNotes: report ? visionPromptBlock(report) : undefined,
@@ -297,13 +311,14 @@ export function CreateStudio({
         dirId,
         directions.length === 3 ? directions : undefined,
       );
-      const when = campaign ? `${campaign.date} ${campaign.time}` : aligned.plan.subhead;
-      const where = campaign?.location;
+      const when = event.schedule || aligned.plan.subhead;
+      const where = event.location;
       const revised = reviseCopiesForStudent(aligned.copyVariants, aligned.plan.studentSim, when, where);
+      const copies = stampEventWhen(revised.copies, event.schedule, event.location);
       const nextPack = {
         ...aligned,
         sourceSummary: note,
-        copyVariants: revised.copies,
+        copyVariants: copies,
       };
       const keptId =
         dirId && nextPack.directions.some((item) => item.id === dirId)
@@ -314,7 +329,7 @@ export function CreateStudio({
       posterOnlyRef.current = false;
       packRef.current = nextPack;
       setDirId(keptId);
-      setCopies(revised.copies);
+      setCopies(copies);
       setSimApplied(revised.applied);
       let heroSrc = imageSrc;
       const chosen = nextPack.directions.find((item) => item.id === keptId) ?? nextPack.directions[0];
@@ -326,7 +341,7 @@ export function CreateStudio({
         pack: nextPack,
         posterOnly: false,
         dirId: keptId,
-        copies: revised.copies,
+        copies,
         tone: "student",
         imageSrc: persistableImageSrc(heroSrc),
         reelsCoverSrc: persistableImageSrc(reelsCoverSrc),
@@ -448,12 +463,13 @@ export function CreateStudio({
   async function runCopy() {
     setBusy(true);
     try {
+      const event = resolvePromoEvent({ query, campaign });
       const result = await generateCopy({
         data: {
           topic: query,
           kind: mode,
-          when: campaign ? `${campaign.date} ${campaign.time}` : undefined,
-          where: campaign?.location,
+          when: event.schedule || undefined,
+          where: event.location,
           insightNotes: `${seasonCreateNote(academicMoment(), useCreative.getState().lastLearn?.hook)}\n${brands[0] ? brandMemoryBlock(brands[0]) : ""}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}\n${lastLearnPromptBlock(useCreative.getState().lastLearn)}\n${vision ? visionPromptBlock(vision) : ""}\n${dnaPromptBlock(
             clubDnaFromMemory({
               igPosts: useCreative.getState().igPosts,
@@ -509,14 +525,15 @@ export function CreateStudio({
     } else if (lastAsset.current.story) {
       sources.push({ source: "generated", label: "9:16 封面", id: lastAsset.current.story });
     }
+    const event = resolvePromoEvent({ query, campaign });
     return posterPackFromDirection({
       query,
       direction: chosen,
       directions: dirs,
       sources,
-      eventName: campaign?.name,
-      when: campaign ? `${campaign.date} ${campaign.time}` : undefined,
-      where: campaign?.location,
+      eventName: event.eventName,
+      when: event.schedule || undefined,
+      where: event.location,
     });
   }
 
@@ -709,7 +726,7 @@ export function CreateStudio({
       ...emptyBrief(),
       eventName: active.plan.campaignName,
       product: active.plan.campaignName,
-      schedule: camp ? `${camp.date} ${camp.time}` : "",
+      schedule: camp ? displayEventWhen(camp.date, camp.time || "19:30") : resolvePromoEvent({ query }).schedule,
       location: camp?.location ?? "淡江校園",
       audience: active.studentContext,
       features: active.plan.concept,
@@ -1144,8 +1161,13 @@ export function CreateStudio({
 
   function applySimFixes() {
     if (!copy || !sim) return;
-    const when = campaign ? `${campaign.date} ${campaign.time}` : pack?.plan.subhead;
-    setCopies((prev) => prev.map((item) => applyStudentRevisions(item, sim, when, campaign?.location)));
+    const event = resolvePromoEvent({ query, campaign });
+    const when = event.schedule || pack?.plan.subhead;
+    setCopies((prev) => stampEventWhen(
+      prev.map((item) => applyStudentRevisions(item, sim, when, event.location)),
+      event.schedule,
+      event.location,
+    ));
     setSimApplied(true);
     toast.success("已依淡江學生視角改過這一版");
   }
@@ -1280,6 +1302,12 @@ export function CreateStudio({
         </section>
       ) : imageSrc && !shownDirections.length ? (
         <img src={imageSrc} alt="生成或上傳的畫面" className="mt-6 w-full rounded-3xl shadow-[var(--shadow-artboard)]" />
+      ) : null}
+
+      {busy && !pack && mode !== "image" ? (
+        <p className="mt-3 text-sm text-muted" data-gather-status="">
+          {gatherNote || "正在找 Drive、Canva、IG 與品牌記憶…"}
+        </p>
       ) : null}
 
       {mode === "image" && busy && !shownDirections.length ? (
@@ -1464,7 +1492,7 @@ export function CreateStudio({
       ) : null}
 
       {pack && !posterOnly ? (
-        <section className="mt-8 space-y-6">
+        <section className="mt-8 space-y-6" data-full-pack="">
           <div className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
             <p className="text-xs text-muted">{gatherNote || pack.sourceSummary}</p>
             {simApplied ? <p className="mt-1 text-xs text-muted">已依淡江學生視角改過文案</p> : null}

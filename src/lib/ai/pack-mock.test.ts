@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { looksEnglish } from "./zh.ts";
-import { buildZenMockPlan, mockDirections, applyStudentRevisions, mockStudentSim, reviseCopiesForStudent } from "./pack-mock.ts";
+import { buildZenMockPlan, mockDirections, applyStudentRevisions, mockStudentSim, reviseCopiesForStudent, stampEventWhen } from "./pack-mock.ts";
 import type { BriefInput } from "./schema.ts";
 
 test("zen mock plan opens with a lived hook not a formal invitation", () => {
@@ -37,6 +37,60 @@ test("zen mock plan opens with a lived hook not a formal invitation", () => {
   assert.ok(plan.reelsScript?.length);
   assert.equal(looksEnglish(plan.directions?.[0]?.imagePrompt ?? ""), false);
   assert.ok(plan.directions?.[0]?.imagePrompt.includes("三色光"));
+});
+
+test("next-week tea captions name the night, not a vague evening", () => {
+  const data: BriefInput = {
+    eventName: "茶會",
+    schedule: "9/23 19:30",
+    location: "淡江校園",
+    product: "茶會",
+    offer: "",
+    audience: "淡江大一新生、住宿生",
+    goal: "traffic",
+    features: "燈光、熱茶、坐著就好",
+    style: "生活",
+    notes: "下週有一場茶會",
+    wantPost: true,
+    wantStory: true,
+    wantCarousel: true,
+    wantReels: true,
+    brandName: "淡江大學禪學社",
+    handle: "@tkuzen",
+    voice: "自然",
+    doSay: "淡江",
+    dontSay: "誠摯邀請",
+    forbiddenWords: ["誠摯邀請"],
+  };
+  const plan = buildZenMockPlan(data, mockDirections("茶會"));
+  assert.equal(plan.campaignName, "茶會");
+  assert.match(plan.captions[0]?.text ?? "", /9\/23/);
+  assert.equal((plan.captions[0]?.text ?? "").includes("近期晚上"), false);
+  assert.equal(plan.studentSim?.knowsWhenWhere, true);
+  assert.match(plan.subhead, /9\/23/);
+});
+
+test("近期晚上 is not knowing when the night is", () => {
+  const sim = mockStudentSim({
+    hook: "最近是不是很久沒坐好？",
+    caption: "坐一下就好。",
+    when: "近期晚上",
+    where: "淡江校園",
+    cta: "晚上來坐一下",
+  });
+  assert.equal(sim.knowsWhenWhere, false);
+});
+
+test("stampEventWhen writes the night if the model skipped it", () => {
+  const next = stampEventWhen(
+    [{ tone: "student", hook: "先坐。", body: "不用先懂禪。", cta: "來坐", hashtags: [] }],
+    "9/23 19:30",
+    "淡江校園",
+  );
+  assert.match(next[0]?.body ?? "", /9\/23/);
+  assert.match(next[0]?.body ?? "", /淡江校園/);
+  const kept = stampEventWhen(next, "9/23 19:30", "淡江校園");
+  assert.equal(kept[0]?.body.split("9/23").length, 2);
 });
 
 test("student-sim revisions add time and a way to come", () => {

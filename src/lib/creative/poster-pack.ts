@@ -1,20 +1,10 @@
 import { HASHTAG_BANK } from "../club/identity.ts";
 import { academicMoment } from "../club/season.ts";
 import { mockReels, mockStoryFrames } from "../ai/pack-mock.ts";
+import { eventNameFromQuery } from "./schedule.ts";
 import type { CampaignPlan, ContentKind, CopyTone, CreativeDirection, SourceRef } from "../studio/types.ts";
 
-export function eventNameFromQuery(query: string, fallback = "茶會") {
-  const q = query.replace(/\s+/g, " ").trim();
-  const named = q.match(/浮游禪光|三色光|茶會|坐禪|社課|迎新|招新/);
-  if (named) return named[0];
-  const stripped = q
-    .replace(/^(我要|幫我|想要)?/, "")
-    .replace(/^(宣傳|做一篇|生成|做)/, "")
-    .replace(/完整宣傳$/, "")
-    .trim();
-  if (stripped.length >= 2 && stripped.length <= 18 && !/https?:/.test(stripped)) return stripped;
-  return fallback;
-}
+export { eventNameFromQuery };
 
 export function posterKindFromAspect(aspect: "4:5" | "1:1" | "9:16"): ContentKind {
   return aspect === "9:16" ? "story" : "ig-post";
