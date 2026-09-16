@@ -116,11 +116,21 @@ async function withInsights(result: PublishItemResult): Promise<PublishItemResul
   };
 }
 
+function persistMarkedPublish(item: ScheduleItem, result: PublishItemResult) {
+  if (!result.marked) return result;
+  useStudio.getState().publishSchedule(item.id, result.extra);
+  return result;
+}
+
 export async function runPublishItem(item: ScheduleItem): Promise<PublishItemResult> {
   const caption = (item.caption || item.title).slice(0, 2200);
   await navigator.clipboard.writeText(caption).catch(() => undefined);
+  useStudio.getState().publishSchedule(item.id);
   if (!canGraphPublish(item.kind)) {
-    return withInsights({ note: "限動／Reels／Threads 請在 IG App 發。文案已複製。", marked: true });
+    return persistMarkedPublish(
+      item,
+      await withInsights({ note: "限動／Reels／Threads 請在 IG App 發。文案已複製。", marked: true }),
+    );
   }
   const { slides, imageUrl } = await collectSlides(item);
   const result = await publishInstagramMedia({
@@ -135,20 +145,23 @@ export async function runPublishItem(item: ScheduleItem): Promise<PublishItemRes
     },
   });
   if (result.ok) {
-    return withInsights({
-      note: result.note,
-      marked: true,
-      extra: {
-        mediaUrl: result.imageUrl || item.mediaUrl,
-        permalink: result.permalink,
-        igMediaId: result.mediaId,
-        saves: result.insights?.saved,
-        reach: result.insights?.reach,
-        impressions: result.insights?.impressions,
-        shares: result.insights?.shares,
-        plays: result.insights?.plays,
-      },
-    });
+    return persistMarkedPublish(
+      item,
+      await withInsights({
+        note: result.note,
+        marked: true,
+        extra: {
+          mediaUrl: result.imageUrl || item.mediaUrl,
+          permalink: result.permalink,
+          igMediaId: result.mediaId,
+          saves: result.insights?.saved,
+          reach: result.insights?.reach,
+          impressions: result.insights?.impressions,
+          shares: result.insights?.shares,
+          plays: result.insights?.plays,
+        },
+      }),
+    );
   }
-  return withInsights({ note: result.note, marked: true });
+  return persistMarkedPublish(item, await withInsights({ note: result.note, marked: true }));
 }
