@@ -122,6 +122,23 @@ test("zen mock prefers the hook the user asked to continue even if slogans have 
   assert.equal(plan.hook.includes("很久沒有好好坐下來"), false);
 });
 
+test("zen mock does not promote a past recap as the next tea hook", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "茶會",
+    brandName: "淡江大學禪學社",
+    handle: "@tku.zen",
+    audience: "淡江大學學生",
+    notes: "使用者想法：下週有一場茶會",
+    igLessons: "比較有效的 Hook 像是「來的人比想像中多。有人問「我不會禪也可以嗎？」」。少用社團全名當第一句。",
+    wantCarousel: true,
+    wantStory: true,
+    wantReels: true,
+  });
+  assert.equal(plan.hook.startsWith("來的人"), false);
+  assert.match(plan.hook, /我不會禪也可以嗎？/);
+});
+
 test("buildMockPlan strips forbidden words", () => {
   const plan = buildMockPlan({
     ...base,

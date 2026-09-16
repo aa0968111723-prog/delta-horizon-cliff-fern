@@ -75,10 +75,27 @@ export function analysisFromLive(post: {
   return `官方成效 · ${kind}。Hook「${hook}」。讚 ${likes}、收藏 ${saves}。時間地點要再早兩行。`;
 }
 
+function isRecapHook(hook: string) {
+  return /^(來的人|回顧)/.test(hook) || hook.includes("有人問");
+}
+
+function questionInside(hook: string) {
+  return hook.match(/([^。「」\n]{6,36}？)/)?.[1]?.trim() ?? "";
+}
+
 export function quotedHookFromLessons(text: string) {
-  const match = text.match(/「([^」]{6,40})」/);
-  const hook = match?.[1]?.trim() ?? "";
-  return hook.includes("？") || hook.length >= 8 ? hook : "";
+  const quotes = [...text.matchAll(/「([^」]{6,48})」/g)].map((match) => match[1].trim()).filter(Boolean);
+  if (/延續這個/.test(text) && quotes[0]) return quotes[0];
+  const questions = quotes.filter((hook) => hook.includes("？") && !isRecapHook(hook));
+  const student = questions.find((hook) => /最近|剛到|有時候|大學生活|休息|坐下來|快樂/.test(hook));
+  if (student) return student;
+  if (questions[0]) return questions[0];
+  for (const hook of quotes) {
+    if (!isRecapHook(hook)) continue;
+    const inner = questionInside(hook);
+    if (inner && !isRecapHook(inner)) return inner;
+  }
+  return quotes.find((hook) => hook.length >= 8 && !isRecapHook(hook)) ?? "";
 }
 
 /** Home / IG Center: turn performance advice into the next create prompt. */

@@ -44,6 +44,15 @@ test("formatLessons and quotedHookFromLessons feed the next generate", () => {
   assert.match(nextCreateIdeaFromLessons(posts, "茶會"), /茶會/);
 });
 
+test("quotedHookFromLessons does not use a recap as the next promotional hook", () => {
+  const recap = '比較有效的 Hook 像是「來的人比想像中多。有人問「我不會禪也可以嗎？」」。少用社團全名當第一句。';
+  assert.equal(quotedHookFromLessons(recap), "我不會禪也可以嗎？");
+  assert.equal(
+    quotedHookFromLessons("延續這個比較讓人停下來的第一句：「來的人比想像中多。我不會禪也可以嗎？」。"),
+    "來的人比想像中多。我不會禪也可以嗎？",
+  );
+});
+
 test("analysisFromLive writes Content Memory, not a permalink", () => {
   const text = analysisFromLive({
     caption: "最近是不是連休息都覺得有罪惡感？\n下週茶會。",

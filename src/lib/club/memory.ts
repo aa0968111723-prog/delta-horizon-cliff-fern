@@ -67,8 +67,11 @@ export function featuredHookFor(
   featured: { id: string; oneLiner: string } | undefined,
   lastPack?: { campaignId?: string; hook?: string } | null,
 ) {
-  if (featured && lastPack?.campaignId === featured.id && lastPack.hook) return lastPack.hook;
-  return featured?.oneLiner || FEATURED_EVENT.oneLiner;
+  const raw =
+    featured && lastPack?.campaignId === featured.id && lastPack.hook
+      ? lastPack.hook
+      : featured?.oneLiner || FEATURED_EVENT.oneLiner;
+  return raw.replace(/^[「"]+|[」"]+$/g, "").trim() || FEATURED_EVENT.oneLiner;
 }
 
 export const IG_DNA = {
