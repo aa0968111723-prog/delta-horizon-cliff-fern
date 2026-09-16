@@ -86,7 +86,7 @@
 
 @layer utilities {
   .pb-nav {
-    padding-bottom: calc(var(--spacing-nav-safe) + 3.25rem);
+    padding-bottom: calc(var(--spacing-nav-safe) + 1.25rem);
   }
 
   .h-app {

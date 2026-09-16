@@ -150,4 +150,7 @@ export type CalendarItem = {
   campaignId?: string;
   waveId?: string;
   publishedAt?: number;
+  coverAssetId?: string;
+  coverUrl?: string;
+  coverFromCanva?: boolean;
 };

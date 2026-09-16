@@ -2,13 +2,16 @@ import { addDays, format, startOfMonth, startOfWeek } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { CalendarThumb } from "@/components/calendar/calendar-thumb";
 import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
+import { useAssetUrls } from "@/hooks/use-asset-urls";
+import { calendarCoverIds, calendarFrom } from "@/lib/creative/calendar";
 import { createSearchForCalendarItem } from "@/lib/creative/schedule";
 import { contentKindLabel } from "@/lib/studio/content";
 import { STATUS_META } from "@/lib/studio/status";
-import { calendarFrom, useCreative } from "@/stores/creative-store";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { cn } from "@/lib/utils";
 import type { CalendarItem } from "@/lib/creative/types";
@@ -22,6 +25,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
   const [cursor, setCursor] = useState(() => (focusDay ? new Date(`${focusDay}T12:00:00+08:00`) : new Date()));
   const [view, setView] = useState<"month" | "week" | "agenda">("agenda");
   const items = calendarFrom(campaigns, projects);
+  const urls = useAssetUrls(calendarCoverIds(items));
   const focusProjectId = focusDay
     ? items.find((item) => item.date === focusDay && item.kind !== "event" && item.projectId)?.projectId
     : undefined;
@@ -140,6 +144,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
             <AgendaRow
               key={item.id}
               item={item}
+              urls={urls}
               focused={Boolean(focusDay && item.date === focusDay && item.kind !== "event")}
               onExtend={() => extend(item)}
               onCopy={() => item.campaignId && item.waveId && duplicateWave(item.campaignId, item.waveId)}
@@ -178,6 +183,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
                       <li key={item.id}>
                         <CalChip
                           item={item}
+                          urls={urls}
                           focused={Boolean(focusDay && item.date === focusDay && item.kind !== "event")}
                           onOpen={() => openItem(item)}
                         />
@@ -214,6 +220,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
                       <li key={item.id}>
                         <CalChip
                           item={item}
+                          urls={urls}
                           dense
                           focused={Boolean(focusDay && item.date === focusDay && item.kind !== "event")}
                           onOpen={() => openItem(item)}
@@ -248,7 +255,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
                         focusDay && item.date === focusDay && item.kind !== "event" && "rounded-xl ring-2 ring-primary",
                       )}
                     >
-                      <p className="text-sm">{item.title}</p>
+                      <MobileTitle item={item} urls={urls} />
                       <ItemActions
                         item={item}
                         onExtend={() => extend(item)}
@@ -280,7 +287,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
                         focusDay && item.date === focusDay && item.kind !== "event" && "rounded-xl ring-2 ring-primary",
                       )}
                     >
-                      <p className="text-sm">{item.title}</p>
+                      <MobileTitle item={item} urls={urls} />
                       <ItemActions
                         item={item}
                         onExtend={() => extend(item)}
@@ -307,11 +314,13 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
 
 function CalChip({
   item,
+  urls,
   focused,
   dense,
   onOpen,
 }: {
   item: CalendarItem;
+  urls: Record<string, string>;
   focused?: boolean;
   dense?: boolean;
   onOpen: () => void;
@@ -323,24 +332,36 @@ function CalChip({
       onDragStart={(event) => event.dataTransfer.setData("text/plain", item.id)}
       onClick={onOpen}
       className={cn(
-        "w-full cursor-grab rounded-lg text-left leading-tight",
+        "flex w-full cursor-grab items-center gap-1 rounded-lg text-left leading-tight",
         dense ? "px-1 py-1 text-sm" : "bg-surface-2 px-1.5 py-1 text-xs",
         focused && "ring-2 ring-primary",
       )}
     >
-      {item.title}
+      <CalendarThumb item={item} urls={urls} size="sm" />
+      <span className="min-w-0 truncate">{item.title}</span>
     </button>
+  );
+}
+
+function MobileTitle({ item, urls }: { item: CalendarItem; urls: Record<string, string> }) {
+  return (
+    <div className="flex items-center gap-3">
+      <CalendarThumb item={item} urls={urls} />
+      <p className="min-w-0 flex-1 text-sm">{item.title}</p>
+    </div>
   );
 }
 
 function AgendaRow({
   item,
+  urls,
   focused,
   onExtend,
   onCopy,
   onCreate,
 }: {
   item: CalendarItem;
+  urls: Record<string, string>;
   focused?: boolean;
   onExtend: () => void;
   onCopy: () => void;
@@ -355,14 +376,19 @@ function AgendaRow({
       )}
     >
       <p className="text-xs text-muted">{item.date}</p>
-      <p className="text-sm">{item.title}</p>
-      <p className="text-xs text-subtle">
-        {item.kind === "event" ? "活動" : contentKindLabel(item.kind)} · {STATUS_META[item.status].label}
-        {item.publishedAt ? ` · 實際發布 ${format(item.publishedAt, "M/d HH:mm", { locale: zhTW })}` : ""}
-        {item.kind !== "event" && item.status !== "published" && item.date <= format(new Date(), "yyyy-MM-dd")
-          ? " · 該發了"
-          : ""}
-      </p>
+      <div className="mt-1 flex items-start gap-3">
+        <CalendarThumb item={item} urls={urls} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm">{item.title}</p>
+          <p className="text-xs text-subtle">
+            {item.kind === "event" ? "活動" : contentKindLabel(item.kind)} · {STATUS_META[item.status].label}
+            {item.publishedAt ? ` · 實際發布 ${format(item.publishedAt, "M/d HH:mm", { locale: zhTW })}` : ""}
+            {item.kind !== "event" && item.status !== "published" && item.date <= format(new Date(), "yyyy-MM-dd")
+              ? " · 該發了"
+              : ""}
+          </p>
+        </div>
+      </div>
       <ItemActions item={item} onExtend={onExtend} onCopy={onCopy} onCreate={onCreate} />
     </li>
   );

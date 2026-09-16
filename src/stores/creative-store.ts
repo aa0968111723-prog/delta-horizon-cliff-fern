@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { calendarFrom } from "@/lib/creative/calendar";
 import { bindScheduledWave as placeOnWave, suggestWaves, isoFromMs } from "@/lib/creative/schedule";
 import { annotateIgPosts, clubInsightsFromPosts, lastLearnFromInsights, lastLearnFromPosts } from "@/lib/club/insights";
 import { prepareIgIngest } from "@/lib/creative/ig-memory";
@@ -12,7 +13,6 @@ import {
   SEED_MEMORY,
 } from "@/lib/creative/memory-seed";
 import type {
-  CalendarItem,
   ClubCampaign,
   ConnectionId,
   ConnectionState,
@@ -22,10 +22,10 @@ import type {
   MemoryItem,
 } from "@/lib/creative/types";
 import { uid } from "@/lib/studio/ids";
-import type { ContentKind, Project, ProjectStatus } from "@/lib/studio/types";
+import type { ContentKind, ProjectStatus } from "@/lib/studio/types";
 import { CAMPAIGN_TYPES, type CampaignType } from "@/lib/creative/types";
 
-export { CAMPAIGN_TYPES };
+export { CAMPAIGN_TYPES, calendarFrom };
 
 type CreativeState = {
   hydrated: boolean;
@@ -93,50 +93,6 @@ function emptyCampaign(name: string): ClubCampaign {
     createdAt: now,
     updatedAt: now,
   };
-}
-
-export function calendarFrom(campaigns: ClubCampaign[], projects: Project[]): CalendarItem[] {
-  const items: CalendarItem[] = [];
-  for (const campaign of campaigns) {
-    items.push({
-      id: `event-${campaign.id}`,
-      date: campaign.date,
-      title: campaign.name,
-      kind: "event",
-      status: "done",
-      campaignId: campaign.id,
-    });
-    for (const wave of campaign.waves) {
-      if (!wave.scheduledAt) continue;
-      const project = wave.projectId ? projects.find((item) => item.id === wave.projectId) : undefined;
-      items.push({
-        id: wave.id,
-        date: isoFromMs(wave.scheduledAt),
-        title: project?.name ?? `${wave.intent} · ${wave.topic}`,
-        kind: project?.contentKind ?? wave.contentKind,
-        status: wave.status,
-        campaignId: campaign.id,
-        waveId: wave.id,
-        projectId: wave.projectId ?? undefined,
-        publishedAt: wave.publishedAt ?? undefined,
-      });
-    }
-  }
-  for (const project of projects) {
-    if (!project.scheduledAt) continue;
-    if (items.some((item) => item.projectId === project.id)) continue;
-    items.push({
-      id: `proj-${project.id}`,
-      date: isoFromMs(project.scheduledAt),
-      title: project.name,
-      kind: project.contentKind,
-      status: project.status,
-      projectId: project.id,
-      campaignId: project.campaignId ?? undefined,
-      publishedAt: project.publishedAt ?? undefined,
-    });
-  }
-  return items.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export const useCreative = create<CreativeState>()(

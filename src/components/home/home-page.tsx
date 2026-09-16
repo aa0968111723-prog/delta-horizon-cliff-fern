@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { daysUntil, academicMoment } from "@/lib/club/season";
 import { DuePublishBar } from "@/components/calendar/due-publish-bar";
+import { CalendarThumb } from "@/components/calendar/calendar-thumb";
 import { clubDnaFromMemory } from "@/lib/club/dna";
 import { clubInsightsFromPosts, nextCreateFromLearn } from "@/lib/club/insights";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
@@ -173,7 +174,7 @@ export function HomePage() {
                 </Button>
               </div>
             </div>
-            <div className="flex items-center justify-center bg-bg p-6">
+            <div className="flex items-center justify-center bg-bg p-6 pb-20 md:pb-6">
               {featuredBoard && brand ? (
                 <ArtboardView artboard={featuredBoard} brand={brand} urls={urls} width={220} />
               ) : (
@@ -283,8 +284,9 @@ export function HomePage() {
           {scheduled.slice(0, 5).map((item) => (
             <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
               {item.projectId ? (
-                <Link to="/ig" search={{ item: item.projectId }} className="flex items-center justify-between gap-3">
-                  <div>
+                <Link to="/ig" search={{ item: item.projectId }} className="flex items-center gap-3">
+                  <CalendarThumb item={item} urls={urls} />
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm">{item.title}</p>
                     <p className="text-xs text-muted">
                       {item.date} · {item.kind === "event" ? "活動" : contentKindLabel(item.kind)}
@@ -293,8 +295,9 @@ export function HomePage() {
                   <span className="text-xs text-subtle">{STATUS_META[item.status].label}</span>
                 </Link>
               ) : (
-                <Link to="/calendar" search={{ day: item.date }} className="flex items-center justify-between gap-3">
-                  <div>
+                <Link to="/calendar" search={{ day: item.date }} className="flex items-center gap-3">
+                  <CalendarThumb item={item} urls={urls} />
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm">{item.title}</p>
                     <p className="text-xs text-muted">
                       {item.date} · {item.kind === "event" ? "活動" : contentKindLabel(item.kind)}
