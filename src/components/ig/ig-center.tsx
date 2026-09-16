@@ -63,7 +63,7 @@ export function IgCenter() {
               onClick={() => setActiveId(post.id)}
               className={cn("aspect-square bg-surface-2", activeId === post.id && "ring-2 ring-accent")}
             >
-              {src ? <img src={src} alt="" className="size-full object-cover" /> : null}
+              {src ? <img src={src} alt="" className="size-full object-cover" /> : <span className="block size-full bg-linear-to-br from-surface-2 to-bg" />}
             </button>
           );
         })}

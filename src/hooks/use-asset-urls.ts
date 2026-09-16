@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { objectUrlForAsset } from "@/lib/studio/assets-idb";
+import { useStudio } from "@/stores/studio-store";
 
 export function useAssetUrls(ids: string[]): Record<string, string> {
+  const assets = useStudio((s) => s.assets);
   const list = useMemo(() => [...new Set(ids.filter(Boolean))].sort(), [ids]);
   const key = list.join("|");
-  const [urls, setUrls] = useState<Record<string, string>>({});
+  const seedFallbacks = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const asset of assets) {
+      if (asset.seedSrc) map[asset.id] = asset.seedSrc;
+    }
+    return map;
+  }, [assets]);
+  const [blobUrls, setBlobUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -22,8 +31,8 @@ export function useAssetUrls(ids: string[]): Record<string, string> {
         }),
       );
       if (cancelled) return;
-      setUrls(next);
-      const missing = list.filter((id) => !next[id]);
+      setBlobUrls(next);
+      const missing = list.filter((id) => !next[id] && !seedFallbacks[id]);
       if (missing.length && attempts < 10) {
         attempts += 1;
         window.setTimeout(() => {
@@ -35,7 +44,14 @@ export function useAssetUrls(ids: string[]): Record<string, string> {
     return () => {
       cancelled = true;
     };
-  }, [key, list]);
+  }, [key, list, seedFallbacks]);
 
-  return urls;
+  return useMemo(() => {
+    const merged: Record<string, string> = {};
+    for (const id of list) {
+      const url = blobUrls[id] || seedFallbacks[id];
+      if (url) merged[id] = url;
+    }
+    return merged;
+  }, [blobUrls, list, seedFallbacks]);
 }
