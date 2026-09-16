@@ -138,10 +138,11 @@ export function InstagramCenter() {
       lastSequence
     );
   }, [previewFormat, sequences, lastSequence]);
-  const previewKind = useMemo(
-    () => previewContentKind(previewFormat, sequences),
-    [previewFormat, sequences],
-  );
+  const previewKind = useMemo(() => {
+    const opened = schedule.find((item) => item.id === previewScheduleId);
+    if (opened) return opened.contentKind;
+    return previewContentKind(previewFormat, sequences);
+  }, [previewScheduleId, schedule, previewFormat, sequences]);
   const previewSlot = useMemo(
     () =>
       scheduleItemForPreview({
