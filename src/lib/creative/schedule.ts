@@ -256,10 +256,10 @@ export type CreateFromCalendarSearch = {
 
 /** 還沒有稿的波次直接生成；活動列與已有專案回 null。 */
 export function createSearchForCalendarItem(
-  item: Pick<CalendarItem, "title" | "kind" | "campaignId" | "projectId">,
+  item: Pick<CalendarItem, "title" | "kind"> & Partial<Pick<CalendarItem, "campaignId" | "projectId" | "status">>,
   campaignName?: string,
 ): CreateFromCalendarSearch | null {
-  if (item.kind === "event" || item.projectId) return null;
+  if (item.kind === "event" || item.projectId || item.status === "published") return null;
   const mode = createModeForKind(item.kind);
   const label = contentKindLabel(item.kind);
   const head = campaignName?.trim() ? `${campaignName.trim()} ` : "";

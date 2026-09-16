@@ -84,7 +84,7 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
                       打開作品
                     </Link>
                   </Button>
-                ) : (
+                ) : wave.status !== "published" ? (
                   <Button
                     size="sm"
                     variant="secondary"
@@ -95,7 +95,7 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
                   >
                     生成這一波
                   </Button>
-                )}
+                ) : null}
                 <Button
                   size="sm"
                   variant="ghost"

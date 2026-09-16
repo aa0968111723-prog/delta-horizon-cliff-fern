@@ -184,6 +184,15 @@ test("empty calendar waves open create with the wave format, not the campaign de
     }),
     null,
   );
+  assert.equal(
+    createSearchForCalendarItem({
+      title: "情緒共鳴 · 很久沒坐好",
+      kind: "ig-post",
+      campaignId: "camp_float",
+      status: "published",
+    }),
+    null,
+  );
   assert.equal(createModeForKind("story"), "story");
   const waveSearch = createSearchForWave(
     { id: "camp_float", name: "浮游禪光" },

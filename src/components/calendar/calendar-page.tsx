@@ -135,7 +135,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
       <DuePublishBar />
 
       {view === "agenda" ? (
-        <ul className="mt-6 space-y-2">
+        <ul className="mt-6 space-y-2 pb-28 md:pb-0">
           {items.map((item) => (
             <AgendaRow
               key={item.id}
@@ -228,7 +228,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
       ) : null}
 
       {view === "month" ? (
-        <ul className="mt-6 space-y-2 md:hidden">
+        <ul className="mt-6 space-y-2 pb-28 md:hidden">
           {weeks
             .flat()
             .filter((day) => day.getMonth() === cursor.getMonth())
@@ -263,7 +263,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
       ) : null}
 
       {view === "week" ? (
-        <ul className="mt-6 space-y-2 md:hidden">
+        <ul className="mt-6 space-y-2 pb-28 md:hidden">
           {weekDays.map((day) => {
             const iso = format(day, "yyyy-MM-dd");
             const dayItems = items.filter((item) => item.date === iso);
@@ -381,7 +381,7 @@ function ItemActions({
 }) {
   return (
     <div className="mt-2 flex flex-wrap gap-2">
-      {!item.projectId && item.kind !== "event" && onCreate ? (
+      {!item.projectId && item.kind !== "event" && item.status !== "published" && onCreate ? (
         <Button size="sm" variant="secondary" onClick={onCreate}>
           生成這一波
         </Button>
