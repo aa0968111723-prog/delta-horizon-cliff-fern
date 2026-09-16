@@ -28,6 +28,18 @@ test("story posters are 9:16 and keep the frame line, not a temple poster", () =
   assert.doesNotMatch(svg, /temple|寺廟/);
 });
 
+test("story posters continue a pinned Drive photo", () => {
+  const tea = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350"><rect x="140" y="420" width="220" height="400" fill="#1C2422"/></svg>`;
+  const input = storyPosterInput("可以自己來？", 0, {
+    eventName: "茶會",
+    look: { photoEmbed: tea, sourceCredit: "Google Drive / 2025 茶會現場" },
+  });
+  assert.equal(input.photoEmbed, tea);
+  const svg = directionPosterSvg(input);
+  assert.match(svg, /data-source-photo="1"/);
+  assert.match(svg, /Google Drive \/ 2025 茶會現場/);
+});
+
 test("attachStoryAssets writes stills onto that campaign's Story rows in order", () => {
   const next = attachStoryAssets(
     [

@@ -1,4 +1,4 @@
-import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
+import { directionPosterSvg, encodeUtf8Base64, licenseFromLook, type SourceLook } from "@/lib/ai/poster";
 import { carouselPagesFromPlan, carouselPosterInput, carouselRowsForCampaign } from "@/lib/ai/carousel-pages";
 import { persistGeneratedImage } from "@/lib/studio/raster";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
@@ -9,7 +9,7 @@ import { useStudio } from "@/stores/studio-store";
 
 export async function saveCarouselStills(
   plan: Pick<CampaignPlan, "carouselPages" | "hook" | "campaignName" | "insight" | "body" | "cta" | "subhead" | "colorMood">,
-  opts: { eventName?: string; campaignId?: string | null; scheduledAt?: number; projectId?: string | null },
+  opts: { eventName?: string; campaignId?: string | null; scheduledAt?: number; projectId?: string | null; look?: SourceLook },
 ): Promise<string[]> {
   const pages = carouselPagesFromPlan(plan);
   const ids: string[] = [];
@@ -19,6 +19,7 @@ export async function saveCarouselStills(
       name: "禪光",
       hook: plan.hook,
       palette: plan.colorMood,
+      look: opts.look,
     });
     const png = await persistGeneratedImage({
       base64: encodeUtf8Base64(directionPosterSvg(input)),
@@ -39,7 +40,7 @@ export async function saveCarouselStills(
         height: 1350,
         tags: ["AI 生成", "Carousel", "輪播", opts.eventName || "禪光"],
         source: "generated",
-        licenseNotes: "來源：AI Generated",
+        licenseNotes: licenseFromLook(opts.look),
         licenseOwner: "禪光",
       }),
     );

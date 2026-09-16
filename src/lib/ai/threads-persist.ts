@@ -1,4 +1,4 @@
-import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
+import { directionPosterSvg, encodeUtf8Base64, licenseFromLook, type SourceLook } from "@/lib/ai/poster";
 import { attachThreadsStill, threadsPosterInput } from "@/lib/ai/threads-still";
 import { persistGeneratedImage } from "@/lib/studio/raster";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
@@ -9,9 +9,9 @@ import { useStudio } from "@/stores/studio-store";
 
 export async function saveThreadsStill(
   plan: Pick<CampaignPlan, "hook" | "campaignName" | "subhead" | "cta" | "colorMood" | "threadsPost">,
-  opts: { eventName?: string; campaignId?: string | null; scheduledAt?: number; projectId?: string | null },
+  opts: { eventName?: string; campaignId?: string | null; scheduledAt?: number; projectId?: string | null; look?: SourceLook },
 ): Promise<string> {
-  const input = threadsPosterInput(plan);
+  const input = threadsPosterInput(plan, opts.look);
   const png = await persistGeneratedImage({
     base64: encodeUtf8Base64(directionPosterSvg(input)),
     mime: "image/svg+xml",
@@ -31,7 +31,7 @@ export async function saveThreadsStill(
       height: 1080,
       tags: ["AI 生成", "Threads", "配圖", opts.eventName || "禪光"],
       source: "generated",
-      licenseNotes: "來源：AI Generated",
+      licenseNotes: licenseFromLook(opts.look),
       licenseOwner: "禪光",
     }),
   );

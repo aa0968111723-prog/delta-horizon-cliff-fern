@@ -16,6 +16,53 @@ export type PosterInput = {
   sourceCredit?: string;
 };
 
+export type SourceLook = {
+  photoEmbed?: string;
+  sourceCredit?: string;
+};
+
+export function withSourceLook(input: PosterInput, look?: SourceLook): PosterInput {
+  if (!look?.photoEmbed) return input;
+  return {
+    ...input,
+    photoEmbed: look.photoEmbed,
+    sourceCredit: input.atmosphere ? undefined : look.sourceCredit || input.sourceCredit,
+  };
+}
+
+export function licenseFromLook(look?: SourceLook) {
+  return look?.sourceCredit ? `來源：${look.sourceCredit} · AI 延續，不複製` : "來源：AI Generated";
+}
+
+export const DIRECTION_VARIATIONS: PosterVariation[] = ["composition", "mood", "background"];
+
+export function directionLookOf(index: number): PosterVariation {
+  return DIRECTION_VARIATIONS[Math.max(0, index) % DIRECTION_VARIATIONS.length] ?? "composition";
+}
+
+/** A/B/C thumbs on the create page — same photo, three compositions. */
+export function directionLookSvg(
+  dir: { headline: string; subhead?: string; palette?: string; name?: string; concept?: string },
+  index: number,
+  look?: SourceLook,
+): string {
+  return directionPosterSvg(
+    withSourceLook(
+      {
+        headline: dir.headline,
+        subhead: dir.subhead,
+        concept: dir.concept,
+        palette: dir.palette,
+        name: dir.name,
+        width: 1080,
+        height: 1350,
+        variation: directionLookOf(index),
+      },
+      look,
+    ),
+  );
+}
+
 /** Quiet 9:16 still for Reels encode / cover. Spec §8: almost no text on the cover. */
 export function reelsAtmosphereInput(palette?: string): PosterInput {
   return {

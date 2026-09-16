@@ -12,7 +12,7 @@ import {
   varyImagePrompt,
   type VisionAnalysis,
 } from "@/lib/ai/image-studio";
-import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
+import { directionLookOf, directionLookSvg, directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
 import { toBriefInput } from "@/lib/ai/payload";
 import { createCanvaDesign, pullCanvaDesign } from "@/lib/connect/canva";
 import { canvaRemoteFromDesign } from "@/lib/connect/canva-format";
@@ -188,6 +188,11 @@ export function CreateStudio() {
   } | null>(null);
   const sourcePhotoRef = useRef<{ embed: string; credit: string }>({ embed: "", credit: "" });
   const [sourceCredit, setSourceCredit] = useState("");
+  const [sourceEmbed, setSourceEmbed] = useState("");
+  const directionLooks = useMemo(() => {
+    const look = sourceEmbed ? { photoEmbed: sourceEmbed, sourceCredit: sourceCredit || undefined } : undefined;
+    return directions.map((dir, index) => encodeUtf8Base64(directionLookSvg(dir, index, look)));
+  }, [directions, sourceEmbed, sourceCredit]);
   const autoRan = useRef(false);
   const foundGroups = useMemo(() => groupCreativeHits(found), [found]);
 
@@ -220,6 +225,9 @@ export function CreateStudio() {
       setPickedDirection(null);
       setLastImage(null);
       setReview(null);
+      setSourceCredit("");
+      setSourceEmbed("");
+      sourcePhotoRef.current = { embed: "", credit: "" };
       if (search.idea) setSchedule(defaultScheduleText(search.idea));
       return;
     }
@@ -404,6 +412,7 @@ export function CreateStudio() {
       const embed = href ? (await loadSourceEmbed(href)) || "" : "";
       sourcePhotoRef.current = { embed, credit };
       setSourceCredit(credit);
+      setSourceEmbed(embed);
       await refreshDirections(next);
     })();
   }
@@ -463,9 +472,11 @@ export function CreateStudio() {
         ? {
             imageBase64: encodeUtf8Base64(
               directionPosterSvg({
-                ...storyPosterInput(storyLine, 0, { eventName: eventName || idea, palette: dir.palette }),
-                photoEmbed: photo.embed || undefined,
-                sourceCredit: photo.credit || undefined,
+                ...storyPosterInput(storyLine, 0, {
+                  eventName: eventName || idea,
+                  palette: dir.palette,
+                  look: photo.embed ? { photoEmbed: photo.embed, sourceCredit: photo.credit || undefined } : undefined,
+                }),
               }),
             ),
             mime: "image/svg+xml" as const,
@@ -595,6 +606,7 @@ export function CreateStudio() {
       const embed = await loadSourceEmbed(previewHit.thumbnail);
       sourcePhotoRef.current = { embed: embed || "", credit };
       setSourceCredit(credit);
+      setSourceEmbed(embed || "");
       setSourcePreview({
         id: previewHit.remoteId || previewHit.assetId || previewHit.id,
         name: previewHit.title,
@@ -606,6 +618,7 @@ export function CreateStudio() {
     } else {
       sourcePhotoRef.current = { embed: "", credit };
       setSourceCredit(credit);
+      setSourceEmbed("");
     }
     setBusy(true);
     try {
@@ -645,7 +658,7 @@ export function CreateStudio() {
       setReview(result.plan.studentReview ? ensureRewriteDiffers(result.plan.studentReview, result.plan.hook) : null);
       setPickedDirection(null);
       if (!silent) toast.success(result.adapter === "mock" ? "本機宣傳草案" : "已生成完整宣傳");
-      if (dirs[0]) await saveGeneratedImage(dirs[0], { silent: true });
+      if (dirs[0]) await saveGeneratedImage(dirs[0], { silent: true, kind: directionLookOf(0) });
       setVision((current) => current ?? visionFromHits(refs.length ? refs : hits));
     } finally {
       setBusy(false);
@@ -865,7 +878,9 @@ export function CreateStudio() {
     if (opts?.asHero !== false) {
       setLastImage({ base64: png.base64, mime: png.mime, assetId: id, headline: dir.headline, directionName: dir.name });
     }
-    if (!opts?.silent) toast.success("圖片已進素材庫（AI Generated）");
+    if (!opts?.silent) {
+      toast.success(photo.embed ? `圖片已進素材庫（延續 ${photo.credit || "來源"}）` : "圖片已進素材庫（AI Generated）");
+    }
     return id;
   }
 
@@ -876,7 +891,10 @@ export function CreateStudio() {
   ) {
     setBusy(true);
     try {
-      await saveGeneratedImage(dir, { kind, format });
+      await saveGeneratedImage(dir, {
+        kind: kind ?? directionLookOf(directions.findIndex((row) => (row.id || row.name) === (dir.id || dir.name))),
+        format,
+      });
     } finally {
       setBusy(false);
     }
@@ -1280,10 +1298,14 @@ export function CreateStudio() {
     setPlan(next);
     setBusy(true);
     try {
+      const lookIndex = Math.max(
+        0,
+        directions.findIndex((row) => (row.id || row.name) === (dir.id || dir.name)),
+      );
       const imageId =
         lastImage?.assetId && lastImage.directionName === dir.name
           ? lastImage.assetId
-          : ((await saveGeneratedImage(dir, { silent: true })) ?? lastImage?.assetId);
+          : ((await saveGeneratedImage(dir, { silent: true, kind: directionLookOf(lookIndex) })) ?? lastImage?.assetId);
       const project = applyToCanvas(next, false, imageId);
       const created = saveCampaignAndWaves(next, imageId, project?.id ?? null, { silent: true });
       if (project) updateProject(project.id, { campaignId: created.id });
@@ -1299,10 +1321,14 @@ export function CreateStudio() {
           body: item.kind === "carousel" ? item.body : cleaned.body,
         });
       }
+      const photo = sourcePhotoRef.current;
       const previewOpts = {
         eventName: eventName || next.campaignName,
         campaignId: created.id,
         projectId: project?.id ?? null,
+        look: photo.embed
+          ? { photoEmbed: photo.embed, sourceCredit: photo.credit || undefined }
+          : undefined,
       };
       await saveIgPreviewStills(next, previewOpts).catch(() => undefined);
       setBusy(false);
@@ -1598,13 +1624,14 @@ export function CreateStudio() {
         <section className="mt-8">
           <h2 className="text-sm font-medium">主視覺</h2>
           <p className="mt-1 text-xs text-muted">
-            {pickedDirection?.name || lastImage.directionName || "這次方向"} · 來源：AI Generated
+            {pickedDirection?.name || lastImage.directionName || "這次方向"} · 來源：{sourceCredit || "AI Generated"}
           </p>
           <div className="mt-3">
             <HeroVisual
               base64={lastImage.base64}
               mime={lastImage.mime}
               headline={lastImage.headline || pickedDirection?.headline}
+              source={sourceCredit || "AI Generated"}
             />
           </div>
         </section>
@@ -1629,6 +1656,14 @@ export function CreateStudio() {
           <ul className="mt-3 grid gap-3">
             {directions.map((dir, index) => (
               <li key={dir.id || dir.name} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+                {directionLooks[index] ? (
+                  <img
+                    alt={`${dir.name} 視覺方向`}
+                    src={`data:image/svg+xml;base64,${directionLooks[index]}`}
+                    className="mb-3 aspect-[4/5] w-full max-w-[13rem] rounded-xl object-cover"
+                    data-testid={index === 0 ? "direction-look-a" : index === 1 ? "direction-look-b" : "direction-look-c"}
+                  />
+                ) : null}
                 <p className="font-medium">{dir.name}</p>
                 <p className="mt-1 text-sm text-muted">{dir.concept}</p>
                 <p className="mt-2 text-xs text-muted">{dir.palette} · {dir.composition}</p>

@@ -16,7 +16,7 @@ export function HeroVisual({
         src={`data:${mime};base64,${base64}`}
         className="mx-auto h-auto w-full max-w-sm"
       />
-      <figcaption className="px-4 py-3 text-xs text-muted">
+      <figcaption className="px-4 py-3 text-xs text-muted" data-testid="hero-visual-source">
         主視覺 · 來源：{source}
       </figcaption>
     </figure>

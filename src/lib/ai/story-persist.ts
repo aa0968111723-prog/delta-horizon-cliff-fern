@@ -1,4 +1,4 @@
-import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
+import { directionPosterSvg, encodeUtf8Base64, licenseFromLook, type SourceLook } from "@/lib/ai/poster";
 import { storyFrameLines, storyPosterInput, storyRowsForFrames } from "@/lib/ai/story-frames";
 import { persistGeneratedImage } from "@/lib/studio/raster";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
@@ -9,12 +9,12 @@ import { useStudio } from "@/stores/studio-store";
 
 export async function saveStoryStills(
   plan: Pick<CampaignPlan, "storyFrames" | "storyBeats" | "hook" | "campaignName" | "subhead" | "cta" | "colorMood">,
-  opts: { eventName?: string; campaignId?: string | null; scheduledAt?: number; projectId?: string | null },
+  opts: { eventName?: string; campaignId?: string | null; scheduledAt?: number; projectId?: string | null; look?: SourceLook },
 ): Promise<string[]> {
   const frames = storyFrameLines(plan);
   const ids: string[] = [];
   for (let i = 0; i < frames.length; i++) {
-    const input = storyPosterInput(frames[i]!, i, { eventName: opts.eventName, palette: plan.colorMood });
+    const input = storyPosterInput(frames[i]!, i, { eventName: opts.eventName, palette: plan.colorMood, look: opts.look });
     const png = await persistGeneratedImage({
       base64: encodeUtf8Base64(directionPosterSvg(input)),
       mime: "image/svg+xml",
@@ -34,7 +34,7 @@ export async function saveStoryStills(
         height: 1920,
         tags: ["AI 生成", "Story", "限動", opts.eventName || "禪光"],
         source: "generated",
-        licenseNotes: "來源：AI Generated",
+        licenseNotes: licenseFromLook(opts.look),
         licenseOwner: "禪光",
       }),
     );

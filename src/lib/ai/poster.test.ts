@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { atmospherePosterSvg, directionPosterSvg, encodeUtf8Base64, mockPosterImage, reelsAtmosphereInput, sourcePhotoMarkup, wrapCjk, xmlEscape } from "./poster.ts";
+import { atmospherePosterSvg, directionLookOf, directionLookSvg, directionPosterSvg, encodeUtf8Base64, licenseFromLook, mockPosterImage, reelsAtmosphereInput, sourcePhotoMarkup, withSourceLook, wrapCjk, xmlEscape } from "./poster.ts";
 
 test("directionPosterSvg keeps the student headline and IG 4:5 size", () => {
   const svg = directionPosterSvg({
@@ -134,4 +134,36 @@ test("Drive tea photo is nested into 主視覺 and credited, not copied as a tem
   const layer = sourcePhotoMarkup(tea, 1080, 1350, "composition");
   assert.match(layer, /data-source-photo="1"/);
   assert.notEqual(layer, sourcePhotoMarkup(tea, 1080, 1350));
+});
+
+test("A/B/C direction looks keep the same Drive photo but shift composition", () => {
+  const tea = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350"><rect x="140" y="420" width="220" height="400" fill="#1C2422"/></svg>`;
+  const look = { photoEmbed: tea, sourceCredit: "Google Drive / 2025 茶會現場" };
+  const dir = { headline: "可以自己來？", subhead: "下週茶會", palette: "靜水、琥珀點", name: "方向 A" };
+  const a = directionLookSvg(dir, 0, look);
+  const b = directionLookSvg(dir, 1, look);
+  const c = directionLookSvg(dir, 2, look);
+  assert.equal(directionLookOf(0), "composition");
+  assert.equal(directionLookOf(1), "mood");
+  assert.equal(directionLookOf(2), "background");
+  assert.match(a, /data-source-photo="1"/);
+  assert.match(b, /data-source-photo="1"/);
+  assert.match(c, /data-source-photo="1"/);
+  assert.notEqual(a, b);
+  assert.notEqual(b, c);
+  assert.equal(licenseFromLook(look), "來源：Google Drive / 2025 茶會現場 · AI 延續，不複製");
+  assert.equal(licenseFromLook(), "來源：AI Generated");
+});
+
+test("Reels atmosphere continues a pinned photo without burning credit text", () => {
+  const tea = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350"><rect x="140" y="420" width="220" height="400" fill="#1C2422"/></svg>`;
+  const svg = directionPosterSvg(
+    withSourceLook(reelsAtmosphereInput("靜水、琥珀點"), {
+      photoEmbed: tea,
+      sourceCredit: "Google Drive / 2025 茶會現場",
+    }),
+  );
+  assert.match(svg, /data-source-photo="1"/);
+  assert.doesNotMatch(svg, /<text[\s>]/);
+  assert.doesNotMatch(svg, /Google Drive/);
 });

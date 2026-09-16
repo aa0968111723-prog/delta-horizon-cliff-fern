@@ -2,7 +2,7 @@ import { blobFromBase64, bytesToBase64 } from "../studio/bytes.ts";
 import { putAssetBlob, getAssetBlob } from "../studio/assets-idb.ts";
 import { persistGeneratedImage } from "../studio/raster.ts";
 import { uid } from "../studio/ids.ts";
-import { directionPosterSvg, encodeUtf8Base64, reelsAtmosphereInput } from "./poster.ts";
+import { directionPosterSvg, encodeUtf8Base64, reelsAtmosphereInput, withSourceLook, type SourceLook } from "./poster.ts";
 import { encodeReelsFromPng, type EncodedReels } from "./reels-encode.ts";
 import { attachReelsCover, attachReelsVideo, isVideoMime, reelsCoverAsset, reelsVideoAsset } from "./reels-asset.ts";
 import type { CampaignPlan } from "../studio/types.ts";
@@ -44,10 +44,10 @@ export async function saveReelsFilm(
 
 export async function saveReelsAtmosphere(
   plan: Pick<CampaignPlan, "colorMood" | "campaignName">,
-  opts: { eventName?: string; campaignId?: string | null },
+  opts: { eventName?: string; campaignId?: string | null; look?: SourceLook },
 ): Promise<{ id: string; base64: string; mime: string }> {
   const png = await persistGeneratedImage({
-    base64: encodeUtf8Base64(directionPosterSvg(reelsAtmosphereInput(plan.colorMood))),
+    base64: encodeUtf8Base64(directionPosterSvg(withSourceLook(reelsAtmosphereInput(plan.colorMood), opts.look))),
     mime: "image/svg+xml",
     width: 1080,
     height: 1920,
@@ -87,7 +87,7 @@ async function encodeReelsFilmFromCover(
 
 export async function saveReelsKit(
   plan: Pick<CampaignPlan, "colorMood" | "campaignName" | "reelsScript" | "hook">,
-  opts: { eventName?: string; campaignId?: string | null },
+  opts: { eventName?: string; campaignId?: string | null; look?: SourceLook },
 ): Promise<{ coverId: string; videoId?: string }> {
   const cover = await saveReelsAtmosphere(plan, opts);
   if (plan.reelsScript && cover.mime === "image/png") {

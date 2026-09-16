@@ -1,4 +1,4 @@
-import type { PosterInput } from "./poster.ts";
+import type { PosterInput, SourceLook } from "./poster.ts";
 import type { ScheduleItem } from "../studio/types.ts";
 
 export function storyFrameLines(plan: {
@@ -19,7 +19,7 @@ export function storyFrameLines(plan: {
 export function storyPosterInput(
   line: string,
   index: number,
-  opts?: { eventName?: string; palette?: string },
+  opts?: { eventName?: string; palette?: string; look?: SourceLook },
 ): PosterInput {
   return {
     headline: line,
@@ -29,6 +29,8 @@ export function storyPosterInput(
     width: 1080,
     height: 1920,
     variation: index === 0 ? "mood" : index === 2 ? "text" : "composition",
+    photoEmbed: opts?.look?.photoEmbed,
+    sourceCredit: opts?.look?.sourceCredit,
   };
 }
 

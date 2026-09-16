@@ -48,8 +48,25 @@ if (foundY > dirsY) issues.push("找到的素材還排在三個方向下面");
 if ((await page.locator('[data-testid="event-details"]').count()) === 0) {
   issues.push("活動細節沒有收進摺疊，創作頁還像表單");
 }
+await page.waitForSelector('[data-testid="direction-look-a"]', { timeout: 20_000 });
+const lookSrcs = await page.locator('[data-testid="direction-list"] img').evaluateAll((els) =>
+  els.map((el) => el.getAttribute("src") || ""),
+);
+if (new Set(lookSrcs.filter(Boolean)).size < 3) {
+  issues.push(`A/B/C 方向看起來一樣: ${lookSrcs.length}`);
+}
+if ((await page.locator('[data-testid="direction-look-b"]').count()) === 0) {
+  issues.push("沒有方向 B 預覽");
+}
+if ((await page.locator('[data-testid="direction-look-c"]').count()) === 0) {
+  issues.push("沒有方向 C 預覽");
+}
 await page.locator('[data-testid="realize-direction"]').click();
 await page.waitForSelector('[data-testid="kit-ready"]', { timeout: 60_000 });
+const heroSource = (await page.locator('[data-testid="hero-visual-source"]').innerText()) ?? "";
+if (!/Google Drive/.test(heroSource) || !/2025 茶會現場/.test(heroSource)) {
+  issues.push(`主視覺來源還寫空白海報: ${heroSource}`);
+}
 if ((await page.locator('[data-testid="kit-piece"]').count()) > 0) {
   issues.push("Drive 茶會被做成一篇而不是活動");
 }

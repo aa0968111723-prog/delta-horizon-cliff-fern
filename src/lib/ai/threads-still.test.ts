@@ -21,6 +21,22 @@ test("Threads still is 1:1 and keeps the student hook, not the event name", () =
   assert.doesNotMatch(svg, /temple|寺廟|誠摯邀請|負責人|Assignee/);
 });
 
+test("Threads still continues a pinned Drive photo", () => {
+  const tea = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350"><rect x="140" y="420" width="220" height="400" fill="#1C2422"/></svg>`;
+  const input = threadsPosterInput(
+    {
+      hook: "可以自己來？",
+      campaignName: "茶會",
+      subhead: "9/24 19:00 · 淡水校園",
+      cta: "來坐一下",
+    },
+    { photoEmbed: tea, sourceCredit: "Google Drive / 2025 茶會現場" },
+  );
+  const svg = directionPosterSvg(input);
+  assert.match(svg, /data-source-photo="1"/);
+  assert.match(svg, /Google Drive \/ 2025 茶會現場/);
+});
+
 test("attachThreadsStill only writes onto that campaign's Threads row", () => {
   const next = attachThreadsStill(
     [

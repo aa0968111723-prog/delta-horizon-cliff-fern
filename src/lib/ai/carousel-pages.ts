@@ -1,4 +1,4 @@
-import type { PosterInput, PosterVariation } from "./poster.ts";
+import type { PosterInput, PosterVariation, SourceLook } from "./poster.ts";
 import type { CarouselPagePlan, ScheduleItem } from "../studio/types.ts";
 import { isCampaignWaveTitle } from "./story-frames.ts";
 
@@ -137,7 +137,7 @@ export function carouselPagesFromPlan(plan: {
 export function carouselPosterInput(
   page: Pick<CarouselPagePlan, "headline" | "subhead" | "body" | "visualNote">,
   index: number,
-  opts?: { title?: string; name?: string; hook?: string; palette?: string },
+  opts?: { title?: string; name?: string; hook?: string; palette?: string; look?: SourceLook },
 ): PosterInput {
   const headline =
     index === 0 ? studentCoverHeadline(page.headline, opts?.hook || page.headline, opts?.title) : page.headline.trim();
@@ -150,6 +150,8 @@ export function carouselPosterInput(
     width: 1080,
     height: 1350,
     variation: PAGE_VARIATION[index % PAGE_VARIATION.length],
+    photoEmbed: opts?.look?.photoEmbed,
+    sourceCredit: opts?.look?.sourceCredit,
   };
 }
 

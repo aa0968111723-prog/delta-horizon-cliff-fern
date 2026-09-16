@@ -1,4 +1,4 @@
-import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
+import { directionPosterSvg, encodeUtf8Base64, licenseFromLook, type SourceLook } from "@/lib/ai/poster";
 import { countdownStillLine, isCountdownStillItem, storyPosterInput } from "@/lib/ai/story-frames";
 import { persistGeneratedImage } from "@/lib/studio/raster";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
@@ -9,7 +9,7 @@ import { useStudio } from "@/stores/studio-store";
 
 export async function saveCountdownStills(
   plan: Pick<CampaignPlan, "campaignName" | "colorMood">,
-  opts: { eventName?: string; campaignId?: string | null },
+  opts: { eventName?: string; campaignId?: string | null; look?: SourceLook },
 ): Promise<string[]> {
   const campaignId = opts.campaignId;
   if (!campaignId) return [];
@@ -20,7 +20,9 @@ export async function saveCountdownStills(
     const line = countdownStillLine(item);
     const png = await persistGeneratedImage({
       base64: encodeUtf8Base64(
-        directionPosterSvg(storyPosterInput(line, 0, { eventName: opts.eventName || plan.campaignName, palette: plan.colorMood })),
+        directionPosterSvg(
+          storyPosterInput(line, 0, { eventName: opts.eventName || plan.campaignName, palette: plan.colorMood, look: opts.look }),
+        ),
       ),
       mime: "image/svg+xml",
       width: 1080,
@@ -39,7 +41,7 @@ export async function saveCountdownStills(
         height: 1920,
         tags: ["AI 生成", "Story", item.kind === "countdown" ? "倒數" : "當日", opts.eventName || "禪光"],
         source: "generated",
-        licenseNotes: "來源：AI Generated",
+        licenseNotes: licenseFromLook(opts.look),
         licenseOwner: "禪光",
       }),
     );

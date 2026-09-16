@@ -75,6 +75,24 @@ test("carousel posters are 4:5 and keep the page headline", () => {
   assert.doesNotMatch(svg, /temple|寺廟/);
 });
 
+test("carousel posters continue a pinned Drive photo", () => {
+  const tea = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350"><rect x="140" y="420" width="220" height="400" fill="#1C2422"/></svg>`;
+  const input = carouselPosterInput(
+    { headline: "可以自己來？", subhead: "封面 Hook", body: "", visualNote: "封面" },
+    0,
+    {
+      title: "茶會",
+      name: "禪光",
+      hook: "可以自己來？",
+      look: { photoEmbed: tea, sourceCredit: "Google Drive / 2025 茶會現場" },
+    },
+  );
+  assert.equal(input.photoEmbed, tea);
+  const svg = directionPosterSvg(input);
+  assert.match(svg, /data-source-photo="1"/);
+  assert.match(svg, /Google Drive \/ 2025 茶會現場/);
+});
+
 test("studentCoverHeadline replaces an event-name cover", () => {
   assert.equal(studentCoverHeadline("茶會", "可以自己來？", "茶會"), "可以自己來？");
   assert.equal(studentCoverHeadline("可以自己來？", "可以自己來？", "茶會"), "可以自己來？");

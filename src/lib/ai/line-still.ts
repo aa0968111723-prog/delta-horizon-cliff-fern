@@ -1,12 +1,15 @@
-import type { PosterInput } from "./poster.ts";
+import type { PosterInput, SourceLook } from "./poster.ts";
 
-export function linePosterInput(plan: {
-  hook: string;
-  campaignName: string;
-  subhead?: string;
-  cta: string;
-  colorMood?: string;
-}): PosterInput {
+export function linePosterInput(
+  plan: {
+    hook: string;
+    campaignName: string;
+    subhead?: string;
+    cta: string;
+    colorMood?: string;
+  },
+  look?: SourceLook,
+): PosterInput {
   return {
     headline: plan.hook,
     subhead: plan.subhead || plan.cta,
@@ -15,6 +18,8 @@ export function linePosterInput(plan: {
     width: 1040,
     height: 1040,
     variation: "composition",
+    photoEmbed: look?.photoEmbed,
+    sourceCredit: look?.sourceCredit,
   };
 }
 
