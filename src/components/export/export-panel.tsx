@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { canvasToBlob, collectArtboardAssetIds, downloadBlob, renderArtboardToCanvas } from "@/lib/studio/export-png";
 import { buildExportCopyPack } from "@/lib/studio/export-copy";
+import { publishPackManifest, safePackStem } from "@/lib/studio/export-pack";
+import { zipBlobs } from "@/lib/studio/zip-store";
 import { formatById } from "@/lib/studio/formats";
 import { projectImageNote, scheduleReminder } from "@/lib/studio/ig-surfaces";
 import { getAssetBlob } from "@/lib/studio/assets-idb";
@@ -92,6 +94,44 @@ export function ExportPanel({
     }
   }
 
+  async function exportPublishPack() {
+    setBusy(true);
+    setError(null);
+    try {
+      const stem = safePackStem(project.name);
+      const manifest = publishPackManifest(stem, format.short, pages.length);
+      const files: { name: string; blob: Blob }[] = [
+        { name: manifest.noteName, blob: new Blob([buildExportCopyPack(project, { contentItems, campaigns })], { type: "text/plain;charset=utf-8" }) },
+      ];
+      for (let index = 0; index < pages.length; index += 1) {
+        const target = pages[index]!;
+        const images = await loadImages(collectArtboardAssetIds(target, brand));
+        const canvas = await renderArtboardToCanvas(target, brand, images, scale);
+        const blob = await canvasToBlob(canvas, "image/png", 0.95);
+        const filename = manifest.imageNames[index] ?? `${stem}-p${index + 1}.png`;
+        files.push({ name: filename, blob });
+        recordExport(project.id, {
+          id: uid("exp"),
+          createdAt: Date.now(),
+          formatId: target.formatId,
+          scale,
+          mime: "image/png",
+          width: format.width * scale,
+          height: format.height * scale,
+          filename,
+        });
+      }
+      downloadBlob(await zipBlobs(files), manifest.zipName);
+      toast.success(pages.length > 1 ? `已下載一人發佈包：${pages.length} 頁畫布與備註` : "已下載一人發佈包：畫布 PNG 與備註");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "匯出失敗";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function exportCarousel() {
     setBusy(true);
     setError(null);
@@ -154,17 +194,17 @@ export function ExportPanel({
         </div>
       </div>
       {error ? <p className="text-sm text-danger">{error}</p> : null}
-      <Button className="w-full" disabled={busy} onClick={() => void exportNow()}>
+      <Button className="w-full min-h-11" disabled={busy} onClick={() => void exportNow()}>
         {busy ? "匯出中…" : "下載此頁"}
       </Button>
       {pages.length > 1 ? (
-        <Button className="w-full" variant="secondary" disabled={busy} onClick={() => void exportCarousel()}>
+        <Button className="w-full min-h-11" variant="secondary" disabled={busy} onClick={() => void exportCarousel()}>
           匯出輪播全部（{pages.length} 頁）
         </Button>
       ) : null}
       <Button
         variant="secondary"
-        className="w-full"
+        className="w-full min-h-11"
         onClick={async () => {
           const text = `${project.copy.caption}\n\n${project.copy.hashtags.join(" ")}`.trim();
           await navigator.clipboard.writeText(text);
@@ -179,7 +219,7 @@ export function ExportPanel({
         onClick={async () => {
           const text = buildExportCopyPack(project, { contentItems, campaigns });
           await navigator.clipboard.writeText(text);
-          toast.success("已複製一人發佈包：文案、畫面備註、排程提醒。這不是發文。");
+          toast.success("已複製文案與備註。畫布 PNG 請用下載一人發佈包。");
         }}
       >
         複製一人發佈包
@@ -187,16 +227,14 @@ export function ExportPanel({
       <Button
         variant="secondary"
         className="w-full min-h-11"
-        onClick={() => {
-          const text = buildExportCopyPack(project, { contentItems, campaigns });
-          downloadBlob(new Blob([text], { type: "text/plain;charset=utf-8" }), `${project.name.replace(/[\\/:*?"<>|]/g, "").slice(0, 40) || "export"}-publish.txt`);
-          toast.success("已下載一人發佈包：文案、畫面備註、排程提醒。這不是發文。");
-        }}
+        data-testid="download-publish-pack"
+        disabled={busy}
+        onClick={() => void exportPublishPack()}
       >
-        下載一人發佈包
+        {busy ? "打包中…" : "下載一人發佈包"}
       </Button>
       <p className="text-xs leading-5 text-muted">
-        包裡有貼文文案、畫面備註、排程提醒。沒有官方 Insights，也不會幫你貼到 Instagram。
+        下載包含目前畫布 PNG、貼文文案、畫面備註與排程提醒。沒有官方 Insights，也不會幫你貼到 Instagram。
       </p>
       <p className="text-xs leading-5 text-muted whitespace-pre-line">
         {scheduleReminder({

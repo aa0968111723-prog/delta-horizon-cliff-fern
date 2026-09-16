@@ -297,6 +297,15 @@ test("memoryInjectionHints includes 現場筆記 when Brand Memory has field not
   assert.equal(memoryInjectionHints({ brand: noted }).includes("現場筆記"), true);
 });
 
+test("memoryInjectionHints includes 畫面分析 after a visual lesson is stored", () => {
+  const noted = createEmptyBrand("淡江大學禪學社");
+  noted.memory = {
+    ...brand.memory!,
+    learnedPatterns: ["畫面：「夜間茶會」學生感：有下課後的朋友感；停留：第一眼看得懂"],
+  };
+  assert.equal(memoryInjectionHints({ brand: noted }).includes("畫面分析"), true);
+});
+
 test("clipMemoryPrompt keeps campus prompts within the AI payload limit", () => {
   assert.equal(clipMemoryPrompt("淡水雨天", 8), "淡水雨天");
   assert.equal(clipMemoryPrompt("a".repeat(20), 8).length, 8);

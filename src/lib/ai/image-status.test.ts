@@ -7,6 +7,8 @@ test("unavailable image status never claims Grok already drew anything", () => {
   assert.equal(status.available, false);
   assert.match(status.detail, /不會假裝 Grok/);
   assert.match(status.generateBlockedMessage, /沒有生成任何畫面/);
+  assert.equal(status.analyzeBlockedMessage, "圖片分析服務未開放");
+  assert.match(status.analyzeDetail, /不會假裝 Grok 看過這張圖/);
   assert.doesNotMatch(status.detail, /已為你生成/);
 });
 
@@ -15,6 +17,8 @@ test("available image status still stays user-initiated and capped", () => {
   assert.equal(status.available, true);
   assert.match(status.detail, /按下生成/);
   assert.match(status.detail, /四張/);
+  assert.match(status.analyzeDetail, /按下分析/);
+  assert.equal(status.analyzeBlockedMessage, "");
 });
 
 test("image quota caps then refunds a failed attempt", () => {

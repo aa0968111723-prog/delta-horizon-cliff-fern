@@ -292,7 +292,7 @@ export function CanvaCard() {
                 type="button"
                 onClick={() => setCollection("all")}
                 className={cn(
-                  "min-h-10 shrink-0 rounded-full px-3 text-xs",
+                  "min-h-11 shrink-0 rounded-full px-3 text-xs",
                   collection === "all" ? "bg-accent text-accent-fg" : "bg-bg text-muted",
                 )}
               >
@@ -304,7 +304,7 @@ export function CanvaCard() {
                   type="button"
                   onClick={() => setCollection(name)}
                   className={cn(
-                    "min-h-10 shrink-0 rounded-full px-3 text-xs",
+                    "min-h-11 shrink-0 rounded-full px-3 text-xs",
                     collection === name ? "bg-accent text-accent-fg" : "bg-bg text-muted",
                   )}
                 >

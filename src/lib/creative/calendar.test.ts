@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { buildCampaignRhythm } from "./rhythm.ts";
 import { isoDay, monthGrid, movePlannedAt, weekGrid, daysUntilLabel, calendarSurface } from "./calendar.ts";
 import type { ContentItem } from "./types.ts";
 
@@ -47,4 +48,34 @@ test("narrow screens use agenda or week, never the month grid", () => {
   assert.equal(calendarSurface(true, "month", "agenda"), "agenda");
   assert.equal(calendarSurface(true, "month", "week"), "week");
   assert.equal(calendarSurface(false, "month", "agenda"), "month");
+});
+
+test("campaign rhythm slots land on the calendar grid and keep their hour when moved", () => {
+  const campaign = {
+    id: "campaign_cal",
+    name: "秋夜茶會",
+    type: "茶會" as const,
+    eventDate: "2026-09-24",
+    eventTime: "19:00–21:00",
+    location: "淡江大學",
+    oneLiner: "一起喝茶、坐坐。",
+    description: "",
+    theme: "慢下來",
+    studentPain: "期中壓力",
+    cta: "找朋友一起來",
+    registrationUrl: "",
+    assetIds: [] as string[],
+    createdAt: 0,
+    updatedAt: 0,
+  };
+  const items = buildCampaignRhythm(campaign, new Date("2026-09-16T00:00:00+08:00"));
+  const days = monthGrid(new Date("2026-09-24T00:00:00+08:00"), items);
+  const occupied = days.filter((day) => day.items.length);
+  assert.equal(occupied.reduce((sum, day) => sum + day.items.length, 0), items.length);
+  assert.ok(occupied.length > 0);
+  const first = items[0]!;
+  const moved = movePlannedAt(first.plannedAt, "2026-09-18");
+  assert.equal(isoDay(moved), "2026-09-18");
+  const after = monthGrid(new Date("2026-09-18T00:00:00+08:00"), [{ ...first, plannedAt: moved }]);
+  assert.equal(after.find((day) => day.date === "2026-09-18")?.items[0]?.id, first.id);
 });

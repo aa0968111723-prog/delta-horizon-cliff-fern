@@ -74,9 +74,11 @@ export const useCreative = create<CreativeState>()(
           createdAt: now,
           updatedAt: now,
         };
+        const items = buildCampaignRhythm(campaign);
         set((state) => ({
           campaigns: [campaign, ...state.campaigns],
           activeCampaignId: campaign.id,
+          contentItems: [...state.contentItems, ...items],
         }));
         return campaign;
       },

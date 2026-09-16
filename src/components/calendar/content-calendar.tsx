@@ -37,7 +37,7 @@ export function ContentCalendar() {
   const [view, setView] = useState<CalendarView>("month");
   const [mobileView, setMobileView] = useState<Extract<CalendarView, "agenda" | "week">>("agenda");
   const [narrow, setNarrow] = useState(false);
-  const [campaignId, setCampaignId] = useState(campaigns[0]?.id ?? "all");
+  const [campaignId, setCampaignId] = useState(() => useCreative.getState().activeCampaignId || "all");
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
@@ -80,7 +80,7 @@ export function ContentCalendar() {
       <PageHeader
         kicker="一人節奏"
         title="排程"
-        description="用月曆或週覽看內容節奏。拖到另一天只改本機排程，不會發到 Instagram。"
+        description="宣傳節奏會出現在這裡。拖到另一天或改日期只改本機排程，不會發到 Instagram。"
         actions={
           <Button
             variant="secondary"
@@ -88,7 +88,7 @@ export function ContentCalendar() {
               const id = campaignId === "all" ? campaigns[0]?.id : campaignId;
               if (!id) return;
               generateRhythm(id);
-              toast.success("已依活動日期重排節奏");
+              toast.success("已依活動日期重排節奏，格子可以拖或改期");
             }}
           >
             重排 AI 節奏
@@ -130,7 +130,7 @@ export function ContentCalendar() {
               type="button"
               onClick={() => setView(item)}
               className={cn(
-                "min-h-10 rounded-full px-3 text-sm",
+                "min-h-11 rounded-full px-3 text-sm",
                 view === item ? "bg-accent text-accent-fg" : "bg-surface text-muted shadow-[var(--shadow-border)]",
               )}
             >
@@ -157,7 +157,18 @@ export function ContentCalendar() {
         {activeView === "week" ? (
           <ol className="space-y-3">
             {days.map((day) => (
-              <li key={`mw-${day.date}`} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <li
+                key={`mw-${day.date}`}
+                data-testid="calendar-day"
+                data-day={day.date}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const id = event.dataTransfer.getData("text/zen-content");
+                  if (id) dropOnDay(day.date, id);
+                }}
+                className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]"
+              >
                 <p className="text-xs font-medium text-accent">{format(parseISO(day.date), "M月d日 EEEE", { locale: zhTW })}</p>
                 {day.items.length ? (
                   <ul className="mt-3 space-y-2">
@@ -180,7 +191,7 @@ export function ContentCalendar() {
         ) : days.filter((day) => day.items.length).length ? (
           <ol className="space-y-3">
             {days.filter((day) => day.items.length).map((day) => (
-              <li key={`m-${day.date}`} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <li key={`m-${day.date}`} data-testid="calendar-day" data-day={day.date} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
                 <p className="text-xs font-medium text-accent">{format(parseISO(day.date), "M月d日 EEEE", { locale: zhTW })}</p>
                 <ul className="mt-3 space-y-2">
                   {day.items.map((item) => (
@@ -198,7 +209,7 @@ export function ContentCalendar() {
           </ol>
         ) : (
           <p className="rounded-2xl bg-surface px-4 py-10 text-center text-sm text-muted shadow-[var(--shadow-border)]">
-            這段時間還沒有內容節奏。到 Campaign 依活動生成一版，或用日期改期。
+            這段時間還沒有內容節奏。到活動頁生成一版，或按上方重排，波次會出現在這裡。
           </p>
         )}
       </div>
@@ -231,6 +242,8 @@ export function ContentCalendar() {
             {days.map((day) => (
               <div
                 key={day.date}
+                data-testid="calendar-day"
+                data-day={day.date}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
                   event.preventDefault();
@@ -252,6 +265,7 @@ export function ContentCalendar() {
                       <button
                         type="button"
                         draggable
+                        data-testid="calendar-item"
                         onDragStart={(event) => event.dataTransfer.setData("text/zen-content", item.id)}
                         onClick={() => createFrom(item)}
                         className="w-full rounded-lg bg-accent/10 px-1.5 py-1 text-left"
@@ -287,7 +301,7 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
       type="button"
       onClick={onClick}
       className={cn(
-        "min-h-10 shrink-0 rounded-full px-3 text-sm",
+        "min-h-11 shrink-0 rounded-full px-3 text-sm",
         active ? "bg-accent text-accent-fg" : "bg-surface text-muted shadow-[var(--shadow-border)]",
       )}
     >
@@ -308,8 +322,8 @@ function AgendaRow({
   onMove: (day: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl bg-bg p-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
+    <div className="flex min-w-0 flex-col gap-3 rounded-xl bg-bg p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <Badge>{item.type}</Badge>
           <span className="text-xs text-muted">{campaignName}</span>
@@ -317,12 +331,16 @@ function AgendaRow({
         <p className="mt-1 font-medium">{item.title}</p>
         <p className="mt-1 text-xs text-muted">{item.angle}</p>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <input
           type="date"
+          data-testid="calendar-reschedule"
           value={isoDay(item.plannedAt)}
-          onChange={(event) => onMove(event.target.value)}
-          className="h-11 rounded-md border border-border bg-surface px-3 text-sm"
+          onChange={(event) => {
+            if (!event.target.value) return;
+            onMove(event.target.value);
+          }}
+          className="h-11 min-h-11 w-full min-w-0 max-w-full rounded-md border border-border bg-surface px-3 text-sm sm:w-auto"
         />
         <Button size="sm" className="min-h-11" onClick={onCreate}>
           <Sparkles className="size-4" />

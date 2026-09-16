@@ -56,7 +56,6 @@ export function NewCampaignDialog({
   onCreated: (id: string) => void;
 }) {
   const createCampaign = useCreative((state) => state.createCampaign);
-  const generateRhythm = useCreative((state) => state.generateRhythm);
   const [form, setForm] = useState<CampaignInput>(emptyCampaign);
   const [error, setError] = useState("");
 
@@ -79,12 +78,11 @@ export function NewCampaignDialog({
         form.studentPain.trim() ||
         "淡江學生最近正在面對課表、通勤、宿舍、人際或未來方向帶來的壓力。",
     });
-    generateRhythm(campaign.id);
     setForm(emptyCampaign());
     setError("");
     onOpenChange(false);
     onCreated(campaign.id);
-    toast.success("活動與宣傳節奏草案已建立");
+    toast.success("活動與宣傳節奏已建立，可到排程改期");
   }
 
   return (

@@ -19,6 +19,7 @@ export function BrandMemoryStrip({ compact = false }: { compact?: boolean }) {
   const outcomeHashtags = hashtagsFromOutcomes(outcomes);
   const hashtags = mergeHashtagMemory(outcomeHashtags, instagramHashtags);
   const fieldNote = brand?.memory?.learnedPatterns?.find((item) => item.startsWith("現場："));
+  const visualNote = brand?.memory?.learnedPatterns?.find((item) => item.startsWith("畫面："));
   const campaign = campaigns[0];
 
   if (!brand) return null;
@@ -33,6 +34,7 @@ export function BrandMemoryStrip({ compact = false }: { compact?: boolean }) {
         <li className="break-words">校園：{campusContextLine(brand)}</li>
         {campaign ? <li className="break-words">近期活動：{campaign.name}</li> : null}
         {fieldNote ? <li className="break-words">{fieldNote}</li> : <li>現場筆記：還沒有。貼完再記誰來了。</li>}
+        {visualNote ? <li className="break-words">{visualNote}</li> : null}
         <li className="break-words">
           Hashtag：{hashtags.length ? hashtags.slice(0, 6).join(" ") : "先用 #淡江禪學社 #淡江生活，現場有用的會排前面"}
         </li>

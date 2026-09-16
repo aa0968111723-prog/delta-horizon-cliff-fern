@@ -42,6 +42,8 @@ test("export copy pack uses local caption and never claims it was posted", () =>
   assert.match(text, /不是 Instagram 發文/);
   assert.match(text, /夜晚校園主視覺/);
   assert.match(text, /畫面備註/);
+  assert.match(text, /畫面檔/);
+  assert.match(text, /畫布 PNG/);
   assert.match(text, /排程提醒/);
   assert.match(text, /還沒排進日曆/);
   assert.equal(text.includes("Insights"), true);

@@ -180,7 +180,7 @@ export function ImageStudio() {
           </Badge>
           <h2 className="mt-4 text-2xl font-semibold tracking-tight">先想情境，再生成畫面</h2>
           <p className="mt-2 max-w-md text-sm leading-6 text-accent-fg/70">
-            不是只寫「禪風海報」。先選淡江學生會有感的視覺角度，再生成一張可放進 Studio 的主視覺。
+            不是只寫「禪風海報」。先選淡江學生會有感的視覺角度，再生成一張可放進 Studio 的主視覺。素材庫裡的本機圖可再分析、寫入 Brand Memory。
             {brand
               ? ` 本次會帶入：${memoryInjectionHints({ brand, assets, campaigns, styleReferences, instagramHashtags }).join("、") || "Brand Memory 預設校園情境"}。`
               : ""}

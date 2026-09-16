@@ -16,12 +16,14 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { analyzeCreativeImage, editCreativeImage, getMultimodalStatus } from "@/lib/ai/multimodal";
 import { describeImageAdapter, type ImageAiStatus } from "@/lib/ai/image-status";
 import { ImageServiceNotice } from "@/components/shared/image-service-notice";
+import { emptyBrandMemory } from "@/lib/studio/brand";
+import { applyVisualLesson } from "@/lib/creative/learning";
 import { base64ImageToBlob, prepareImageForAi, sourceBlob } from "@/lib/studio/ai-image-client";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { ASSET_CATEGORIES, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import { kindFromCategory } from "@/lib/studio/assets";
 import { uid } from "@/lib/studio/ids";
-import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
+import type { AssetAnalysis, AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
 
 export function AssetDetailSheet({
@@ -44,6 +46,8 @@ export function AssetDetailSheet({
   const navigate = useNavigate();
   const updateAsset = useStudio((s) => s.updateAsset);
   const addAsset = useStudio((s) => s.addAsset);
+  const brand = useStudio((s) => s.brands[0]);
+  const updateBrand = useStudio((s) => s.updateBrand);
   const placeAsset = useStudio((s) => s.placeAsset);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
@@ -93,9 +97,25 @@ export function AssetDetailSheet({
     return prepareImageForAi(blob);
   }
 
+  function writeVisualMemory(analysis: AssetAnalysis) {
+    if (!brand) return;
+    const memory = brand.memory ?? emptyBrandMemory();
+    updateBrand(brand.id, {
+      memory: {
+        ...memory,
+        learnedPatterns: applyVisualLesson(memory.learnedPatterns, current.name, analysis),
+        updatedAt: Date.now(),
+      },
+    });
+  }
+
   async function analyze() {
+    if (current.width === 0) {
+      toast.error("這張沒有原圖像素，不能分析，也不會寫入模擬結果。");
+      return;
+    }
     if (imageStatus && !imageStatus.available) {
-      toast.error("這個環境尚未開放 AI 圖片分析。沒有寫入模擬標籤，也不會假裝 Grok 看過這張圖。");
+      toast.error(imageStatus.analyzeBlockedMessage);
       return;
     }
     setAiBusy("analyze");
@@ -110,7 +130,8 @@ export function AssetDetailSheet({
         analysis: result.analysis,
         tags: [...new Set([...current.tags, ...result.analysis.suggestedTags])].slice(0, 20),
       });
-      toast.success("已完成淡江學生視角分析與 AI Tag");
+      writeVisualMemory(result.analysis);
+      toast.success("已完成分析並寫入 Brand Memory");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "圖片分析失敗");
     } finally {
@@ -257,13 +278,13 @@ export function AssetDetailSheet({
                 <BrainCircuit className="size-4 text-accent" />
                 AI 視覺理解
               </p>
-              <p className="mt-1 text-xs leading-5 text-muted">從淡江學生、品牌與 IG 手機停留感檢查，不會在開啟素材時自動花費額度。</p>
+              <p className="mt-1 text-xs leading-5 text-muted">從淡江學生與 IG 停留感檢查這張本機素材。按下才會花費額度；成功後寫入 Brand Memory，不會假裝 Grok 看過沒分析的圖。</p>
             </div>
-            <Button size="sm" variant="secondary" disabled={Boolean(aiBusy)} onClick={() => void analyze()}>
+            <Button size="sm" className="min-h-11" variant="secondary" disabled={Boolean(aiBusy)} onClick={() => void analyze()} data-testid="analyze-asset">
               {aiBusy === "analyze" ? "分析中…" : current.analysis ? "重新分析" : "AI 分析"}
             </Button>
           </div>
-          <ImageServiceNotice status={imageStatus} className="mt-3" />
+          <ImageServiceNotice status={imageStatus} purpose="analyze" className="mt-3" />
           {current.analysis ? (
             <div className="mt-4 space-y-3 text-xs leading-5">
               <p className="text-sm text-fg">{current.analysis.summary}</p>
@@ -282,6 +303,18 @@ export function AssetDetailSheet({
                   {current.analysis.recommendations.map((item) => <li key={item}>{item}</li>)}
                 </ul>
               </div>
+              <Button
+                size="sm"
+                className="min-h-11"
+                variant="secondary"
+                onClick={() => {
+                  if (!current.analysis) return;
+                  writeVisualMemory(current.analysis);
+                  toast.success("已把畫面分析寫入 Brand Memory");
+                }}
+              >
+                寫入 Brand Memory
+              </Button>
             </div>
           ) : null}
         </section>

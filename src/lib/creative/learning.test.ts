@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createEmptyBrand } from "../studio/brand.ts";
-import { hashtagsFromOutcomes, lessonsFromInsights, lessonsFromLocalWork, lessonsFromOutcomes, learnedHookFromMemory, learnedRememberFromMemory, mergeHashtagMemory, mergeLearnedPatterns, stripOutcomeLessons } from "./learning.ts";
+import { hashtagsFromOutcomes, lessonsFromInsights, lessonsFromLocalWork, lessonsFromOutcomes, learnedHookFromMemory, learnedRememberFromMemory, mergeHashtagMemory, mergeLearnedPatterns, stripOutcomeLessons, applyVisualLesson, formatVisualLesson } from "./learning.ts";
 import type { Campaign, ContentItem, PostOutcome } from "./types.ts";
 
 const campaign: Campaign = {
@@ -177,4 +177,24 @@ test("hashtags from outcomes rank field-note tags ahead of unused ones", () => {
   assert.equal(tags[0], "#淡江禪學社");
   assert.ok(tags.includes("#浮游禪光"));
   assert.deepEqual(mergeHashtagMemory(["#浮游禪光"], ["#淡江禪學社", "#浮游禪光"]), ["#浮游禪光", "#淡江禪學社"]);
+});
+
+test("visual analysis lessons write into Brand Memory without inventing a Grok paragraph", () => {
+  const lesson = formatVisualLesson("夜間茶會", {
+    studentFit: "有下課後的朋友感",
+    stopPower: "第一眼看得懂是校園夜晚",
+    recommendations: ["做成 4:5 主視覺，標題留上緣"],
+    risks: ["不要再加蓮花"],
+  });
+  assert.match(lesson, /^畫面：「夜間茶會」/);
+  assert.match(lesson, /學生感：有下課後的朋友感/);
+  assert.equal(lesson.includes("Grok 看過"), false);
+  const next = applyVisualLesson(["先說學生生活"], "夜間茶會", {
+    studentFit: "更新後的學生感",
+    stopPower: "停留夠",
+    recommendations: [],
+    risks: [],
+  });
+  assert.equal(next.filter((item) => item.startsWith("畫面：「夜間茶會」")).length, 1);
+  assert.match(next[0] ?? "", /更新後的學生感/);
 });

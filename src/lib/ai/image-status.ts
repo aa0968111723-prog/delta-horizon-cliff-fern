@@ -3,6 +3,8 @@ export type ImageAiStatus = {
   label: string;
   detail: string;
   generateBlockedMessage: string;
+  analyzeBlockedMessage: string;
+  analyzeDetail: string;
 };
 
 export function describeImageAdapter(available: boolean): ImageAiStatus {
@@ -12,6 +14,8 @@ export function describeImageAdapter(available: boolean): ImageAiStatus {
       label: "已連線圖片生成",
       detail: "按下生成才會呼叫 Grok Imagine，每小時最多四張。不會假裝已發到 Instagram。",
       generateBlockedMessage: "",
+      analyzeBlockedMessage: "",
+      analyzeDetail: "按下分析才會呼叫 Grok 看圖，每小時最多六次。結果可寫入 Brand Memory，不會假裝已發文。",
     };
   }
   return {
@@ -19,10 +23,12 @@ export function describeImageAdapter(available: boolean): ImageAiStatus {
     label: "圖片服務尚未開放",
     detail: "這個環境沒有開放 AI 圖片。按下生成不會做出假圖，也不會假裝 Grok 已畫好畫面。既有上傳、畫布與模板仍可用。",
     generateBlockedMessage: "這個環境尚未開放 AI 圖片服務。沒有生成任何畫面，也不會假裝 Grok 已畫好。",
+    analyzeBlockedMessage: "圖片分析服務未開放",
+    analyzeDetail: "圖片分析服務未開放。沒有寫入模擬標籤，也不會假裝 Grok 看過這張圖。",
   };
 }
 
-export function createImageQuota(limit = 4, windowMs = 60 * 60 * 1000) {
+export function createImageQuota(limit = 4, windowMs = 60 * 60 * 1000, noun = "圖片生成") {
   let start = 0;
   let count = 0;
   return {
@@ -35,7 +41,7 @@ export function createImageQuota(limit = 4, windowMs = 60 * 60 * 1000) {
       if (count >= limit) {
         return {
           ok: false as const,
-          error: `圖片生成已達本時段上限（${limit} 張）。這是為了保護額度，不是模擬失敗。`,
+          error: `${noun}已達本時段上限（${limit}）。這是為了保護額度，不是模擬失敗。`,
         };
       }
       count += 1;

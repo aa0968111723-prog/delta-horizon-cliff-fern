@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { campaignToBrief } from "@/lib/creative/brief-from-campaign";
+import { isoDay, movePlannedAt } from "@/lib/creative/calendar";
 import type {
   Campaign,
   ContentItem,
@@ -52,6 +53,7 @@ export function CampaignCenter() {
   const contentItems = useCreative((state) => state.contentItems);
   const generateRhythm = useCreative((state) => state.generateRhythm);
   const setContentStatus = useCreative((state) => state.setContentStatus);
+  const rescheduleContent = useCreative((state) => state.rescheduleContent);
   const setProjectStatus = useStudio((state) => state.setProjectStatus);
   const startCreative = useUi((state) => state.startCreative);
   const setActiveCampaignId = useCreative((state) => state.setActiveCampaignId);
@@ -162,11 +164,17 @@ export function CampaignCenter() {
                 variant="secondary"
                 onClick={() => {
                   generateRhythm(campaign.id);
-                  toast.success("本機節奏草案已依活動日期更新");
+                  toast.success("本機節奏已依活動日期重排，排程日曆會一起更新");
                 }}
               >
                 <RefreshCw className="size-4" />
                 重排內容節奏
+              </Button>
+              <Button asChild variant="secondary" className="min-h-11">
+                <Link to="/calendar" data-testid="campaign-open-calendar">
+                  <CalendarDays className="size-4" />
+                  打開排程改期
+                </Link>
               </Button>
             </div>
           </div>
@@ -189,24 +197,43 @@ export function CampaignCenter() {
           <div>
             <p className="text-xs text-muted">本機節奏</p>
             <h2 className="mt-1 font-display text-xl">宣傳節奏</h2>
-            <p className="mt-1 text-sm text-muted">這是可調整的本機節奏草案，不會自動發布。</p>
+            <p className="mt-1 text-sm text-muted">每一波都會出現在排程裡，改日期只動這台裝置，不會自動發布。</p>
           </div>
           <Button asChild variant="ghost" size="sm">
             <Link to="/assistant">從一句想法開始 <ChevronRight className="size-4" /></Link>
           </Button>
         </div>
 
+        {items.length === 0 ? (
+          <p className="mt-4 rounded-2xl bg-surface px-4 py-10 text-center text-sm text-muted shadow-[var(--shadow-border)]">
+            還沒有節奏波次。按「重排內容節奏」後，這些格子會出現在排程日曆，可以拖或改期。
+          </p>
+        ) : (
         <ol className="mt-4 space-y-3">
           {items.map((item, index) => {
             const meta = STATUS[item.status];
             return (
               <li key={item.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] sm:p-5">
-                <div className="grid gap-4 sm:grid-cols-[6rem_1fr_auto] sm:items-center">
-                  <div>
+                <div className="grid gap-4 sm:grid-cols-[minmax(0,8.5rem)_1fr_auto] sm:items-center">
+                  <div className="min-w-0">
                     <p className="text-xs font-medium text-accent">
                       {format(parseISO(item.plannedAt), "M/d EEE", { locale: zhTW })}
                     </p>
                     <p className="mt-1 text-xs text-muted">{format(parseISO(item.plannedAt), "HH:mm")}</p>
+                    <label className="mt-2 block">
+                      <span className="sr-only">改期 {item.title}</span>
+                      <input
+                        type="date"
+                        data-testid={`campaign-reschedule-${item.id}`}
+                        value={isoDay(item.plannedAt)}
+                        onChange={(event) => {
+                          if (!event.target.value) return;
+                          rescheduleContent(item.id, movePlannedAt(item.plannedAt, event.target.value));
+                          toast.success("已改期，排程日曆會一起更新");
+                        }}
+                        className="mt-1 h-11 min-h-11 w-full min-w-0 max-w-full rounded-md border border-border bg-bg px-3 text-sm"
+                      />
+                    </label>
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -217,7 +244,7 @@ export function CampaignCenter() {
                     <h3 className="mt-2 font-medium">{item.title}</h3>
                     <p className="mt-1 text-sm leading-6 text-muted">{item.angle}</p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
                     <Select
                       value={item.status}
                       onValueChange={(value) => {
@@ -226,7 +253,7 @@ export function CampaignCenter() {
                         if (item.projectId) setProjectStatus(item.projectId, status);
                       }}
                     >
-                      <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-28 min-h-11"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {Object.entries(STATUS).map(([value, status]) => (
                           <SelectItem key={value} value={value}>{status.label}</SelectItem>
@@ -258,6 +285,7 @@ export function CampaignCenter() {
             );
           })}
         </ol>
+        )}
       </section>
 
       <div className="mt-8 min-w-0">

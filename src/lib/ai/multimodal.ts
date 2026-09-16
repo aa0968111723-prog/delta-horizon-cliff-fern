@@ -97,6 +97,11 @@ function extractJson(text: string) {
 export { describeImageAdapter } from "./image-status";
 
 const imageQuota = createImageQuota(4);
+const visionQuota = createImageQuota(6, 60 * 60 * 1000, "圖片分析");
+
+const VISION_PROMPT = `你是淡江大學禪學社的 Visual Director。分析這張素材能否用於面向淡江學生的 IG。只輸出 JSON，欄位：
+summary, subjects[], colors[], lighting, composition, textHierarchy, brandFit, studentFit, stopPower, risks[], recommendations[], suggestedTags[]。
+具體檢查人物、色彩、光線、構圖、文字比例與層級、品牌感、學生生活感、手機停留感，以及是否太宗教、太老氣、太像 AI。看不到文字就明說，不要臆測。recommendations 要包含可執行的 Post／Story／Carousel／Reels Cover 延伸建議。`;
 
 export const getMultimodalStatus = createServerFn({ method: "GET" }).handler(async () => (
   describeImageAdapter(Boolean(process.env.XAI_API_KEY))
@@ -132,38 +137,66 @@ export const generateCreativeImage = createServerFn({ method: "POST" })
     }
   });
 
+function parseAnalysis(text: string): AssetAnalysis {
+  const parsed = AnalysisSchema.parse(extractJson(text));
+  return { ...parsed, analyzedAt: Date.now() };
+}
+
+async function analyzeWithResponses(dataUrl: string) {
+  const response = await fetch("https://api.x.ai/v1/responses", {
+    method: "POST",
+    headers: apiHeaders(),
+    body: JSON.stringify({
+      model: "grok-4.5",
+      store: false,
+      max_output_tokens: 1200,
+      input: [{
+        role: "user",
+        content: [
+          { type: "input_text", text: VISION_PROMPT },
+          { type: "input_image", image_url: dataUrl, detail: "low" },
+        ],
+      }],
+    }),
+  });
+  if (!response.ok) return null;
+  return parseAnalysis(extractResponseText(await response.json()));
+}
+
+async function analyzeWithChat(dataUrl: string) {
+  const response = await fetch("https://api.x.ai/v1/chat/completions", {
+    method: "POST",
+    headers: apiHeaders(),
+    body: JSON.stringify({
+      model: "grok-4.5",
+      temperature: 0.2,
+      max_tokens: 1200,
+      response_format: { type: "json_object" },
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: VISION_PROMPT },
+          { type: "image_url", image_url: { url: dataUrl, detail: "low" } },
+        ],
+      }],
+    }),
+  });
+  if (!response.ok) throw new Error(`圖片分析暫時無法使用（${response.status}）`);
+  const body = await response.json() as { choices?: { message?: { content?: string } }[] };
+  return parseAnalysis(body.choices?.[0]?.message?.content ?? "");
+}
+
 export async function runVisionAnalysis(dataUrl: string) {
   if (!process.env.XAI_API_KEY) {
-    return { ok: false as const, error: "這個環境尚未開放 AI 圖片分析。沒有寫入模擬標籤，也不會假裝 Grok 看過這張圖。" };
+    return { ok: false as const, error: describeImageAdapter(false).analyzeBlockedMessage };
   }
+  const quota = visionQuota.consume();
+  if (!quota.ok) return { ok: false as const, error: quota.error };
   try {
-    const response = await fetch("https://api.x.ai/v1/responses", {
-      method: "POST",
-      headers: apiHeaders(),
-      body: JSON.stringify({
-        model: "grok-4.5",
-        store: false,
-        max_output_tokens: 1800,
-        input: [{
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: `你是淡江大學禪學社的 Visual Director。分析這張素材能否用於面向淡江學生的 IG。只輸出 JSON，欄位：
-summary, subjects[], colors[], lighting, composition, textHierarchy, brandFit, studentFit, stopPower, risks[], recommendations[], suggestedTags[]。
-具體檢查人物、色彩、光線、構圖、文字比例與層級、品牌感、學生生活感、手機停留感，以及是否太宗教、太老氣、太像 AI。看不到文字就明說，不要臆測。recommendations 要包含可執行的 Post／Story／Carousel／Reels Cover 延伸建議。`,
-            },
-            { type: "input_image", image_url: dataUrl },
-          ],
-        }],
-      }),
-    });
-    if (!response.ok) throw new Error(`圖片分析暫時無法使用（${response.status}）`);
-    const body = await response.json();
-    const parsed = AnalysisSchema.parse(extractJson(extractResponseText(body)));
-    const analysis: AssetAnalysis = { ...parsed, analyzedAt: Date.now() };
+    const analysis = await analyzeWithResponses(dataUrl) ?? await analyzeWithChat(dataUrl);
     return { ok: true as const, analysis };
   } catch (error) {
+    visionQuota.refund();
     return { ok: false as const, error: error instanceof Error ? error.message : "圖片分析失敗" };
   }
 }

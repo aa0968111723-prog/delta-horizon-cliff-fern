@@ -59,6 +59,11 @@ export function buildExportCopyPack(
     `字數 ${meter.chars}/${meter.charLimit}　第一行 ${meter.previewChars}/${meter.previewLimit}　Hashtag ${meter.hashtags}/${meter.hashtagLimit}`,
     project.copy.altText ? `\n【Alt】\n${project.copy.altText}` : "",
     "",
+    "【畫面檔】",
+    pageCountOf(project) > 1
+      ? `下載一人發佈包時會附上 ${pageCountOf(project)} 頁目前畫布 PNG 與這份備註。這是本機檔，不是 Instagram 發文。`
+      : "下載一人發佈包時會附上目前畫布 PNG 與這份備註。這是本機檔，不是 Instagram 發文。",
+    "",
     "【畫面備註】",
     imageNote,
     "",

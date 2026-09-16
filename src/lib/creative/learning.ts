@@ -1,6 +1,6 @@
 import { extractHashtags } from "../connections/instagram-normalize.ts";
 import type { InstagramInsightRow } from "../connections/types.ts";
-import type { AssetMeta, BrandKit, CopyPack, StudentReviewItem } from "../studio/types.ts";
+import type { AssetAnalysis, AssetMeta, BrandKit, CopyPack, StudentReviewItem } from "../studio/types.ts";
 import type { Campaign, ContentItem, PostOutcome } from "./types.ts";
 
 export function mergeLearnedPatterns(existing: string[] | undefined, incoming: string[], limit = 12) {
@@ -22,17 +22,40 @@ function reviewLessons(reviews: StudentReviewItem[] | undefined) {
   return ["學生視角檢查通過：第一句先說生活，時間地點清楚，不假裝已有報名連結。"];
 }
 
+function clipLesson(text: string, max: number) {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+}
+
+export function formatVisualLesson(name: string, analysis: Pick<AssetAnalysis, "studentFit" | "stopPower" | "recommendations" | "risks">) {
+  const rec = analysis.recommendations[0] ? clipLesson(analysis.recommendations[0], 80) : "";
+  const risk = analysis.risks[0] ? clipLesson(analysis.risks[0], 50) : "";
+  const body = [
+    `學生感：${clipLesson(analysis.studentFit, 60)}`,
+    `停留：${clipLesson(analysis.stopPower, 50)}`,
+    rec ? `延伸：${rec}` : risk ? `注意：${risk}` : "",
+  ].filter(Boolean).join("；");
+  return `畫面：「${name}」${body}`;
+}
+
+export function stripVisualLesson(existing: string[] | undefined, name: string) {
+  const prefix = `畫面：「${name}」`;
+  return (existing ?? []).filter((item) => !item.startsWith(prefix));
+}
+
+export function applyVisualLesson(
+  existing: string[] | undefined,
+  name: string,
+  analysis: Pick<AssetAnalysis, "studentFit" | "stopPower" | "recommendations" | "risks">,
+) {
+  return mergeLearnedPatterns(stripVisualLesson(existing, name), [formatVisualLesson(name, analysis)]);
+}
+
 function assetLessons(assets: AssetMeta[]) {
-  return assets.flatMap((asset) => {
-    const risks = asset.analysis?.risks ?? [];
-    if (risks.some((risk) => /宗教|佛像|蓮花|老氣|AI/.test(risk))) {
-      return [`素材「${asset.name}」：避開${risks.slice(0, 2).join("、")}，優先用真實社員與校園生活。`];
-    }
-    if (asset.analysis?.studentFit) {
-      return [`素材「${asset.name}」適合淡江學生：${asset.analysis.studentFit}`];
-    }
-    return [];
-  }).slice(0, 4);
+  return assets
+    .flatMap((asset) => (asset.analysis ? [formatVisualLesson(asset.name, asset.analysis)] : []))
+    .slice(0, 4);
 }
 
 function rhythmLessons(contentItems: ContentItem[]) {

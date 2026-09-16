@@ -171,7 +171,7 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
             type="button"
             onClick={() => setFilter(item.id)}
             className={cn(
-              "min-h-10 shrink-0 rounded-full px-3 text-xs",
+              "min-h-11 shrink-0 rounded-full px-3 text-xs",
               filter === item.id ? "bg-accent text-accent-fg" : "bg-bg text-muted",
             )}
           >
