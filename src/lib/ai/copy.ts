@@ -45,7 +45,7 @@ function mockCopy(data: z.infer<typeof CopyInput>): CopyPack {
     style: style.label,
     text:
       style.id === "short"
-        ? `${hook}\n${event}。晚上見。`
+        ? `${hook}\n晚上見。`
         : style.id === "humor"
           ? `${hook}\n報告先放旁邊。${event}這種事，來坐一下就好。`
           : style.id === "tender"
