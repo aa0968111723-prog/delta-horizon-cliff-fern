@@ -78,6 +78,8 @@ const RenderInput = z.object({
   location: z.string().max(80).optional(),
   formatId: z.enum(["feed-square", "feed-portrait", "story", "reels-cover", "threads", "line-promo"]).optional(),
   relatedNotes: z.string().max(400).optional(),
+  igLessons: z.string().max(800).optional(),
+  styleMemory: z.string().max(400).optional(),
   forceMock: z.boolean().optional(),
 });
 
@@ -86,7 +88,7 @@ export const generateStudioImage = createServerFn({ method: "POST" })
     RenderInput.parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input),
   )
   .handler(async ({ data }) => {
-    const prompt = `${data.prompt}. Variation: ${data.variation ?? "regen"}. ${data.relatedNotes ? `Extend these sources, do not copy: ${data.relatedNotes}.` : ""} Natural Taiwan university students, Tamsui/Tamkang feeling, soft tricolor lights, not religious temple poster, not overly AI-smooth.`;
+    const prompt = `${data.prompt}. Variation: ${data.variation ?? "regen"}. ${data.relatedNotes ? `Extend these sources, do not copy: ${data.relatedNotes}.` : ""} ${data.styleMemory ? `Club style: ${data.styleMemory}.` : ""} ${data.igLessons ? `Learn from IG: ${data.igLessons.slice(0, 180)}.` : ""} Natural Taiwan university students, Tamsui/Tamkang feeling, soft tricolor lights, not religious temple poster, not overly AI-smooth.`;
     const format = data.formatId ? formatById(data.formatId) : formatById("feed-portrait");
     const composed = posterDataUrl({
       hook: data.headline || "最近是不是很久沒有好好坐下來？",

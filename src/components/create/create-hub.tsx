@@ -149,6 +149,7 @@ function CopyStudio({ seedIdea }: { seedIdea?: string }) {
   const setCopy = useStudio((s) => s.setCopy);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const igPosts = useCreative((s) => s.igPosts);
+  const styleMemory = useCreative((s) => s.styleMemory);
   const setLastPack = useCreative((s) => s.setLastPack);
   const campaigns = useCreative((s) => s.campaigns);
   const [idea, setIdea] = useState(seedIdea || "最近是不是很久沒有好好坐下來？");
@@ -164,7 +165,15 @@ function CopyStudio({ seedIdea }: { seedIdea?: string }) {
   async function run() {
     setBusy(true);
     try {
-      const result = await generateCopyPack({ data: { idea, intent, tone, igLessons: lessonPrompt(igPosts) } });
+      const result = await generateCopyPack({
+        data: {
+          idea,
+          intent,
+          tone,
+          igLessons: lessonPrompt(igPosts),
+          styleMemory: (styleMemory ?? []).slice(0, 2).join("／").slice(0, 400),
+        },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;

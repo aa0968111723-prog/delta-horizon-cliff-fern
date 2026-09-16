@@ -5,7 +5,7 @@ import type { BriefInput } from "./schema";
 export function toBriefInput(
   brief: Brief,
   brand: BrandKit,
-  extra?: { forceMock?: boolean; igLessons?: string },
+  extra?: { forceMock?: boolean; igLessons?: string; styleMemory?: string },
 ): BriefInput {
   const b = migrateBrief(brief);
   const eventName = b.eventName.trim() || b.product.trim();
@@ -39,5 +39,6 @@ export function toBriefInput(
       .join("；"),
     ...(extra?.forceMock ? { forceMock: true } : {}),
     ...(extra?.igLessons ? { igLessons: extra.igLessons.slice(0, 800) } : {}),
+    ...(extra?.styleMemory ? { styleMemory: extra.styleMemory.slice(0, 400) } : {}),
   };
 }

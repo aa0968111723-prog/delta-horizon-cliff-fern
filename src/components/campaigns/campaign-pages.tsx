@@ -118,6 +118,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
           schedule: `${current.date} ${current.time}`,
           location: current.location,
           igLessons: lessonPrompt(igPosts),
+          styleMemory: (useCreative.getState().styleMemory ?? []).slice(0, 2).join("／").slice(0, 400),
         },
       });
       if (!result.ok) {
@@ -342,6 +343,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                         idea: current.oneLiner || current.name,
                         eventName: current.name,
                         igLessons: lessonPrompt(igPosts),
+                        styleMemory: (useCreative.getState().styleMemory ?? []).slice(0, 2).join("／").slice(0, 400),
                       },
                     });
                     setDirections(current.id, result.directions);

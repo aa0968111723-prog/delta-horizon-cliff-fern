@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { writeHandoff } from "@/lib/create/handoff";
 import { searchCreative } from "@/lib/search/creative";
-import { adoptIdeaFromHit, countHits, hitFromAsset, hitFromPack, mergeLocalHits } from "@/lib/search/hits";
+import { adoptIdeaFromHit, countHits, localCreativeHits, mergeLocalHits } from "@/lib/search/hits";
 import { canvaOpenUrl, styleBriefFromReport, styleReportFromHit } from "@/lib/vision/from-hit";
 import { folderSearchInput } from "@/lib/connections/presets";
 import { sourceLabel } from "@/stores/creative-store";
@@ -25,6 +25,7 @@ export function CreativeSearch() {
   const rememberStyle = useCreative((s) => s.rememberStyle);
   const folder = useCreative((s) => s.folder);
   const lastPack = useCreative((s) => s.lastPack);
+  const igPosts = useCreative((s) => s.igPosts);
   const assets = useStudio((s) => s.assets);
   const [q, setQ] = useState(lastSearch);
   const [busy, setBusy] = useState(false);
@@ -37,10 +38,11 @@ export function CreativeSearch() {
     setBusy(true);
     try {
       const result = await searchCreative({ data: folderSearchInput(query, folder) });
-      const groups = mergeLocalHits(query, result.groups, [
-        ...assets.map((asset) => hitFromAsset(asset)),
-        ...(lastPack ? [hitFromPack(lastPack)] : []),
-      ]);
+      const groups = mergeLocalHits(
+        query,
+        result.groups,
+        localCreativeHits({ assets, lastPack, igPosts }, query),
+      );
       setGroups(groups);
       setFound(countHits(groups));
       setDetail(result.driveDetail);
@@ -107,7 +109,9 @@ export function CreativeSearch() {
                     <img src={item.thumb} alt="" className="size-14 rounded-lg object-cover" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{item.title}</p>
-                      <p className="truncate text-xs text-muted">{item.subtitle}</p>
+                      <p className="truncate text-xs text-muted" data-testid={item.source === "instagram" ? "search-ig-source" : undefined}>
+                        {item.subtitle}
+                      </p>
                     </div>
                     <div className="flex shrink-0 flex-col gap-1">
                     <Button

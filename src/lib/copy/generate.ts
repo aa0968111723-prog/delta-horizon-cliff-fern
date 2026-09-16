@@ -17,6 +17,7 @@ const InputSchema = z.object({
   location: z.string().max(80).optional(),
   tone: z.string().max(20).optional(),
   igLessons: z.string().max(800).optional(),
+  styleMemory: z.string().max(400).optional(),
   forceMock: z.boolean().optional(),
 });
 
@@ -38,6 +39,7 @@ export const generateCopyPack = createServerFn({ method: "POST" })
           content: `寫 IG 文案。意圖：${data.intent}。想法：${data.idea}。活動：${data.eventName || "無"} ${data.schedule || ""} ${data.location || ""}。
 指定語氣：${tone}。可切換：${COPY_TONES.join("、")}。
 過去 IG 成效：${data.igLessons || "尚無足夠資料，用學生生活問句。"}
+記住的風格：${data.styleMemory || "尚無"}。延續社團自己的語氣，不要改回社團全名當第一句。
 回 JSON：tone,hook,body,cta,hashtags[],variants[{tone,hook,body,cta}] 六種語氣,studentReview。
 ${studentReviewInstruction()}
 第一句不要「${CLUB.name}誠摯邀請您」。自然、偶爾口語。`,

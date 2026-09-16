@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { asDriveHits, adoptIdeaFromAsset, adoptIdeaFromHit, assetFromHit, assetIdFromHit, driveThumb, hitFromPack, mergeLocalHits, mergeRanked } from "./hits.ts";
+import { asDriveHits, adoptIdeaFromAsset, adoptIdeaFromHit, assetFromHit, assetIdFromHit, driveThumb, hitFromIgPost, hitFromPack, localCreativeHits, mergeLocalHits, mergeRanked } from "./hits.ts";
 
 test("Drive files keep a useful thumb and club tags", () => {
   assert.equal(driveThumb({ name: "2024 茶會現場.JPG" }), "/seed/tea.svg");
@@ -123,4 +123,46 @@ test("local generated pack hits merge into the generated group", () => {
   );
   assert.ok(grouped.generated?.some((item) => item.id === "gen_pack_proj_tea"));
   assert.equal(grouped.generated?.[0]?.title, "茶會");
+});
+
+test("just-published tea posts rank into Instagram Content Memory", () => {
+  const published = hitFromIgPost({
+    id: "ig_pub_proj_tea_ig-post",
+    mediaType: "image",
+    caption: "最近是不是連休息都覺得有罪惡感？\n下週茶會。人到了就好。",
+    takenAt: Date.parse("2026-09-16T19:00:00+08:00"),
+    thumb: "/seed/tea.svg",
+    analysis: "剛發布 · ig-post · 茶會。Hook：「最近是不是連休息都覺得有罪惡感？」",
+  });
+  assert.equal(published.source, "instagram");
+  assert.ok(published.tags.includes("茶會"));
+  assert.match(published.subtitle, /Instagram \/ 2026-09-16/);
+  const turtle = {
+    id: "ig_turtle",
+    mediaType: "image" as const,
+    caption: "龜龜今天也在。",
+    takenAt: Date.parse("2026-03-04T18:00:00+08:00"),
+    thumb: "/seed/turtle.svg",
+    analysis: "角色可愛，但要搭配一句學生生活才會停。",
+  };
+  const extras = localCreativeHits(
+    {
+      igPosts: [
+        turtle,
+        {
+          id: published.id,
+          mediaType: "image",
+          caption: published.caption || "",
+          takenAt: Date.parse("2026-09-16T19:00:00+08:00"),
+          thumb: "/seed/tea.svg",
+          analysis: published.notes,
+        },
+      ],
+    },
+    "下週有一場茶會",
+  );
+  assert.equal(extras.some((item) => item.id === turtle.id), false);
+  assert.ok(extras.some((item) => item.id === published.id));
+  const grouped = mergeLocalHits("下週有一場茶會", { instagram: [] }, extras);
+  assert.equal(grouped.instagram?.[0]?.id, published.id);
 });

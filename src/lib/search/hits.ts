@@ -1,5 +1,6 @@
 import type { MemoryItem } from "../club/memory.ts";
 import { matchHit, rankHits, clubTagsFromText } from "../club/rank.ts";
+import { isoTaipei } from "../club/season.ts";
 import { inferCategory, migrateAsset, sourceLabel as assetSourceLabel } from "../studio/assets.ts";
 import type { AssetMeta, AssetSourceKind } from "../studio/types.ts";
 import { styleBriefFromReport, styleReportFromHit } from "../vision/from-hit.ts";
@@ -185,7 +186,54 @@ export function hitFromPack(pack: {
     date: "",
     thumb: pack.heroThumb || "/seed/tea.svg",
     notes: pack.hook,
+    caption: pack.hook,
   };
+}
+
+function kindFromIgMedia(mediaType: string): MemoryItem["kind"] {
+  if (mediaType === "carousel") return "carousel";
+  if (mediaType === "reels") return "reels";
+  return "ig-post";
+}
+
+/** Map a stored / just-published IG post into Instagram Content Memory. */
+export function hitFromIgPost(post: {
+  id: string;
+  mediaType: string;
+  caption: string;
+  takenAt: number;
+  thumb?: string;
+  analysis?: string;
+}): MemoryItem {
+  const date = isoTaipei(new Date(post.takenAt || Date.now()));
+  const hook = (post.caption || "").split("\n")[0]?.trim() || "IG 貼文";
+  const blob = `${post.caption} ${post.analysis || ""}`;
+  return {
+    id: post.id,
+    source: "instagram",
+    title: hook.slice(0, 42),
+    subtitle: `Instagram / ${date}`,
+    tags: [...new Set(["instagram", ...clubTagsFromText(blob)])],
+    kind: kindFromIgMedia(post.mediaType),
+    date,
+    thumb: post.thumb || "/seed/tea.svg",
+    caption: post.caption,
+    notes: (post.analysis || post.caption || "").slice(0, 280),
+  };
+}
+
+export function localCreativeHits(
+  input: {
+    assets?: AssetMeta[];
+    lastPack?: Parameters<typeof hitFromPack>[0] | null;
+    igPosts?: Array<Parameters<typeof hitFromIgPost>[0]>;
+  },
+  query = "",
+): MemoryItem[] {
+  const generated = input.lastPack ? [hitFromPack(input.lastPack)] : [];
+  const ig = (input.igPosts ?? []).map(hitFromIgPost);
+  const matchedIg = query.trim() ? ig.filter((item) => matchHit(item, query)) : ig;
+  return [...(input.assets ?? []).map(hitFromAsset), ...generated, ...matchedIg];
 }
 
 export function mergeLocalHits<T extends MemoryItem>(

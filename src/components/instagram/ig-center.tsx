@@ -282,6 +282,23 @@ export function InstagramCenter() {
           <li>Carousel：{lessons.carousel}</li>
           <li>Story：{lessons.story}</li>
         </ul>
+        {learned ? (
+          <Button
+            className="mt-4 w-full"
+            data-testid="ig-learned-create"
+            onClick={() => {
+              writeHandoff({
+                idea: nextCreateIdeaFromLessons(posts, lastPack?.eventName),
+                tab: "campaign",
+                autoRun: true,
+                sourceLabel: "Instagram / 剛發布",
+              });
+              void navigate({ to: "/create", search: { tab: "campaign" } });
+            }}
+          >
+            下一篇延續這個 Hook
+          </Button>
+        ) : null}
       </section>
 
       <section className="mt-10 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">

@@ -14,7 +14,7 @@ import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, not
 import { applyCanvaPush, canvaPushMessage, ensurePublicRaster, pushHeroToCanva } from "@/lib/club/canva-push";
 import { formatIdFromKind, httpsRasterUrl, ideaFlowRestore, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, rasterReadyMessage, withPackKind } from "@/lib/club/last-pack";
 import { parseIdea } from "@/lib/club/idea";
-import { lessonPrompt } from "@/lib/club/insights";
+import { lessonPrompt, lessonsFromIg, nextCreateIdeaFromLessons } from "@/lib/club/insights";
 import { convertedScheduleUpserts } from "@/lib/club/schedule";
 import { completePackPublish, preparePackForPublish, prepareReelsClip } from "@/lib/club/publish-ready";
 import { styleBriefFromPublish } from "@/lib/club/publish";
@@ -31,7 +31,7 @@ import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { pagesOf } from "@/lib/studio/layers";
 import { searchCreative, type SearchHit } from "@/lib/search/creative";
-import { adoptIdeaFromHit, assetFromHit, hitFromAsset, hitFromPack, mergeLocalHits, uniqueIds } from "@/lib/search/hits";
+import { adoptIdeaFromHit, assetFromHit, localCreativeHits, mergeLocalHits, uniqueIds } from "@/lib/search/hits";
 import { styleBriefFromReport, styleReportFromHit } from "@/lib/vision/from-hit";
 import { editUrlFromSrc } from "@/lib/vision/media";
 import type { CampaignPlan, ContentKind, CreativeDirection } from "@/lib/studio/types";
@@ -162,18 +162,26 @@ if (seedAutoRun) return;
     try {
       setLastSearch(raw);
       const search = await searchCreative({ data: folderSearchInput(raw, folder) });
-      const localHits = [
-        ...assets.map((asset) => hitFromAsset(asset)),
-        ...(useCreative.getState().lastPack ? [hitFromPack(useCreative.getState().lastPack!)] : []),
-      ];
+      const creative = useCreative.getState();
+      const localHits = localCreativeHits(
+        {
+          assets,
+          lastPack: creative.lastPack,
+          igPosts: creative.igPosts,
+        },
+        raw,
+      );
       const groups = mergeLocalHits(raw, search.groups, localHits);
       const foundHits = flattenHits(groups);
       setHits(foundHits);
       const found = summarizeFound(groups);
       setStatus(`找到 ${found.found} 個相關素材。根據過去內容生成 3 個方向…`);
-      const brief = briefFromIdea(parsed, notesFromHits(parsed, foundHits, useCreative.getState().styleMemory));
+      const brief = briefFromIdea(parsed, notesFromHits(parsed, foundHits, creative.styleMemory));
       const result = await generateCampaignPlan({
-        data: toBriefInput(brief, brand, { igLessons: lessonPrompt(igPosts) }),
+        data: toBriefInput(brief, brand, {
+          igLessons: lessonPrompt(creative.igPosts),
+          styleMemory: (creative.styleMemory ?? []).slice(0, 2).join("／").slice(0, 400),
+        }),
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -517,6 +525,8 @@ if (seedAutoRun) return;
         formatId: format.id,
         variation: kind === "story" ? "mood" : kind === "reels" ? "style" : kind === "threads" || kind === "line" ? "text" : "regen",
         relatedNotes: relatedNotesFromHits(currentHits).slice(0, 400),
+        igLessons: lessonPrompt(useCreative.getState().igPosts),
+        styleMemory: (useCreative.getState().styleMemory ?? []).slice(0, 2).join("／").slice(0, 400),
         editUrls: editUrl ? [editUrl] : undefined,
       },
     });
@@ -861,6 +871,26 @@ if (seedAutoRun) return;
             <p className="text-sm text-muted" data-testid="idea-scheduled">
               已排入活動節奏（預熱、生活、主視覺、倒數、回顧），並補上 Threads、LINE、Reels。
             </p>
+          ) : null}
+          {igPosts.some((post) => (post.analysis || "").includes("剛發布")) ? (
+            <div className="rounded-2xl bg-bg p-4" data-testid="idea-learned">
+              <p className="font-medium">學會了什麼</p>
+              <p className="mt-1 text-sm">{lessonsFromIg(igPosts).hook}</p>
+              <p className="mt-2 text-xs text-muted">下次生成會先參考這句，不會改回社團全名。</p>
+              <Button
+                className="mt-3 w-full"
+                variant="secondary"
+                data-testid="idea-learned-create"
+                disabled={busy}
+                onClick={() => {
+                  const next = nextCreateIdeaFromLessons(igPosts, parseIdea(idea).eventName);
+                  setIdea(next);
+                  void research(next);
+                }}
+              >
+                下一篇延續這個 Hook
+              </Button>
+            </div>
           ) : null}
           {publishHint ? (
             <p className="text-sm text-muted" data-testid="idea-publish-hint">

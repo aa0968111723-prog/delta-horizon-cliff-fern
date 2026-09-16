@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { graphImageUrl, memoryPostFromPublish, publicPublishUrl, publishCaption, publishNeedsVideo, styleBriefFromPublish } from "./publish.ts";
 import { lastPackFromPlan } from "./last-pack.ts";
-import { lessonsFromIg, nextCreateIdeaFromLessons } from "./insights.ts";
+import { lessonsFromIg, nextCreateIdeaFromLessons, quotedHookFromLessons } from "./insights.ts";
+import { hitFromIgPost, localCreativeHits, mergeLocalHits } from "../search/hits.ts";
 
 const pack = lastPackFromPlan({
   projectId: "proj_tea",
@@ -62,4 +63,16 @@ test("published packs enter IG memory so the next generate can learn the hook", 
   assert.match(lessons.hook, /連休息都覺得有罪惡感/);
   assert.match(nextCreateIdeaFromLessons([post], "茶會"), /連休息都覺得有罪惡感/);
   assert.match(styleBriefFromPublish(pack), /連休息都覺得有罪惡感/);
+  assert.match(post.analysis, /Hook：「最近是不是連休息都覺得有罪惡感？」/);
+  assert.equal(quotedHookFromLessons(post.analysis), "最近是不是連休息都覺得有罪惡感？");
+  const grouped = mergeLocalHits(
+    "下週有一場茶會",
+    { instagram: [] },
+    localCreativeHits({ igPosts: [post] }, "下週有一場茶會"),
+  );
+  assert.equal(grouped.instagram?.[0]?.id, post.id);
+  assert.equal(grouped.instagram?.[0]?.source, "instagram");
+  assert.ok(grouped.instagram?.[0]?.tags.includes("茶會"));
+  assert.match(grouped.instagram?.[0]?.subtitle || "", /Instagram/);
+  assert.equal(hitFromIgPost(post).caption, post.caption);
 });
