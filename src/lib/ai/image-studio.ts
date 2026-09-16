@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { zenSystemPrompt } from "@/lib/zen/context";
+import { studentSituation, zenSystemPrompt } from "@/lib/zen/context";
 import type { FormatId, VisualDirection } from "@/lib/studio/types";
 
 export const IMAGE_FORMAT_IDS = [
@@ -37,6 +37,7 @@ const IdeaInput = z.object({
   idea: z.string().min(1).max(400),
   eventName: z.string().max(120).optional(),
   format: z.enum(IMAGE_FORMAT_IDS).optional(),
+  memoryHint: z.string().max(800).optional(),
   forceMock: z.boolean().optional(),
 });
 
@@ -138,7 +139,10 @@ export const generateVisualDirections = createServerFn({ method: "POST" })
           { role: "system", content: zenSystemPrompt() },
           {
             role: "user",
-            content: `為「${data.idea}」${data.eventName ? `（${data.eventName}）` : ""}提出 3 個 IG 視覺方向。JSON:{directions:[{id,name,concept,palette,composition,typeDirection,prompt,headline,subhead}]} prompt 用英文、具體、不要寺廟。`,
+            content: `為「${data.idea}」${data.eventName ? `（${data.eventName}）` : ""}提出 3 個 IG 視覺方向。
+學生情境：${studentSituation()}
+品牌記憶與過去 IG：${data.memoryHint || "問句 Hook、夜晚座位、三色光。學自己的 IG。"}
+JSON:{directions:[{id,name,concept,palette,composition,typeDirection,prompt,headline,subhead}]} prompt 用英文、具體、不要寺廟、不要宗教海報。headline 先像在講淡江學生。`,
           },
         ],
       }),

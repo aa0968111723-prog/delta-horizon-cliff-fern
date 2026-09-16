@@ -1,9 +1,13 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { StudentReviewCard } from "@/components/create/student-review-card";
+import { VisionCard } from "@/components/create/vision-card";
+import { PhotoDrop } from "@/components/shared/photo-drop";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Input, Textarea } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/input";
+import { generateCopyPacks } from "@/lib/ai/copy-studio";
 import {
   generateStudioImage,
   generateVisualDirections,
@@ -12,14 +16,17 @@ import {
   varyImagePrompt,
   type VisionAnalysis,
 } from "@/lib/ai/image-studio";
+import { createCanvaDesign } from "@/lib/connect/canva";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
 import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
-import { formatById } from "@/lib/studio/formats";
+import { FORMATS, formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
-import { tagsFromVision } from "@/lib/zen/vision-tags";
-import type { FormatId, VisualDirection } from "@/lib/studio/types";
+import { guessEventName } from "@/lib/zen/dates";
+import { clubCreativeDna } from "@/lib/zen/dna";
+import { learnFromIg } from "@/lib/zen/insights";
+import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
+import type { CopyPack, FormatId, StudentReview, VisualDirection } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
-import { FORMATS } from "@/lib/studio/formats";
 
 const VARIATIONS: { id: "composition" | "mood" | "background" | "style" | "text"; label: string }[] = [
   { id: "composition", label: "換構圖" },
@@ -29,27 +36,77 @@ const VARIATIONS: { id: "composition" | "mood" | "background" | "style" | "text"
   { id: "text", label: "換文字空間" },
 ];
 
+const TONE_LABEL: Record<CopyPack["tone"], string> = {
+  short: "短版",
+  normal: "一般版",
+  emotional: "感性版",
+  student: "學生版",
+  life: "生活版",
+  humor: "幽默版",
+};
+
 export function ImageStudioPage() {
   const navigate = useNavigate();
   const addAsset = useStudio((s) => s.addAsset);
   const updateAsset = useStudio((s) => s.updateAsset);
+  const brands = useStudio((s) => s.brands);
+  const igMemory = useStudio((s) => s.igMemory);
+  const campaigns = useStudio((s) => s.campaigns);
+  const assets = useStudio((s) => s.assets);
+  const dna = useMemo(
+    () => clubCreativeDna({ brand: brands[0], igMemory, campaigns, assets }),
+    [brands, igMemory, campaigns, assets],
+  );
+  const learning = useMemo(() => learnFromIg(igMemory), [igMemory]);
   const [idea, setIdea] = useState("我要宣傳茶會");
   const [format, setFormat] = useState<FormatId>("feed-portrait");
   const [directions, setDirections] = useState<VisualDirection[]>([]);
   const [busy, setBusy] = useState(false);
   const [vision, setVision] = useState<VisionAnalysis | null>(null);
+  const [packs, setPacks] = useState<CopyPack[]>([]);
+  const [tone, setTone] = useState<CopyPack["tone"]>("student");
+  const [lastImage, setLastImage] = useState<{ base64: string; mime: string } | null>(null);
+  const [review, setReview] = useState<StudentReview | null>(null);
+
+  const activePack = packs.find((p) => p.tone === tone) ?? packs[0];
 
   async function directionsGo(nextIdea = idea, formatOverride?: FormatId) {
     setBusy(true);
     try {
       const result = await generateVisualDirections({
-        data: { idea: nextIdea, format: toImageFormat(formatOverride ?? format) },
+        data: {
+          idea: nextIdea,
+          format: toImageFormat(formatOverride ?? format),
+          memoryHint: dna.promptBlock,
+        },
       });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
       setDirections(result.directions);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyGo(nextIdea = idea) {
+    setBusy(true);
+    try {
+      const result = await generateCopyPacks({
+        data: {
+          idea: nextIdea,
+          eventName: guessEventName(nextIdea) || "",
+          memoryHint: `${dna.promptBlock}\n${learning.promptBlock}`.slice(0, 800),
+        },
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setPacks(result.packs);
+      setReview(result.review);
+      toast.success("已從畫面生成文案");
     } finally {
       setBusy(false);
     }
@@ -87,7 +144,37 @@ export function ImageStudioPage() {
         lastUsedAt: Date.now(),
         useCount: 0,
       });
+      setLastImage({ base64: result.imageBase64, mime: result.mime });
       toast.success("已存進素材庫（AI Generated）");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendToCanva(dir?: VisualDirection) {
+    setBusy(true);
+    try {
+      const result = await createCanvaDesign({
+        data: {
+          title: dir?.name || idea.slice(0, 20) || "茶會",
+          hook: activePack?.hook || dir?.headline || idea,
+          body: activePack?.body || dir?.concept || idea,
+          cta: activePack?.cta || "來坐一下",
+          format,
+          palette: dir?.palette || dna.palette,
+          composition: dir?.composition,
+          headline: dir?.headline,
+          imageBase64: lastImage?.base64,
+          mime: lastImage?.mime,
+        },
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      await navigator.clipboard.writeText(result.brief).catch(() => undefined);
+      window.open(result.editUrl, "_blank", "noopener,noreferrer");
+      toast.success(result.note);
     } finally {
       setBusy(false);
     }
@@ -96,6 +183,10 @@ export function ImageStudioPage() {
   async function onFile(file: File) {
     const buf = await file.arrayBuffer();
     const b64 = bytesToBase64(new Uint8Array(buf));
+    if (b64.length > 1_800_000) {
+      toast.error("圖檔太大，請用較小的照片。");
+      return;
+    }
     setBusy(true);
     try {
       const id = uid("asset");
@@ -125,19 +216,26 @@ export function ImageStudioPage() {
       }
       setVision(result.analysis);
       updateAsset(id, { tags: tagsFromVision(result.analysis, ["上傳"]) });
-      toast.success("已進素材庫，並完成圖片理解");
+      const next = ideaFromVision(result.analysis, idea);
+      setIdea(next);
+      toast.success("已理解這張圖，接著生成文案與相似視覺");
+      await copyGo(next);
+      await directionsGo(next);
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-28 md:px-8 md:py-10 lg:pb-10">
       <PageHeader
         kicker="Image Studio"
         title="不要只生禪風海報"
         description="先想學生情境、淡水夜晚、三色光、龜龜，再給三個方向。"
       />
+      <p className="mt-3 text-xs text-muted">
+        這次會參考過去 IG：「{learning.bestHookShape}」。{learning.avoid}
+      </p>
       <Textarea className="mt-6" value={idea} onChange={(e) => setIdea(e.target.value)} />
       <div className="mt-3 flex flex-wrap gap-2">
         {FORMATS.filter((f) => f.id !== "feed-landscape").map((f) => (
@@ -146,9 +244,17 @@ export function ImageStudioPage() {
           </Button>
         ))}
       </div>
-      <Button className="mt-4" disabled={busy} onClick={() => void directionsGo()}>
-        提出三個視覺方向
-      </Button>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button disabled={busy} onClick={() => void directionsGo()}>
+          提出三個視覺方向
+        </Button>
+        <Button variant="secondary" disabled={busy} onClick={() => void copyGo()}>
+          生成文案
+        </Button>
+        <Button variant="secondary" disabled={busy} onClick={() => void sendToCanva()}>
+          送進 Canva
+        </Button>
+      </div>
       <ul className="mt-6 space-y-3">
         {directions.map((dir) => (
           <li key={dir.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
@@ -183,26 +289,53 @@ export function ImageStudioPage() {
                   延伸 {item.short}
                 </Button>
               ))}
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void sendToCanva(dir)}>
+                這個方向送 Canva
+              </Button>
             </div>
           </li>
         ))}
       </ul>
+      {packs.length ? (
+        <section className="mt-8">
+          <h2 className="text-sm font-medium">從畫面／想法生成的文案</h2>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {packs.map((pack) => (
+              <Button key={pack.tone} size="sm" variant={tone === pack.tone ? "default" : "secondary"} onClick={() => setTone(pack.tone)}>
+                {TONE_LABEL[pack.tone]}
+              </Button>
+            ))}
+          </div>
+          {activePack ? (
+            <article className="mt-3 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <p className="font-display text-xl">{activePack.hook}</p>
+              <p className="mt-3 whitespace-pre-wrap text-sm">{activePack.body}</p>
+              <p className="mt-3 text-sm">{activePack.cta}</p>
+              <p className="mt-2 text-xs text-muted">{activePack.hashtags.join(" ")}</p>
+            </article>
+          ) : null}
+        </section>
+      ) : null}
+      {review ? (
+        <StudentReviewCard
+          review={review}
+          onApplyHook={(hook) => {
+            setPacks((rows) =>
+              rows.map((pack) => ({
+                ...pack,
+                hook,
+                body: pack.body.replace(pack.hook, hook),
+              })),
+            );
+            toast.success("已套用學生視角 Hook");
+          }}
+        />
+      ) : null}
       <section className="mt-10">
         <h2 className="text-sm font-medium">丟入照片／舊海報</h2>
-        <Input className="mt-2" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && void onFile(e.target.files[0])} />
+        <PhotoDrop disabled={busy} onFile={(file) => void onFile(file)} />
         {vision ? (
-          <div className="mt-3 rounded-2xl bg-surface p-4 text-sm shadow-[var(--shadow-border)]">
-            <p>{vision.content}</p>
-            <p className="mt-2 text-muted">學生感：{vision.studentFeel}</p>
-            <p className="text-muted">
-              太宗教？{vision.tooReligious ? "是" : "否"} · 太老氣？{vision.tooOld ? "是" : "否"} · 太 AI？{vision.tooAi ? "可能" : "還好"}
-            </p>
-            <p className="text-muted">符合淡江學生？{vision.fitsTamkang ? "接近" : "還要再生活一點"}</p>
-            <ul className="mt-2 list-disc pl-4">
-              {vision.suggestions.map((s) => (
-                <li key={s}>{s}</li>
-              ))}
-            </ul>
+          <VisionCard vision={vision}>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button
                 size="sm"
@@ -210,6 +343,7 @@ export function ImageStudioPage() {
                   const next = `${vision.content}。延續這個品牌 DNA，做新的活動，不要複製舊作品。`;
                   setIdea(next);
                   void directionsGo(next);
+                  void copyGo(next);
                 }}
               >
                 生成相似視覺
@@ -245,7 +379,7 @@ export function ImageStudioPage() {
                 做成 Reels Cover
               </Button>
             </div>
-          </div>
+          </VisionCard>
         ) : null}
       </section>
     </main>

@@ -12,7 +12,7 @@ import { useStudio } from "@/stores/studio-store";
 
 const CARDS: { provider: "drive" | "canva" | "instagram"; title: string; hint: string }[] = [
   { provider: "drive", title: "Google Drive", hint: "照片、企劃、歷屆文宣。指定禪學社資料夾。" },
-  { provider: "canva", title: "Canva", hint: "海報、IG、Story 設計當風格參考。" },
+  { provider: "canva", title: "Canva", hint: "海報與 IG 設計。送進去會開對應尺寸，有主視覺會放上畫布。" },
   { provider: "instagram", title: "Instagram", hint: "官方 API 讀貼文與 Insights，不爬蟲。" },
 ];
 

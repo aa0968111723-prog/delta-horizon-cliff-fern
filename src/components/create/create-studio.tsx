@@ -16,6 +16,7 @@ import { uid } from "@/lib/studio/ids";
 import { parseEventDate, parseEventTime, guessEventName } from "@/lib/zen/dates";
 import { DEFAULT_AUDIENCE } from "@/lib/zen/context";
 import { clubCreativeDna } from "@/lib/zen/dna";
+import { learnFromIg } from "@/lib/zen/insights";
 import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction";
 import { offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
 import { searchCreative, type CreativeHit } from "@/lib/zen/search";
@@ -25,6 +26,9 @@ import { suggestWaves, eventKindFromText, waveLabel, contentKindForWave } from "
 import type { CampaignPlan, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
 import { ReelsBoard } from "@/components/create/reels-board";
 import { WaveList } from "@/components/create/wave-list";
+import { StudentReviewCard } from "@/components/create/student-review-card";
+import { VisionCard } from "@/components/create/vision-card";
+import { PhotoDrop } from "@/components/shared/photo-drop";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,6 +70,7 @@ export function CreateStudio() {
   const updateAsset = useStudio((s) => s.updateAsset);
   const brand = brands[0];
   const memoryHint = clubCreativeDna({ brand, igMemory, campaigns, assets }).promptBlock;
+  const learning = useMemo(() => learnFromIg(igMemory), [igMemory]);
   const recentKinds = calendar.slice(-4).map((item) => item.kind);
 
   const [idea, setIdea] = useState(search.idea || "下週有一場茶會");
@@ -89,6 +94,7 @@ export function CreateStudio() {
   const [pickedDirection, setPickedDirection] = useState<VisualDirection | null>(null);
   const [campaign, setCampaign] = useState<ClubCampaign | null>(null);
   const [vision, setVision] = useState<VisionAnalysis | null>(null);
+  const [lastImage, setLastImage] = useState<{ base64: string; mime: string } | null>(null);
   const autoRan = useRef(false);
 
   useEffect(() => {
@@ -283,6 +289,7 @@ export function CreateStudio() {
         data: {
           idea: `${idea}。參考：${sourceNotes(hits)}`.slice(0, 400),
           eventName,
+          memoryHint,
           forceMock: !status?.available,
         },
       });
@@ -327,6 +334,7 @@ export function CreateStudio() {
         lastUsedAt: Date.now(),
         useCount: 0,
       });
+      setLastImage({ base64: result.imageBase64, mime: result.mime });
       toast.success("圖片已進素材庫（AI Generated）");
     } finally {
       setBusy(false);
@@ -429,20 +437,19 @@ export function CreateStudio() {
           cta: plan.cta,
           format: mode === "story" ? "story" : mode === "reels" ? "reels-cover" : "feed-portrait",
           palette: plan.colorMood,
+          composition: pickedDirection?.composition,
+          headline: pickedDirection?.headline || plan.headline,
+          imageBase64: lastImage?.base64,
+          mime: lastImage?.mime,
         },
       });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
-      if (result.connected) {
-        window.open(result.editUrl, "_blank", "noopener,noreferrer");
-        toast.success("已在 Canva 建立設計，可繼續微調");
-        return;
-      }
       await navigator.clipboard.writeText(result.brief).catch(() => undefined);
       window.open(result.editUrl, "_blank", "noopener,noreferrer");
-      toast.message(result.note);
+      toast.success(result.note);
     } finally {
       setBusy(false);
     }
@@ -497,24 +504,14 @@ export function CreateStudio() {
         <p className="text-xs text-muted">
           {status?.label ?? "確認創作服務中"} · {MODE_HINT[mode] ?? MODE_HINT.idea}
         </p>
+        <p className="mt-2 text-xs text-muted">
+          這次會參考過去 IG：「{learning.bestHookShape}」。{learning.avoid}
+        </p>
         <Label className="mt-4">你想做什麼</Label>
         <Textarea className="mt-2" value={idea} onChange={(e) => setIdea(e.target.value)} rows={3} />
         <div className="mt-3">
           <p className="text-sm font-medium">或從一張圖開始</p>
-          <label className="mt-1.5 flex min-h-11 cursor-pointer items-center justify-center rounded-md bg-surface-2 px-3 text-sm">
-            選擇照片／舊海報／截圖
-            <input
-              type="file"
-              accept="image/*"
-              disabled={busy}
-              className="sr-only"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void onImage(file);
-                e.target.value = "";
-              }}
-            />
-          </label>
+          <PhotoDrop disabled={busy} onFile={(file) => void onImage(file)} />
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <Field label="活動名">
@@ -567,15 +564,7 @@ export function CreateStudio() {
       </div>
 
       {vision ? (
-        <section className="mt-8 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-          <h2 className="text-sm font-medium">圖片理解</h2>
-          <p className="mt-2 text-sm">{vision.content}</p>
-          <p className="mt-2 text-xs text-muted">學生感：{vision.studentFeel}</p>
-          <p className="text-xs text-muted">
-            太宗教？{vision.tooReligious ? "是" : "否"} · 太老氣？{vision.tooOld ? "是" : "否"} · 太 AI？{vision.tooAi ? "可能" : "還好"}
-          </p>
-          <p className="text-xs text-muted">符合淡江學生？{vision.fitsTamkang ? "接近" : "還要再生活一點"}</p>
-        </section>
+        <VisionCard vision={vision} />
       ) : null}
 
       {found.length ? (
@@ -757,43 +746,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <Label>{label}</Label>
       {children}
     </div>
-  );
-}
-
-export function StudentReviewCard({
-  review,
-  onApplyHook,
-}: {
-  review: StudentReview;
-  onApplyHook?: (hook: string) => void;
-}) {
-  return (
-    <section className="mt-8 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-      <h2 className="text-sm font-medium">淡江學生視角</h2>
-      <ul className="mt-2 space-y-1 text-sm text-muted">
-        <li>會停下來嗎？{review.wouldStop}</li>
-        <li>看得懂嗎？{review.understandable}</li>
-        <li>太宗教？{review.tooReligious}</li>
-        <li>太嚴肅？{review.tooSerious}</li>
-        <li>太文青？{review.tooLiterary}</li>
-        <li>太 AI？{review.tooAi}</li>
-        <li>太長？{review.tooLong}</li>
-        <li>知道這活動在幹嘛？{review.knowsWhat}</li>
-        <li>知道時間地點嗎？{review.knowsWhenWhere}</li>
-        <li>會找朋友嗎？{review.wouldBringFriend}</li>
-        <li>知道怎麼報名嗎？{review.knowsHowToSignup}</li>
-      </ul>
-      {review.rewriteHook ? (
-        <div className="mt-3">
-          <p className="text-sm">可改 Hook：{review.rewriteHook}</p>
-          {onApplyHook ? (
-            <Button className="mt-3" size="sm" onClick={() => onApplyHook(review.rewriteHook)}>
-              用這個 Hook 改寫
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
   );
 }
 

@@ -3,7 +3,7 @@ import test from "node:test";
 import { learnFromIg } from "./insights.ts";
 import { nextKindAfter, offsetDaysForConvertedKind, rhythmHint } from "./rhythm.ts";
 import { createPkce } from "../connect/pkce.ts";
-import { canvaPreset, canvaBrief } from "../connect/canva-format.ts";
+import { canvaBrief, canvaSize } from "../connect/canva-format.ts";
 import { mockWaveDraft } from "../ai/wave-draft.ts";
 import { driveQueryEscape } from "../connect/escape.ts";
 
@@ -17,6 +17,7 @@ test("learnFromIg prefers question hooks with higher saves", () => {
       saves: 21,
       comments: 7,
       likes: 86,
+      reach: 420,
       source: "local",
     },
     {
@@ -27,12 +28,15 @@ test("learnFromIg prefers question hooks with higher saves", () => {
       saves: 4,
       comments: 1,
       likes: 22,
+      reach: 390,
       source: "local",
     },
   ]);
   assert.match(learning.bestHookShape, /坐下來/);
   assert.match(learning.promptBlock, /過去表現/);
+  assert.match(learning.promptBlock, /觸及/);
   assert.ok(learning.lessons.some((l) => l.id === "hook"));
+  assert.ok(learning.lessons.some((l) => l.id === "length" || l.id === "kind"));
   assert.doesNotMatch(learning.promptBlock, /Assignee|Reviewer/);
 });
 
@@ -55,8 +59,8 @@ test("pkce verifier is not the challenge", () => {
 });
 
 test("canva presets map IG formats and brief stays zen", () => {
-  assert.equal(canvaPreset("story"), "instagramStory");
-  assert.equal(canvaPreset("feed-portrait"), "instagramPost");
+  assert.deepEqual(canvaSize("story"), { width: 1080, height: 1920 });
+  assert.deepEqual(canvaSize("feed-portrait"), { width: 1080, height: 1350 });
   const brief = canvaBrief({ title: "茶會", hook: "最近是不是很久沒坐好", body: "淡水晚上", cta: "來坐一下" });
   assert.match(brief, /不要寺廟/);
   assert.doesNotMatch(brief, /誠摯邀請/);

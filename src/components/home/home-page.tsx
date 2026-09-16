@@ -11,6 +11,7 @@ import { contentKindLabel } from "@/lib/studio/content";
 import { daysUntil, academicBeatLabel, academicBeat } from "@/lib/zen/context";
 import { INSPIRATION, ideaFromInspiration } from "@/lib/zen/inspiration";
 import { clubCreativeDna } from "@/lib/zen/dna";
+import { learnFromIg } from "@/lib/zen/insights";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 import { ProjectCard } from "@/components/shared/project-card";
@@ -39,6 +40,7 @@ export function HomePage() {
     () => clubCreativeDna({ brand, igMemory, campaigns, assets }),
     [brand, igMemory, campaigns, assets],
   );
+  const learning = useMemo(() => learnFromIg(igMemory), [igMemory]);
 
   const urls = useAssetUrls(assets.map((a) => a.id));
   const heroProject = projects.find((p) => p.campaignId === upcoming?.id) ?? projects[0];
@@ -199,6 +201,13 @@ export function HomePage() {
           >
             用這個 Hook 再寫一篇
           </Button>
+          <ul className="mt-4 space-y-2">
+            {learning.lessons.slice(0, 3).map((lesson) => (
+              <li key={lesson.id} className="text-xs text-muted">
+                <span className="font-medium text-fg">{lesson.title}</span> {lesson.detail}
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
 

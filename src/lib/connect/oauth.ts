@@ -37,7 +37,8 @@ export function providerConfig(provider: ProviderId): { configured: boolean; aut
   }
   if (provider === "canva") {
     const id = process.env.CANVA_CLIENT_ID;
-    const scope = "design:meta:read design:content:read design:content:write asset:read profile:read";
+    const scope =
+      "design:meta:read design:content:read design:content:write asset:read asset:write brandtemplate:meta:read brandtemplate:content:read profile:read";
     return {
       configured: Boolean(id && process.env.CANVA_CLIENT_SECRET),
       label: "Canva",

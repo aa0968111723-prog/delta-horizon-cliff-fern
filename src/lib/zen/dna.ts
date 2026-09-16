@@ -72,6 +72,6 @@ export function clubCreativeDna(input: {
     events,
     visual,
     voice,
-    promptBlock: promptBlock.slice(0, 780),
+    promptBlock: promptBlock.slice(0, 900),
   };
 }
