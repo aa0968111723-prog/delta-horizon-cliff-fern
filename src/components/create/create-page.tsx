@@ -34,6 +34,7 @@ import { sourceFromAsset, sourceFromExtend } from "@/lib/studio/sources";
 import { CONTENT_KIND_META, CONTENT_KIND_ORDER, contentKindLabel, deliverablesForKind, kindUsesPagedLayout } from "@/lib/studio/status";
 import {
   defaultImageRatio,
+  formatIdForRatio,
   pickArrivalWave,
   claimArrivalAutofill,
   shouldAutofillCopy,
@@ -86,6 +87,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const addAsset = useStudio((s) => s.addAsset);
   const addSources = useStudio((s) => s.addSources);
   const applyVisualToPack = useStudio((s) => s.applyVisualToPack);
+  const setActiveFormat = useStudio((s) => s.setActiveFormat);
   const layoutFromKind = useStudio((s) => s.layoutFromKind);
   const hydrated = useStudio((s) => s.hydrated);
   const igDnaText = useIgDnaText();
@@ -451,22 +453,22 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     return target.id;
   }
 
-  function attachGeneratedImage(assetId: string, direction: VisualDirection) {
+  function attachGeneratedImage(assetId: string, direction: VisualDirection, ratio = defaultImageRatio(kind)) {
     if (!brand) {
       toast.error("找不到品牌設定。");
       return;
     }
+    const formatId = formatIdForRatio(ratio, kind);
     let projectId = linkedProject?.id ?? null;
     if (!projectId) {
       const draft = (usedDraftId ? drafts.find((item) => item.id === usedDraftId) : null) ?? drafts[0];
       projectId = draft ? commitDraft(draft, { quiet: true }) ?? null : null;
     }
     if (!projectId) {
-      const meta = CONTENT_KIND_META[kind];
       const created = createProject({
         name: (direction.headline.split("\n")[0] || direction.title).slice(0, 18) || "視覺草稿",
         brandId: brand.id,
-        formatId: meta.formatId,
+        formatId,
         contentKind: kind,
         campaignId: campaign?.id ?? null,
         status: "making",
@@ -489,6 +491,8 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       if (direction.headline) {
         setCopy(projectId, { headline: direction.headline, subhead: direction.subhead });
       }
+    } else {
+      setActiveFormat(projectId, formatId);
     }
     const applied = applyVisualToPack(projectId, assetId);
     if (!applied) {
@@ -508,8 +512,8 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     }
     toast.success(
       applied > 1
-        ? "主視覺已套到全套畫面，限動、LINE、Reels 封面也換了。"
-        : "已套成這則的主視覺，可以下載圖或進畫面編輯。",
+        ? `主視覺已套成 ${ratio}，全套畫面也換了。`
+        : `已套成 ${ratio} 主視覺，可以下載圖或進畫面編輯。`,
     );
   }
 
@@ -1066,7 +1070,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
                       toast.info("先選一個文案版本建立內容，才有畫面可以套用。");
                     }
                   }}
-                  onImageSaved={(assetId) => attachGeneratedImage(assetId, direction)}
+                  onImageSaved={(assetId, ratio) => attachGeneratedImage(assetId, direction, ratio)}
                 />
               </li>
             ))}

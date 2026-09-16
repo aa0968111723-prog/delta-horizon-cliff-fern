@@ -122,6 +122,14 @@ export function defaultImageRatio(kind: ContentKind): ImageRatio {
   return "4:5";
 }
 
+/** 生成圖的比例決定畫布，不要 1:1 的圖還貼在 4:5 框裡。 */
+export function formatIdForRatio(ratio: ImageRatio, kind: ContentKind): FormatId {
+  if (ratio === "1:1") return "feed-square";
+  if (ratio === "1.91:1") return "feed-landscape";
+  if (ratio === "9:16") return kind === "reels" ? "reels-cover" : "story";
+  return kind === "line" ? "feed-landscape" : "feed-portrait";
+}
+
 function campaignDateMs(date: string): number {
   const parsed = Date.parse(`${date}T00:00:00`);
   return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;

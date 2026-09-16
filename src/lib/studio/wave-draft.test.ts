@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   claimArrivalAutofill,
   defaultImageRatio,
+  formatIdForRatio,
   pickArrivalWave,
   shouldAutofillCopy,
   shouldAutofillReels,
@@ -107,6 +108,14 @@ test("defaultImageRatio follows the content format", () => {
   assert.equal(defaultImageRatio("reels"), "9:16");
   assert.equal(defaultImageRatio("line"), "1.91:1");
   assert.equal(defaultImageRatio("threads"), "1:1");
+});
+
+test("formatIdForRatio maps 1:1 / 9:16 / LINE onto the matching canvas", () => {
+  assert.equal(formatIdForRatio("1:1", "ig-post"), "feed-square");
+  assert.equal(formatIdForRatio("4:5", "ig-post"), "feed-portrait");
+  assert.equal(formatIdForRatio("9:16", "ig-post"), "story");
+  assert.equal(formatIdForRatio("9:16", "reels"), "reels-cover");
+  assert.equal(formatIdForRatio("1.91:1", "line"), "feed-landscape");
 });
 
 test("visualIntent falls back to the club, not an empty prompt", () => {

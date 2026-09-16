@@ -18,6 +18,7 @@ export function AssetTray({ projectId }: { projectId: string }) {
   const assets = useStudio((s) => s.assets);
   const addAsset = useStudio((s) => s.addAsset);
   const placeAsset = useStudio((s) => s.placeAsset);
+  const applyVisualToPack = useStudio((s) => s.applyVisualToPack);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
   const urls = useAssetUrls(assets.map((a) => a.id));
   const fileRef = useRef<HTMLInputElement>(null);
@@ -78,6 +79,17 @@ export function AssetTray({ projectId }: { projectId: string }) {
     else toast.error("無法放到畫布");
   }
 
+  function useAsset(assetId: string, name: string, stamp: boolean) {
+    if (stamp) {
+      place(assetId, name);
+      return;
+    }
+    const count = applyVisualToPack(projectId, assetId);
+    if (count > 1) toast.success(`「${name}」已套成全套主視覺。`);
+    else if (count === 1) toast.success(`「${name}」已套成主視覺。`);
+    else toast.error("套不到畫面，再試一次。");
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between px-3 py-2">
@@ -114,7 +126,7 @@ export function AssetTray({ projectId }: { projectId: string }) {
           </Chip>
         ))}
       </div>
-      <p className="px-3 pb-1 text-xs text-subtle">拖到畫布，或點一下放入。檔案只存在此裝置。</p>
+      <p className="px-3 pb-1 text-xs text-subtle">照片點一下當主視覺，Logo 點一下放入。也可以拖到畫布。</p>
       {visible.length === 0 ? (
         <div className="p-3">
           <EmptyState icon={Images} title="沒有素材" description="上傳商品圖或 Logo，點一下就能放到畫布。" />
@@ -122,16 +134,19 @@ export function AssetTray({ projectId }: { projectId: string }) {
       ) : (
         <ScrollArea className="min-h-0 flex-1">
           <ul className="grid grid-cols-2 gap-2 p-3">
-            {visible.map((asset) => (
+            {visible.map((asset) => {
+              const stamp = asset.kind === "logo" || asset.category === "logo";
+              return (
               <li key={asset.id}>
                 <button
                   type="button"
                   draggable
+                  aria-label={stamp ? `放入 ${asset.name}` : `${asset.name} 當主視覺`}
                   onDragStart={(e) => {
                     e.dataTransfer.setData(ASSET_DRAG_MIME, asset.id);
                     e.dataTransfer.effectAllowed = "copy";
                   }}
-                  onClick={() => place(asset.id, asset.name)}
+                  onClick={() => useAsset(asset.id, asset.name, stamp)}
                   className="w-full overflow-hidden rounded-lg bg-bg text-left shadow-[var(--shadow-border)]"
                 >
                   <div className="aspect-square">
@@ -167,7 +182,8 @@ export function AssetTray({ projectId }: { projectId: string }) {
                   </div>
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </ScrollArea>
       )}

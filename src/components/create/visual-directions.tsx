@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { generateImage, type VisualDirection } from "@/lib/ai/image-ai";
 import { saveGeneratedImage } from "@/lib/studio/generated-image";
+import type { ImageRatio } from "@/lib/studio/wave-draft";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 
@@ -25,7 +26,7 @@ export function VisualDirectionCard({
 }: {
   direction: VisualDirection;
   onUseCopy?: (headline: string, subhead: string) => void;
-  onImageSaved?: (assetId: string) => void;
+  onImageSaved?: (assetId: string, ratio: ImageRatio) => void;
   styleHint?: string;
   preferredRatio?: (typeof RATIOS)[number]["id"];
 }) {
@@ -58,7 +59,7 @@ export function VisualDirectionCard({
       });
       addAsset(meta);
       setLastAssetId(meta.id);
-      onImageSaved?.(meta.id);
+      onImageSaved?.(meta.id, ratio);
       toast.success("圖片已存進素材庫");
     } catch {
       toast.error("生成圖片時出錯了，再試一次。");
@@ -140,7 +141,7 @@ export function VisualDirectionCard({
               variant="secondary"
               onClick={() => {
                 const id = lastAssetId;
-                if (id) onImageSaved(id);
+                if (id) onImageSaved(id, ratio);
               }}
               disabled={!lastAssetId}
             >
