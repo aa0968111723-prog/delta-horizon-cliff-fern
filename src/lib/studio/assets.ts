@@ -1,3 +1,4 @@
+import { searchTokens } from "../zen/search.ts";
 import type {
   Artboard,
   AssetCategory,
@@ -146,12 +147,14 @@ export function createGeneratedAsset(input: {
 }
 
 export function matchesAssetQuery(asset: AssetMeta, query: string) {
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   if (!q) return true;
   const blob = [asset.name, asset.category, categoryLabel(asset.category), asset.licenseNotes, ...(asset.tags ?? [])]
     .join(" ")
     .toLowerCase();
-  return q.split(/\s+/).every((part) => blob.includes(part));
+  const tokens = searchTokens(q);
+  if (!tokens.length) return blob.includes(q.toLowerCase());
+  return tokens.some((part) => blob.includes(part.toLowerCase()));
 }
 
 function collectFromBoard(board: Artboard | undefined, ids: Set<string>) {

@@ -1,3 +1,4 @@
+import { driveQueryEscape } from "../connect/escape.ts";
 import type { AssetMeta, ClubCampaign, IgMemoryPost, Project, RemoteFile } from "../studio/types.ts";
 
 /** Natural-language aliases so search is not filename-only. */
@@ -11,12 +12,76 @@ const ALIASES: Array<{ keys: string[]; extra: string[] }> = [
   { keys: ["同學", "互動", "很多同學"], extra: ["同學", "互動", "朋友", "圍坐"] },
 ];
 
-function expandQuery(query: string): string {
+const FILLER =
+  /^(找|幫我|以前|有|很多|的|一個|一場|下週|照片|檔案|素材|文宣|相關|請|可以|嗎|做|新的|宣傳|給我|看看)$/;
+
+const FILLER_SPLIT =
+  /找以前|幫我找|幫我|找|以前|有很多|很多同學|很多|的照片|照片|檔案|素材|文宣|相關設計|相關|請|可以嗎|可以|嗎|做新的|新的|宣傳|給我|看看|一個|一場|下週|適合 IG|適合IG|的|有/g;
+
+export function expandQuery(query: string): string {
   const extra: string[] = [];
   for (const row of ALIASES) {
     if (row.keys.some((key) => query.includes(key))) extra.push(...row.extra);
   }
   return extra.length ? `${query} ${extra.join(" ")}` : query;
+}
+
+/** Turn「找以前晚上的茶會照片」into Drive/Canva tokens, not the whole sentence. */
+export function searchTokens(query: string): string[] {
+  const raw = query.trim();
+  const seen = new Set<string>();
+  const tokens: string[] = [];
+
+  function add(token: string) {
+    const next = token.trim();
+    if (next.length < 2 || FILLER.test(next) || seen.has(next)) return;
+    seen.add(next);
+    tokens.push(next);
+  }
+
+  for (const row of ALIASES) {
+    for (const key of row.keys) {
+      if (raw.includes(key)) add(key);
+    }
+  }
+
+  for (const part of raw.replace(FILLER_SPLIT, " ").split(/[\s，。？?、！!／/,]+/)) add(part);
+
+  if (tokens.length < 4) {
+    for (const row of ALIASES) {
+      if (!row.keys.some((key) => raw.includes(key))) continue;
+      for (const extra of row.extra) add(extra);
+      if (tokens.length >= 6) break;
+    }
+  }
+
+  return tokens.slice(0, 6);
+}
+
+/** Drive `q` fragment: token OR-clause, never the whole NL sentence. */
+export function driveContainsQuery(query: string): string {
+  const tokens = searchTokens(query).slice(0, 4);
+  const terms = tokens.length ? tokens : [query.trim()].filter((token) => token.length >= 1);
+  return terms
+    .map((token) => {
+      const q = driveQueryEscape(token);
+      return `name contains '${q}' or fullText contains '${q}'`;
+    })
+    .join(" or ");
+}
+
+export function blobMatchesQuery(blob: string, query: string) {
+  const text = blob.toLowerCase();
+  const tokens = searchTokens(query).map((token) => token.toLowerCase());
+  if (!tokens.length) return text.includes(query.trim().toLowerCase());
+  return tokens.some((token) => text.includes(token));
+}
+
+export function remoteMatchesQuery(
+  file: Pick<RemoteFile, "name" | "summary" | "tags">,
+  query: string,
+) {
+  return blobMatchesQuery(`${file.name} ${file.summary} ${file.tags.join(" ")}`, query);
 }
 
 export type CreativeHit = {
@@ -49,9 +114,10 @@ function blobOf(parts: Array<string | undefined | null>) {
 function scoreText(query: string, text: string, extra = 0) {
   const q = query.trim().toLowerCase();
   if (!q) return extra;
-  const tokens = q.split(/\s+/).filter(Boolean);
+  const tokens = searchTokens(query).map((token) => token.toLowerCase());
+  const use = tokens.length ? tokens : q.split(/\s+/).filter(Boolean);
   let score = extra;
-  for (const token of tokens) {
+  for (const token of use) {
     if (text.includes(token)) score += 6;
     else if (token.length >= 2 && text.includes(token.slice(0, 2))) score += 1;
   }

@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { IgMemoryPost, RemoteFile } from "@/lib/studio/types";
-import { accessTokenFor, writeBundle } from "./tokens";
+import { driveContainsQuery, remoteMatchesQuery } from "@/lib/zen/search";
 import { driveQueryEscape } from "./escape";
+import { accessTokenFor, writeBundle } from "./tokens";
 
 type SyncResult = {
   ok: boolean;
@@ -110,7 +111,10 @@ function igKind(type?: string): IgMemoryPost["kind"] {
   return "post";
 }
 
-async function listInstagram(token: string): Promise<{ files: RemoteFile[]; igPosts: IgMemoryPost[]; accountLabel?: string }> {
+async function listInstagram(
+  token: string,
+  opts?: { insights?: boolean },
+): Promise<{ files: RemoteFile[]; igPosts: IgMemoryPost[]; accountLabel?: string }> {
   const me = await fetch(
     `https://graph.facebook.com/v21.0/me/accounts?fields=instagram_business_account{id,username}&access_token=${encodeURIComponent(token)}`,
   );
@@ -128,7 +132,8 @@ async function listInstagram(token: string): Promise<{ files: RemoteFile[]; igPo
   const posts: IgMemoryPost[] = [];
   const files: RemoteFile[] = [];
   for (const post of json.data ?? []) {
-    const stats = await igInsights(token, post.id).catch(() => ({} as Record<string, number>));
+    const stats =
+      opts?.insights === false ? {} : await igInsights(token, post.id).catch(() => ({} as Record<string, number>));
     const date = post.timestamp ? post.timestamp.slice(0, 10) : "";
     const caption = post.caption || "IG 貼文";
     posts.push({
@@ -237,12 +242,7 @@ function parseSearchQuery(input: unknown) {
 }
 
 function canvaMatches(file: RemoteFile, query: string) {
-  const blob = `${file.name} ${file.summary} ${file.tags.join(" ")}`.toLowerCase();
-  return query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((token) => token.length >= 1)
-    .some((token) => blob.includes(token));
+  return remoteMatchesQuery(file, query);
 }
 
 export const searchDriveLive = createServerFn({ method: "POST" })
@@ -254,8 +254,7 @@ export const searchDriveLive = createServerFn({ method: "POST" })
     if (!drive) {
       notes.push("尚未連接 Drive，改搜本機與品牌記憶。");
     } else {
-      const q = driveQueryEscape(data.query);
-      const query = `trashed=false and (name contains '${q}' or fullText contains '${q}')`;
+      const query = `trashed=false and (${driveContainsQuery(data.query)})`;
       const url = `https://www.googleapis.com/drive/v3/files?pageSize=20&fields=files(id,name,mimeType,thumbnailLink,modifiedTime,webViewLink)&q=${encodeURIComponent(query)}`;
       const res = await fetch(url, { headers: { Authorization: `Bearer ${drive.accessToken}` } });
       if (!res.ok) {
@@ -285,10 +284,21 @@ export const searchDriveLive = createServerFn({ method: "POST" })
       try {
         const listed = await listCanva(canva.accessToken);
         const matched = listed.filter((file) => canvaMatches(file, data.query));
-        files.push(...(matched.length ? matched : listed.slice(0, 8)));
-        notes.push(`Canva ${matched.length || listed.length}`);
+        files.push(...matched);
+        notes.push(`Canva ${matched.length}`);
       } catch {
         notes.push("Canva 搜尋暫時失敗。");
+      }
+    }
+    const instagram = await accessTokenFor("instagram");
+    if (instagram) {
+      try {
+        const listed = await listInstagram(instagram.accessToken, { insights: false });
+        const matched = listed.files.filter((file) => canvaMatches(file, data.query));
+        files.push(...matched);
+        notes.push(`IG ${matched.length}`);
+      } catch {
+        notes.push("IG 搜尋暫時失敗。");
       }
     }
     return {

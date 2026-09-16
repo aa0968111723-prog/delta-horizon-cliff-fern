@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { addDays, format, isSameDay, startOfMonth, startOfWeek, endOfMonth, endOfWeek } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { contentKindLabel, contentStatusLabel } from "@/lib/studio/content";
@@ -14,15 +14,20 @@ import { ScheduleEditor } from "@/components/calendar/schedule-editor";
 type View = "month" | "week" | "agenda";
 
 export function CalendarPage() {
+  const hydrated = useStudio((s) => s.hydrated);
   const schedule = useStudio((s) => s.schedule);
   const campaigns = useStudio((s) => s.campaigns);
   const moveSchedule = useStudio((s) => s.moveSchedule);
   const upsertSchedule = useStudio((s) => s.upsertSchedule);
   const publishSchedule = useStudio((s) => s.publishSchedule);
   const setCreateOpen = useUi((s) => s.setCreateOpen);
-  const [cursor, setCursor] = useState(new Date("2026-09-16T00:00:00+08:00"));
+  const [cursor, setCursor] = useState(() => new Date());
   const [view, setView] = useState<View>("month");
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 767px)").matches) setView("agenda");
+  }, []);
 
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 });
@@ -64,6 +69,14 @@ export function CalendarPage() {
 
   const cells = view === "month" ? days : weekDays;
 
+  if (!hydrated) {
+    return (
+      <main className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
+        <PageHeader kicker="排程" title="什麼時候要發？" description="讀取排程…" />
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
       <PageHeader
@@ -95,10 +108,12 @@ export function CalendarPage() {
         <div className={cn("mt-4 grid gap-1", view === "month" ? "grid-cols-7" : "grid-cols-1 md:grid-cols-7")}>
           {cells.map((day) => {
             const items = itemsOn(day);
+            const visible = view === "month" ? items.slice(0, 3) : items;
+            const hidden = items.length - visible.length;
             return (
               <div
                 key={day.toISOString()}
-                className="min-h-24 min-w-0 overflow-hidden rounded-xl bg-surface p-2 shadow-[var(--shadow-border)]"
+                className="min-h-24 min-w-0 overflow-y-auto rounded-xl bg-surface p-2 shadow-[var(--shadow-border)]"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
@@ -107,7 +122,7 @@ export function CalendarPage() {
               >
                 <p className="text-xs text-muted">{format(day, view === "month" ? "d" : "M/d EEE", { locale: zhTW })}</p>
                 <ul className="mt-1 space-y-1">
-                  {items.map((item) => (
+                  {visible.map((item) => (
                     <li key={item.id}>
                       <div
                         draggable
@@ -143,6 +158,7 @@ export function CalendarPage() {
                     </li>
                   ))}
                 </ul>
+                {hidden > 0 ? <p className="mt-1 text-[10px] text-muted">還有 {hidden} 則</p> : null}
               </div>
             );
           })}
