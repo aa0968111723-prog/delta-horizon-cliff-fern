@@ -61,12 +61,23 @@ if ((await page.locator('[data-testid="direction-look-b"]').count()) === 0) {
 if ((await page.locator('[data-testid="direction-look-c"]').count()) === 0) {
   issues.push("沒有方向 C 預覽");
 }
+const lookHasPhoto = await page.locator('[data-testid="direction-look-a"]').evaluate((el) => {
+  const src = el.getAttribute("src") || "";
+  try {
+    return /data-source-photo/.test(decodeURIComponent(escape(atob(src.split(",")[1] || ""))));
+  } catch {
+    return false;
+  }
+});
+if (!lookHasPhoto) issues.push("方向 A 預覽沒有延續 Drive 照片");
 await page.locator('[data-testid="realize-direction"]').click();
 await page.waitForSelector('[data-testid="kit-ready"]', { timeout: 60_000 });
 const heroSource = (await page.locator('[data-testid="hero-visual-source"]').innerText()) ?? "";
 if (!/Google Drive/.test(heroSource) || !/2025 茶會現場/.test(heroSource)) {
   issues.push(`主視覺來源還寫空白海報: ${heroSource}`);
 }
+await page.waitForSelector('[data-testid="carousel-page-0"]', { timeout: 90_000 });
+await page.waitForSelector('[data-testid="story-frame-0"]', { timeout: 30_000 });
 if ((await page.locator('[data-testid="kit-piece"]').count()) > 0) {
   issues.push("Drive 茶會被做成一篇而不是活動");
 }
