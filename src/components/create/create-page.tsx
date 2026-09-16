@@ -586,6 +586,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
             name: `${name} · ${ratio}`,
             tags: ["圖片理解", contentKindLabel(payload.kind)],
             ratio,
+            presetId: payload.kind === "story" ? "tku-life" : undefined,
           });
           addAsset(framed.meta);
           assetId = framed.meta.id;

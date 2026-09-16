@@ -9,11 +9,12 @@ export async function frameAndSaveLocalVisual(input: {
   name: string;
   tags: string[];
   ratio: ReviseRatio;
+  presetId?: string;
 }): Promise<{ meta: AssetMeta; dataUrl: string }> {
   const dataUrl = await urlToDataUrl(input.sourceUrl);
   const local = await reviseImageLocal({
     imageUrl: dataUrl,
-    presetId: presetForRatio(input.ratio),
+    presetId: input.presetId ?? presetForRatio(input.ratio),
     ratio: input.ratio,
   });
   const meta = await saveDataUrlAsAsset({

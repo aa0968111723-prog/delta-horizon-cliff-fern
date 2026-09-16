@@ -117,7 +117,34 @@ test("applyKindLayout turns one photo into a 3-page story", () => {
   const brand = createEmptyBrand("禪學社");
   const next = applyKindLayout(sampleProject(), brand, "story");
   assert.equal(next.activeFormatId, "story");
-  assert.ok(pagesOf(next).length >= 3);
+  const pages = pagesOf(next);
+  assert.ok(pages.length >= 3);
+  const cover = pages[0];
+  assert.equal(cover?.role, "cover");
+  assert.equal(extractImageAssetId(cover), "asset_photo");
+  assert.ok(cover?.layers.some((layer) => layer.type === "image" && layer.name === "主視覺"));
+  assert.equal(
+    cover?.layers.some((layer) => layer.name === "引號"),
+    false,
+  );
+});
+
+test("a story without a photo still uses the quote cover", () => {
+  const brand = createEmptyBrand("禪學社");
+  const source = sampleProject();
+  const blank = buildLayout("feed-portrait", source.copy, brand, "editorial");
+  const next = applyKindLayout(
+    {
+      ...source,
+      artboards: { "feed-portrait": blank },
+      slides: { "feed-portrait": [blank] },
+    },
+    brand,
+    "story",
+  );
+  const cover = pagesOf(next)[0];
+  assert.ok(cover?.layers.some((layer) => layer.name === "引號"));
+  assert.equal(extractImageAssetId(cover), null);
 });
 
 test("applyKindLayout turns one photo into a knowledge carousel", () => {

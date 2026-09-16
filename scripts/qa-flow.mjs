@@ -389,11 +389,14 @@ try {
   await expectText("改這張圖", "改這張圖");
   await expectText("改版預設", "更像淡江生活");
   await expectText("做成限動會排成 9:16", "限動與 Reels 封面會排成 Story 9:16");
-  await page
-    .locator("section")
-    .filter({ hasText: "圖片理解" })
-    .getByTestId("make-kind-story")
-    .evaluate((el) => (el instanceof HTMLElement ? el.click() : undefined));
+  await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
+  await page.waitForSelector("text=本機規則", { timeout: 20000 });
+  await tap(
+    page
+      .locator("section")
+      .filter({ hasText: "圖片理解" })
+      .getByTestId("make-kind-story"),
+  );
   await page.waitForURL(/\/studio\//, { timeout: 25000 });
   await page.waitForLoadState("networkidle");
   await page.waitForSelector("text=這則用到的來源", { timeout: 15000 });
@@ -404,6 +407,17 @@ try {
   record("做成限動畫布比例", storyRatio === "9:16", `畫布是 ${storyRatio ?? "沒有比例"}`);
   const storyFormat = await page.getByTestId("artboard").first().getAttribute("data-format");
   record("做成限動畫布格式", storyFormat === "story", `格式是 ${storyFormat ?? "沒有格式"}`);
+  await page.waitForSelector('[data-testid="artboard-photo"]', { timeout: 15000 });
+  const storyPhoto = await page
+    .getByTestId("artboard")
+    .first()
+    .locator("[data-testid=artboard-photo]")
+    .count();
+  record(
+    "做成限動封面有照片",
+    storyPhoto > 0,
+    storyPhoto > 0 ? `畫布上有 ${storyPhoto} 張主視覺` : "封面沒有主視覺照片",
+  );
   await page.screenshot({ path: `${prefix}-from-image.png` });
 
   // 8c. 從一張圖片做成 Reels：腳本 + 9:16 封面

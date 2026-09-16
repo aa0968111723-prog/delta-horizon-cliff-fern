@@ -95,6 +95,7 @@ function storyPages(source: Project, brand: BrandKit, copy: CopyDeck): Artboard[
   ];
   return stampSlideMeta(
     beats.map((beat, index) => {
+      const coverTemplate = imageAssetId ? "product" : "quote";
       const board = buildLayout(
         "story",
         {
@@ -106,10 +107,11 @@ function storyPages(source: Project, brand: BrandKit, copy: CopyDeck): Artboard[
           cta: beat.cta,
         },
         brand,
-        index === 2 ? "offer" : index === 0 ? "quote" : "editorial",
+        index === 2 ? "offer" : index === 0 ? coverTemplate : "editorial",
         { imageAssetId },
       );
       board.role = index === 0 ? "cover" : index === 2 ? "cta" : "detail";
+      board.templateId = index === 2 ? "offer" : index === 0 ? coverTemplate : "editorial";
       return board;
     }),
   );
