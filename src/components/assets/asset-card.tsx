@@ -2,7 +2,7 @@ import { Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ASSET_DRAG_MIME, categoryLabel, sourceLabel, usageLabel } from "@/lib/studio/assets";
+import { ASSET_DRAG_MIME, assetPreviewFitClass, categoryLabel, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import type { AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +53,7 @@ export function AssetCard({
             <img
               src={src}
               alt={asset.name}
-              className="size-full object-cover"
+              className={cn("size-full", assetPreviewFitClass(asset, url))}
               draggable={false}
               onError={() => setFailed(src)}
             />

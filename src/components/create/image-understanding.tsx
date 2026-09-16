@@ -5,6 +5,7 @@ import { ImageRevisionBar } from "@/components/create/image-revision";
 import { Button } from "@/components/ui/button";
 import { analyzeImage, type ImageAnalysis } from "@/lib/ai/image-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
+import { assetPreviewFitClass } from "@/lib/studio/assets";
 import type { ContentKind } from "@/lib/studio/types";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
@@ -212,7 +213,11 @@ export function ImageUnderstanding({
                   aria-label={`分析 ${asset.name}`}
                 >
                   {urls[asset.id] ? (
-                    <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" />
+                    <img
+                      src={urls[asset.id]}
+                      alt={asset.name}
+                      className={cn("size-full", assetPreviewFitClass(asset, urls[asset.id]))}
+                    />
                   ) : null}
                 </button>
               </li>

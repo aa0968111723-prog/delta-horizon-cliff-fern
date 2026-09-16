@@ -90,6 +90,16 @@ export function isDisplayableImageBlob(blob: Blob | undefined | null): boolean {
   return false;
 }
 
+/** SVG 用 object-cover 在 Chromium 會變成空白（intrinsic size 0）。 */
+export function isSvgPreviewSrc(src?: string | null, mime?: string) {
+  if ((mime || "").includes("svg")) return true;
+  return /\.svg(\?|#|$)/i.test(src ?? "");
+}
+
+export function assetPreviewFitClass(asset: { mime?: string; seedSrc?: string }, blobUrl?: string | null) {
+  return isSvgPreviewSrc(asset.seedSrc ?? blobUrl, asset.mime) ? "object-fill" : "object-cover";
+}
+
 export function categoryLabel(id: AssetCategory) {
   return ASSET_CATEGORIES.find((item) => item.id === id)?.label ?? id;
 }

@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { AssetUploadError, decodeAssetImage } from "@/lib/studio/asset-upload";
-import { ASSET_DRAG_MIME, ASSET_CATEGORIES, kindFromCategory, matchesAssetQuery } from "@/lib/studio/assets";
+import { ASSET_DRAG_MIME, ASSET_CATEGORIES, assetPreviewFitClass, kindFromCategory, matchesAssetQuery } from "@/lib/studio/assets";
 import { uid } from "@/lib/studio/ids";
 import type { AssetCategory } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -136,7 +136,12 @@ export function AssetTray({ projectId }: { projectId: string }) {
                 >
                   <div className="aspect-square">
                     {urls[asset.id] ? (
-                      <img src={urls[asset.id]} alt="" className="size-full object-cover" draggable={false} />
+                      <img
+                        src={urls[asset.id]}
+                        alt=""
+                        className={cn("size-full", assetPreviewFitClass(asset, urls[asset.id]))}
+                        draggable={false}
+                      />
                     ) : (
                       <div className="flex size-full items-center justify-center text-xs text-muted">載入中</div>
                     )}

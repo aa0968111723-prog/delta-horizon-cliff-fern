@@ -17,9 +17,10 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { analyzeImage, generateImage } from "@/lib/ai/image-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
 import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
-import { ASSET_CATEGORIES, kindFromCategory, similarAssets, sourceLabel, usageLabel } from "@/lib/studio/assets";
+import { ASSET_CATEGORIES, assetPreviewFitClass, kindFromCategory, similarAssets, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import { saveGeneratedImage, urlToDataUrl } from "@/lib/studio/generated-image";
 import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
+import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 
 export function AssetDetailSheet({
@@ -176,7 +177,7 @@ export function AssetDetailSheet({
         <div className="flex gap-3">
           <div className="size-24 overflow-hidden rounded-xl bg-bg">
             {preview ? (
-              <img src={preview} alt="" className="size-full object-cover" />
+              <img src={preview} alt="" className={cn("size-full", assetPreviewFitClass(current, preview))} />
             ) : (
               <div className="flex size-full items-center justify-center text-xs text-muted">無預覽</div>
             )}

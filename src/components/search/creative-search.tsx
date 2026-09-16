@@ -9,7 +9,7 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { getConnections } from "@/lib/connections/status";
 import { searchRemote } from "@/lib/connections/sync";
 import type { ConnectionStatus, ProviderId } from "@/lib/connections/providers";
-import { matchesAssetQuery } from "@/lib/studio/assets";
+import { assetPreviewFitClass, matchesAssetQuery } from "@/lib/studio/assets";
 import { campaignTitle } from "@/lib/studio/campaign";
 import { contentKindLabel } from "@/lib/studio/status";
 import { cn } from "@/lib/utils";
@@ -300,14 +300,20 @@ function AssetSearchHit({
   asset,
   url,
 }: {
-  asset: { id: string; name: string };
+  asset: { id: string; name: string; mime?: string; seedSrc?: string };
   url?: string;
 }) {
   return (
     <li className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
       <Link to="/assets" className="block">
         <span className="block aspect-square bg-surface-2">
-          {url ? <img src={url} alt={asset.name} className="size-full object-cover" /> : null}
+          {url ? (
+            <img
+              src={url}
+              alt={asset.name}
+              className={cn("size-full", assetPreviewFitClass(asset, url))}
+            />
+          ) : null}
         </span>
         <span className="block truncate px-2 pt-1.5 text-xs">{asset.name}</span>
       </Link>

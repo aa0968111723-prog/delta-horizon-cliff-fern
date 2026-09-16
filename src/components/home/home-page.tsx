@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { countdownLabel, formatCampaignDate, nextCampaign, sortByUpcoming } from "@/lib/studio/campaign";
 import { localTodayIdeas } from "@/lib/studio/ideas";
+import { assetPreviewFitClass } from "@/lib/studio/assets";
 import { contentKindLabel } from "@/lib/studio/status";
 import type { Campaign, CampaignWave } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -417,7 +418,7 @@ export function HomePage() {
                 <Link to="/assets" className="block">
                   <div className="aspect-square bg-surface-2">
                     {urls[asset.id] ? (
-                      <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" />
+                      <img src={urls[asset.id]} alt={asset.name} className={cn("size-full", assetPreviewFitClass(asset, urls[asset.id]))} />
                     ) : (
                       <div className="flex size-full items-center justify-center text-xs text-muted">載入中</div>
                     )}

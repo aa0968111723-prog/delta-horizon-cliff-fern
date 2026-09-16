@@ -1,8 +1,13 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
   inferAssetSource,
   isDisplayableImageBlob,
+  isSvgPreviewSrc,
+  assetPreviewFitClass,
   migrateAsset,
   mimeForAssetSrc,
   previewUrlForAsset,
@@ -40,8 +45,23 @@ test("SVG seed paths get an image MIME so blob URLs can render", () => {
   assert.equal(mimeForAssetSrc("/photo.png"), "image/png");
 });
 
+test("SVG previews use object-fill so Chromium does not crop them to blank", () => {
+  assert.equal(assetPreviewFitClass({ mime: "image/svg+xml", seedSrc: "/seed/gugu.svg" }), "object-fill");
+  assert.equal(assetPreviewFitClass({ mime: "image/jpeg" }), "object-cover");
+  assert.equal(isSvgPreviewSrc("/seed/zen-mark.svg"), true);
+});
+
 test("HTML error pages stored in IndexedDB are not treated as previews", () => {
   assert.equal(isDisplayableImageBlob(new Blob(["<html>not an image</html>"], { type: "text/html" })), false);
   assert.equal(isDisplayableImageBlob(new Blob(["<svg xmlns='http://www.w3.org/2000/svg'></svg>"], { type: "image/svg+xml" })), true);
   assert.equal(isDisplayableImageBlob(new Blob([])), false);
+});
+
+test("seed SVGs in public/ are valid UTF-8 so Chromium can paint them", () => {
+  const dir = join(dirname(fileURLToPath(import.meta.url)), "../../../public/seed");
+  for (const name of ["gugu.svg", "zen-mark.svg", "tamsui-dusk.svg", "window-light.svg", "night-lamp.svg"]) {
+    const text = readFileSync(join(dir, name), "utf8");
+    assert.match(text, /<svg /);
+    assert.doesNotMatch(text, /\uFFFD/);
+  }
 });

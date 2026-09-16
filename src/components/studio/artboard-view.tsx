@@ -1,4 +1,5 @@
 import type { CSSProperties, PointerEvent, ReactNode } from "react";
+import { isSvgPreviewSrc } from "@/lib/studio/assets";
 import { formatById } from "@/lib/studio/formats";
 import { cssFilter, cssShadow, cssTextShadow } from "@/lib/studio/layers";
 import type {
@@ -44,13 +45,13 @@ function shapeRadius(layer: ShapeLayer) {
   return layer.radius;
 }
 
-function imageStyle(layer: ImageLayer): CSSProperties {
+function imageStyle(layer: ImageLayer, src?: string): CSSProperties {
   const crop = layer.crop ?? { x: 50, y: 50, zoom: 1 };
   const zoom = Math.max(1, crop.zoom);
   return {
     width: "100%",
     height: "100%",
-    objectFit: layer.objectFit,
+    objectFit: isSvgPreviewSrc(src) ? "fill" : layer.objectFit,
     objectPosition: `${crop.x}% ${crop.y}%`,
     transform: zoom !== 1 ? `scale(${zoom})` : undefined,
     transformOrigin: `${crop.x}% ${crop.y}%`,
@@ -179,7 +180,7 @@ function LayerNode({
         alt=""
         draggable={false}
         className="size-full"
-        style={imageStyle(layer)}
+        style={imageStyle(layer, src)}
         crossOrigin="anonymous"
       />
     ) : (
@@ -367,7 +368,10 @@ export function ArtboardView({
             src={backgroundImage}
             alt=""
             draggable={false}
-            className="pointer-events-none absolute inset-0 size-full object-cover"
+            className={cn(
+              "pointer-events-none absolute inset-0 size-full",
+              isSvgPreviewSrc(backgroundImage) ? "object-fill" : "object-cover",
+            )}
             crossOrigin="anonymous"
           />
         ) : null}
