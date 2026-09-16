@@ -10,6 +10,7 @@ import { takeAutoRun } from "@/lib/create/handoff";
 import { applyStudentReviewToPlan } from "@/lib/copy/review";
 import { toBriefInput } from "@/lib/ai/payload";
 import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, notesFromHits, summarizeFound } from "@/lib/club/compose";
+import { lastPackFromPlan } from "@/lib/club/last-pack";
 import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
 import { CONVERT_TARGETS, convertPlan } from "@/lib/convert/pack";
@@ -51,6 +52,8 @@ export function IdeaFlow({
   const setDirections = useCreative((s) => s.setDirections);
   const attachProject = useCreative((s) => s.attachProject);
   const setLastSearch = useCreative((s) => s.setLastSearch);
+  const setLastPack = useCreative((s) => s.setLastPack);
+  const updateProject = useStudio((s) => s.updateProject);
   const folder = useCreative((s) => s.folder);
   const igPosts = useCreative((s) => s.igPosts);
 
@@ -177,7 +180,25 @@ export function IdeaFlow({
     setProjectId(projectNext.id);
     setCampaignId(campaign.id);
     setPhase("pack");
-    await paintHero(direction, nextPlan, raw);
+    const heroAssetId = await paintHero(direction, nextPlan, raw);
+    const scheduled = Boolean(nextPlan.waves?.length);
+    updateProject(projectNext.id, {
+      campaignId: campaign.id,
+      contentStatus: scheduled ? "scheduled" : "done",
+      scheduledAt: scheduled ? Date.now() : null,
+    });
+    setLastPack(
+      lastPackFromPlan({
+        projectId: projectNext.id,
+        campaignId: campaign.id,
+        eventName: parsed.eventName,
+        plan: nextPlan,
+        kind: packKind,
+        directionName: direction.name,
+        heroAssetId,
+        heroThumb: currentHits[0]?.thumb,
+      }),
+    );
     toast.success("已生成主視覺、文案與多模態內容，並依淡江學生視角改過一輪");
   }
 
@@ -200,7 +221,7 @@ export function IdeaFlow({
       },
     });
     const url = result.urls[0];
-    if (!url) return;
+    if (!url) return null;
     setHeroUrl(url);
     const res = await fetch(url);
     const blob = await res.blob();
@@ -218,13 +239,18 @@ export function IdeaFlow({
         tags: ["AI生成", direction.name, parseIdea(raw).eventName],
       }),
     );
+    return id;
   }
 
   async function renderHero() {
     if (!picked) return;
     setBusy(true);
     try {
-      await paintHero(picked);
+      const heroAssetId = await paintHero(picked);
+      const current = useCreative.getState().lastPack;
+      if (current && heroAssetId) {
+        setLastPack({ ...current, heroAssetId, updatedAt: Date.now() });
+      }
       toast.success("主視覺已存進素材庫 · 來源：AI Generated");
     } finally {
       setBusy(false);
@@ -361,17 +387,30 @@ export function IdeaFlow({
                 onClick={() => {
                   const reviewed = applyStudentReviewToPlan(plan);
                   setPlan(reviewed.plan);
+                  const parsed = parseIdea(idea);
                   if (projectId) {
-                    const parsed = parseIdea(idea);
                     applyCampaignPlan(projectId, reviewed.plan, briefFromIdea(parsed, notesFromHits(parsed, hits)));
                   }
                   if (campaignId) {
                     upsertCampaign({
                       id: campaignId,
-                      name: parseIdea(idea).eventName,
+                      name: parsed.eventName,
                       oneLiner: reviewed.plan.hook,
                       cta: reviewed.plan.cta,
                     });
+                    const current = useCreative.getState().lastPack;
+                    setLastPack(
+                      lastPackFromPlan({
+                        projectId: projectId ?? current?.projectId ?? "",
+                        campaignId,
+                        eventName: parsed.eventName,
+                        plan: reviewed.plan,
+                        kind: packKind,
+                        directionName: picked?.name ?? current?.directionName,
+                        heroAssetId: current?.heroAssetId,
+                        heroThumb: current?.heroThumb,
+                      }),
+                    );
                   }
                   toast.success(reviewed.applied.join("、"));
                 }}

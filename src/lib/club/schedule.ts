@@ -1,4 +1,4 @@
-import type { CampaignWave, ContentKind, WavePurpose } from "../studio/types.ts";
+import type { CampaignWave, ContentKind, ContentStatus, WavePurpose } from "../studio/types.ts";
 import { uid } from "../studio/ids.ts";
 
 export type RhythmInput = {
@@ -90,4 +90,41 @@ export function plannedTimestamp(eventDate: string, offsetDays: number, hour = 1
   const [y, m, d] = eventDate.split("-").map(Number);
   const date = new Date(y, (m ?? 1) - 1, (d ?? 1) + offsetDays, hour, 0, 0);
   return date.getTime();
+}
+
+export type CampaignScheduleDraft = {
+  campaignId: string;
+  projectId: string | null;
+  title: string;
+  contentKind: ContentKind;
+  status: ContentStatus;
+  plannedAt: number;
+  publishedAt: null;
+  sourceLabel: string;
+};
+
+export function scheduleDraftsFromCampaign(
+  campaign: {
+    id: string;
+    name: string;
+    date: string;
+    waves: CampaignWave[];
+    projectIds: string[];
+  },
+  now = Date.now(),
+): CampaignScheduleDraft[] {
+  const projectId = campaign.projectIds[0] ?? null;
+  return campaign.waves.map((wave) => {
+    const plannedAt = plannedTimestamp(campaign.date, wave.offsetDays);
+    return {
+      campaignId: campaign.id,
+      projectId,
+      title: `${wave.label} · ${campaign.name}`,
+      contentKind: wave.contentKind,
+      status: plannedAt > now - 60_000 ? "scheduled" : "idea",
+      plannedAt,
+      publishedAt: null,
+      sourceLabel: "AI 節奏建議",
+    };
+  });
 }

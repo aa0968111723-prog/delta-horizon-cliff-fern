@@ -5,22 +5,86 @@ import { Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { writeHandoff } from "@/lib/create/handoff";
 import { CONTENT_KIND_META, CONTENT_STATUS_META } from "@/lib/studio/status";
 import type { ContentKind } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
-import { useCreative } from "@/stores/creative-store";
+import { useCreative, type ScheduleItem } from "@/stores/creative-store";
+import { useStudio } from "@/stores/studio-store";
+
+function extendKind(kind: ContentKind) {
+  return kind === "story" || kind === "carousel" || kind === "reels" || kind === "ig-post" ? kind : undefined;
+}
+
+function ScheduleActions({ row, compact }: { row: ScheduleItem; compact?: boolean }) {
+  const duplicateSchedule = useCreative((s) => s.duplicateSchedule);
+  const setScheduleStatus = useCreative((s) => s.setScheduleStatus);
+  const updateProject = useStudio((s) => s.updateProject);
+  const size = compact ? "sm" : "sm";
+
+  function markPublished() {
+    const next = row.status === "published" ? "scheduled" : "published";
+    setScheduleStatus(row.id, next);
+    if (row.projectId) {
+      updateProject(row.projectId, {
+        contentStatus: next,
+        publishedAt: next === "published" ? Date.now() : null,
+      });
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2" data-testid="calendar-item-actions">
+      <Button size={size} variant="secondary" onClick={() => duplicateSchedule(row.id)}>
+        複製
+      </Button>
+      <Button size={size} variant="ghost" onClick={markPublished}>
+        {row.status === "published" ? "改回已排程" : "標記已發布"}
+      </Button>
+      <Button size={size} variant="ghost" asChild>
+        <Link
+          to="/create"
+          search={{ tab: "campaign" }}
+          onClick={() =>
+            writeHandoff({
+              idea: row.title,
+              tab: "campaign",
+              convertKind: extendKind(row.contentKind),
+              autoRun: true,
+              sourceLabel: `排程 / ${row.title}`,
+            })
+          }
+        >
+          AI 延伸
+        </Link>
+      </Button>
+      {row.projectId ? (
+        <Button size={size} variant="ghost" asChild>
+          <Link to="/studio/$projectId" params={{ projectId: row.projectId }}>
+            直接編輯
+          </Link>
+        </Button>
+      ) : null}
+    </div>
+  );
+}
 
 export function CalendarPage() {
   const schedule = useCreative((s) => s.schedule);
   const moveSchedule = useCreative((s) => s.moveSchedule);
-  const duplicateSchedule = useCreative((s) => s.duplicateSchedule);
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
-  const setScheduleStatus = useCreative((s) => s.setScheduleStatus);
   const [cursor, setCursor] = useState(() => new Date(2026, 8, 16));
   const [view, setView] = useState<"month" | "week" | "agenda">("month");
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<ContentKind>("ig-post");
+  const [selected, setSelected] = useState<ScheduleItem | null>(null);
+
+  useEffect(() => {
+    if (!selected) return;
+    const next = schedule.find((row) => row.id === selected.id);
+    if (next && next !== selected) setSelected(next);
+  }, [schedule, selected]);
 
   useEffect(() => {
     if (window.matchMedia("(max-width: 640px)").matches) setView("agenda");
@@ -37,6 +101,7 @@ export function CalendarPage() {
   }, [cursor]);
 
   const agenda = [...schedule].sort((a, b) => a.plannedAt - b.plannedAt);
+  const gridDays = view === "month" ? days : week;
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
@@ -88,13 +153,16 @@ export function CalendarPage() {
             {["一", "二", "三", "四", "五", "六", "日"].map((d) => (
               <div key={d} className="py-2">{d}</div>
             ))}
-            {(view === "month" ? days : week).map((day) => {
+          </div>
+          <div className="grid min-w-[36rem] grid-cols-7 gap-1">
+            {gridDays.map((day) => {
               const items = schedule.filter((row) => isSameDay(row.plannedAt, day));
               return (
                 <div
                   key={day.toISOString()}
                   className={cn(
-                    "min-h-24 rounded-2xl bg-bg p-1 text-left",
+                    "rounded-2xl bg-bg p-1 text-left",
+                    view === "week" ? "min-h-32" : "min-h-24",
                     view === "month" && !isSameMonth(day, cursor) && "opacity-40",
                   )}
                   onDragOver={(e) => e.preventDefault()}
@@ -113,9 +181,11 @@ export function CalendarPage() {
                         <button
                           type="button"
                           draggable
+                          data-testid="calendar-chip"
                           onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", row.id)}
+                          onClick={() => setSelected(row)}
                           className="w-full truncate rounded-lg bg-surface px-1 py-1 text-[10px]"
-                          title="拖曳改日期"
+                          title="點開可複製、標記發布或讓 AI 延伸"
                         >
                           {CONTENT_KIND_META[row.contentKind].label} {row.title}
                         </button>
@@ -135,43 +205,29 @@ export function CalendarPage() {
                 {format(row.plannedAt, "M/d（EE）HH:mm", { locale: zhTW })} · {CONTENT_KIND_META[row.contentKind].label} · {CONTENT_STATUS_META[row.status].label}
               </p>
               <p className="mt-1 font-medium">{row.title}</p>
-              <div className="mt-2 flex gap-2">
-                <Button size="sm" variant="secondary" onClick={() => duplicateSchedule(row.id)}>複製</Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setScheduleStatus(row.id, row.status === "published" ? "scheduled" : "published")}
-                >
-                  {row.status === "published" ? "改回已排程" : "標記已發布"}
-                </Button>
-                <Button size="sm" variant="ghost" asChild>
-                  <Link
-                    to="/create"
-                    search={{ tab: "campaign" }}
-                    onClick={() =>
-                      writeHandoff({
-                        idea: row.title,
-                        tab: "campaign",
-                        convertKind:
-                          row.contentKind === "story" ||
-                          row.contentKind === "carousel" ||
-                          row.contentKind === "reels" ||
-                          row.contentKind === "ig-post"
-                            ? row.contentKind
-                            : undefined,
-                        autoRun: true,
-                        sourceLabel: `排程 / ${row.title}`,
-                      })
-                    }
-                  >
-                    AI 延伸
-                  </Link>
-                </Button>
+              <div className="mt-2">
+                <ScheduleActions row={row} compact />
               </div>
             </li>
           ))}
         </ul>
       )}
+
+      <Sheet open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(null)}>
+        <SheetContent side="bottom" className="rounded-t-3xl pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+          {selected ? (
+            <>
+              <SheetTitle>{selected.title}</SheetTitle>
+              <SheetDescription>
+                {format(selected.plannedAt, "M/d（EE）HH:mm", { locale: zhTW })} · {CONTENT_KIND_META[selected.contentKind].label} · {CONTENT_STATUS_META[selected.status].label}
+              </SheetDescription>
+              <div className="mt-4">
+                <ScheduleActions row={selected} />
+              </div>
+            </>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </main>
   );
 }

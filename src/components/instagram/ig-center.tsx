@@ -6,33 +6,21 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { IgThumb } from "@/components/create/ig-thumb";
 import { IG_DNA } from "@/lib/club/memory";
+import { lastPackPreviewSrc } from "@/lib/club/last-pack";
 import { lessonsFromIg } from "@/lib/club/insights";
 import { writeHandoff } from "@/lib/create/handoff";
 import { listConnectedMedia } from "@/lib/connections/oauth";
 import { useCreative, type IgMemoryPost } from "@/stores/creative-store";
-import { useStudio } from "@/stores/studio-store";
-import { ArtboardView } from "@/components/studio/artboard-view";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { pagesOf } from "@/lib/studio/layers";
 
 export function InstagramCenter() {
   const posts = useCreative((s) => s.igPosts);
   const ingestIg = useCreative((s) => s.ingestIg);
-  const projects = useStudio((s) => s.projects);
-  const brands = useStudio((s) => s.brands);
+  const lastPack = useCreative((s) => s.lastPack);
   const [active, setActive] = useState<IgMemoryPost | null>(null);
   const [live, setLive] = useState<IgMemoryPost[]>([]);
-  const brand = brands[0];
-  const lastProjectId = useStudio((s) => s.lastProjectId);
-  const preview = projects.find((p) => p.id === lastProjectId) ?? projects[0];
-  const artboard = preview ? pagesOf(preview)[preview.slideIndex ?? 0] : undefined;
-  const urls = useAssetUrls(
-    preview
-      ? pagesOf(preview).flatMap((page) =>
-          page.layers.flatMap((l) => (l.type === "image" || l.type === "logo" ? [l.assetId ?? ""] : [])),
-        )
-      : [],
-  );
+  const urls = useAssetUrls(lastPack?.heroAssetId ? [lastPack.heroAssetId] : []);
+  const draftThumb = lastPack ? lastPackPreviewSrc(lastPack, urls) : "";
 
   useEffect(() => {
     void listConnectedMedia().then((result) => {
@@ -54,6 +42,17 @@ export function InstagramCenter() {
 
   const grid = live.length ? live : posts;
   const lessons = lessonsFromIg(posts);
+  const draftPost: IgMemoryPost | null = lastPack
+    ? {
+        id: `draft_${lastPack.projectId}`,
+        mediaType: lastPack.kind === "carousel" ? "carousel" : lastPack.kind === "reels" ? "reels" : "image",
+        caption: lastPack.caption,
+        takenAt: lastPack.updatedAt,
+        thumb: draftThumb,
+        metricsSource: "memory",
+        analysis: `草稿 · ${lastPack.eventName}。Hook：${lastPack.hook}`,
+      }
+    : null;
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
@@ -75,6 +74,16 @@ export function InstagramCenter() {
             {live.length ? "官方 Instagram 內容。" : "本機 Creative Memory。官方授權後會換成真實貼文。"}
           </p>
           <ul className="mt-4 grid grid-cols-3 gap-1">
+            {draftPost ? (
+              <li>
+                <button type="button" className="relative block w-full" onClick={() => setActive(draftPost)}>
+                  <IgThumb src={draftPost.thumb} caption={lastPack?.hook} />
+                  <span className="absolute left-1 top-1 rounded-full bg-accent px-2 py-0.5 text-[10px] text-accent-fg">
+                    草稿
+                  </span>
+                </button>
+              </li>
+            ) : null}
             {grid.map((post) => (
               <li key={post.id}>
                 <button type="button" className="block w-full" onClick={() => setActive(post)}>
@@ -86,14 +95,23 @@ export function InstagramCenter() {
         </div>
         <aside className="rounded-3xl bg-surface p-4 shadow-[var(--shadow-border)]">
           <h2 className="text-sm font-medium">IG Preview</h2>
-          {preview && brand && artboard ? (
-            <div className="mt-4 flex justify-center rounded-2xl bg-bg p-3">
-              <ArtboardView artboard={artboard} brand={brand} urls={urls} width={160} />
+          {lastPack ? (
+            <div className="mt-4" data-testid="ig-preview">
+              <div className="overflow-hidden rounded-2xl bg-bg">
+                <IgThumb src={draftThumb} caption={lastPack.hook} className="aspect-[4/5] w-full" />
+              </div>
+              <p className="mt-3 text-sm font-medium">{lastPack.hook}</p>
+              <p className="mt-1 whitespace-pre-wrap text-xs text-muted">{lastPack.caption.slice(0, 160)}</p>
+              <p className="mt-2 text-[11px] text-subtle">{lastPack.hashtags.join(" ")}</p>
+              <Button asChild className="mt-3 w-full" size="sm">
+                <Link to="/create" search={{ tab: "campaign" }}>
+                  繼續改這篇
+                </Link>
+              </Button>
             </div>
           ) : (
             <p className="mt-4 text-sm text-muted">先做一篇內容，這裡會出現 Feed 預覽。</p>
           )}
-          <p className="mt-3 text-xs text-muted">{preview?.copy.caption.slice(0, 80)}</p>
         </aside>
       </section>
 

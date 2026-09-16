@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { type LastPack } from "@/lib/club/last-pack";
 import { FEATURED_EVENT } from "@/lib/club/memory";
-import { buildCampaignRhythm, plannedTimestamp } from "@/lib/club/schedule";
+import { buildCampaignRhythm, scheduleDraftsFromCampaign } from "@/lib/club/schedule";
 import { uid } from "@/lib/studio/ids";
 import type {
   CampaignWave,
@@ -69,6 +70,7 @@ type CreativeState = {
   igPosts: IgMemoryPost[];
   folder: FolderPref;
   lastSearch: string;
+  lastPack: LastPack | null;
   setHydrated: (v: boolean) => void;
   upsertCampaign: (input: Partial<ClubCampaign> & Pick<ClubCampaign, "name">) => ClubCampaign;
   removeCampaign: (id: string) => void;
@@ -82,6 +84,7 @@ type CreativeState = {
   setFolder: (patch: Partial<FolderPref>) => void;
   ingestIg: (posts: IgMemoryPost[]) => void;
   setLastSearch: (q: string) => void;
+  setLastPack: (pack: LastPack | null) => void;
 };
 
 function seedCampaign(): ClubCampaign {
@@ -110,17 +113,7 @@ function seedCampaign(): ClubCampaign {
 }
 
 function seedSchedule(campaign: ClubCampaign): ScheduleItem[] {
-  return campaign.waves.map((wave) => ({
-    id: uid("sch"),
-    campaignId: campaign.id,
-    projectId: wave.purpose === "hero" ? "proj_floating_light" : wave.purpose === "story" ? "proj_sit_down" : null,
-    title: `${wave.label} · ${campaign.name}`,
-    contentKind: wave.contentKind,
-    status: wave.offsetDays < -6 ? "done" : wave.offsetDays <= 0 ? "scheduled" : "idea",
-    plannedAt: plannedTimestamp(campaign.date, wave.offsetDays),
-    publishedAt: null,
-    sourceLabel: "AI 節奏建議",
-  }));
+  return scheduleDraftsFromCampaign(campaign).map((row) => ({ ...row, id: uid("sch") }));
 }
 
 function seedIg(): IgMemoryPost[] {
@@ -177,6 +170,7 @@ export const useCreative = create<CreativeState>()(
       igPosts: seedIg(),
       folder: { driveFolder: "淡江禪學社主要資料夾", driveFolderId: "" },
       lastSearch: "",
+      lastPack: null,
       setHydrated: (hydrated) => set({ hydrated }),
       upsertCampaign: (input) => {
         const existing = input.id ? get().campaigns.find((c) => c.id === input.id) : undefined;
@@ -306,6 +300,7 @@ export const useCreative = create<CreativeState>()(
           return { igPosts: [...byId.values()].sort((a, b) => b.takenAt - a.takenAt) };
         }),
       setLastSearch: (lastSearch) => set({ lastSearch }),
+      setLastPack: (lastPack) => set({ lastPack }),
     }),
     {
       name: "zen-creative-v1",
@@ -317,6 +312,7 @@ export const useCreative = create<CreativeState>()(
         igPosts: s.igPosts,
         folder: s.folder,
         lastSearch: s.lastSearch,
+        lastPack: s.lastPack,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<CreativeState>;
@@ -327,11 +323,14 @@ export const useCreative = create<CreativeState>()(
             driveFolder: p.folder?.driveFolder || current.folder.driveFolder,
             driveFolderId: p.folder?.driveFolderId || "",
           },
+          lastPack: p.lastPack ?? current.lastPack ?? null,
         };
       },
     },
   ),
 );
+
+export type { LastPack };
 
 export function sourceLabel(kind: CreativeSourceKind) {
   if (kind === "drive") return "Google Drive";

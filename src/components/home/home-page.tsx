@@ -8,6 +8,8 @@ import { ProjectCard } from "@/components/shared/project-card";
 import { SectionHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
+import { IgThumb } from "@/components/create/ig-thumb";
+import { lastPackPreviewSrc } from "@/lib/club/last-pack";
 import { FEATURED_EVENT, featuredCampaignIdea } from "@/lib/club/memory";
 import { handoffFromQuickStart, QUICK_STARTS } from "@/lib/club/quick-starts";
 import { formatDaysUntil, studentContext } from "@/lib/club/season";
@@ -25,6 +27,7 @@ export function HomePage() {
   const campaigns = useCreative((s) => s.campaigns);
   const schedule = useCreative((s) => s.schedule);
   const igPosts = useCreative((s) => s.igPosts);
+  const lastPack = useCreative((s) => s.lastPack);
   const setCreateOpen = useUi((s) => s.setCreateOpen);
   const setSearchOpen = useUi((s) => s.setSearchOpen);
   const setLastSearch = useCreative((s) => s.setLastSearch);
@@ -32,7 +35,7 @@ export function HomePage() {
   const ctx = studentContext();
   const featured = campaigns.find((c) => c.id === FEATURED_EVENT.id) ?? campaigns[0];
 
-  const urls = useAssetUrls(assets.map((a) => a.id));
+  const urls = useAssetUrls([...assets.map((a) => a.id), lastPack?.heroAssetId ?? ""]);
   const recent = useMemo(() => [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6), [projects]);
   const upcoming = [...schedule].sort((a, b) => a.plannedAt - b.plannedAt).filter((row) => row.status !== "published").slice(0, 4);
   const strong = [...igPosts].sort((a, b) => (b.metrics?.saves ?? 0) - (a.metrics?.saves ?? 0))[0];
@@ -194,6 +197,18 @@ export function HomePage() {
 
         <section className="mt-10">
           <SectionHeader title="最近 AI 生成" hint="依最後編輯" />
+          {lastPack ? (
+            <Link to="/instagram" className="mb-3 block overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-border)]" data-testid="home-last-pack">
+              <div className="grid gap-0 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                <IgThumb src={lastPackPreviewSrc(lastPack, urls)} caption={lastPack.hook} className="aspect-[4/5] sm:aspect-square" />
+                <div className="p-4">
+                  <p className="text-xs text-muted">剛生成 · {lastPack.eventName}</p>
+                  <p className="mt-1 font-medium">{lastPack.hook}</p>
+                  <p className="mt-2 line-clamp-3 text-sm text-muted">{lastPack.caption}</p>
+                </div>
+              </div>
+            </Link>
+          ) : null}
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {recent.map((project) => (
               <li key={project.id}>

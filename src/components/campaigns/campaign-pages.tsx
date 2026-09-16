@@ -12,6 +12,7 @@ import { generateCopyPack } from "@/lib/copy/generate";
 import { generateImageDirections } from "@/lib/image/studio";
 import { emptyBrief } from "@/lib/studio/brief";
 import { lessonPrompt } from "@/lib/club/insights";
+import { lastPackFromPlan } from "@/lib/club/last-pack";
 import { buildCampaignRhythm } from "@/lib/club/schedule";
 import { CONTENT_KIND_META } from "@/lib/studio/status";
 import { useCreative } from "@/stores/creative-store";
@@ -72,7 +73,9 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
   const brands = useStudio((s) => s.brands);
   const createProject = useStudio((s) => s.createProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
+  const updateProject = useStudio((s) => s.updateProject);
   const attachProject = useCreative((s) => s.attachProject);
+  const setLastPack = useCreative((s) => s.setLastPack);
   const igPosts = useCreative((s) => s.igPosts);
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -111,8 +114,6 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
         toast.error(result.error);
         return;
       }
-      if (result.plan.waves?.length) setWaves(current.id, result.plan.waves, { syncCalendar: true });
-      else setWaves(current.id, buildCampaignRhythm({ eventDate: current.date, eventType: current.type || current.name }), { syncCalendar: true });
       if (result.plan.directions) setDirections(current.id, result.plan.directions);
       const project = createProject({
         name: result.plan.campaignName,
@@ -123,8 +124,25 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
       });
       applyCampaignPlan(project.id, result.plan, brief);
       attachProject(current.id, project.id);
-      toast.success("已生成完整宣傳");
-      void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+      if (result.plan.waves?.length) setWaves(current.id, result.plan.waves, { syncCalendar: true });
+      else setWaves(current.id, buildCampaignRhythm({ eventDate: current.date, eventType: current.type || current.name }), { syncCalendar: true });
+      updateProject(project.id, {
+        campaignId: current.id,
+        contentStatus: "scheduled",
+        scheduledAt: Date.now(),
+      });
+      setLastPack(
+        lastPackFromPlan({
+          projectId: project.id,
+          campaignId: current.id,
+          eventName: current.name,
+          plan: result.plan,
+          kind: "ig-post",
+          directionName: result.plan.directions?.[0]?.name,
+        }),
+      );
+      toast.success("已生成完整宣傳並排入 Calendar");
+      void navigate({ to: "/instagram" });
     } finally {
       setBusy(false);
     }
