@@ -7,11 +7,13 @@ import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
+import { calendarSearchParams, scheduleForCampaign } from "@/lib/studio/calendar-search";
 import { contentKindLabel } from "@/lib/studio/content";
 import { academicBeat, academicBeatLabel, daysUntil } from "@/lib/zen/context";
 import { ideaFromInspiration, inspirationForBeat } from "@/lib/zen/inspiration";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
+import { recommendCampaign, recommendHook } from "@/lib/zen/recommend";
 import { soonestScheduled, isDue } from "@/lib/zen/schedule";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
@@ -31,11 +33,10 @@ export function HomePage() {
   const igMemory = useStudio((s) => s.igMemory);
   const brand = brands[0];
 
-  const upcoming = useMemo(() => {
-    return [...campaigns].sort((a, b) => a.date.localeCompare(b.date))[0];
-  }, [campaigns]);
+  const upcoming = useMemo(() => recommendCampaign(campaigns), [campaigns]);
   const days = upcoming ? daysUntil(upcoming.date) : null;
-  const scheduled = soonestScheduled(schedule, 6);
+  const scheduled = soonestScheduled(scheduleForCampaign(schedule, upcoming?.id), 6);
+  const calendarSearch = calendarSearchParams({ campaign: upcoming?.id });
   const generated = [...projects].filter((p) => p.plan).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
   const generatedLooks = assets.filter((asset) => asset.source === "generated").slice(0, 4);
   const dna = useMemo(
@@ -76,7 +77,10 @@ export function HomePage() {
       </div>
 
       {upcoming ? (
-        <section className="relative mt-8 overflow-hidden rounded-[1.75rem] bg-accent text-accent-fg shadow-[var(--shadow-lift)]">
+        <section
+          className="relative mt-8 overflow-hidden rounded-[1.75rem] bg-accent text-accent-fg shadow-[var(--shadow-lift)]"
+          data-testid="home-recommend"
+        >
           <div className="pointer-events-none absolute -right-10 -top-16 size-48 rounded-full bg-amber/50 blur-2xl" />
           <div className="pointer-events-none absolute bottom-0 right-16 size-32 rounded-full bg-dusk/40 blur-xl" />
           <div className="grid gap-4 p-5 md:grid-cols-[1.2fr_0.8fr] md:p-8">
@@ -90,7 +94,9 @@ export function HomePage() {
               </p>
               <p className="mt-5 text-lg leading-snug">
                 AI 建議做一篇
-                <span className="mt-1 block font-display text-2xl">「{learning.bestHookShape || upcoming.oneLiner}」</span>
+                <span className="mt-1 block font-display text-2xl" data-testid="home-recommend-hook">
+                  「{recommendHook(upcoming, learning.bestHookShape)}」
+                </span>
               </p>
               <p className="mt-2 text-sm text-accent-fg/75">IG Carousel · 讓淡江學生覺得這跟自己有關</p>
               <Button
@@ -188,7 +194,14 @@ export function HomePage() {
       </section>
 
       <section className="mt-10" data-testid="home-scheduled">
-        <SectionHeader title="已排程內容" action={<Link to="/calendar" className="text-sm text-muted">月曆</Link>} />
+        <SectionHeader
+          title="已排程內容"
+          action={
+            <Link to="/calendar" search={calendarSearch} className="text-sm text-muted">
+              月曆
+            </Link>
+          }
+        />
         {scheduled.length === 0 ? (
           <p className="rounded-2xl bg-surface px-4 py-8 text-center text-sm text-muted">還沒有排程。</p>
         ) : (
@@ -214,6 +227,7 @@ export function HomePage() {
                 {isDue(item) ? (
                   <Link
                     to="/calendar"
+                    search={calendarSearch}
                     data-testid={item.id === scheduled.find((row) => isDue(row))?.id ? "home-due" : undefined}
                     className="shrink-0 rounded-full bg-amber/20 px-2.5 py-1 text-[11px] text-warn"
                   >
