@@ -10,6 +10,7 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { getConnections } from "@/lib/connections/status";
 import type { ConnectionStatus } from "@/lib/connections/providers";
 import { buildIgDna, buildIgInsights } from "@/lib/studio/ig-dna";
+import { clipSeed } from "@/lib/studio/sources";
 import { contentKindLabel } from "@/lib/studio/status";
 import { cn } from "@/lib/utils";
 import { CLUB_HANDLE, CLUB_INTRO_SHORT, CLUB_NAME } from "@/lib/zen/club";
@@ -164,13 +165,14 @@ export function InstagramCenter() {
 
       {tab === "history" ? (
         <section className="mt-6">
-          <SectionHeader title="過去 IG" hint="連接後會用真正的 Grid 顯示，點進去可以看 Caption、日期與成效" />
+          <SectionHeader title="過去 IG" hint="連接後會帶進真實貼文。沒連上時也可以延續這個工作室裡做過的內容。" />
           {loading ? (
             <p className="flex items-center gap-2 text-sm text-muted">
               <Loader2 className="size-4 animate-spin" />
               正在確認連接狀態…
             </p>
-          ) : igPosts.length ? (
+          ) : null}
+          {!loading && igPosts.length ? (
             <ul className="space-y-2">
               {igPosts.map((post) => (
                 <li
@@ -185,11 +187,18 @@ export function InstagramCenter() {
                       {post.metrics?.comments != null ? ` · ${post.metrics.comments} 則留言` : ""}
                     </p>
                   </div>
-                  <BringRemoteButton item={post} />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <ExtendLink
+                      seed={`${post.title}\n${post.detail}`}
+                      kind={post.kind === "video" ? "reels" : "ig-post"}
+                    />
+                    <BringRemoteButton item={post} />
+                  </div>
                 </li>
               ))}
             </ul>
-          ) : connected ? (
+          ) : null}
+          {!loading && connected && !igPosts.length ? (
             <EmptyBlock
               text="已連接，但還沒同步過。到連接頁按一次「同步」就會把過去貼文帶進來。"
               action={
@@ -200,19 +209,48 @@ export function InstagramCenter() {
                 </Button>
               }
             />
-          ) : (
-            <EmptyBlock
-              text={`還沒連接 Instagram，所以這裡沒有真實貼文。連接之後 AI 才能讀 ${CLUB_NAME} 過去的 Caption、輪播、Reels 與互動，並用它調整下一篇。`}
-              action={
-                <Button asChild size="sm">
-                  <Link to="/connections" search={{ focus: "instagram" }}>
-                    <Link2 className="size-4" />
-                    連接 Instagram
-                  </Link>
-                </Button>
-              }
-            />
-          )}
+          ) : null}
+          {!loading && !connected && !igPosts.length ? (
+            feed.length ? (
+              <p className="text-xs text-subtle">
+                還沒連接 Instagram。連接之後才有真實貼文；下面是這個工作室裡做過的內容，可以延續語氣再寫一篇。
+              </p>
+            ) : (
+              <EmptyBlock
+                text={`還沒連接 Instagram，所以這裡沒有真實貼文。連接之後 AI 才能讀 ${CLUB_NAME} 過去的 Caption、輪播、Reels 與互動，並用它調整下一篇。`}
+                action={
+                  <Button asChild size="sm">
+                    <Link to="/connections" search={{ focus: "instagram" }}>
+                      <Link2 className="size-4" />
+                      連接 Instagram
+                    </Link>
+                  </Button>
+                }
+              />
+            )
+          ) : null}
+          {feed.length ? (
+            <ul className={igPosts.length || !connected ? "mt-3 space-y-2" : "space-y-2"}>
+              {feed.map((project) => (
+                <li
+                  key={project.id}
+                  className="flex flex-wrap items-start justify-between gap-2 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{project.name}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-muted">
+                      {project.copy.caption || project.copy.headline}
+                    </p>
+                    <p className="mt-1 text-xs text-subtle">{contentKindLabel(project.contentKind)}</p>
+                  </div>
+                  <ExtendLink
+                    seed={project.copy.caption || project.copy.headline || project.name}
+                    kind={project.contentKind}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </section>
       ) : null}
 
@@ -349,11 +387,14 @@ export function InstagramCenter() {
                 </Card>
               ) : null}
               <Card title="互動較高的開頭">
-                <ul className="space-y-1 text-xs text-muted">
+                <ul className="space-y-2 text-xs text-muted">
                   {insights.topPosts.map((post) => (
-                    <li key={post.title}>
-                      {post.title} · {post.likes} 讚 / {post.comments} 留言
-                      {post.saved ? ` / ${post.saved} 收藏` : ""}
+                    <li key={post.title} className="flex flex-wrap items-start justify-between gap-2">
+                      <span>
+                        {post.title} · {post.likes} 讚 / {post.comments} 留言
+                        {post.saved ? ` / ${post.saved} 收藏` : ""}
+                      </span>
+                      <ExtendLink seed={post.title} />
                     </li>
                   ))}
                 </ul>
@@ -384,6 +425,20 @@ export function InstagramCenter() {
         </section>
       ) : null}
     </main>
+  );
+}
+
+function ExtendLink({ seed, kind }: { seed: string; kind?: string }) {
+  return (
+    <Button asChild size="sm">
+      <Link
+        to="/create"
+        search={{ from: "idea", seed: clipSeed(seed), ...(kind ? { kind } : {}) }}
+        aria-label="延續這則"
+      >
+        延續這則
+      </Link>
+    </Button>
   );
 }
 

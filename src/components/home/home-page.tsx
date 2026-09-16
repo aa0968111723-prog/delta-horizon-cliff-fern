@@ -4,12 +4,12 @@ import {
   CalendarDays,
   Images,
   Instagram,
-  Lightbulb,
   Sparkles,
   Tent,
 } from "lucide-react";
 import { useMemo } from "react";
 import { QuickStartGrid } from "@/components/create/quick-start";
+import { TodayIdeas } from "@/components/home/today-ideas";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SectionHeader } from "@/components/shared/page-header";
 import { ProjectCard } from "@/components/shared/project-card";
@@ -22,7 +22,6 @@ import type { Campaign, CampaignWave } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { APP_TAGLINE, CLUB_NAME, eventKindLabel } from "@/lib/zen/club";
 import { semesterPhaseAt, tamsuiContextAt } from "@/lib/zen/semester";
-import { HOOK_PATTERNS } from "@/lib/zen/voice";
 import { useStudio } from "@/stores/studio-store";
 
 /** 今天最該做的那一篇：從最近活動的宣傳節奏裡挑出還沒做的那一波。 */
@@ -228,38 +227,7 @@ export function HomePage() {
         <QuickStartGrid />
       </section>
 
-      {/* 今日靈感 */}
-      <section className="mt-10">
-        <SectionHeader
-          title="今日靈感"
-          hint={`${phase.label}適合的角度`}
-          action={
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/create" search={{ from: "idea" }}>
-                更多靈感
-              </Link>
-            </Button>
-          }
-        />
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {HOOK_PATTERNS.slice(0, 3).map((pattern) => (
-            <li key={pattern.label}>
-              <Link
-                to="/create"
-                search={{ from: "idea", seed: pattern.example }}
-                className="flex h-full flex-col gap-2 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-lift)]"
-              >
-                <span className="flex items-center gap-2 text-xs text-muted">
-                  <Lightbulb className="size-3.5" />
-                  {pattern.label}
-                </span>
-                <span className="font-display text-lg leading-snug">「{pattern.example}」</span>
-                <span className="text-xs text-subtle">{pattern.why}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <TodayIdeas />
 
       {/* 近期活動 */}
       {upcoming.length > 0 ? (

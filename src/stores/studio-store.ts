@@ -13,7 +13,7 @@ import {
   stampSlideMeta,
 } from "@/lib/studio/carousel";
 import { defaultWavePlan, migrateCampaign } from "@/lib/studio/campaign";
-import { convertContent } from "@/lib/studio/convert";
+import { applyKindLayout, convertContent } from "@/lib/studio/convert";
 import { applyAssetToArtboard } from "@/lib/studio/reels-cover";
 import { sourceFromAsset } from "@/lib/studio/sources";
 import { emptyCopy, withBoilerplate } from "@/lib/studio/copy";
@@ -131,6 +131,7 @@ type StudioState = {
   updateWave: (campaignId: string, waveId: string, patch: Partial<CampaignWave>) => void;
   fillDefaultWaves: (id: string) => void;
   convertProject: (id: string, kind: ContentKind) => Project | null;
+  layoutFromKind: (id: string, kind: ContentKind) => boolean;
   setContentKind: (projectId: string, kind: ContentKind) => void;
   setSchedule: (projectId: string, at: number | null) => void;
   applySchedule: (entries: { projectId: string; at: number }[]) => number;
@@ -767,6 +768,14 @@ export const useStudio = create<StudioState>()(
         const next = convertContent(src, brand, kind);
         set((state) => ({ projects: [next, ...state.projects], lastProjectId: next.id }));
         return next;
+      },
+      layoutFromKind: (id, kind) => {
+        const s = get();
+        const project = s.projects.find((p) => p.id === id);
+        if (!project) return false;
+        const brand = brandById(s.brands, project.brandId);
+        get().updateProject(id, applyKindLayout(project, brand, kind));
+        return true;
       },
       recordExport: (id, version) =>
         get().updateProject(id, (p) => ({

@@ -1,6 +1,6 @@
-import { formatById } from "./formats";
-import { uid } from "./ids";
-import { DEFAULT_CROP, DEFAULT_FILTER, DEFAULT_SHADOW } from "./layers";
+import { formatById } from "./formats.ts";
+import { uid } from "./ids.ts";
+import { DEFAULT_CROP, DEFAULT_FILTER, DEFAULT_SHADOW } from "./layers.ts";
 import type {
   Artboard,
   BrandKit,

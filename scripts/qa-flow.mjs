@@ -43,6 +43,7 @@ try {
   await page.goto(`${base}/`, { waitUntil: "networkidle" });
   await expectText("首頁標題", "今天可以創作什麼？");
   await expectText("今天推薦創作", "AI 建議這篇");
+  await expectText("今日靈感", "今日靈感");
 
   // 2. AI 幫我創作
   await page.getByRole("button", { name: /AI 幫我創作/ }).click();
@@ -159,6 +160,16 @@ try {
     el instanceof HTMLElement ? el.click() : undefined,
   );
   await expectText("IG DNA 寫新的一篇", "用這個習慣寫新的一篇");
+  await page.getByRole("button", { name: "過去 IG" }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await expectText("延續這則", "延續這則");
+  await page.getByRole("link", { name: "延續這則" }).first().evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForURL(/\/create/, { timeout: 15000 });
+  const extendIdea = await page.locator("#idea").inputValue();
+  record("延續這則帶入想法", extendIdea.length > 0, "想法欄沒有帶入過去內容");
 
   await page.goto(`${base}/search`, { waitUntil: "networkidle" });
   await expectText("搜尋用這張創作", "用這張創作");

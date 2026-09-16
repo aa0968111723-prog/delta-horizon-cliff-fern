@@ -30,8 +30,8 @@ import { generateIgCopy, getZenAiStatus, reviewAsStudent, generateReelsScript } 
 import { generateVisualDirections, type VisualDirection } from "@/lib/ai/image-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
 import { saveDataUrlAsAsset } from "@/lib/studio/generated-image";
-import { sourceFromAsset } from "@/lib/studio/sources";
-import { CONTENT_KIND_META, CONTENT_KIND_ORDER, contentKindLabel } from "@/lib/studio/status";
+import { sourceFromAsset, sourceFromExtend } from "@/lib/studio/sources";
+import { CONTENT_KIND_META, CONTENT_KIND_ORDER, contentKindLabel, kindUsesPagedLayout } from "@/lib/studio/status";
 import type { ContentKind, CopyDraft, CopyTone, StudentReview } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { AUDIENCE_SEGMENTS, DEFAULT_AUDIENCE_IDS } from "@/lib/zen/audience";
@@ -70,6 +70,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const addSources = useStudio((s) => s.addSources);
   const applyCoverAsset = useStudio((s) => s.applyCoverAsset);
   const applyVisualAsset = useStudio((s) => s.applyVisualAsset);
+  const layoutFromKind = useStudio((s) => s.layoutFromKind);
   const igDnaText = useIgDnaText();
 
   const brand = brands[0];
@@ -223,6 +224,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           painPoint: painPoint.trim(),
           audienceIds,
           brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+          igDnaText: igDnaText || undefined,
         },
       });
       setReview(res.review);
@@ -239,6 +241,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     if (!brand) return;
     const meta = CONTENT_KIND_META[kind];
     const name = draft.hook.slice(0, 18) || eventName || "未命名內容";
+    const created = !linkedProject;
     const target =
       linkedProject ??
       createProject({
@@ -266,7 +269,10 @@ export function CreatePage({ search }: { search: CreateSearch }) {
             reels: kind === "reels",
           },
         },
-        sources: campaign ? [{ kind: "local", label: `活動 / ${campaign.name}`, detail: "活動資訊" }] : [],
+        sources: [
+          ...(campaign ? [{ kind: "local" as const, label: `活動 / ${campaign.name}`, detail: "活動資訊" }] : []),
+          ...(search.seed ? [sourceFromExtend({ title: search.seed })] : []),
+        ],
       });
 
     addCopyDraft(target.id, draft);
@@ -276,6 +282,9 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     if (imageSourceAssetId) {
       const asset = useStudio.getState().assets.find((item) => item.id === imageSourceAssetId);
       if (asset) addSources(target.id, [sourceFromAsset(asset, "圖片寫文案")]);
+    }
+    if (created && kindUsesPagedLayout(kind)) {
+      layoutFromKind(target.id, kind);
     }
 
     if (campaign) {
@@ -346,6 +355,9 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       else applyVisualAsset(project.id, assetId);
       if (payload.caption) {
         setCopy(project.id, { headline: payload.caption.slice(0, 24), caption: payload.caption });
+      }
+      if (kindUsesPagedLayout(payload.kind)) {
+        layoutFromKind(project.id, payload.kind);
       }
       toast.success(`已做成${contentKindLabel(payload.kind)}`);
       void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
@@ -780,6 +792,11 @@ export function CreatePage({ search }: { search: CreateSearch }) {
               <li key={direction.id}>
                 <VisualDirectionCard
                   direction={direction}
+                  styleHint={
+                    brand
+                      ? `${brand.imageStyle.mood}｜${brand.imageStyle.lighting}｜${brand.imageStyle.composition}`
+                      : undefined
+                  }
                   onUseCopy={(headline, subhead) => {
                     if (linkedProject) {
                       setCopy(linkedProject.id, { headline, subhead });

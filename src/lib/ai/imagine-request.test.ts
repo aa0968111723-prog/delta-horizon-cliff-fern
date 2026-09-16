@@ -24,10 +24,15 @@ test("edit payload is official Imagine edits shape, not a mocked image", () => {
 });
 
 test("generate payload asks for b64 so the studio can store the file", () => {
-  const payload = buildGeneratePayload("quiet dorm lamp", "4:5");
+  const payload = buildGeneratePayload("quiet dorm lamp", "4:5", "paper white, teal accent");
   assert.equal(payload.n, 1);
   assert.equal(payload.response_format, "b64_json");
   assert.match(payload.prompt, /4:5/);
+  assert.match(payload.prompt, /Tamsui|Tamkang/i);
+  assert.match(payload.prompt, /paper white/);
+  assert.match(payload.prompt, /no Buddha/i);
+  assert.match(payload.prompt, /no lotus/i);
+  assert.doesNotMatch(payload.prompt, /mock|placeholder/i);
 });
 
 test("imagineResultFromBody reads b64 and never invents pixels", () => {

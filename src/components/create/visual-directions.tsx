@@ -20,10 +20,12 @@ export function VisualDirectionCard({
   direction,
   onUseCopy,
   onImageSaved,
+  styleHint,
 }: {
   direction: VisualDirection;
   onUseCopy?: (headline: string, subhead: string) => void;
   onImageSaved?: (assetId: string) => void;
+  styleHint?: string;
 }) {
   const addAsset = useStudio((s) => s.addAsset);
   const [ratio, setRatio] = useState<(typeof RATIOS)[number]["id"]>("4:5");
@@ -33,7 +35,9 @@ export function VisualDirectionCard({
   async function runGenerate() {
     setBusy(true);
     try {
-      const res = await generateImage({ data: { prompt: direction.imagePrompt, ratio } });
+      const res = await generateImage({
+        data: { prompt: direction.imagePrompt, ratio, styleHint: styleHint || undefined },
+      });
       if (!res.ok) {
         toast.error(res.error);
         return;

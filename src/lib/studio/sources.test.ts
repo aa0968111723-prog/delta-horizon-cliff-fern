@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { migrateAsset } from "./assets.ts";
-import { sourceFromAsset, sourceFromRemote } from "./sources.ts";
+import { clipSeed, sourceFromAsset, sourceFromExtend, sourceFromRemote } from "./sources.ts";
 
 test("sourceFromAsset keeps Drive / Canva / Instagram instead of flattening to 本機", () => {
   const drive = migrateAsset({
@@ -31,6 +31,18 @@ test("sourceFromAsset keeps Drive / Canva / Instagram instead of flattening to �
     source: "generated",
   });
   assert.equal(sourceFromAsset(generated).kind, "generated");
+});
+
+test("clipSeed keeps an extend prompt short enough for the create form", () => {
+  assert.equal(clipSeed("  第一次來會怎樣？  "), "第一次來會怎樣？");
+  assert.equal(clipSeed("字".repeat(400)).length, 280);
+});
+
+test("sourceFromExtend marks the past post so generation can cite it", () => {
+  const ref = sourceFromExtend({ title: "最近是不是連休息都覺得有罪惡感？", kind: "instagram" });
+  assert.equal(ref.kind, "instagram");
+  assert.match(ref.label, /延續/);
+  assert.match(ref.detail, /過去/);
 });
 
 test("sourceFromRemote labels the provider in everyday language", () => {

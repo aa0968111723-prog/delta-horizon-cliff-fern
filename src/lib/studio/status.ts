@@ -60,6 +60,11 @@ export function isContentKind(value: unknown): value is ContentKind {
   return typeof value === "string" && value in CONTENT_KIND_META;
 }
 
+/** 輪播、知識卡、回顧、限動這類要拆成多頁，不能只留一張圖。 */
+export function kindUsesPagedLayout(kind: ContentKind): boolean {
+  return CONTENT_KIND_META[kind].slides > 1;
+}
+
 export function isContentStatus(value: unknown): value is ContentStatus {
   return typeof value === "string" && value in STATUS_META;
 }

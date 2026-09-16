@@ -167,6 +167,7 @@ const ReviewSchema = z.object({
   painPoint: z.string().max(300).catch(""),
   audienceIds: z.array(z.string().max(40)).max(8).catch([]),
   brandMemoryText: z.string().max(2500).optional(),
+  igDnaText: z.string().max(1500).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -212,7 +213,7 @@ export const reviewAsStudent = createServerFn({ method: "POST" })
     }
 
     const prompt = [
-      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText }),
+      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText, igDnaText: data.igDnaText }),
       "",
       "【任務】現在把身分切換成一個滑到這篇貼文的淡江學生（不是小編）。",
       "誠實回答下面每一題，會覺得怪就說怪。不要客套。",

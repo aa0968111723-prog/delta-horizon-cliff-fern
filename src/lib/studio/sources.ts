@@ -38,3 +38,20 @@ export function sourceFromRemote(
     assetId,
   };
 }
+
+export function clipSeed(text: string, max = 280): string {
+  return text.replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+export function sourceFromExtend(input: {
+  title: string;
+  kind?: CreativeSourceKind;
+  href?: string;
+}): CreativeSourceRef {
+  return {
+    kind: input.kind ?? "local",
+    label: `延續 / ${clipSeed(input.title, 28)}`,
+    detail: "從過去內容延續",
+    href: input.href,
+  };
+}

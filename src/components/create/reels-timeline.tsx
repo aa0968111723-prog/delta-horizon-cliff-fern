@@ -29,6 +29,7 @@ export function ReelsTimeline({
 }) {
   const addAsset = useStudio((s) => s.addAsset);
   const applyCoverAsset = useStudio((s) => s.applyCoverAsset);
+  const brand = useStudio((s) => s.brands[0]);
   const [copied, setCopied] = useState<"script" | "shots" | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -47,7 +48,15 @@ export function ReelsTimeline({
     setCoverBusy(true);
     try {
       const prompt = coverImagePrompt(reels);
-      const res = await generateImage({ data: { prompt, ratio: "9:16" } });
+      const res = await generateImage({
+        data: {
+          prompt,
+          ratio: "9:16",
+          styleHint: brand
+            ? `${brand.imageStyle.mood}｜${brand.imageStyle.lighting}｜${brand.imageStyle.composition}`
+            : undefined,
+        },
+      });
       if (!res.ok) {
         toast.error(res.error);
         return;

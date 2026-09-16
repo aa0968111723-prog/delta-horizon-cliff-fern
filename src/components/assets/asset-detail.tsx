@@ -16,6 +16,7 @@ import {
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { analyzeImage, generateImage } from "@/lib/ai/image-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
+import { useIgDnaText } from "@/hooks/use-ig-dna";
 import { ASSET_CATEGORIES, kindFromCategory, similarAssets, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import { saveGeneratedImage, urlToDataUrl } from "@/lib/studio/generated-image";
 import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
@@ -44,6 +45,7 @@ export function AssetDetailSheet({
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
   const assets = useStudio((s) => s.assets);
   const brand = useStudio((s) => s.brands[0]);
+  const igDnaText = useIgDnaText();
   const [busy, setBusy] = useState<"analyze" | "extend" | null>(null);
 
   const similar = useMemo(
@@ -86,6 +88,7 @@ export function AssetDetailSheet({
           imageUrl,
           question: "這張圖適不適合禪學社網宣？可以怎麼延續？",
           brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+          igDnaText: igDnaText || undefined,
         },
       });
       if (!res.ok) {
@@ -120,7 +123,15 @@ export function AssetDetailSheet({
     }
     setBusy("extend");
     try {
-      const res = await generateImage({ data: { prompt, ratio: "4:5" } });
+      const res = await generateImage({
+        data: {
+          prompt,
+          ratio: "4:5",
+          styleHint: brand
+            ? `${brand.imageStyle.mood}｜${brand.imageStyle.lighting}｜${brand.imageStyle.composition}`
+            : undefined,
+        },
+      });
       if (!res.ok) {
         toast.error(res.error);
         return;

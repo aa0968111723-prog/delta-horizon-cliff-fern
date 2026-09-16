@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { uid } from "@/lib/studio/ids";
+import { localTodayIdeas } from "@/lib/studio/ideas";
 import { CONTENT_KIND_META } from "@/lib/studio/status";
 import type { CampaignDirection, CampaignWave, ContentKind } from "@/lib/studio/types";
 import { eventKindLabel } from "@/lib/zen/club";
@@ -186,15 +187,15 @@ const IdeaJsonSchema = z.object({
 export type IdeaItem = { id: string; title: string; hook: string; kind: ContentKind; why: string };
 
 export type IdeaResult =
-  | { ok: true; ideas: IdeaItem[]; adapter: "live" }
-  | { ok: false; error: string; adapter: "local" };
+  | { ok: true; ideas: IdeaItem[]; adapter: "live" | "local" }
+  | { ok: false; error: string; adapter: "local"; ideas: IdeaItem[] };
 
 /** 今日靈感：依現在的學期階段給幾個可以馬上開始的題目。 */
 export const generateIdeas = createServerFn({ method: "POST" })
   .validator((input: unknown) => unwrap(input, IdeaSchema))
   .handler(async ({ data }): Promise<IdeaResult> => {
     if (data.forceLocal || !aiAvailable()) {
-      return { ok: false, error: "目前沒有連上 AI。", adapter: "local" };
+      return { ok: true, ideas: localTodayIdeas(), adapter: "local" };
     }
     const prompt = [
       buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText, igDnaText: data.igDnaText }),
@@ -212,7 +213,12 @@ export const generateIdeas = createServerFn({ method: "POST" })
 
     const res = await zenChat({ prompt, maxTokens: 1400, temperature: 0.9 });
     if (!res.ok) {
-      return { ok: false, error: res.error === "no-key" ? "目前沒有連上 AI" : res.error, adapter: "local" };
+      return {
+        ok: false,
+        error: res.error === "no-key" ? "目前沒有連上 AI" : res.error,
+        adapter: "local",
+        ideas: localTodayIdeas(),
+      };
     }
     try {
       const parsed = IdeaJsonSchema.parse(extractJson(res.text));
@@ -225,9 +231,11 @@ export const generateIdeas = createServerFn({ method: "POST" })
           kind: asContentKind(i.kind),
           why: i.why,
         }));
-      if (!ideas.length) return { ok: false, error: "AI 回傳無法解析。", adapter: "local" };
+      if (!ideas.length) {
+        return { ok: false, error: "AI 回傳無法解析。", adapter: "local", ideas: localTodayIdeas() };
+      }
       return { ok: true, ideas, adapter: "live" };
     } catch {
-      return { ok: false, error: "AI 回傳無法解析。", adapter: "local" };
+      return { ok: false, error: "AI 回傳無法解析。", adapter: "local", ideas: localTodayIdeas() };
     }
   });

@@ -9,7 +9,7 @@ import { convertCopy } from "./convert-copy.ts";
 import { uid } from "./ids.ts";
 import { buildLayout, extractImageAssetId } from "./layout.ts";
 import { MAX_SLIDES, pagesOf } from "./layers.ts";
-import { CONTENT_KIND_META, contentKindLabel } from "./status.ts";
+import { CONTENT_KIND_META, contentKindLabel, kindUsesPagedLayout } from "./status.ts";
 import type { Artboard, BrandKit, ContentKind, CopyDeck, Project } from "./types.ts";
 
 export { CONVERT_TARGETS, convertCopy, convertTargetLabel } from "./convert-copy.ts";
@@ -89,9 +89,46 @@ function carouselPages(source: Project, brand: BrandKit, copy: CopyDeck): Artboa
 }
 
 /**
- * 從一則內容做出另一則，不覆蓋原本的。
- * 文案會依型態改寫（限動變短、Threads 變口語、LINE 強調時間地點）。
+ * 把現有畫面依內容型態重組成限動／輪播頁。從一張圖做成輪播時也走這裡。
  */
+export function applyKindLayout(project: Project, brand: BrandKit, kind: ContentKind): Project {
+  const meta = CONTENT_KIND_META[kind];
+  const copy = convertCopy(project.copy, kind);
+  let pages: Artboard[];
+  if (kind === "story") {
+    pages = storyPages(project, brand, copy);
+  } else if (kindUsesPagedLayout(kind)) {
+    pages = carouselPages(project, brand, copy);
+  } else {
+    const sourcePage = pagesOf(project)[0];
+    pages = [
+      sourcePage
+        ? adaptArtboard(sourcePage, meta.formatId, brand, {
+            templateId: kind === "line" ? "offer" : project.templateId,
+            copy,
+          })
+        : buildLayout(meta.formatId, copy, brand, kind === "line" ? "offer" : project.templateId),
+    ];
+  }
+  return {
+    ...project,
+    copy,
+    contentKind: kind,
+    activeFormatId: meta.formatId,
+    slides: { ...project.slides, [meta.formatId]: pages },
+    artboards: { ...project.artboards, [meta.formatId]: pages[0]! },
+    slideIndex: 0,
+    brief: {
+      ...project.brief,
+      deliverables: {
+        post: kind === "ig-post",
+        story: kind === "story" || kind === "countdown",
+        carousel: kind === "carousel" || kind === "knowledge" || kind === "qa",
+        reels: kind === "reels",
+      },
+    },
+  };
+}
 export function convertContent(source: Project, brand: BrandKit, kind: ContentKind): Project {
   const meta = CONTENT_KIND_META[kind];
   const copy = convertCopy(source.copy, kind);

@@ -175,6 +175,8 @@ const ImageGenSchema = z.object({
   prompt: z.string().min(1).max(1200),
   /** 產出比例，會影響加在 prompt 後面的說明 */
   ratio: z.enum(["4:5", "1:1", "9:16", "1.91:1"]).catch("4:5"),
+  /** 品牌頁的畫面風格，接到 Imagine prompt 後面 */
+  styleHint: z.string().max(400).optional(),
 });
 
 export type ImageGenResult =
@@ -222,7 +224,7 @@ export const generateImage = createServerFn({ method: "POST" })
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify(buildGeneratePayload(data.prompt, data.ratio)),
+        body: JSON.stringify(buildGeneratePayload(data.prompt, data.ratio, data.styleHint)),
       });
       return imagineFromResponse(res);
     } catch {
@@ -273,6 +275,7 @@ const VisionSchema = z.object({
   question: z.string().max(600).catch(""),
   audienceIds: z.array(z.string().max(40)).max(8).catch([]),
   brandMemoryText: z.string().max(2500).optional(),
+  igDnaText: z.string().max(1500).optional(),
 });
 
 const VisionJsonSchema = z.object({
@@ -310,7 +313,11 @@ export const analyzeImage = createServerFn({ method: "POST" })
       return { ok: false, error: "這個環境沒有連上圖片理解服務。" };
     }
     const prompt = [
-      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText }),
+      buildZenContext({
+        audienceIds: data.audienceIds,
+        brandMemoryText: data.brandMemoryText,
+        igDnaText: data.igDnaText,
+      }),
       "",
       "【任務】看這張圖，用禪學社小編的眼光判斷它能不能用、怎麼用。",
       data.question ? `使用者特別想知道：${data.question}` : "",

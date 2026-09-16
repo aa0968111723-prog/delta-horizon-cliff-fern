@@ -7,6 +7,7 @@ import { analyzeImage, type ImageAnalysis } from "@/lib/ai/image-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
 import type { ContentKind } from "@/lib/studio/types";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
+import { useIgDnaText } from "@/hooks/use-ig-dna";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 
@@ -59,6 +60,7 @@ export function ImageUnderstanding({
 }) {
   const assets = useStudio((s) => s.assets);
   const brand = useStudio((s) => s.brands[0]);
+  const igDnaText = useIgDnaText();
   const updateAsset = useStudio((s) => s.updateAsset);
   const urls = useAssetUrls(assets.map((a) => a.id));
   const fileRef = useRef<HTMLInputElement>(null);
@@ -116,6 +118,7 @@ export function ImageUnderstanding({
           imageUrl: preview,
           audienceIds,
           brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+          igDnaText: igDnaText || undefined,
         },
       });
       if (!res.ok) {

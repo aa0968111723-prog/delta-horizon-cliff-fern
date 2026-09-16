@@ -1,5 +1,12 @@
 export const IMAGINE_IMAGE_MODEL = "grok-imagine-image-quality";
 
+/** 生圖時固定帶上的社團畫面，避免變成通用禪風模板。 */
+export const IMAGINE_CLUB_LOOK =
+  "Tamkang University student life in Tamsui: campus slope, dorm desk, riverside dusk, classroom cushions, paper-white space, one warm accent light, small round turtle mascot with three soft glows on the shell is allowed";
+
+export const IMAGINE_AVOID =
+  "no lotus, no Buddha statue, no incense, no temple gold, no calligraphy poster, no AI glow halo, no religious iconography";
+
 export const RATIO_HINT: Record<string, string> = {
   "4:5": "vertical 4:5 Instagram feed composition",
   "1:1": "square 1:1 Instagram feed composition",
@@ -52,14 +59,19 @@ export function imagineResultFromBody(body: unknown): ImagineImageHit | null {
   };
 }
 
-export function buildGeneratePayload(prompt: string, ratio: string) {
+export function buildGeneratePayload(prompt: string, ratio: string, styleHint?: string) {
   return {
     model: IMAGINE_IMAGE_MODEL,
     prompt: [
       prompt,
+      styleHint?.trim(),
       RATIO_HINT[ratio] ?? RATIO_HINT["4:5"],
-      "soft natural light, airy negative space, muted warm neutral palette with one accent light, documentary photo feel, no text, no watermark, no religious iconography",
-    ].join(", "),
+      IMAGINE_CLUB_LOOK,
+      "soft natural light, airy negative space, muted warm neutral palette with one accent light, documentary photo feel, no text, no watermark",
+      IMAGINE_AVOID,
+    ]
+      .filter(Boolean)
+      .join(", "),
     n: 1,
     response_format: "b64_json" as const,
   };
