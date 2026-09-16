@@ -128,8 +128,88 @@ export function convertTargetForFormat(formatId: FormatId): ConvertTargetId {
   return "post";
 }
 
+export function convertTargetForPreview(formatId: FormatId, contentKind?: ContentKind): ConvertTargetId {
+  if (contentKind === "carousel") return "carousel";
+  if (contentKind === "reels") return "reels";
+  if (contentKind === "story") return "story";
+  if (contentKind === "threads") return "threads";
+  if (contentKind === "line") return "line";
+  return convertTargetForFormat(formatId);
+}
+
 export function contentKindForFormat(formatId: FormatId): ContentKind {
   return convertTargetById(convertTargetForFormat(formatId)).contentKind;
+}
+
+export type FormatScriptRow = {
+  id: string;
+  kicker: string;
+  title: string;
+  body: string;
+};
+
+export type FormatScript = {
+  kind: ConvertTargetId;
+  label: string;
+  rows: FormatScriptRow[];
+};
+
+export function formatScript(
+  converted: ConvertedFormats,
+  formatId: FormatId,
+  contentKind?: ContentKind,
+): FormatScript {
+  const kind = convertTargetForPreview(formatId, contentKind);
+  if (kind === "reels") {
+    return {
+      kind,
+      label: "Reels 分鏡",
+      rows: converted.reels.map((beat) => ({
+        id: `${beat.startSec}-${beat.endSec}`,
+        kicker: `${beat.startSec}–${beat.endSec} 秒 · ${beat.transition}`,
+        title: beat.caption,
+        body: `畫面：${beat.visual}\n字幕：${beat.caption}\n旁白：${beat.voiceover}\n素材：${beat.assetHint}`,
+      })),
+    };
+  }
+  if (kind === "story") {
+    return {
+      kind,
+      label: "Story 節奏",
+      rows: converted.story.map((frame, i) => ({
+        id: `story-${i}`,
+        kicker: `第 ${i + 1} 張`,
+        title: frame.headline,
+        body: `${frame.body}\n畫面：${frame.visualNote}`,
+      })),
+    };
+  }
+  if (kind === "carousel") {
+    return {
+      kind,
+      label: "Carousel",
+      rows: converted.carousel.map((page, i) => ({
+        id: `page-${i}`,
+        kicker: `Page ${i + 1} · ${page.role}`,
+        title: page.headline.replace(/\n/g, " "),
+        body: page.body,
+      })),
+    };
+  }
+  return {
+    kind,
+    label: kind === "threads" ? "Threads" : kind === "line" ? "LINE" : "IG Caption",
+    rows: previewLines(converted, kind).slice(0, 6).map((line, i) => ({
+      id: `${kind}-${i}`,
+      kicker: kind,
+      title: line,
+      body: line,
+    })),
+  };
+}
+
+export function formatScriptClipboard(script: FormatScript) {
+  return script.rows.map((row) => `${row.kicker}\n${row.title}\n${row.body}`).join("\n\n");
 }
 
 export function captionForTarget(converted: ConvertedFormats, id: ConvertTargetId) {

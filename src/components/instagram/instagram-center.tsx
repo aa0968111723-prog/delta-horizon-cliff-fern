@@ -3,6 +3,8 @@ import { zhTW } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { applyVisualDirection } from "@/components/create/apply-visual";
+import { FormatScriptPanel } from "@/components/instagram/format-script";
 import { PublishIgButton } from "@/components/instagram/publish-button";
 import { PageHeader } from "@/components/shared/page-header";
 import { ArtboardView } from "@/components/studio/artboard-view";
@@ -20,7 +22,7 @@ import { uid } from "@/lib/studio/ids";
 import { dnaPromptIdea, igDnaBlock, learnFromPosts } from "@/lib/zen/insights";
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
-import { tonightAt, contentKindForFormat } from "@/lib/zen/convert";
+import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatScript } from "@/lib/zen/convert";
 import { schedulePreviewAssetId } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
@@ -41,6 +43,7 @@ export function InstagramCenter() {
   const lastVisualAssetId = useCreative((s) => s.lastVisualAssetId);
   const lastPack = useCreative((s) => s.lastPack);
   const setIgFormat = useCreative((s) => s.setIgFormat);
+  const patchCampaign = useCreative((s) => s.patchCampaign);
   const addIgPost = useCreative((s) => s.addIgPost);
   const setConnection = useCreative((s) => s.setConnection);
   const igStatus = useCreative((s) => s.connections.find((c) => c.id === "instagram")?.status);
@@ -75,6 +78,7 @@ export function InstagramCenter() {
   const [busy, setBusy] = useState(false);
   const [dnaBusy, setDnaBusy] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
+  const [beatBusy, setBeatBusy] = useState<string | null>(null);
   const [previewFormat, setPreviewFormat] = useState<FormatId>(igFormat);
   const [caption, setCaption] = useState("");
   const post = igPosts.find((p) => p.id === active);
@@ -86,6 +90,10 @@ export function InstagramCenter() {
     projects.find((p) => pagesOf(p, previewFormat).length) ??
     projects[0];
   const previewPages = previewProject ? pagesOf(previewProject, previewFormat) : [];
+  const previewScript = useMemo(() => {
+    if (!lastPack) return null;
+    return formatScript(convertFromPlan(lastPack.plan), previewFormat, previewProject?.contentKind);
+  }, [lastPack, previewFormat, previewProject?.contentKind]);
 
   useEffect(() => {
     setTab(igView);
@@ -223,16 +231,54 @@ export function InstagramCenter() {
     upsertSchedule({
       id: uid("sch"),
       title: (lastPack?.copy.hook || previewProject?.name || "今晚").slice(0, 48),
-      contentKind: contentKindForFormat(previewFormat),
+      contentKind: previewProject?.contentKind ?? contentKindForFormat(previewFormat),
       status: "scheduled",
       scheduledAt: tonightAt(0),
       publishedAt: null,
       projectId: previewProject?.id ?? null,
       campaignId,
-      captionPreview: caption,
+      captionPreview: previewScript && previewScript.kind !== "post" ? previewScript.rows.map((row) => `${row.kicker} ${row.title}`).join("\n") : caption,
     });
+    if (campaignId && lastVisualAssetId) {
+      const campaign = campaigns.find((row) => row.id === campaignId);
+      if (campaign) {
+        patchCampaign(campaignId, {
+          relatedAssetIds: [lastVisualAssetId, ...campaign.relatedAssetIds.filter((id) => id !== lastVisualAssetId)].slice(0, 8),
+        });
+      }
+    }
     toast.success("已排進日曆（今晚）");
     void navigate({ to: "/calendar" });
+  }
+
+  async function makeBeatVisual(beat: { id: string; title: string; kicker: string }) {
+    if (!lastPack) return;
+    setBeatBusy(beat.id);
+    try {
+      const pack = {
+        ...lastPack,
+        directions: lastPack.directions?.map((dir, i) =>
+          i === 0 ? { ...dir, headline: beat.title, subhead: beat.kicker } : dir,
+        ),
+      };
+      const result = await applyVisualDirection({
+        pack,
+        formatId: previewFormat,
+        convertTarget: convertTargetForPreview(previewFormat, previewProject?.contentKind),
+        contentKind: previewProject?.contentKind,
+        caption: beat.title,
+        campaignId:
+          campaigns.find((campaign) => campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name))
+            ?.id ?? null,
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("已做成這一拍畫面");
+    } finally {
+      setBeatBusy(null);
+    }
   }
 
   return (
@@ -424,6 +470,13 @@ export function InstagramCenter() {
                 排進日曆
               </Button>
               <PublishIgButton caption={caption} />
+              {previewScript ? (
+                <FormatScriptPanel
+                  script={previewScript}
+                  busyId={beatBusy}
+                  onMakeVisual={(beat) => makeBeatVisual(beat)}
+                />
+              ) : null}
             </div>
           </div>
         </section>
