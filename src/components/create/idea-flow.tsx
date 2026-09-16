@@ -297,15 +297,15 @@ export function IdeaFlow() {
           <div className="rounded-3xl bg-bg p-4" data-testid="idea-preview">
             <p className="text-xs tracking-[0.16em] text-muted">IG Preview · {brand?.handle ?? "@tku.zen"}</p>
             <div className="mt-3 overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-float)]">
-              {heroUrl ? (
-                <img src={heroUrl} alt="" className="aspect-[4/5] w-full bg-surface-2 object-cover object-center" />
-              ) : artboard && brand ? (
-                <div className="flex justify-center bg-[#1c2422]/10 p-4" data-testid="idea-artboard">
-                  <ArtboardView artboard={artboard} brand={brand} urls={urls} width={280} />
+              <IgThumb src={heroUrl || thumb} caption={plan.hook} className="aspect-[4/5] w-full" />
+              {artboard && brand ? (
+                <div className="border-t border-border bg-[#1c2422]/[0.04] p-3" data-testid="idea-artboard">
+                  <p className="mb-2 text-[10px] tracking-[0.16em] text-muted">畫布主視覺</p>
+                  <div className="flex justify-center">
+                    <ArtboardView artboard={artboard} brand={brand} urls={urls} width={220} />
+                  </div>
                 </div>
-              ) : (
-                <IgThumb src={thumb} caption={plan.hook} className="aspect-[4/5]" />
-              )}
+              ) : null}
               <div className="space-y-2 px-4 py-3">
                 <p className="text-sm font-medium">{plan.hook}</p>
                 <p className="whitespace-pre-wrap text-sm text-muted">{plan.captions[0]?.text}</p>
