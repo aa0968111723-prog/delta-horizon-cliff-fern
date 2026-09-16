@@ -57,3 +57,16 @@ test("storyRowsForFrames reuse existing story ids so realize does not duplicate"
   assert.equal(rows[0]?.existingId, "b");
   assert.equal(rows[1]?.existingId, "a");
 });
+
+test("storyRowsForFrames skip 當日提醒 so converted frames stay their own 9:16 stills", () => {
+  const rows = storyRowsForFrames(
+    [
+      { id: "day", kind: "story", campaignId: "c1", scheduledAt: 1, title: "當日提醒 · 茶會" },
+      { id: "s1", kind: "story", campaignId: "c1", scheduledAt: 2, title: "Story 1 · 茶會" },
+    ],
+    ["可以自己來？", "來坐一下"],
+    "c1",
+  );
+  assert.equal(rows[0]?.existingId, "s1");
+  assert.equal(rows[1]?.existingId, undefined);
+});

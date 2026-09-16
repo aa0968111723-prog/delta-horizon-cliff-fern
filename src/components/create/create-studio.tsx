@@ -45,6 +45,7 @@ import {
   mergeCampaignWaves,
   scheduleItemsForWave,
   heroScheduleItem,
+  waveFormatId,
 } from "@/lib/zen/schedule";
 import type { WaveDraft } from "@/lib/ai/wave";
 import type { CampaignPlan, CampaignWaveKind, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
@@ -53,7 +54,8 @@ import { HeroVisual } from "@/components/create/hero-visual";
 import { ReelsBoard } from "@/components/create/reels-board";
 import { ShareBoard } from "@/components/create/share-board";
 import { StoryBoard } from "@/components/create/story-board";
-import { storyFrameLines, storyRowsForFrames } from "@/lib/ai/story-frames";
+import { storyFrameLines, storyPosterInput, storyRowsForFrames } from "@/lib/ai/story-frames";
+import { saveKitStills } from "@/lib/ai/kit-stills";
 import { WaveList } from "@/components/create/wave-list";
 import { StudentReviewCard } from "@/components/create/student-review-card";
 import { VisionCard } from "@/components/create/vision-card";
@@ -376,12 +378,20 @@ export function CreateStudio() {
 
   async function saveLocalWavePoster(dir: VisualDirection, kind: CampaignWaveKind) {
     const variation = waveVisualVariation(kind);
-    const spec = formatById(toImageFormat(toCreateImageFormat(mode)));
-    const payload = posterPayloadFromDirection(
-      { ...dir, name: `${waveLabel(kind)} · ${dir.name}` },
-      spec,
-      variation,
-    );
+    const formatId = waveFormatId(kind);
+    const spec = formatById(formatId);
+    const storyLine = kind === "countdown" ? "明天晚上" : "今天";
+    const payload =
+      formatId === "story"
+        ? {
+            imageBase64: encodeUtf8Base64(
+              directionPosterSvg(
+                storyPosterInput(storyLine, 0, { eventName: eventName || idea, palette: dir.palette }),
+              ),
+            ),
+            mime: "image/svg+xml" as const,
+          }
+        : posterPayloadFromDirection({ ...dir, name: `${waveLabel(kind)} · ${dir.name}` }, spec, variation);
     const id = uid("asset");
     await putAssetBlob(id, blobFromBase64(payload.imageBase64, payload.mime));
     addAsset({
@@ -1096,7 +1106,12 @@ export function CreateStudio() {
           body: item.kind === "carousel" ? item.body : cleaned.body,
         });
       }
-      toast.success("已用這個方向做出整套：主視覺、文案、各平台、月曆");
+      await saveKitStills(next, {
+        eventName: eventName || next.campaignName,
+        campaignId: created.id,
+        projectId: project?.id ?? null,
+      }).catch(() => undefined);
+      toast.success("已用這個方向做出整套：主視覺、文案、Carousel、限動、LINE、月曆");
       requestAnimationFrame(() => {
         document.querySelector('[data-testid="kit-ready"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
       });
@@ -1541,6 +1556,7 @@ export function CreateStudio() {
       {plan ? (
         <ShareBoard
           plan={plan}
+          campaignId={campaign?.id}
           onSchedule={(kind) => schedulePack(convertPlan(plan, kind))}
         />
       ) : null}

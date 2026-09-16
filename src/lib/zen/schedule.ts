@@ -1,5 +1,5 @@
 import { uid } from "../studio/ids.ts";
-import type { CampaignWave, CampaignWaveKind, ClubCampaign, ContentKind, EventKind } from "../studio/types.ts";
+import type { CampaignWave, CampaignWaveKind, ClubCampaign, ContentKind, EventKind, FormatId } from "../studio/types.ts";
 import { canGraphPublish, isFeedGraphKind, isStoryGraphKind } from "./memory.ts";
 import { nextKindAfter } from "./rhythm.ts";
 
@@ -101,6 +101,11 @@ export function waveVisualVariation(
     default:
       return "background";
   }
+}
+
+/** Countdown and 當日提醒 are Stories (9:16); the rest stay 4:5 Feed. */
+export function waveFormatId(kind: CampaignWaveKind): Extract<FormatId, "story" | "feed-portrait"> {
+  return kind === "countdown" || kind === "dayof" ? "story" : "feed-portrait";
 }
 
 export function contentKindForWave(kind: CampaignWaveKind): ContentKind {

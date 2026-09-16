@@ -8,6 +8,7 @@ import {
   mergeCampaignWaves,
   scheduleItemsForWave,
   soonestScheduled,
+  waveFormatId,
   waveLabel,
   waveVisualVariation,
   heroScheduleItem,
@@ -31,6 +32,13 @@ test("waveVisualVariation gives each tea-party wave a different axis", () => {
   assert.equal(waveVisualVariation("hero"), "composition");
   assert.equal(waveVisualVariation("warmup"), "mood");
   assert.notEqual(waveVisualVariation("hero"), waveVisualVariation("recap"));
+});
+
+test("countdown and 當日提醒 stills are 9:16 Stories, not 4:5 Feed", () => {
+  assert.equal(waveFormatId("countdown"), "story");
+  assert.equal(waveFormatId("dayof"), "story");
+  assert.equal(waveFormatId("hero"), "feed-portrait");
+  assert.equal(waveFormatId("emotion"), "feed-portrait");
 });
 
 test("mergeCampaignWaves keeps ids so tea-party calendar rows upsert", () => {

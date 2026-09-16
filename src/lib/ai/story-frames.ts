@@ -51,13 +51,26 @@ export function attachStoryAssets<T extends { kind: string; campaignId?: string 
   });
 }
 
+export function isCampaignWaveTitle(title?: string) {
+  return Boolean(title && /^(預熱|情緒共鳴|主視覺|活動介紹|參加理由|倒數|當日提醒|活動回顧)( ·|$)/.test(title));
+}
+
 export function storyRowsForFrames(
-  existing: Array<Pick<ScheduleItem, "id" | "kind" | "campaignId" | "imageAssetId" | "scheduledAt">>,
+  existing: Array<{
+    id: string;
+    kind: string;
+    campaignId?: string | null;
+    scheduledAt: number;
+    imageAssetId?: string;
+    title?: string;
+  }>,
   frames: string[],
   campaignId: string,
 ): Array<{ index: number; caption: string; existingId?: string }> {
   const stories = existing
-    .filter((item) => item.kind === "story" && item.campaignId === campaignId)
+    .filter(
+      (item) => item.kind === "story" && item.campaignId === campaignId && !isCampaignWaveTitle(item.title),
+    )
     .sort((a, b) => a.scheduledAt - b.scheduledAt);
   return frames.map((caption, index) => ({
     index,
