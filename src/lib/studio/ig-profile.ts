@@ -29,3 +29,7 @@ export function igHighlights(
 export function igFeedPostCount(projects: Array<Pick<Project, "status" | "contentKind">>): number {
   return projects.filter((project) => project.status !== "idea" && !HIGHLIGHT_KINDS.has(project.contentKind)).length;
 }
+
+export function isHighlightKind(kind: ContentKind): boolean {
+  return HIGHLIGHT_KINDS.has(kind);
+}

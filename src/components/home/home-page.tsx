@@ -10,6 +10,7 @@ import {
 import { useMemo } from "react";
 import { QuickStartGrid } from "@/components/create/quick-start";
 import { TodayIdeas } from "@/components/home/today-ideas";
+import { TodayPosts } from "@/components/home/today-posts";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SectionHeader } from "@/components/shared/page-header";
 import { ProjectCard } from "@/components/shared/project-card";
@@ -211,6 +212,7 @@ export function HomePage() {
       </section>
 
       <TodayIdeas />
+      <TodayPosts />
 
       {/* 近期活動 */}
       {upcoming.length > 0 ? (

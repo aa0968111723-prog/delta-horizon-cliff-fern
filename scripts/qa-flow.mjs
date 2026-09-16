@@ -43,6 +43,9 @@ try {
   await page.goto(`${base}/`, { waitUntil: "networkidle" });
   await expectText("首頁標題", "今天可以創作什麼？");
   await expectText("今天推薦創作", "AI 建議這篇");
+  await expectText("今天可以發", "今天可以發");
+  await expectText("可以發了", "可以發了");
+  await expectText("首頁帶走文案", "複製並下載");
   await expectText("今日靈感", "今日靈感");
 
   // 2. AI 幫我創作
@@ -229,6 +232,10 @@ try {
   await expectText("IG 個人頁", "追蹤者");
   await expectText("IG 網格切換", "網格");
   await expectText("IG 貼文切換", "貼文");
+  await page.getByRole("button", { name: "貼文" }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await expectText("IG 動態預覽", "動態預覽");
   await page.getByRole("button", { name: "IG DNA" }).evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );

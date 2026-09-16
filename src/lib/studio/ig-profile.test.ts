@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { igFeedPostCount, igHighlights } from "./ig-profile.ts";
+import { igFeedPostCount, igHighlights, isHighlightKind } from "./ig-profile.ts";
 
 const copy = {
   eyebrow: "",
@@ -25,6 +25,12 @@ test("igHighlights picks story-like work as profile circles", () => {
     highlights.map((item) => item.label),
     ["社課", "明天晚上"],
   );
+});
+
+test("isHighlightKind keeps stories off the feed grid count", () => {
+  assert.equal(isHighlightKind("story"), true);
+  assert.equal(isHighlightKind("reels"), true);
+  assert.equal(isHighlightKind("ig-post"), false);
 });
 
 test("igFeedPostCount skips ideas and highlight kinds", () => {

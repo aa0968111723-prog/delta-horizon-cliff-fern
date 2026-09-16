@@ -37,11 +37,13 @@ export function PostPackBar({
   kind,
   projectId,
   className,
+  variant = "full",
 }: {
   copy: CopyDeck;
   kind: ContentKind;
   projectId?: string;
   className?: string;
+  variant?: "full" | "compact";
 }) {
   const [copied, setCopied] = useState<PackChannel | "alt" | null>(null);
   const [downloadBusy, setDownloadBusy] = useState(false);
@@ -49,6 +51,7 @@ export function PostPackBar({
   const brand = useStudio((s) => s.brands[0]);
   const assets = useStudio((s) => s.assets);
   const recordExport = useStudio((s) => s.recordExport);
+  const markPublished = useStudio((s) => s.markPublished);
   const channel = packChannelForKind(kind);
   const primary = packText(copy, channel);
   const stats = packStats(primary, packLimit(channel));
@@ -77,7 +80,19 @@ export function PostPackBar({
         assets,
         onRecord: (version) => recordExport(project.id, version),
       });
-      toast.success(result.count > 1 ? `已下載 ${result.count} 頁` : "已開始下載圖");
+      toast.success(result.count > 1 ? `已下載 ${result.count} 頁` : "已開始下載圖", {
+        duration: 8000,
+        action:
+          project.status === "published"
+            ? undefined
+            : {
+                label: "已發出去",
+                onClick: () => {
+                  markPublished(project.id);
+                  toast.success("已標成已發布。之後生成會把這則當成過去內容。");
+                },
+              },
+      });
       return true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "下載失敗");
@@ -98,12 +113,16 @@ export function PostPackBar({
 
   return (
     <div className={cn("space-y-3", className)}>
-      <div>
+      {variant === "full" ? (
+        <div>
+          <p className="text-sm font-medium">發這則</p>
+          <p className="mt-1 text-xs text-muted">
+            複製文案、下載圖，到 IG、Threads 或 LINE 貼上。沒有審核，一個人就能發。
+          </p>
+        </div>
+      ) : (
         <p className="text-sm font-medium">發這則</p>
-        <p className="mt-1 text-xs text-muted">
-          複製文案、下載圖，到 IG、Threads 或 LINE 貼上。沒有審核，一個人就能發。
-        </p>
-      </div>
+      )}
 
       <div className="rounded-xl bg-surface-2/60 p-3">
         <p className="text-xs text-subtle">
@@ -120,7 +139,7 @@ export function PostPackBar({
         </p>
       </div>
 
-      {alt ? (
+      {variant === "full" && alt ? (
         <div className="rounded-xl bg-surface-2/60 p-3">
           <p className="text-xs text-subtle">無障礙說明（發 IG 時貼到 Alt）</p>
           <p className="mt-1 text-sm leading-relaxed">{alt}</p>
@@ -136,16 +155,17 @@ export function PostPackBar({
           {copied === channel ? <Check className="size-4" /> : <CopyIcon className="size-4" />}
           {copied === channel ? "已複製" : "複製發文文案"}
         </Button>
-        {channel !== "ig" ? (
+        {variant === "full" && channel !== "ig" ? (
           <Button size="sm" variant="secondary" onClick={() => void copyChannel("ig", ig)} disabled={!ig}>
             複製 IG 文案
           </Button>
-        ) : (
+        ) : null}
+        {variant === "full" && channel === "ig" ? (
           <Button size="sm" variant="secondary" onClick={() => void copyChannel("threads", threads)} disabled={!threads}>
             複製 Threads
           </Button>
-        )}
-        {channel !== "line" ? (
+        ) : null}
+        {variant === "full" && channel !== "line" ? (
           <Button size="sm" variant="ghost" onClick={() => void copyChannel("line", line)} disabled={!line}>
             複製 LINE
           </Button>
@@ -156,7 +176,7 @@ export function PostPackBar({
             下載圖
           </Button>
         ) : null}
-        {alt ? (
+        {variant === "full" && alt ? (
           <Button
             size="sm"
             variant="ghost"
@@ -171,7 +191,7 @@ export function PostPackBar({
             {copied === "alt" ? "已複製 Alt" : "複製 Alt"}
           </Button>
         ) : null}
-        {projectId ? (
+        {variant === "full" && projectId ? (
           <Button size="sm" variant="ghost" asChild>
             <Link to="/export">進匯出頁</Link>
           </Button>

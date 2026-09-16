@@ -15,7 +15,8 @@ import { formatBrandMemory } from "@/lib/studio/brand";
 import { buildIgDna, buildIgInsights, formatIgInsights, formatIgReading, igHistoryCaptions } from "@/lib/studio/ig-dna";
 import { clipSeed } from "@/lib/studio/sources";
 import { contentKindLabel } from "@/lib/studio/status";
-import { igFeedPostCount, igHighlights } from "@/lib/studio/ig-profile";
+import { igFeedPostCount, igHighlights, isHighlightKind } from "@/lib/studio/ig-profile";
+import { IgFeedPreview } from "@/components/instagram/ig-feed-preview";
 import { cn } from "@/lib/utils";
 import { CLUB_HANDLE, CLUB_INTRO_SHORT, CLUB_NAME } from "@/lib/zen/club";
 import { useStudio } from "@/stores/studio-store";
@@ -70,6 +71,10 @@ export function InstagramCenter() {
   const insights = useMemo(() => buildIgInsights(igPosts), [igPosts]);
   const highlights = useMemo(() => igHighlights(feed), [feed]);
   const postCount = igFeedPostCount(projects);
+  const phoneFeed = useMemo(() => {
+    const posts = feed.filter((project) => !isHighlightKind(project.contentKind));
+    return posts.length ? posts : feed;
+  }, [feed]);
   const connected = connection?.state === "connected";
   const reading = brand?.memory.igReading;
   const readingText = formatIgReading(reading);
@@ -255,7 +260,7 @@ export function InstagramCenter() {
                         <span className="text-xs text-muted">{project.name}</span>
                       )}
                     </Link>
-                    <span className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-fg/55 px-1.5 py-1 text-[0.6rem] text-accent-fg">
+                    <span className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-fg/55 px-1.5 py-1 text-xs text-accent-fg">
                       {contentKindLabel(project.contentKind)}
                     </span>
                   </li>
@@ -263,26 +268,7 @@ export function InstagramCenter() {
               })}
             </ul>
           ) : (
-            <ul className="space-y-2">
-              {feed.map((project) => (
-                <li
-                  key={project.id}
-                  className="flex flex-wrap items-start justify-between gap-2 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{project.name}</p>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted">
-                      {project.copy.caption || project.copy.headline}
-                    </p>
-                    <p className="mt-1 text-xs text-subtle">{contentKindLabel(project.contentKind)}</p>
-                  </div>
-                  <ExtendLink
-                    seed={project.copy.caption || project.copy.headline || project.name}
-                    kind={project.contentKind}
-                  />
-                </li>
-              ))}
-            </ul>
+            <IgFeedPreview projects={phoneFeed} brand={brand} urls={urls} />
           )}
         </section>
       ) : null}

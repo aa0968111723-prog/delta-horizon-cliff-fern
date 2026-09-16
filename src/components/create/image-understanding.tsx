@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { analyzeImage, type ImageAnalysis } from "@/lib/ai/image-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
 import { assetPreviewFitClass } from "@/lib/studio/assets";
-import type { ContentKind } from "@/lib/studio/types";
+import type { AssetInsight, ContentKind } from "@/lib/studio/types";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,29 @@ function stripAssets<T extends { id: string }>(assets: T[], initialId?: string, 
   if (head.some((item) => item.id === initialId)) return head;
   const extra = assets.find((item) => item.id === initialId);
   return extra ? [extra, ...head.slice(0, limit - 1)] : head;
+}
+
+function analysisFromInsight(insight: AssetInsight): ImageAnalysis {
+  return {
+    summary: insight.summary,
+    content: insight.summary,
+    people: "",
+    color: "",
+    light: "",
+    composition: "",
+    textRatio: "",
+    hierarchy: "",
+    brandFit: "",
+    studentFit: "",
+    stopPower: "",
+    tooReligious: insight.tooReligious,
+    tooOld: false,
+    tooAi: insight.tooAi,
+    fitsTku: insight.fitsTku,
+    nextSteps: insight.nextSteps,
+    stylePrompt: insight.stylePrompt,
+    captionIdea: insight.captionIdea,
+  };
 }
 
 export type ImageMakePayload = {
@@ -71,6 +94,7 @@ export function ImageUnderstanding({
   const [busy, setBusy] = useState(false);
   const [making, setMaking] = useState<ContentKind | null>(null);
   const [analysis, setAnalysis] = useState<ImageAnalysis | null>(null);
+  const [cachedInsight, setCachedInsight] = useState(false);
   const primed = useRef(false);
 
   useEffect(() => {
@@ -86,6 +110,7 @@ export function ImageUnderstanding({
       setPreview(String(reader.result));
       setPickedAssetId(null);
       setAnalysis(null);
+      setCachedInsight(false);
     };
     reader.readAsDataURL(file);
   }
@@ -100,7 +125,10 @@ export function ImageUnderstanding({
       reader.onload = () => {
         setPreview(String(reader.result));
         setPickedAssetId(assetId);
-        setAnalysis(null);
+        const asset = assets.find((item) => item.id === assetId);
+        const cached = asset?.insight;
+        setAnalysis(cached ? analysisFromInsight(cached) : null);
+        setCachedInsight(Boolean(cached));
       };
       reader.readAsDataURL(blob);
     } catch {
@@ -129,6 +157,7 @@ export function ImageUnderstanding({
         return;
       }
       setAnalysis(res.analysis);
+      setCachedInsight(false);
       if (pickedAssetId) {
         updateAsset(pickedAssetId, {
           insight: {
@@ -231,11 +260,16 @@ export function ImageUnderstanding({
           <img src={preview} alt="待分析的圖片" className="w-full rounded-xl bg-surface-2 object-cover" />
           {analysis ? (
             <div className="min-w-0 space-y-3">
+              {cachedInsight ? (
+                <p className="text-xs text-subtle">這張先前分析過。畫面有改再按「AI 分析」。</p>
+              ) : null}
               <p className="text-sm font-medium">{analysis.summary}</p>
 
               <div className="flex flex-wrap gap-1.5">
                 <Verdict ok={!analysis.tooReligious} label={analysis.tooReligious ? "偏宗教" : "不會太宗教"} />
-                <Verdict ok={!analysis.tooOld} label={analysis.tooOld ? "偏老氣" : "不會太老氣"} />
+                {cachedInsight ? null : (
+                  <Verdict ok={!analysis.tooOld} label={analysis.tooOld ? "偏老氣" : "不會太老氣"} />
+                )}
                 <Verdict ok={!analysis.tooAi} label={analysis.tooAi ? "有 AI 感" : "沒有 AI 感"} />
                 <Verdict ok={analysis.fitsTku} label={analysis.fitsTku ? "適合淡江學生" : "不太像淡江學生的畫面"} />
               </div>
@@ -333,6 +367,7 @@ export function ImageUnderstanding({
               setPreview(dataUrl);
               setPickedAssetId(meta.id);
               setAnalysis(null);
+              setCachedInsight(false);
             }}
           />
         </div>
