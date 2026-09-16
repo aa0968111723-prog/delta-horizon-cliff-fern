@@ -38,6 +38,10 @@ test("wrapCjk splits a long hook for the lower third", () => {
   ]);
 });
 
+test("wrapCjk keeps a short student hook on one line", () => {
+  assert.deepEqual(wrapCjk("最近是不是很久沒坐好", 12), ["最近是不是很久沒坐好"]);
+});
+
 test("variation composition drops the headline lower than the default", () => {
   const base = directionPosterSvg({
     headline: "可以自己來",

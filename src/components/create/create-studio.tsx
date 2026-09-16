@@ -152,6 +152,11 @@ export function CreateStudio() {
     void runKit(undefined, true);
   }, [status, brand, mode]);
 
+  useEffect(() => {
+    if (!lastImage) return;
+    document.querySelector('[data-testid="hero-visual"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [lastImage]);
+
   async function gatherHits(query: string) {
     let remotes = remoteFiles;
     try {
@@ -740,6 +745,22 @@ export function CreateStudio() {
         />
       ) : null}
 
+      {lastImage ? (
+        <section className="mt-8">
+          <h2 className="text-sm font-medium">主視覺</h2>
+          <p className="mt-1 text-xs text-muted">
+            {pickedDirection?.name || "這次方向"} · 來源：AI Generated
+          </p>
+          <div className="mt-3">
+            <HeroVisual
+              base64={lastImage.base64}
+              mime={lastImage.mime}
+              headline={lastImage.headline || pickedDirection?.headline}
+            />
+          </div>
+        </section>
+      ) : null}
+
       {directions.length ? (
         <section className="mt-8">
           <div className="flex items-center justify-between gap-2">
@@ -791,22 +812,6 @@ export function CreateStudio() {
               </li>
             ))}
           </ul>
-        </section>
-      ) : null}
-
-      {lastImage ? (
-        <section className="mt-8">
-          <h2 className="text-sm font-medium">主視覺</h2>
-          <p className="mt-1 text-xs text-muted">
-            {pickedDirection?.name || "這次方向"} · 來源：AI Generated
-          </p>
-          <div className="mt-3">
-            <HeroVisual
-              base64={lastImage.base64}
-              mime={lastImage.mime}
-              headline={lastImage.headline || pickedDirection?.headline}
-            />
-          </div>
         </section>
       ) : null}
 

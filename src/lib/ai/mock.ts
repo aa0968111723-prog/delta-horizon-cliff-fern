@@ -169,8 +169,8 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
           composition: "光點偏上，問句在下半。",
           typeDirection: "大標像訊息，不要美術字堆疊。",
           prompt: `Tamkang Tamsui night, quiet campus corner, three soft colored lights amber teal dusk-violet, airy, young, not temple, not incense, photographic mood, ${name}`,
-          headline,
-          subhead: `${when} · ${where}`,
+          headline: hook,
+          subhead: `${name} · ${when}`,
         },
         {
           id: "dir_friend",
@@ -180,7 +180,7 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
           composition: "局部手或杯子，留空位。",
           typeDirection: "字少、CTA 像口語。",
           prompt: `two students sitting with tea, empty seat beside, Tamkang campus interior, soft window light, calm, documentary, ${name}`,
-          headline: clipHeadline("可以自己來"),
+          headline: "可以自己來？",
           subhead: "也可以揪人",
         },
         {
@@ -191,8 +191,8 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
           composition: "主視覺留白，龜龜小角。",
           typeDirection: "標題問句優先。",
           prompt: `small turtle mascot at corner of a quiet poster, three-color light orbs, Tamkang student life, airy, ${name}`,
-          headline,
-          subhead: hook,
+          headline: hook,
+          subhead: name,
         },
       ])
     : undefined;
