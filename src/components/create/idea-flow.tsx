@@ -1,7 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { generateCampaignPlan } from "@/lib/ai/campaign";
@@ -14,12 +13,10 @@ import { createGeneratedAsset } from "@/lib/studio/assets";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
-import { pagesOf } from "@/lib/studio/layers";
 import { searchCreative, type SearchHit } from "@/lib/search/creative";
 import type { CampaignPlan, ContentKind, CreativeDirection } from "@/lib/studio/types";
 import { sourceLabel, useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
-import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { cn } from "@/lib/utils";
 
 type Phase = "idea" | "research" | "directions" | "pack";
@@ -27,7 +24,6 @@ type Phase = "idea" | "research" | "directions" | "pack";
 export function IdeaFlow() {
   const navigate = useNavigate();
   const brands = useStudio((s) => s.brands);
-  const projects = useStudio((s) => s.projects);
   const createProject = useStudio((s) => s.createProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const addAsset = useStudio((s) => s.addAsset);
@@ -52,15 +48,6 @@ export function IdeaFlow() {
   const [busy, setBusy] = useState(false);
 
   const brand = brands[0];
-  const project = projects.find((item) => item.id === projectId);
-  const artboard = project ? pagesOf(project)[project.slideIndex ?? 0] : undefined;
-  const urls = useAssetUrls(
-    project
-      ? pagesOf(project).flatMap((page) =>
-          page.layers.flatMap((layer) => (layer.type === "image" || layer.type === "logo" ? [layer.assetId ?? ""] : [])),
-        )
-      : [],
-  );
 
   useEffect(() => {
     const stored = window.sessionStorage.getItem("zen-idea");
@@ -211,8 +198,9 @@ export function IdeaFlow() {
         <p className="text-sm text-muted">輸入一句話即可。會先找素材，再給三個方向，不會顯示 Agent 流程。</p>
       )}
 
-      {hits.length ? (
+      {phase !== "idea" || hits.length ? (
         <ul className="flex flex-wrap gap-2" data-testid="idea-flow-sources">
+          <li className="rounded-full bg-bg px-3 py-1 text-xs text-muted">Brand Memory / 龜龜與三色光</li>
           {hits.slice(0, 8).map((item) => (
             <li key={item.id} className="rounded-full bg-bg px-3 py-1 text-xs text-muted">
               {sourceLabel(item.source)} / {item.title}
@@ -259,13 +247,7 @@ export function IdeaFlow() {
           <div className="rounded-3xl bg-bg p-4" data-testid="idea-preview">
             <p className="text-xs tracking-[0.16em] text-muted">IG Preview · {brand?.handle ?? "@tku.zen"}</p>
             <div className="mt-3 overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-float)]">
-              {project && brand && artboard ? (
-                <div className="flex justify-center bg-bg p-3">
-                  <ArtboardView artboard={artboard} brand={brand} urls={urls} width={220} />
-                </div>
-              ) : (
-                <img src={thumb} alt="" className="aspect-[4/5] w-full object-cover" />
-              )}
+              <img src={thumb} alt="" className="aspect-square w-full bg-surface-2 object-cover object-center ring-1 ring-border" />
               <div className="space-y-2 px-4 py-3">
                 <p className="text-sm font-medium">{plan.hook}</p>
                 <p className="whitespace-pre-wrap text-sm text-muted">{plan.captions[0]?.text}</p>

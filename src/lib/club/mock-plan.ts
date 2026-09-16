@@ -16,12 +16,16 @@ export function buildZenMockPlan(data: BriefInput): CampaignPlan {
   const when = data.schedule.trim() || "近期晚上";
   const where = data.location.trim() || "淡江校園";
   const cta = data.preferredCtas?.split(/[／/,，]/)[0]?.trim() || "來坐一下";
+  const sloganHook = (data.slogans || "")
+    .split(/[／/]/)
+    .map((item) => item.trim())
+    .find((item) => item.includes("？"));
   const hook =
-    data.slogans?.split(/[／/]/)[0]?.trim() ||
+    sloganHook ||
     (ctx.phase === "finals"
       ? "最近是不是連休息都覺得有罪惡感？"
       : ctx.phase === "orientation"
-        ? "剛到淡水的晚上，其實可以不用一直找事情做。"
+        ? "剛到淡水的晚上，是不是還在找事情做？"
         : "最近是不是很久沒有好好坐下來？");
   const templateId: TemplateId = data.wantCarousel ? "product" : "editorial";
   const headline = clip(name.replace(/[（(].*$/, "") || "來坐一下");

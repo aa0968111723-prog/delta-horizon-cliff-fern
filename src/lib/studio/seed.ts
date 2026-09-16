@@ -160,7 +160,7 @@ export const SEED_BRAND: BrandKit = {
     { id: "logo_zen_primary", name: "主標誌", assetId: SEED_LOGO_ID, usage: "primary" },
     { id: "logo_zen_mark", name: "圖標", assetId: SEED_LOGO_ID, usage: "mark" },
   ],
-  slogans: ["人到了就好。", "沒有人要你懂禪。"],
+  slogans: ["最近是不是很久沒有好好坐下來？", "人到了就好。", "沒有人要你懂禪。"],
   ctas: ["來坐一下", "帶朋友一起來", "看活動時間"],
   imageStyle: {
     mood: "夜間暖光、空氣感、學生生活，不是廟宇",

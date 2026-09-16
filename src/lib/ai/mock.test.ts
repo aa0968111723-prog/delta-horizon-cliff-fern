@@ -71,6 +71,23 @@ test("buildMockPlan for 淡江禪學社 uses student hooks", () => {
   assert.ok(plan.studentReview?.revisions.length);
 });
 
+test("zen mock does not use a slogan as the hook unless it is a question", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "茶會",
+    brandName: "淡江大學禪學社",
+    handle: "@tku.zen",
+    audience: "淡江大學學生",
+    slogans: "人到了就好。",
+    preferredCtas: "來坐一下",
+    wantCarousel: true,
+    wantStory: true,
+    wantReels: true,
+  });
+  assert.equal(plan.hook.includes("人到了就好"), false);
+  assert.ok(plan.hook.includes("？"));
+});
+
 test("buildMockPlan strips forbidden words", () => {
   const plan = buildMockPlan({
     ...base,
