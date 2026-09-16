@@ -1,7 +1,7 @@
 import { addMonths, addWeeks, format, isSameDay, parseISO, startOfToday } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,16 @@ export function ContentCalendar() {
   const [anchor, setAnchor] = useState(() => startOfToday());
   const [view, setView] = useState<CalendarView>("month");
   const [campaignId, setCampaignId] = useState(campaigns[0]?.id ?? "all");
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    function apply() {
+      if (media.matches) setView((current) => (current === "month" ? "agenda" : current));
+    }
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
 
   const filtered = useMemo(
     () => contentItems.filter((item) => campaignId === "all" || item.campaignId === campaignId),

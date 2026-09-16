@@ -88,7 +88,7 @@ export function IgPreview({ projectId }: { projectId?: string }) {
           </div>
         </div>
         {pages.length > 1 ? (
-          <p className="text-xs text-muted">Carousel 共 {pages.length} 頁，目前預覽目前這頁。</p>
+          <p className="text-xs text-muted">Carousel 共 {pages.length} 頁，現在預覽這一頁。</p>
         ) : null}
         {pack ? (
           <div>
