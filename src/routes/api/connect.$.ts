@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ConnectionId } from "@/lib/creative/types";
+import { connectReturnPath } from "@/lib/connect/next";
 import { envReady } from "@/lib/connect/providers";
 import {
   canStoreTokens,
@@ -32,7 +33,8 @@ async function handleConnect({ request }: { request: Request }) {
   const provider = fromKey(providerKey);
   if (!provider) return redirect("/connect?notice=unknown");
   if (!envReady(provider) || !canStoreTokens()) {
-    return redirect("/connect?notice=memory");
+    const next = action === "callback" ? "/connect" : url.searchParams.get("next");
+    return redirect(connectReturnPath(next, { notice: "memory" }));
   }
   if (action === "callback") {
     return finishOAuth(provider, url, request);
@@ -53,6 +55,7 @@ function fromKey(key?: string): ConnectionId | null {
 function startOAuth(provider: ConnectionId, request: Request) {
   const origin = requestOrigin(request);
   const state = randomBytes(16).toString("hex");
+  const next = new URL(request.url).searchParams.get("next");
   const redirectUri = callbackUri(origin, provider);
   if (provider === "google-drive") {
     const auth = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -63,7 +66,7 @@ function startOAuth(provider: ConnectionId, request: Request) {
     auth.searchParams.set("prompt", "consent");
     auth.searchParams.set("scope", "https://www.googleapis.com/auth/drive.readonly");
     auth.searchParams.set("state", state);
-    return redirect(auth.toString(), [setStateCookie(state)]);
+    return redirect(auth.toString(), [setStateCookie(state, next)]);
   }
   if (provider === "canva") {
     const auth = new URL("https://www.canva.com/api/oauth/authorize");
@@ -72,7 +75,7 @@ function startOAuth(provider: ConnectionId, request: Request) {
     auth.searchParams.set("response_type", "code");
     auth.searchParams.set("scope", "design:meta:read design:content:read design:content:write");
     auth.searchParams.set("state", state);
-    return redirect(auth.toString(), [setStateCookie(state)]);
+    return redirect(auth.toString(), [setStateCookie(state, next)]);
   }
   const auth = new URL("https://www.facebook.com/v21.0/dialog/oauth");
   auth.searchParams.set("client_id", process.env.META_APP_ID ?? "");
@@ -80,25 +83,25 @@ function startOAuth(provider: ConnectionId, request: Request) {
   auth.searchParams.set("response_type", "code");
   auth.searchParams.set("scope", "instagram_basic,pages_show_list,instagram_manage_insights,instagram_content_publish");
   auth.searchParams.set("state", state);
-  return redirect(auth.toString(), [setStateCookie(state)]);
+  return redirect(auth.toString(), [setStateCookie(state, next)]);
 }
 
 async function finishOAuth(provider: ConnectionId, url: URL, request: Request) {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const expected = readStateCookie(request);
-  if (!code || !state || !expected || state !== expected) {
-    return redirect("/connect?notice=denied");
+  if (!code || !state || !expected || state !== expected.nonce) {
+    return redirect(connectReturnPath(expected?.next, { notice: "denied" }));
   }
   const origin = requestOrigin(request);
   const redirectUri = callbackUri(origin, provider);
   try {
     const blob = await exchange(provider, code, redirectUri);
     const cookie = setTokenCookie(provider, blob);
-    if (!cookie) return redirect("/connect?notice=memory");
-    return redirect(`/connect?ok=${provider}`, [cookie]);
+    if (!cookie) return redirect(connectReturnPath(expected.next, { notice: "memory" }));
+    return redirect(connectReturnPath(expected.next, { ok: provider }), [cookie]);
   } catch {
-    return redirect("/connect?notice=denied");
+    return redirect(connectReturnPath(expected.next, { notice: "denied" }));
   }
 }
 

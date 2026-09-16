@@ -8,6 +8,8 @@ type Search = {
   mode?: string;
   campaign?: string;
   asset?: string;
+  ok?: string;
+  notice?: string;
 };
 
 export const Route = createFileRoute("/create")({
@@ -17,6 +19,8 @@ export const Route = createFileRoute("/create")({
     mode: typeof s.mode === "string" ? s.mode : undefined,
     campaign: typeof s.campaign === "string" ? s.campaign : undefined,
     asset: typeof s.asset === "string" ? s.asset : undefined,
+    ok: typeof s.ok === "string" ? s.ok : undefined,
+    notice: typeof s.notice === "string" ? s.notice : undefined,
   }),
   component: CreatePage,
 });
@@ -30,6 +34,8 @@ function CreatePage() {
       mode={search.mode}
       campaignId={search.campaign}
       initialAssetId={search.asset}
+      connected={search.ok}
+      notice={search.notice}
     />
   );
 }

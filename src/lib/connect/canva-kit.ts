@@ -1,3 +1,5 @@
+import type { MemoryItem } from "@/lib/creative/types";
+
 export type CanvaKind = "post" | "story" | "carousel" | "reels";
 
 export type CanvaDesignType =
@@ -57,4 +59,23 @@ export function buildCanvaKit(input: {
   ]
     .filter((line) => line !== null)
     .join("\n");
+}
+
+export function memoryFromCanvaKit(input: {
+  campaignName: string;
+  kit: string;
+  thumbUrl?: string | null;
+  id?: string;
+}): MemoryItem {
+  return {
+    id: input.id ?? `canva_kit_${Date.now()}`,
+    source: "canva",
+    sourceLabel: `Canva / ${input.campaignName}`,
+    title: `${input.campaignName} · 微調清單`,
+    kind: "design",
+    tags: ["canva", "kit"],
+    summary: input.kit.slice(0, 240).replace(/\n+/g, " ").trim(),
+    thumbUrl: input.thumbUrl ?? undefined,
+    createdAt: Date.now(),
+  };
 }

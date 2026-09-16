@@ -15,13 +15,16 @@ import { analyzeImage, type VisionReport } from "@/lib/ai/vision";
 import { visionPromptBlock } from "@/lib/ai/vision-notes";
 import { clubDnaFromMemory, dnaPromptBlock } from "@/lib/club/dna";
 import { clubInsightsFromPosts, insightsPromptBlock, lastLearnPromptBlock } from "@/lib/club/insights";
-import { createCanvaDesign } from "@/lib/connect/oauth";
-import { buildCanvaKit } from "@/lib/connect/canva-kit";
+import { createCanvaDesign, startConnection } from "@/lib/connect/oauth";
+import { buildCanvaKit, memoryFromCanvaKit } from "@/lib/connect/canva-kit";
+import { persistableImageSrc } from "@/lib/connect/next";
 import { publicImageUrl } from "@/lib/connect/ig-publish";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { varyImagePrompt } from "@/lib/creative/image-vary";
 import { inferCampaignType, inferEventDate, isoFromMs, scheduledAtFor } from "@/lib/creative/schedule";
 import { searchCreative } from "@/lib/creative/search";
+import type { CanvaLoopStep } from "@/lib/creative/session";
+import { readLastSession, writeLastSession } from "@/lib/creative/session";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { createGeneratedAsset } from "@/lib/studio/assets";
 import { brandMemoryBlock } from "@/lib/studio/brand";
@@ -109,12 +112,16 @@ export function CreateStudio({
   mode = "idea",
   campaignId,
   initialAssetId,
+  connected,
+  notice,
 }: {
   initialQuery?: string;
   autoRun?: boolean;
   mode?: string;
   campaignId?: string;
   initialAssetId?: string;
+  connected?: string;
+  notice?: string;
 }) {
   const navigate = useNavigate();
   const brands = useStudio((s) => s.brands);
@@ -129,9 +136,13 @@ export function CreateStudio({
   const addCampaign = useCreative((s) => s.addCampaign);
   const addMemory = useCreative((s) => s.addMemory);
   const bindScheduledWave = useCreative((s) => s.bindScheduledWave);
+  const setConnection = useCreative((s) => s.setConnection);
   const assets = useStudio((s) => s.assets);
   const projects = useStudio((s) => s.projects);
   const [createdCampaignId, setCreatedCampaignId] = useState<string | undefined>();
+  const [studioProjectId, setStudioProjectId] = useState<string | undefined>();
+  const [canvaStep, setCanvaStep] = useState<CanvaLoopStep | null>(null);
+  const [canvaEditUrl, setCanvaEditUrl] = useState<string | null>(null);
   const resolvedCampaignId = campaignId ?? createdCampaignId;
   const campaign = resolvedCampaignId ? campaigns.find((c) => c.id === resolvedCampaignId) : undefined;
 
@@ -155,6 +166,8 @@ export function CreateStudio({
   const [aspect, setAspect] = useState<(typeof ASPECTS)[number]["id"]>("4:5");
   const fileRef = useRef<HTMLInputElement>(null);
   const ran = useRef(false);
+  const restored = useRef(false);
+  const retriedCanva = useRef(false);
 
   const hits = useMemo(
     () => searchCreative({ query, memory, assets, campaigns, igPosts, projects }),
@@ -221,6 +234,17 @@ export function CreateStudio({
       setPack(result.pack);
       setDirId(result.pack.directions[0]?.id ?? null);
       setCopies(result.pack.copyVariants);
+      writeLastSession({
+        pack: result.pack,
+        dirId: result.pack.directions[0]?.id ?? null,
+        copies: result.pack.copyVariants,
+        tone: "student",
+        imageSrc: persistableImageSrc(imageSrc),
+        createdCampaignId,
+        projectId: studioProjectId,
+        aspect,
+        savedAt: Date.now(),
+      });
     } catch {
       toast.error("生成失敗，再試一次。");
     } finally {
@@ -272,6 +296,33 @@ export function CreateStudio({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRun, initialAssetId, mode]);
+
+  useEffect(() => {
+    if (restored.current || pack || autoRun || initialAssetId) return;
+    const session = readLastSession();
+    if (!session) return;
+    restored.current = true;
+    setPack(session.pack);
+    if (session.pack.query) setQuery(session.pack.query);
+    setDirId(session.dirId);
+    setCopies(session.copies);
+    setTone(session.tone);
+    if (session.imageSrc) setImageSrc(session.imageSrc);
+    if (session.createdCampaignId) setCreatedCampaignId(session.createdCampaignId);
+    if (session.projectId) setStudioProjectId(session.projectId);
+    if (session.aspect) setAspect(session.aspect);
+    if (session.canvaStep) setCanvaStep(session.canvaStep);
+    if (session.canvaEditUrl) setCanvaEditUrl(session.canvaEditUrl);
+  }, [autoRun, initialAssetId, pack]);
+
+  useEffect(() => {
+    if (notice === "denied") toast.error("授權沒有完成，這次的文案還在");
+    if (notice === "memory") toast.message("官方授權尚未開啟。清單已留在 Creative Memory。");
+    if (connected === "canva" || connected === "google-drive" || connected === "instagram") {
+      setConnection(connected, { status: "connected", lastSyncAt: Date.now() });
+    }
+    if (connected === "canva") toast.success("已連接 Canva，接著把這份清單送進去");
+  }, [notice, connected, setConnection]);
 
   async function runCopy() {
     setBusy(true);
@@ -455,6 +506,23 @@ export function CreateStudio({
       templateId: active.plan.templateId,
     });
     applyCampaignPlan(project.id, active.plan, brief);
+    setStudioProjectId(project.id);
+    const prevSession = readLastSession();
+    writeLastSession({
+      ...(prevSession ?? {
+        pack: active,
+        dirId,
+        copies,
+        tone,
+        imageSrc: persistableImageSrc(imageSrc),
+        aspect,
+        savedAt: Date.now(),
+      }),
+      pack: active,
+      createdCampaignId: camp?.id ?? prevSession?.createdCampaignId,
+      projectId: project.id,
+      savedAt: Date.now(),
+    });
     const scheduledAt = scheduledAtFor(kind, camp?.date);
     useStudio.getState().updateProject(project.id, {
       contentKind: kind,
@@ -485,7 +553,7 @@ export function CreateStudio({
     void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
   }
 
-  async function sendCanva() {
+  async function sendCanva(opts?: { afterConnect?: boolean }) {
     if (!pack) return;
     const activeCopy = copies.find((c) => c.tone === tone) ?? copies[0];
     const dir = pack.directions.find((d) => d.id === dirId) ?? directions.find((d) => d.id === dirId);
@@ -507,7 +575,34 @@ export function CreateStudio({
     } catch {
       /* 沒剪貼簿也繼續開 Canva */
     }
+    addMemory(
+      memoryFromCanvaKit({
+        campaignName: pack.plan.campaignName,
+        kit,
+        thumbUrl: persistableImageSrc(imageSrc),
+        id: `canva_kit_${pack.plan.campaignName.replace(/\s+/g, "_").slice(0, 40)}`,
+      }),
+    );
     const kind = aspect === "9:16" ? "story" : "carousel";
+    const persist = (step: CanvaLoopStep, editUrl?: string | null) => {
+      setCanvaStep(step);
+      if (editUrl) setCanvaEditUrl(editUrl);
+      writeLastSession({
+        pack,
+        dirId,
+        copies,
+        tone,
+        imageSrc: persistableImageSrc(imageSrc),
+        createdCampaignId,
+        projectId: studioProjectId,
+        aspect,
+        canvaKit: kit,
+        canvaStep: step,
+        canvaEditUrl: editUrl ?? canvaEditUrl,
+        savedAt: Date.now(),
+      });
+    };
+    persist("kit");
     const result = await createCanvaDesign({
       data: {
         title: pack.plan.campaignName,
@@ -517,11 +612,40 @@ export function CreateStudio({
     });
     if (!result.ok) {
       toast.message(result.message);
-      if (result.reason === "connect") void navigate({ to: "/connect" });
+      persist(result.reason === "connect" ? "need-connect" : "kit");
       return;
     }
-    window.open(result.url, "_blank", "noopener");
-    toast.success(result.withAsset ? "已把主視覺送進 Canva" : "已在 Canva 開對應尺寸，貼上清單繼續改");
+    persist("opened", result.url);
+    if (!opts?.afterConnect) {
+      window.open(result.url, "_blank", "noopener");
+    }
+    toast.success(
+      result.withAsset ? "已把主視覺送進 Canva" : opts?.afterConnect ? "Canva 設計已開好，從下面進去改" : "已在 Canva 開對應尺寸，貼上清單繼續改",
+    );
+  }
+
+  async function connectCanvaAndReturn() {
+    if (pack) {
+      writeLastSession({
+        pack,
+        dirId,
+        copies,
+        tone,
+        imageSrc: persistableImageSrc(imageSrc),
+        createdCampaignId,
+        projectId: studioProjectId,
+        aspect,
+        canvaStep: canvaStep ?? "need-connect",
+        canvaEditUrl,
+        savedAt: Date.now(),
+      });
+    }
+    const result = await startConnection({ data: { provider: "canva", next: "/create" } });
+    if (result.ok) {
+      window.location.assign(result.url);
+      return;
+    }
+    toast.message(result.message);
   }
 
   const activeDir = pack?.directions.find((d) => d.id === dirId) ?? directions.find((d) => d.id === dirId);
@@ -542,6 +666,21 @@ export function CreateStudio({
         carousel: pack.conversions.carousel,
       })
     : "";
+
+  useEffect(() => {
+    if (retriedCanva.current || connected !== "canva" || !pack) return;
+    retriedCanva.current = true;
+    void sendCanva({ afterConnect: true });
+    void navigate({
+      to: "/create",
+      search: {
+        q: query || undefined,
+        mode: mode !== "idea" ? mode : undefined,
+        campaign: resolvedCampaignId,
+      },
+      replace: true,
+    });
+  }, [connected, pack, query, mode, resolvedCampaignId, navigate]);
 
   function applySimFixes() {
     if (!copy || !sim) return;
@@ -859,10 +998,58 @@ export function CreateStudio({
 
           <div>
             <h2 className="text-sm font-medium">送進 Canva 微調</h2>
-            <p className="mt-1 text-xs text-muted">AI 先給清單。連接後開 4:5 或限動尺寸；有公開主視覺會帶進畫布，不是空白檔。</p>
+            <p className="mt-1 text-xs text-muted">清單會先留下。沒連 Canva 也不會把這次生成弄丟，連完會回到這裡。</p>
             <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-2xl bg-surface p-4 font-sans text-xs leading-relaxed shadow-[var(--shadow-border)]">
               {canvaKit}
             </pre>
+            {canvaStep ? (
+              <div className="mt-3 rounded-3xl bg-surface p-4 shadow-[var(--shadow-border)]">
+                <p className="text-xs tracking-[0.18em] text-muted uppercase">下一步</p>
+                <p className="mt-1 font-display text-lg">
+                  {canvaStep === "opened"
+                    ? "Canva 改完，回來預覽、排程"
+                    : canvaStep === "need-connect"
+                      ? "清單已進 Creative Memory"
+                      : "清單已複製，可以先改、再排"}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  {canvaStep === "need-connect"
+                    ? "先連官方 Canva。授權後會回到這份文案，不用重生成。"
+                    : "來源：Canva 微調清單。接著 IG Preview 或排進月曆。"}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {canvaStep === "need-connect" ? (
+                    <Button className="min-h-11 rounded-full" onClick={() => void connectCanvaAndReturn()}>
+                      連接 Canva 後回來繼續
+                    </Button>
+                  ) : null}
+                  {canvaEditUrl ? (
+                    <Button
+                      className="min-h-11 rounded-full"
+                      variant={canvaStep === "opened" ? "default" : "secondary"}
+                      onClick={() => window.open(canvaEditUrl, "_blank", "noopener")}
+                    >
+                      在 Canva 繼續改
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="secondary"
+                    className="min-h-11 rounded-full"
+                    onClick={() =>
+                      void navigate({
+                        to: "/ig",
+                        search: studioProjectId ? { item: studioProjectId } : {},
+                      })
+                    }
+                  >
+                    IG Preview
+                  </Button>
+                  <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => applyToStudio(true)}>
+                    排進月曆
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -879,7 +1066,16 @@ export function CreateStudio({
             >
               送進 Canva 微調
             </Button>
-            <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => void navigate({ to: "/ig" })}>
+            <Button
+              variant="secondary"
+              className="min-h-11 rounded-full"
+              onClick={() =>
+                void navigate({
+                  to: "/ig",
+                  search: studioProjectId ? { item: studioProjectId } : {},
+                })
+              }
+            >
               IG Preview
             </Button>
             <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => void copyCaption()}>

@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
 import { getRequest } from "@tanstack/react-start/server";
+import { sanitizeConnectNext } from "@/lib/connect/next";
 import type { ConnectionId } from "@/lib/creative/types";
 
 type TokenBlob = {
@@ -174,13 +175,27 @@ export function clearTokenCookie(id: ConnectionId) {
   return `${COOKIE[id]}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
 }
 
-export function setStateCookie(state: string) {
+export function setStateCookie(nonce: string, next?: string | null) {
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  return `tkz_oauth_state=${state}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${secure}`;
+  const payload = encodeURIComponent(JSON.stringify({ n: nonce, r: sanitizeConnectNext(next) }));
+  return `tkz_oauth_state=${payload}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${secure}`;
 }
 
-export function readStateCookie(request?: Request) {
-  return readCookie("tkz_oauth_state", request);
+export function readStateCookie(request?: Request): { nonce: string; next: string } | null {
+  const raw = readCookie("tkz_oauth_state", request);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { n?: unknown; r?: unknown };
+    if (typeof parsed.n === "string" && parsed.n.length >= 16) {
+      return {
+        nonce: parsed.n,
+        next: sanitizeConnectNext(typeof parsed.r === "string" ? parsed.r : undefined),
+      };
+    }
+  } catch {
+    if (/^[a-f0-9]{32}$/i.test(raw)) return { nonce: raw, next: "/connect" };
+  }
+  return null;
 }
 
 export function requestOrigin(request?: Request) {

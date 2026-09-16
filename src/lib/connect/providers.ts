@@ -1,3 +1,4 @@
+import { withConnectNext } from "@/lib/connect/next";
 import type { ConnectionId } from "@/lib/creative/types";
 
 export function envReady(id: ConnectionId) {
@@ -14,4 +15,8 @@ export function oauthPath(id: ConnectionId) {
   if (id === "google-drive") return "/api/connect/google";
   if (id === "canva") return "/api/connect/canva";
   return "/api/connect/instagram";
+}
+
+export function oauthStartUrl(id: ConnectionId, next?: string) {
+  return withConnectNext(oauthPath(id), next);
 }

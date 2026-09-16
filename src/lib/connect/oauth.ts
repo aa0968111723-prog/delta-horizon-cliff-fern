@@ -3,7 +3,7 @@ import { z } from "zod";
 import { parseFnInput } from "@/lib/ai/parse";
 import type { IgMemoryPost, MemoryItem } from "@/lib/creative/types";
 import { canvaSearchQuery, driveFileQuery, driveQueryFromNl } from "@/lib/creative/drive-query";
-import { envReady, oauthPath } from "./providers";
+import { envReady, oauthStartUrl } from "./providers";
 import { canvaCreateBody, type CanvaKind } from "./canva-kit";
 import { captionForInstagram, publicImageUrl } from "./ig-publish";
 
@@ -31,7 +31,9 @@ export const getConnectionCapabilities = createServerFn({ method: "POST" }).hand
 });
 
 export const startConnection = createServerFn({ method: "POST" })
-  .validator((input: unknown) => parseFnInput(z.object({ provider: Provider }), input))
+  .validator((input: unknown) =>
+    parseFnInput(z.object({ provider: Provider, next: z.string().max(200).optional() }), input),
+  )
   .handler(async ({ data }) => {
     const { canStoreTokens } = await import("./tokens.server");
     if (!envReady(data.provider) || !canStoreTokens()) {
@@ -41,7 +43,7 @@ export const startConnection = createServerFn({ method: "POST" })
         message: "官方連接尚未開啟。先用社團 Creative Memory 創作，不需要貼 Token。",
       };
     }
-    return { ok: true as const, url: oauthPath(data.provider) };
+    return { ok: true as const, url: oauthStartUrl(data.provider, data.next) };
   });
 
 export const syncConnectionMemory = createServerFn({ method: "POST" })
