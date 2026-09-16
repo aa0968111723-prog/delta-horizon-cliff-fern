@@ -38,6 +38,13 @@ async function expectText(step, needle) {
   record(step, body.includes(needle), body.includes(needle) ? "" : `找不到「${needle}」`);
 }
 
+/** Playwright 的可見性穩定檢查會被學生視角等面板撐高版面卡住，改直接點。 */
+async function tap(locator) {
+  await locator.evaluate((el) => {
+    if (el instanceof HTMLElement) el.click();
+  });
+}
+
 try {
   // 1. 首頁
   await page.goto(`${base}/`, { waitUntil: "networkidle" });
@@ -66,7 +73,7 @@ try {
     .then(() => true)
     .catch(() => false);
   if (!autoDrafts) {
-    await page.getByRole("button", { name: /^生成文案$/ }).click();
+    await tap(page.getByRole("button", { name: /^生成文案$/ }));
     await page.waitForSelector("text=文案版本", { timeout: 30000 });
   }
   await expectText("文案版本", "文案版本");
@@ -80,14 +87,14 @@ try {
     .then(() => true)
     .catch(() => false);
   if (!autoReview) {
-    await page.getByRole("button", { name: /學生視角檢查/ }).first().click();
+    await tap(page.getByRole("button", { name: /學生視角檢查/ }).first());
     await page.waitForSelector("text=淡江學生視角", { timeout: 30000 });
   }
   await expectText("學生視角", "會停下來的可能");
   await page.screenshot({ path: `${prefix}-review.png` });
 
   // 5. 視覺方向
-  await page.getByRole("button", { name: /想 3 個視覺方向/ }).click();
+  await tap(page.getByRole("button", { name: /想 3 個視覺方向/ }));
   await page.waitForSelector("summary:has-text('圖片 Prompt')", { timeout: 30000 });
   const dirs = await page.locator("summary", { hasText: "圖片 Prompt" }).count();
   record("視覺方向數量", dirs >= 3, `只有 ${dirs} 個`);
@@ -212,7 +219,7 @@ try {
 
   // 8. 活動詳情 + AI 生成完整宣傳
   await page.goto(`${base}/campaigns`, { waitUntil: "networkidle" });
-  await page.locator("a[href^='/campaigns/']").first().click();
+  await tap(page.locator("a[href^='/campaigns/']").first());
   await page.waitForURL(/\/campaigns\/camp/, { timeout: 15000 });
   // 用戶端換頁要等新的 route chunk 載完，networkidle 這時已經是 idle 了。
   await page.waitForSelector("text=宣傳節奏", { timeout: 20000 });
@@ -260,7 +267,7 @@ try {
     .evaluate((el) => (el instanceof HTMLElement ? el.click() : undefined));
   await page.waitForURL(/\/studio\//, { timeout: 15000 });
   await page.waitForLoadState("networkidle");
-  await page.getByRole("tab", { name: "文字" }).click();
+  await tap(page.getByRole("tab", { name: "文字" }));
   await expectText("做成限動來源", "這則用到的來源");
   await page.screenshot({ path: `${prefix}-from-image.png` });
 
