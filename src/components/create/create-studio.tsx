@@ -98,7 +98,12 @@ export function CreateStudio({
     setBusy(true);
     try {
       try {
-        const gathered = await gatherCreativeMemory({ data: { query: query.slice(0, 80) } });
+        const gathered = await Promise.race([
+          gatherCreativeMemory({ data: { query: query.slice(0, 80) } }),
+          new Promise<never>((_, reject) => {
+            window.setTimeout(() => reject(new Error("gather-timeout")), 8000);
+          }),
+        ]);
         if (gathered.ok) {
           for (const item of gathered.items) addMemory(item);
           if (gathered.posts?.length) ingestIgPosts(gathered.posts);

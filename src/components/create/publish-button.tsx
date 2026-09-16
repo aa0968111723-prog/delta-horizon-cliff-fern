@@ -45,19 +45,23 @@ export function PublishButton({
       variant={variant}
       className={cn("min-h-11", className)}
       onClick={() => {
-        const board = project ? pagesOf(project)[0] : undefined;
+        const studio = useStudio.getState();
+        const liveProject =
+          (projectId ? studio.projects.find((item) => item.id === projectId) : undefined) ?? project;
+        const board = liveProject ? pagesOf(liveProject)[0] : undefined;
         const imageId = extractImageAssetId(board);
         const post = markPublished({
-          campaignId: campaignId ?? project?.campaignId ?? undefined,
+          campaignId: campaignId ?? liveProject?.campaignId ?? undefined,
           waveId,
-          projectId: projectId ?? project?.id,
-          title: title ?? project?.name,
-          caption: caption ?? (project ? captionFromProject(project) : undefined),
-          kind: project?.contentKind,
+          projectId: projectId ?? liveProject?.id,
+          title: title ?? liveProject?.name,
+          caption: caption ?? (liveProject ? captionFromProject(liveProject) : undefined),
+          kind: liveProject?.contentKind,
           assetIds: imageId ? [imageId] : undefined,
         });
-        if (project) {
-          useStudio.getState().updateProject(project.id, {
+        const publishId = projectId ?? liveProject?.id;
+        if (publishId && studio.projects.some((item) => item.id === publishId)) {
+          studio.updateProject(publishId, {
             status: "published",
             publishedAt: post?.takenAt ?? Date.now(),
           });

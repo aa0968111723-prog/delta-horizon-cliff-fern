@@ -6,6 +6,7 @@ import type { CampaignPlan, CopyTone, CreativeDirection, SourceRef } from "@/lib
 import { buildZenMockPlan, mockDirections, mockReels, mockStoryFrames, mockStudentSim } from "./pack-mock";
 import { extractJson, hasXai, xaiChat } from "./xai";
 import { parseFnInput } from "./parse";
+import { looksEnglish } from "./zh";
 import type { BriefInput } from "./schema";
 
 export type CreativePack = {
@@ -165,6 +166,7 @@ ${data.dnaNotes ? `品牌與 IG DNA：\n${data.dnaNotes}` : ""}
 ${data.inspirationNotes ? `靈感抽象（不要抄作品）：\n${data.inspirationNotes}` : ""}
 
 請輸出 JSON：
+全程台灣繁體中文口語，禁止英文句子，禁止年輕人／Z世代等抽象客群稱呼。
 campaignName, hook, concept, insight, visualTheme, visualDirection, templateId, colorMood,
 eyebrow, headline, subhead, body, cta,
 captions[{style,text}], hashtags, storyBeats, carouselPages[6],
@@ -194,6 +196,9 @@ studentSim{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,to
           sources,
           directions: raw.directions?.length === 3 ? raw.directions : fallback.directions,
         };
+        if (looksEnglish(`${plan.hook}\n${plan.body}\n${plan.directions?.map((d) => d.concept).join("\n") ?? ""}`)) {
+          return { ok: true, pack: mockPack(data.query, brief, sources) };
+        }
         return { ok: true, pack: buildPackFromPlan(data.query, plan, sources, "live") };
       } catch {
         return { ok: true, pack: mockPack(data.query, brief, sources) };
