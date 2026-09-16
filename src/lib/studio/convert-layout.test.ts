@@ -62,8 +62,21 @@ function sampleProject(): Project {
 
 test("applyKindLayout turns one photo into a multi-page carousel", () => {
   const brand = createEmptyBrand("禪學社");
-  const pages = pagesOf(applyKindLayout(sampleProject(), brand, "carousel"));
-  assert.ok(pages.length >= 4, `expected 4+ carousel pages, got ${pages.length}`);
+  const next = applyKindLayout(sampleProject(), brand, "carousel");
+  const pages = pagesOf(next);
+  assert.equal(next.activeFormatId, "feed-portrait");
+  assert.equal(pages.length, 5);
+  assert.deepEqual(
+    pages.map((page) => page.role),
+    ["cover", "problem", "detail", "proof", "cta"],
+  );
+  const headlines = pages.map((page) => {
+    const layer = page.layers.find((item) => item.type === "text" && item.role === "headline");
+    return layer && layer.type === "text" ? layer.text : "";
+  });
+  assert.ok(headlines[0]?.includes("到場") || headlines[0]?.includes("第一次來"));
+  assert.notEqual(headlines[1], headlines[0]);
+  assert.ok(new Set(headlines.filter(Boolean)).size >= 4, `headlines were ${headlines.join(" / ")}`);
   assert.ok(pages.some((page) => extractImageAssetId(page) === "asset_photo"));
 });
 

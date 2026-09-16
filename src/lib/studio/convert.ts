@@ -115,28 +115,47 @@ function storyPages(source: Project, brand: BrandKit, copy: CopyDeck): Artboard[
   );
 }
 
+/** 從一張圖做成輪播時，一頁主視覺不能當成已經寫好的五頁腳本。 */
+function photoCarouselFallback(copy: CopyDeck, brief: Project["brief"]) {
+  const hook = firstLine(copy.caption) || firstLine(copy.headline) || "先坐一下再說";
+  return {
+    headline: hook,
+    subhead: copy.subhead.trim() || "不用盤腿，不用信什麼",
+    body: copy.body.trim() || "一小時，什麼都不用做。",
+    cta: copy.cta.trim() || "來坐一下",
+    hook,
+    insight: brief.notes || brief.features || "每天都在趕，沒有一段時間是自己的",
+    templateId: "product" as const,
+  };
+}
+
 function carouselPages(source: Project, brand: BrandKit, copy: CopyDeck): Artboard[] {
   const existing = pagesOf(source);
   const imageAssetId = visualAssetOf(source);
+  const fromPhoto = existing.length <= 1;
   const plans = completeCarouselPages(
-    existing.map((page, i) => ({
-      role: page.role ?? CAROUSEL_SEQUENCE[i]?.role ?? "detail",
-      headline: copy.headline,
-      subhead: copy.subhead,
-      body: copy.body,
-      cta: copy.cta,
-      visualNote: "",
-      templateId: page.templateId ?? source.templateId,
-    })),
-    {
-      headline: copy.headline,
-      subhead: copy.subhead,
-      body: copy.body,
-      cta: copy.cta,
-      hook: source.copy.caption.split("\n")[0],
-      insight: source.brief.notes || source.brief.offer,
-      templateId: source.templateId,
-    },
+    fromPhoto
+      ? []
+      : existing.map((page, i) => ({
+          role: page.role ?? CAROUSEL_SEQUENCE[i]?.role ?? "detail",
+          headline: copy.headline,
+          subhead: copy.subhead,
+          body: copy.body,
+          cta: copy.cta,
+          visualNote: "",
+          templateId: page.templateId ?? source.templateId,
+        })),
+    fromPhoto
+      ? photoCarouselFallback(copy, source.brief)
+      : {
+          headline: copy.headline,
+          subhead: copy.subhead,
+          body: copy.body,
+          cta: copy.cta,
+          hook: firstLine(copy.caption) || copy.headline,
+          insight: source.brief.notes || source.brief.offer,
+          templateId: source.templateId,
+        },
   ).slice(0, Math.min(5, MAX_SLIDES));
 
   return stampSlideMeta(

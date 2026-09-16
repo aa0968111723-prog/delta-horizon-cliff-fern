@@ -34,6 +34,7 @@ import { saveDataUrlAsAsset } from "@/lib/studio/generated-image";
 import { alreadyFramedForRatio } from "@/lib/studio/image-revise-local";
 import { localVisualRatioLine, visualRatioLabel } from "@/lib/studio/local-visual";
 import { frameAndSaveLocalVisual } from "@/lib/studio/local-visual-frame";
+import { copyFromDraft } from "@/lib/studio/copy-draft";
 import { sourceFromAsset, sourceFromExtend } from "@/lib/studio/sources";
 import { CONTENT_KIND_META, CONTENT_KIND_ORDER, contentKindLabel, deliverablesForKind, kindUsesPagedLayout } from "@/lib/studio/status";
 import {
@@ -644,6 +645,35 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       if (payload.caption) {
         setCopy(project.id, { headline: payload.caption.slice(0, 24), caption: payload.caption });
       }
+      if (payload.kind === "carousel") {
+        const cue = imageCueFromTexts(payload.caption, payload.summary);
+        try {
+          const res = await generateIgCopy({
+            data: {
+              ...briefPayload,
+              detail: [payload.summary, payload.caption, briefPayload.detail].filter(Boolean).join("\n"),
+              imageCue: cue || undefined,
+              tones: ["student"],
+            },
+          });
+          const draft = res.drafts[0];
+          const current = useStudio.getState().projects.find((item) => item.id === project.id)?.copy;
+          if (draft && current) {
+            setCopy(project.id, copyFromDraft(current, draft));
+            addCopyDraft(project.id, draft);
+            addSources(project.id, [
+              {
+                kind: res.adapter === "live" ? "generated" : "local",
+                label: res.adapter === "live" ? "AI 輪播文案" : "本機草稿輪播文案",
+                detail: draft.hook,
+              },
+            ]);
+          }
+          if (!res.ok) toast.warning(res.error);
+        } catch {
+          toast.warning("輪播文案這次沒寫成，五頁畫面還是可以用。");
+        }
+      }
       if (kindUsesPagedLayout(payload.kind)) {
         layoutFromKind(project.id, payload.kind);
       }
@@ -685,9 +715,13 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           ? framedNote
             ? `已做成 Reels，腳本與 ${ratioLabel} 封面都排好了`
             : "已做成 Reels，腳本已寫好"
-          : framedNote
-            ? `已做成${kindLabel}，${framedNote}`
-            : `已做成${kindLabel}`,
+          : payload.kind === "carousel"
+            ? framedNote
+              ? `已做成輪播，五頁已排成 ${ratioLabel}`
+              : "已做成輪播，已拆成五頁"
+            : framedNote
+              ? `已做成${kindLabel}，${framedNote}`
+              : `已做成${kindLabel}`,
       );
       void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
     } catch {

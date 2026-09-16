@@ -50,7 +50,7 @@ export function SlideBar({ project }: { project: Project }) {
             {page.role ? PAGE_ROLE_LABEL[page.role] : i + 1}
           </Button>
         ))}
-        <span className="ml-1 shrink-0 text-xs text-subtle tabular-nums">
+        <span className="ml-1 shrink-0 text-xs text-subtle tabular-nums" data-testid="slide-count">
           {index + 1}/{pages.length}
         </span>
       </div>

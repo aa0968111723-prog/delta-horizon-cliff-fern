@@ -432,6 +432,34 @@ try {
   record("做成 Reels 畫布格式", reelsFormat === "reels-cover", `格式是 ${reelsFormat ?? "沒有格式"}`);
   await page.screenshot({ path: `${prefix}-from-image-reels.png` });
 
+  // 8d. 從一張圖片做成輪播：五頁 4:5
+  await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });
+  await page.waitForSelector('[data-testid="analyze-asset-asset_tamsui_dusk"]', { timeout: 15000 });
+  await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
+  await page.waitForSelector("text=本機規則", { timeout: 20000 });
+  await expectText("做成輪播會拆五頁", "輪播排成 IG 4:5 並拆成五頁");
+  await tap(
+    page
+      .locator("section")
+      .filter({ hasText: "圖片理解" })
+      .getByTestId("make-kind-carousel"),
+  );
+  await page.waitForURL(/\/studio\//, { timeout: 25000 });
+  await page.waitForLoadState("networkidle");
+  await page.waitForSelector("[data-testid=slide-count]", { timeout: 15000 });
+  const slideCount = await page.getByTestId("slide-count").innerText();
+  record("做成輪播頁數", /\/5\b/.test(slideCount), `頁數是 ${slideCount}`);
+  await expectText("做成輪播封面頁", "封面");
+  await expectText("做成輪播痛點頁", "痛點");
+  await expectText("做成輪播 hook 走上坡", "走上坡");
+  await expectText("做成輪播已排成比例", "已排成 IG 4:5");
+  await page.waitForSelector('[data-testid="artboard"]', { timeout: 15000 });
+  const carouselRatio = await page.getByTestId("artboard").first().getAttribute("data-ratio");
+  record("做成輪播畫布比例", carouselRatio === "4:5", `畫布是 ${carouselRatio ?? "沒有比例"}`);
+  const carouselFormat = await page.getByTestId("artboard").first().getAttribute("data-format");
+  record("做成輪播畫布格式", carouselFormat === "feed-portrait", `格式是 ${carouselFormat ?? "沒有格式"}`);
+  await page.screenshot({ path: `${prefix}-from-image-carousel.png` });
+
   await page.goto(`${base}/instagram`, { waitUntil: "networkidle" });
   await expectText("IG 個人頁", "追蹤者");
   await expectText("IG 網格切換", "網格");
