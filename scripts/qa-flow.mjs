@@ -226,6 +226,19 @@ try {
   await page.goto(`${base}/search`, { waitUntil: "networkidle" });
   await expectText("搜尋用這張創作", "用這張創作");
 
+  await page.goto(`${base}/create?kind=ig-post&step=visual`, { waitUntil: "networkidle" });
+  await page.waitForSelector("summary:has-text('圖片 Prompt')", { timeout: 30000 });
+  const quickDirs = await page.locator("summary", { hasText: "圖片 Prompt" }).count();
+  record("快速開始視覺方向", quickDirs >= 3, `只有 ${quickDirs} 個`);
+  const visualIdea = await page.locator("#idea").inputValue();
+  record("快速開始帶入想法", visualIdea.length > 0, "想法欄是空的");
+  await page.screenshot({ path: `${prefix}-quick-visual.png` });
+
+  await page.goto(`${base}/create?kind=reels`, { waitUntil: "networkidle" });
+  await page.waitForSelector("text=Reels 腳本", { timeout: 30000 });
+  await expectText("快速開始 Reels", "複製整支腳本");
+  await page.screenshot({ path: `${prefix}-quick-reels.png` });
+
   // 9. 手機視窗檢查橫向溢出
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const mp = await mobile.newPage();

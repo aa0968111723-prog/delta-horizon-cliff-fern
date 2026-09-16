@@ -3,6 +3,18 @@ import type { Brief, Campaign, CampaignWave, ContentKind, CreativeSourceRef, For
 
 export type WaveCopyTopic = "event" | "emotion" | "member" | "countdown" | "recap" | "knowledge";
 
+export type ImageRatio = "4:5" | "1:1" | "9:16" | "1.91:1";
+
+export type ArrivalSearch = {
+  from?: string;
+  seed?: string;
+  campaignId?: string;
+  contentId?: string;
+  asset?: string;
+  kind?: string;
+  step?: string;
+};
+
 export type WaveCreateSearch = {
   from: "idea";
   contentId: string;
@@ -31,25 +43,89 @@ export function topicForKind(kind: ContentKind, hasCampaign: boolean): WaveCopyT
   return hasCampaign ? "event" : "emotion";
 }
 
+/** 空白的／create 或「從一句想法」空表單不自動跑；快速開始選了型態就要開始寫。 */
+export function wantsArrivalAutofill(search: ArrivalSearch): boolean {
+  if (search.from === "image" || Boolean(search.asset)) return false;
+  if (search.from === "idea" && !search.seed && !search.campaignId && !search.contentId) return false;
+  return Boolean(search.seed || search.campaignId || search.contentId || search.kind || search.step === "visual");
+}
+
 /**
- * 從首頁「AI 幫我創作」、活動節奏、延續這則進來時自動寫文案。
+ * 從首頁「AI 幫我創作」、活動節奏、延續這則、快速開始進來時自動寫文案。
  * 從一張圖進來、或這則已經有草稿時不自動跑。
  */
 export function shouldAutofillCopy(
-  search: {
-    from?: string;
-    seed?: string;
-    campaignId?: string;
-    contentId?: string;
-    asset?: string;
-  },
+  search: ArrivalSearch,
   ready: { hydrated: boolean; hasDrafts: boolean; hasPrompt: boolean },
 ): boolean {
   if (!ready.hydrated) return false;
-  if (search.from === "image" || Boolean(search.asset)) return false;
   if (ready.hasDrafts) return false;
   if (!ready.hasPrompt) return false;
-  return Boolean(search.seed || search.campaignId || search.contentId);
+  return wantsArrivalAutofill(search);
+}
+
+export function shouldAutofillVisuals(
+  search: ArrivalSearch,
+  ready: { hydrated: boolean; hasDirections: boolean; hasIntent: boolean },
+): boolean {
+  if (!ready.hydrated) return false;
+  if (ready.hasDirections) return false;
+  if (!ready.hasIntent) return false;
+  return wantsArrivalAutofill(search);
+}
+
+export function shouldAutofillReels(
+  search: ArrivalSearch,
+  kind: ContentKind,
+  ready: { hydrated: boolean; hasReels: boolean; hasPrompt: boolean },
+): boolean {
+  if (kind !== "reels") return false;
+  if (!ready.hydrated) return false;
+  if (ready.hasReels) return false;
+  if (!ready.hasPrompt) return false;
+  return wantsArrivalAutofill(search);
+}
+
+export function visualIntent(parts: { idea?: string; eventName?: string; oneLiner?: string }): string {
+  return (
+    [parts.idea?.trim(), parts.eventName?.trim() ? `活動：${parts.eventName.trim()}` : "", parts.oneLiner?.trim()]
+      .filter(Boolean)
+      .join("／") || "淡江大學禪學社社課"
+  );
+}
+
+export function defaultImageRatio(kind: ContentKind): ImageRatio {
+  if (kind === "line") return "1.91:1";
+  if (kind === "story" || kind === "countdown" || kind === "poll" || kind === "reels") return "9:16";
+  if (kind === "threads" || kind === "qa") return "1:1";
+  return "4:5";
+}
+
+function campaignDateMs(date: string): number {
+  const parsed = Date.parse(`${date}T00:00:00`);
+  return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
+}
+
+/** 快速開始只帶 kind 時，用最近一場活動裡對得上的節奏當想法。 */
+export function pickArrivalWave(
+  campaigns: Campaign[],
+  kind: ContentKind,
+  campaignId?: string,
+): { campaign: Campaign; wave: CampaignWave } | null {
+  const list = campaignId
+    ? campaigns.filter((campaign) => campaign.id === campaignId)
+    : [...campaigns].sort((a, b) => campaignDateMs(a.date) - campaignDateMs(b.date));
+  for (const campaign of list) {
+    const pendingMatch = campaign.waves.find((wave) => !wave.contentId && wave.kind === kind);
+    if (pendingMatch) return { campaign, wave: pendingMatch };
+    const anyMatch = campaign.waves.find((wave) => wave.kind === kind);
+    if (anyMatch) return { campaign, wave: anyMatch };
+  }
+  for (const campaign of list) {
+    const pending = campaign.waves.find((wave) => !wave.contentId);
+    if (pending) return { campaign, wave: pending };
+  }
+  return list[0] && list[0].waves[0] ? { campaign: list[0], wave: list[0].waves[0] } : null;
 }
 
 export function waveCreateSearch(

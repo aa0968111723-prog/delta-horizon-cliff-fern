@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { shouldAutofillCopy, topicForKind, waveCreateSearch, waveProjectFields } from "./wave-draft.ts";
+import {
+  defaultImageRatio,
+  pickArrivalWave,
+  shouldAutofillCopy,
+  shouldAutofillReels,
+  shouldAutofillVisuals,
+  topicForKind,
+  visualIntent,
+  wantsArrivalAutofill,
+  waveCreateSearch,
+  waveProjectFields,
+} from "./wave-draft.ts";
+import type { Campaign, CampaignWave } from "./types.ts";
 
 test("topicForKind maps content types to copy topics", () => {
   assert.equal(topicForKind("countdown", true), "countdown");
@@ -47,6 +59,58 @@ test("shouldAutofillCopy only runs when arriving with a seed or campaign, after 
     false,
   );
   assert.equal(shouldAutofillCopy({}, { hydrated: true, hasDrafts: false, hasPrompt: true }), false);
+  assert.equal(
+    shouldAutofillCopy({ kind: "ig-post" }, { hydrated: true, hasDrafts: false, hasPrompt: true }),
+    true,
+  );
+  assert.equal(
+    shouldAutofillCopy({ step: "visual" }, { hydrated: true, hasDrafts: false, hasPrompt: true }),
+    true,
+  );
+  assert.equal(
+    shouldAutofillCopy({ from: "idea", kind: "ig-post" }, { hydrated: true, hasDrafts: false, hasPrompt: true }),
+    false,
+  );
+});
+
+test("wantsArrivalAutofill skips blank create and image-first flows", () => {
+  assert.equal(wantsArrivalAutofill({}), false);
+  assert.equal(wantsArrivalAutofill({ from: "idea" }), false);
+  assert.equal(wantsArrivalAutofill({ from: "image", kind: "story" }), false);
+  assert.equal(wantsArrivalAutofill({ kind: "story" }), true);
+});
+
+test("shouldAutofillVisuals and Reels follow the same arrival rules", () => {
+  assert.equal(
+    shouldAutofillVisuals({ kind: "ig-post" }, { hydrated: true, hasDirections: false, hasIntent: true }),
+    true,
+  );
+  assert.equal(
+    shouldAutofillVisuals({ kind: "ig-post" }, { hydrated: true, hasDirections: true, hasIntent: true }),
+    false,
+  );
+  assert.equal(
+    shouldAutofillReels({ kind: "reels" }, "reels", { hydrated: true, hasReels: false, hasPrompt: true }),
+    true,
+  );
+  assert.equal(
+    shouldAutofillReels({ kind: "ig-post" }, "ig-post", { hydrated: true, hasReels: false, hasPrompt: true }),
+    false,
+  );
+});
+
+test("defaultImageRatio follows the content format", () => {
+  assert.equal(defaultImageRatio("ig-post"), "4:5");
+  assert.equal(defaultImageRatio("story"), "9:16");
+  assert.equal(defaultImageRatio("reels"), "9:16");
+  assert.equal(defaultImageRatio("line"), "1.91:1");
+  assert.equal(defaultImageRatio("threads"), "1:1");
+});
+
+test("visualIntent falls back to the club, not an empty prompt", () => {
+  assert.equal(visualIntent({ idea: "第一次來" }), "第一次來");
+  assert.equal(visualIntent({ eventName: "浮游禪光" }), "活動：浮游禪光");
+  assert.match(visualIntent({}), /禪學社/);
 });
 
 test("waveProjectFields uses the wave format instead of always feed-portrait", () => {
@@ -107,4 +171,58 @@ test("waveProjectFields for reels uses the cover format", () => {
   });
   assert.equal(fields.formatId, "reels-cover");
   assert.equal(fields.brief.deliverables.reels, true);
+});
+
+function wave(patch: Partial<CampaignWave> & { id: string }): CampaignWave {
+  return {
+    offsetDays: 0,
+    stage: "預熱",
+    title: "預熱",
+    kind: "ig-post",
+    hook: "先問一句",
+    note: "",
+    contentId: null,
+    ...patch,
+  };
+}
+
+function campaign(patch: Partial<Campaign> & { id: string; waves: CampaignWave[] }): Campaign {
+  return {
+    name: "浮游禪光",
+    kind: "sit",
+    date: "2026-09-24",
+    time: "19:00",
+    location: "商管 B302",
+    oneLiner: "一個可以慢下來的晚上",
+    intro: "社課",
+    theme: "",
+    painPoint: "很累",
+    cta: "來坐一下",
+    signupUrl: "",
+    coverAssetId: null,
+    assetIds: [],
+    audienceIds: ["freshman"],
+    axis: "",
+    directions: [],
+    createdAt: 1,
+    updatedAt: 1,
+    planSource: "live",
+    ...patch,
+  };
+}
+
+test("pickArrivalWave prefers a pending wave of the requested kind", () => {
+  const camp = campaign({
+    id: "camp_1",
+    waves: [
+      wave({ id: "w1", kind: "ig-post", hook: "已做的貼文", contentId: "proj_old" }),
+      wave({ id: "w2", kind: "story", hook: "限動鉤子", contentId: null }),
+      wave({ id: "w3", kind: "ig-post", hook: "下一則貼文", contentId: null }),
+    ],
+  });
+  const hit = pickArrivalWave([camp], "ig-post");
+  assert.equal(hit?.wave.id, "w3");
+  assert.equal(hit?.wave.hook, "下一則貼文");
+  const story = pickArrivalWave([camp], "story");
+  assert.equal(story?.wave.id, "w2");
 });

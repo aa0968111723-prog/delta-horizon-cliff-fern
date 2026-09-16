@@ -32,7 +32,16 @@ import { formatBrandMemory } from "@/lib/studio/brand";
 import { saveDataUrlAsAsset } from "@/lib/studio/generated-image";
 import { sourceFromAsset, sourceFromExtend } from "@/lib/studio/sources";
 import { CONTENT_KIND_META, CONTENT_KIND_ORDER, contentKindLabel, deliverablesForKind, kindUsesPagedLayout } from "@/lib/studio/status";
-import { shouldAutofillCopy, topicForKind } from "@/lib/studio/wave-draft";
+import {
+  defaultImageRatio,
+  pickArrivalWave,
+  shouldAutofillCopy,
+  shouldAutofillReels,
+  shouldAutofillVisuals,
+  topicForKind,
+  visualIntent,
+  wantsArrivalAutofill,
+} from "@/lib/studio/wave-draft";
 import type { ContentKind, CopyDraft, CopyTone, StudentReview } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { AUDIENCE_SEGMENTS, DEFAULT_AUDIENCE_IDS } from "@/lib/zen/audience";
@@ -88,19 +97,23 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     () => projects.find((p) => p.id === search.contentId) ?? null,
     [projects, search.contentId],
   );
+  const arrivalKind: ContentKind =
+    (search.kind && search.kind in CONTENT_KIND_META ? (search.kind as ContentKind) : null) ??
+    linkedProject?.contentKind ??
+    "ig-post";
+  const arrival = useMemo(() => {
+    if (!wantsArrivalAutofill(search)) return null;
+    return pickArrivalWave(campaigns, arrivalKind, search.campaignId ?? linkedProject?.campaignId ?? undefined);
+  }, [campaigns, arrivalKind, search, linkedProject?.campaignId]);
   const campaign = useMemo(() => {
-    const id = search.campaignId ?? linkedProject?.campaignId;
-    return campaigns.find((c) => c.id === id) ?? null;
-  }, [campaigns, search.campaignId, linkedProject]);
+    const id = search.campaignId ?? linkedProject?.campaignId ?? arrival?.campaign.id;
+    return campaigns.find((c) => c.id === id) ?? arrival?.campaign ?? null;
+  }, [campaigns, search.campaignId, linkedProject, arrival]);
 
   const [from, setFrom] = useState<StartFrom>(
     search.from === "image" || Boolean(search.asset) ? "image" : "idea",
   );
-  const [kind, setKind] = useState<ContentKind>(
-    (search.kind && search.kind in CONTENT_KIND_META ? (search.kind as ContentKind) : null) ??
-      linkedProject?.contentKind ??
-      "ig-post",
-  );
+  const [kind, setKind] = useState<ContentKind>(arrivalKind);
   const [topic, setTopic] = useState<CopyTopic>(
     topicForKind(
       (search.kind && search.kind in CONTENT_KIND_META ? (search.kind as ContentKind) : "ig-post"),
@@ -135,6 +148,8 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const [imageSourceAssetId, setImageSourceAssetId] = useState<string | null>(search.asset ?? null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const autofillRan = useRef(false);
+  const visualsRan = useRef(false);
+  const reelsRan = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -164,9 +179,11 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     if (campaign.audienceIds.length) {
       setAudienceIds((ids) => (ids.length ? ids : campaign.audienceIds));
     }
+    const hook = search.seed || arrival?.wave.hook;
+    if (hook) setIdea((value) => value || hook);
     // 只在這場活動第一次進來時帶入欄位，之後讓人自己改。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [campaign?.id]);
+  }, [campaign?.id, arrival?.wave.id]);
 
   const briefPayload = useMemo(
     () => ({
@@ -194,7 +211,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     const sched = schedule.trim() || (campaign ? `${campaign.date} ${campaign.time}`.trim() : "");
     const loc = location.trim() || campaign?.location || "";
     const pain = painPoint.trim() || campaign?.painPoint || "";
-    const ideaText = idea.trim() || search.seed?.trim() || "";
+    const ideaText = idea.trim() || search.seed?.trim() || arrival?.wave.hook || "";
     if (!ideaText && !event && !pain) {
       toast.error("先寫一句想法，或填活動名稱。");
       return;
@@ -228,7 +245,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   useEffect(() => {
     if (autofillRan.current) return;
     const hasPrompt = Boolean(
-      idea.trim() || search.seed?.trim() || eventName.trim() || campaign?.name || painPoint.trim() || campaign?.painPoint,
+      idea.trim() || search.seed?.trim() || arrival?.wave.hook || eventName.trim() || campaign?.name || painPoint.trim() || campaign?.painPoint,
     );
     if (
       !shouldAutofillCopy(search, {
@@ -240,15 +257,20 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       return;
     }
     if ((search.campaignId || linkedProject?.campaignId) && !campaign) return;
+    if (search.kind && campaigns.length > 0 && !campaign) return;
     autofillRan.current = true;
     void runCopy({ topic: topicForKind(kind, Boolean(campaign)) });
     // 進頁一次：從首頁／活動節奏／延續這則進來就先寫一版。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, campaign, drafts.length, idea, eventName, painPoint, search.seed, search.campaignId, search.contentId, search.from, search.asset]);
+  }, [hydrated, campaign, drafts.length, idea, eventName, painPoint, search.seed, search.campaignId, search.contentId, search.from, search.asset, search.kind, search.step]);
 
-  async function runVisuals() {
-    const intent = [idea.trim(), eventName.trim() ? `活動：${eventName.trim()}` : ""].filter(Boolean).join("／");
-    if (!intent) {
+  async function runVisuals(opts?: { allowFallback?: boolean }) {
+    const intent = visualIntent({
+      idea: idea.trim() || search.seed?.trim() || arrival?.wave.hook,
+      eventName: eventName.trim() || campaign?.name,
+      oneLiner: campaign?.oneLiner,
+    });
+    if (!idea.trim() && !eventName.trim() && !campaign?.name && !opts?.allowFallback) {
       toast.error("先寫一句你想宣傳什麼。");
       return;
     }
@@ -257,10 +279,10 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       const res = await generateVisualDirections({
         data: {
           intent,
-          eventName: eventName.trim(),
-          schedule: schedule.trim(),
-          location: location.trim(),
-          painPoint: painPoint.trim(),
+          eventName: eventName.trim() || campaign?.name || "",
+          schedule: schedule.trim() || (campaign ? `${campaign.date} ${campaign.time}`.trim() : ""),
+          location: location.trim() || campaign?.location || "",
+          painPoint: painPoint.trim() || campaign?.painPoint || "",
           audienceIds,
           imageStyle: brand
             ? `${brand.imageStyle.mood}｜${brand.imageStyle.lighting}｜${brand.imageStyle.composition}`
@@ -273,12 +295,32 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       setDirections(res.directions);
       setDirectionAdapter(res.ok ? "live" : "local");
       if (!res.ok) toast.warning(res.error);
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch {
       toast.error("想視覺方向時出錯了，再試一次。");
     } finally {
       setVisualBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (visualsRan.current) return;
+    const hasIntent = Boolean(
+      idea.trim() || search.seed?.trim() || eventName.trim() || campaign?.name || search.step === "visual",
+    );
+    if (
+      !shouldAutofillVisuals(search, {
+        hydrated,
+        hasDirections: directions.length > 0,
+        hasIntent,
+      })
+    ) {
+      return;
+    }
+    visualsRan.current = true;
+    void runVisuals({ allowFallback: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, campaign, directions.length, idea, eventName, search.seed, search.campaignId, search.contentId, search.from, search.asset, search.kind, search.step]);
 
   async function runReview(draft: CopyDraft) {
     setReviewBusy(true);
@@ -480,17 +522,17 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     }
   }
 
-  async function runReels(draft?: CopyDraft) {
+  async function runReels(draft?: CopyDraft, opts?: { quiet?: boolean }) {
     setReelsBusy(true);
     try {
       const res = await generateReelsScript({
         data: {
-          eventName: eventName.trim(),
-          schedule: schedule.trim(),
-          location: location.trim(),
-          detail: [idea.trim(), draft?.body ?? ""].filter(Boolean).join("\n"),
-          painPoint: painPoint.trim(),
-          cta: draft?.cta ?? "",
+          eventName: eventName.trim() || campaign?.name || "",
+          schedule: schedule.trim() || (campaign ? `${campaign.date} ${campaign.time}`.trim() : ""),
+          location: location.trim() || campaign?.location || "",
+          detail: [idea.trim() || search.seed?.trim() || "", draft?.body ?? ""].filter(Boolean).join("\n"),
+          painPoint: painPoint.trim() || campaign?.painPoint || "",
+          cta: draft?.cta ?? campaign?.cta ?? "",
           audienceIds,
           brandMemoryText: memoryText,
           igDnaText: igDnaText || undefined,
@@ -503,8 +545,8 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       const id = linkedProject?.id;
       if (id) {
         setReels(id, res.reels);
-        toast.success("Reels 腳本已存到這則內容");
-      } else {
+        if (!opts?.quiet) toast.success("Reels 腳本已存到這則內容");
+      } else if (!opts?.quiet) {
         toast.info("先選一個文案版本建立內容，腳本就會存進去。");
       }
       return res.reels;
@@ -512,6 +554,25 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       setReelsBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (reelsRan.current) return;
+    const hasPrompt = Boolean(
+      idea.trim() || search.seed?.trim() || eventName.trim() || campaign?.name || painPoint.trim(),
+    );
+    if (
+      !shouldAutofillReels(search, kind, {
+        hydrated,
+        hasReels: Boolean(reels || linkedProject?.reels),
+        hasPrompt,
+      })
+    ) {
+      return;
+    }
+    reelsRan.current = true;
+    void runReels(undefined, { quiet: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, campaign, kind, reels, linkedProject?.reels, idea, eventName, painPoint, search.seed, search.campaignId, search.contentId, search.from, search.asset, search.kind]);
 
   function toggleTone(tone: CopyTone) {
     setTones((prev) =>
@@ -552,6 +613,16 @@ export function CreatePage({ search }: { search: CreateSearch }) {
         <p className="mt-4 flex items-center gap-2 text-sm text-muted">
           <Loader2 className="size-4 animate-spin" />
           正在依這場活動寫文案…
+        </p>
+      ) : visualBusy && !directions.length ? (
+        <p className="mt-4 flex items-center gap-2 text-sm text-muted">
+          <Loader2 className="size-4 animate-spin" />
+          正在想三個視覺方向…
+        </p>
+      ) : reelsBusy && !reels ? (
+        <p className="mt-4 flex items-center gap-2 text-sm text-muted">
+          <Loader2 className="size-4 animate-spin" />
+          正在寫 Reels 腳本…
         </p>
       ) : null}
 
@@ -777,7 +848,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
             {copyBusy ? <Loader2 className="size-4 animate-spin" /> : <PenLine className="size-4" />}
             生成文案
           </Button>
-          <Button variant="secondary" onClick={runVisuals} disabled={visualBusy}>
+          <Button variant="secondary" onClick={() => void runVisuals()} disabled={visualBusy}>
             {visualBusy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
             想 3 個視覺方向
           </Button>
@@ -856,7 +927,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
             action={
               <div className="flex items-center gap-2">
                 <DirectionSourceNote adapter={directionAdapter} />
-                <RegenerateButton onClick={runVisuals} busy={visualBusy} />
+                <RegenerateButton onClick={() => void runVisuals()} busy={visualBusy} />
               </div>
             }
           />
@@ -865,6 +936,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
               <li key={direction.id}>
                 <VisualDirectionCard
                   direction={direction}
+                  preferredRatio={defaultImageRatio(kind)}
                   styleHint={
                     brand
                       ? `${brand.imageStyle.mood}｜${brand.imageStyle.lighting}｜${brand.imageStyle.composition}`

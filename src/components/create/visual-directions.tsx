@@ -1,5 +1,5 @@
 import { Download, ImagePlus, Loader2, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,16 +21,22 @@ export function VisualDirectionCard({
   onUseCopy,
   onImageSaved,
   styleHint,
+  preferredRatio = "4:5",
 }: {
   direction: VisualDirection;
   onUseCopy?: (headline: string, subhead: string) => void;
   onImageSaved?: (assetId: string) => void;
   styleHint?: string;
+  preferredRatio?: (typeof RATIOS)[number]["id"];
 }) {
   const addAsset = useStudio((s) => s.addAsset);
-  const [ratio, setRatio] = useState<(typeof RATIOS)[number]["id"]>("4:5");
+  const [ratio, setRatio] = useState<(typeof RATIOS)[number]["id"]>(preferredRatio);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRatio(preferredRatio);
+  }, [preferredRatio]);
 
   async function runGenerate() {
     setBusy(true);
