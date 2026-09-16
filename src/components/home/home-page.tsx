@@ -303,7 +303,7 @@ export function HomePage() {
             onSuiteDone={() => navigate({ to: "/instagram" })}
           />
           <div className="mt-3">
-            <p className="mb-2 text-xs text-muted">一篇做成其他格式</p>
+            <p className="mb-2 text-xs text-muted">一篇做成其他格式，並排進日曆</p>
             <ConvertPanel
               compact
               pack={lastPack}

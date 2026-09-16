@@ -897,7 +897,7 @@ export function InstagramCenter() {
                   </div>
                   <div>
                     <p className="text-sm font-medium">一篇做成其他格式</p>
-                    <p className="mt-1 text-xs text-muted">用上面這則文案，做成 Story、Carousel、Threads、LINE、Reels</p>
+                    <p className="mt-1 text-xs text-muted">用上面這則文案做成其他格式，並排進日曆</p>
                     <div className="mt-2">
                       <ConvertPanel
                         compact

@@ -15,11 +15,16 @@ import {
   type ConvertTargetId,
 } from "@/lib/zen/convert";
 import { convertStaggerDays } from "@/lib/zen/from-idea";
-import { placeScheduleItems } from "@/lib/zen/schedule";
-import type { CreativePack } from "@/lib/zen/types";
+import { applyConvertedSlot } from "@/lib/zen/schedule";
+import type { CreativePack, VisualSequence } from "@/lib/zen/types";
 import { uid } from "@/lib/studio/ids";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
+
+function formatWhen(ts: number) {
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
 
 export function ConvertPanel({
   pack,
@@ -39,9 +44,42 @@ export function ConvertPanel({
   const navigate = useNavigate();
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
   const patchCampaign = useCreative((s) => s.patchCampaign);
+  const setPreviewSchedule = useCreative((s) => s.setPreviewSchedule);
   const livePack = caption?.trim() ? packWithCaption(pack, caption) : pack;
   const converted = convertFromPlan(livePack.plan);
   const [busyId, setBusyId] = useState<ConvertTargetId | null>(null);
+
+  function commitSlot(id: ConvertTargetId, extra?: { projectId?: string; sequence?: VisualSequence }) {
+    const target = CONVERT_TARGETS.find((row) => row.id === id)!;
+    const nextCaption = captionForTarget(converted, id);
+    const live =
+      extra?.sequence ??
+      (useCreative.getState().lastSequence?.kind === id ? useCreative.getState().lastSequence : undefined);
+    const visualId = useCreative.getState().lastVisualAssetId;
+    const { placed } = applyConvertedSlot(useCreative.getState().schedule, {
+      id: uid("sch"),
+      title: `${livePack.copy.hook} · ${target.label}`,
+      contentKind: target.contentKind,
+      status: "scheduled",
+      scheduledAt: tonightAt(convertStaggerDays(id)),
+      publishedAt: null,
+      projectId: extra?.projectId ?? live?.projectId ?? null,
+      campaignId: campaignId ?? null,
+      captionPreview: nextCaption,
+      sequence: live,
+    });
+    upsertSchedule(placed);
+    setPreviewSchedule(placed.id);
+    if (campaignId && visualId) {
+      const campaign = useCreative.getState().campaigns.find((row) => row.id === campaignId);
+      if (campaign) {
+        patchCampaign(campaignId, {
+          relatedAssetIds: [visualId, ...campaign.relatedAssetIds.filter((item) => item !== visualId)].slice(0, 8),
+        });
+      }
+    }
+    return { placed, nextCaption, target };
+  }
 
   async function toPreview(id: ConvertTargetId) {
     const target = CONVERT_TARGETS.find((row) => row.id === id)!;
@@ -57,9 +95,9 @@ export function ConvertPanel({
           toast.error(result.error);
           return;
         }
-        const nextCaption = captionForTarget(converted, id);
+        const { nextCaption } = commitSlot(id, { projectId: result.projectId, sequence: result.sequence });
         onConverted?.({ id, caption: nextCaption });
-        toast.success(`已做成 ${result.labels.length} 張${target.label}，打開 IG Preview`);
+        toast.success(`已做成 ${result.labels.length} 張${target.label}，已排進日曆`);
         if (!stay) await navigate({ to: "/instagram" });
         return;
       }
@@ -75,9 +113,9 @@ export function ConvertPanel({
         toast.error(result.error);
         return;
       }
-      const nextCaption = captionForTarget(converted, id);
+      const { nextCaption } = commitSlot(id, { projectId: result.projectId });
       onConverted?.({ id, caption: nextCaption });
-      toast.success(`已做成${target.label}，打開 IG Preview`);
+      toast.success(`已做成${target.label}，已排進日曆`);
       if (!stay) await navigate({ to: "/instagram" });
     } finally {
       setBusyId(null);
@@ -85,34 +123,9 @@ export function ConvertPanel({
   }
 
   function toCalendar(id: ConvertTargetId) {
-    const target = CONVERT_TARGETS.find((row) => row.id === id)!;
-    const visualId = useCreative.getState().lastVisualAssetId;
-    const live = useCreative.getState().lastSequence;
-    const [placed] = placeScheduleItems(useCreative.getState().schedule, [
-      {
-        id: uid("sch"),
-        title: `${livePack.copy.hook} · ${target.label}`,
-        contentKind: target.contentKind,
-        status: "scheduled",
-        scheduledAt: tonightAt(convertStaggerDays(id)),
-        publishedAt: null,
-        projectId: live?.kind === id ? live.projectId : null,
-        campaignId: campaignId ?? null,
-        captionPreview: captionForTarget(converted, id),
-        sequence: live?.kind === id ? live : undefined,
-      },
-    ]);
-    if (placed) upsertSchedule(placed);
-    if (campaignId && visualId) {
-      const campaign = useCreative.getState().campaigns.find((row) => row.id === campaignId);
-      if (campaign) {
-        patchCampaign(campaignId, {
-          relatedAssetIds: [visualId, ...campaign.relatedAssetIds.filter((item) => item !== visualId)].slice(0, 8),
-        });
-      }
-    }
-    const days = convertStaggerDays(id);
-    toast.success(days ? `已排進日曆（${target.label}，${days} 天後）` : `已排進日曆（${target.label}，今晚）`);
+    const { placed, target } = commitSlot(id);
+    const when = formatWhen(placed.scheduledAt);
+    toast.success(`已排進日曆（${target.label}，${when}）`);
     void navigate({ to: "/calendar" });
   }
 

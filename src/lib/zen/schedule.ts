@@ -121,6 +121,44 @@ export function placeScheduleItems(existing: ScheduleItem[], pending: ScheduleIt
   return placed;
 }
 
+export function applyConvertedSlot(
+  existing: ScheduleItem[],
+  draft: ScheduleItem,
+): { items: ScheduleItem[]; placed: ScheduleItem } {
+  const hit = existing.find(
+    (row) =>
+      row.status !== "published" &&
+      !isWaveScheduleItem(row) &&
+      row.contentKind === draft.contentKind &&
+      (draft.campaignId ? row.campaignId === draft.campaignId : !row.campaignId),
+  );
+  if (hit) {
+    const placed: ScheduleItem = {
+      ...hit,
+      title: draft.title,
+      captionPreview: draft.captionPreview,
+      projectId: draft.projectId ?? hit.projectId,
+      sequence: draft.sequence ?? hit.sequence,
+      status: "scheduled",
+    };
+    return {
+      items: existing.map((row) => (row.id === hit.id ? placed : row)),
+      placed,
+    };
+  }
+  const [placed] = placeScheduleItems(existing, [draft]);
+  return { items: placed ? [placed, ...existing] : existing, placed: placed ?? draft };
+}
+
+export function pickFocusDay(input: { days: number[]; cursor: number }) {
+  const day = (ts: number) => {
+    const d = new Date(ts);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+  const start = day(input.cursor);
+  return input.days.map(day).find((ts) => ts === start) ?? input.days.map(day)[0] ?? start;
+}
+
 export function rhythmHint(items: { contentKind: string }[]) {
   const ads = items.filter((i) => isPromoKind(i.contentKind)).length;
   if (ads >= 3) {

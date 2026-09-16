@@ -1,5 +1,5 @@
 import { addDays, addWeeks, format, getDaysInMonth, startOfMonth, startOfWeek, addMonths, isSameDay, isSameMonth } from "date-fns";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { zhTW } from "date-fns/locale";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -16,7 +16,7 @@ import type { ContentKind } from "@/lib/studio/types";
 import { copyKindForContent } from "@/lib/zen/convert";
 import { igDnaBlock } from "@/lib/zen/insights";
 import { CONTENT_KIND_LABEL, type ScheduleItem } from "@/lib/zen/types";
-import { isWaveScheduleItem, placeScheduleItems, rhythmHint, schedulePreviewAssetId, isDueScheduleItem, shiftScheduleDay } from "@/lib/zen/schedule";
+import { isWaveScheduleItem, placeScheduleItems, pickFocusDay, rhythmHint, schedulePreviewAssetId, isDueScheduleItem, shiftScheduleDay } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -52,30 +52,46 @@ function PhoneDayList({
   days,
   schedule,
   testId,
+  cursor,
   onMove,
   onEdit,
 }: {
   days: Date[];
   schedule: ScheduleItem[];
   testId: string;
+  cursor: Date;
   onMove: (id: string, scheduledAt: number) => void;
   onEdit: (id: string) => void;
 }) {
+  const focusTs = pickFocusDay({ days: days.map((day) => day.getTime()), cursor: cursor.getTime() });
+  const focusRef = useRef<HTMLLIElement | null>(null);
+  useEffect(() => {
+    focusRef.current?.scrollIntoView({ block: "center", inline: "nearest" });
+  }, [focusTs, testId]);
   return (
     <ul className="mt-4 space-y-2 md:hidden" data-testid={testId}>
       {days.map((day) => {
         const items = schedule.filter((row) => isSameDay(row.scheduledAt, day));
+        const focused = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime() === focusTs;
         return (
           <li
             key={day.toISOString()}
-            className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+            ref={focused ? focusRef : undefined}
+            data-testid={focused ? "cal-day-focus" : undefined}
+            className={cn(
+              "rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]",
+              focused && "ring-2 ring-accent/40",
+            )}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               const id = e.dataTransfer.getData("text/schedule-id");
               if (id) onMove(id, dayAtHour(day));
             }}
           >
-            <p className="text-xs text-muted">{format(day, "M/d（EE）", { locale: zhTW })}</p>
+            <p className="text-xs text-muted">
+              {format(day, "M/d（EE）", { locale: zhTW })}
+              {focused && isSameDay(day, new Date()) ? " · 今天" : ""}
+            </p>
             {items.length ? (
               <ul className="mt-2 space-y-1">
                 {items.map((item) => (
@@ -341,6 +357,7 @@ export function CalendarPage() {
           days={weekDays}
           schedule={schedule}
           testId="cal-week"
+          cursor={cursor}
           onMove={moveToDay}
           onEdit={setEditingId}
         />
@@ -351,6 +368,7 @@ export function CalendarPage() {
           days={monthDays}
           schedule={schedule}
           testId="cal-month"
+          cursor={cursor}
           onMove={moveToDay}
           onEdit={setEditingId}
         />

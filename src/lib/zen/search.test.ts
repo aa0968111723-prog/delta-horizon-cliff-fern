@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { SEED_MEMORY } from "./memory.ts";
 import { creativeSearch, expandCreativeQuery, groupSearchHits, knowledgeFromHits, searchCreativeKnowledge, searchTerms } from "./search.ts";
-import { applyPackToWaves, contentKindForWave, copyKindForWave, dueScheduleItems, emptyCampaign, fillKeptWaveRows, mergeSuiteIntoSchedule, nextWaveAngle, nextWaveVisual, packWithDirection, preferSuiteSchedule, projectForKeptWave, rhythmHint, scheduleItemForPreview, scheduleItemsFromCampaign, schedulePreviewAssetId, shiftScheduleDay, spreadSchedule, suggestWaves, suiteCoversWave, upcomingScheduleItems, waveOffsets } from "./schedule.ts";
+import { applyConvertedSlot, applyPackToWaves, contentKindForWave, copyKindForWave, dueScheduleItems, emptyCampaign, fillKeptWaveRows, mergeSuiteIntoSchedule, nextWaveAngle, nextWaveVisual, packWithDirection, pickFocusDay, preferSuiteSchedule, projectForKeptWave, rhythmHint, scheduleItemForPreview, scheduleItemsFromCampaign, schedulePreviewAssetId, shiftScheduleDay, spreadSchedule, suggestWaves, suiteCoversWave, upcomingScheduleItems, waveOffsets } from "./schedule.ts";
 import { canvaDraftNotes, canvaDraftTitle, canvaPresetForAspect, canvaPresetForKind } from "./canva-draft.ts";
 import { convertFromPlan, CONVERT_TARGETS, aspectForTarget, briefFlagsForTarget, captionForTarget, contentKindForFormat, convertTargetForFormat } from "./convert.ts";
 import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
@@ -826,6 +826,79 @@ test("shiftScheduleDay keeps the same hour while moving one calendar day", () =>
   const night = Date.parse("2026-09-16T20:00:00+08:00");
   assert.equal(shiftScheduleDay(night, 1), night + 86_400_000);
   assert.equal(shiftScheduleDay(night, -1), night - 86_400_000);
+});
+
+test("applyConvertedSlot rewrites the unpublished suite slot instead of adding a twin", () => {
+  const now = Date.parse("2026-09-17T20:00:00+08:00");
+  const suite: ScheduleItem = {
+    id: "sch_story",
+    title: "Story · 浮游禪光",
+    contentKind: "story",
+    status: "scheduled",
+    scheduledAt: now,
+    publishedAt: null,
+    projectId: "proj_old",
+    campaignId: "camp_floating_light",
+    captionPreview: "舊文案",
+    sequence: { kind: "story", labels: ["1"], assetIds: ["a"], projectId: "proj_old" },
+  };
+  const wave: ScheduleItem = {
+    id: "sch_wave_story",
+    title: "今晚 · 浮游禪光",
+    contentKind: "story",
+    status: "idea",
+    scheduledAt: now + 86_400_000,
+    publishedAt: null,
+    projectId: null,
+    campaignId: "camp_floating_light",
+    captionPreview: "節奏",
+  };
+  const { placed, items } = applyConvertedSlot([suite, wave], {
+    id: "sch_new",
+    title: "最近是不是連休息都覺得有罪惡感？ · Story",
+    contentKind: "story",
+    status: "scheduled",
+    scheduledAt: now + 3 * 86_400_000,
+    publishedAt: null,
+    projectId: "proj_new",
+    campaignId: "camp_floating_light",
+    captionPreview: "最近是不是連休息都覺得有罪惡感？\n晚上見",
+    sequence: { kind: "story", labels: ["1", "2"], assetIds: ["n1", "n2"], projectId: "proj_new" },
+  });
+  assert.equal(placed.id, "sch_story");
+  assert.equal(placed.scheduledAt, now);
+  assert.match(placed.captionPreview, /連休息都覺得有罪惡感/);
+  assert.equal(placed.projectId, "proj_new");
+  assert.equal(items.filter((row) => row.contentKind === "story" && !row.id.startsWith("sch_wave")).length, 1);
+  assert.equal(items.find((row) => row.id === "sch_wave_story")?.captionPreview, "節奏");
+});
+
+test("applyConvertedSlot places a new night when that format is not on the calendar yet", () => {
+  const now = Date.parse("2026-09-16T20:00:00+08:00");
+  const { placed, items } = applyConvertedSlot([], {
+    id: "sch_threads",
+    title: "Threads",
+    contentKind: "threads",
+    status: "scheduled",
+    scheduledAt: now,
+    publishedAt: null,
+    projectId: "proj_t",
+    campaignId: "camp_floating_light",
+    captionPreview: "短版",
+  });
+  assert.equal(placed.id, "sch_threads");
+  assert.equal(items.length, 1);
+  assert.equal(placed.captionPreview, "短版");
+});
+
+test("pickFocusDay lands on the cursor day inside the month list", () => {
+  const start = Date.parse("2026-09-01T00:00:00+08:00");
+  const days = Array.from({ length: 30 }, (_, i) => start + i * 86_400_000);
+  const cursor = Date.parse("2026-09-16T12:00:00+08:00");
+  const focus = pickFocusDay({ days, cursor });
+  const focusDate = new Date(focus);
+  assert.equal(focusDate.getMonth() + 1, 9);
+  assert.equal(focusDate.getDate(), 16);
 });
 
 test("scheduleItemForPreview binds the format on screen, not the first unpublished slot", () => {
