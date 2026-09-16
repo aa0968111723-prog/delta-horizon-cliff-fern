@@ -130,7 +130,7 @@ export function ReelsStudio({ projectId }: { projectId?: string }) {
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => void generateCover()} disabled={busy}>
             <Sparkles className="size-4" />
-            {busy ? "生成中…" : "生成封面"}
+            {busy ? "生成中…" : available && !available.available ? "確認圖片服務" : "生成封面"}
           </Button>
           <Button
             variant="secondary"

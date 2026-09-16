@@ -2,7 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BriefFields } from "@/components/assistant/brief-fields";
-import { EditorAgent as CanvasEditor } from "@/components/assistant/editor-agent";
+import { CanvasEditor } from "@/components/assistant/canvas-editor";
 import { PlanResult } from "@/components/assistant/plan-result";
 import { ErrorState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";

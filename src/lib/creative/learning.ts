@@ -75,6 +75,31 @@ export function applyOutcomeToPatterns(existing: string[] | undefined, outcome: 
   return mergeLearnedPatterns(existing, formatOutcomeLesson(outcome));
 }
 
+export function stripOutcomeLessons(existing: string[] | undefined, outcome: PostOutcome) {
+  const drop = new Set(formatOutcomeLesson(outcome));
+  return (existing ?? []).filter((item) => !drop.has(item));
+}
+
+function clipMemoryClause(text: string) {
+  return text.replace(/、現場：.*$/, "").trim();
+}
+
+export function learnedHookFromMemory(brandMemory?: string) {
+  const hook = brandMemory?.match(/覺得像淡江的 Hook「([^」]+)」/)?.[1]?.trim() ?? "";
+  if (!hook || /誠摯邀請|法喜|殊勝/.test(hook)) return "";
+  return hook;
+}
+
+export function learnedRememberFromMemory(brandMemory?: string) {
+  const raw = brandMemory?.match(/下次要記得：([^\n]+)/)?.[1];
+  return raw ? clipMemoryClause(raw) : "";
+}
+
+export function learnedWhoFromMemory(brandMemory?: string) {
+  const raw = brandMemory?.match(/實際來的人／反應：([^\n]+)/)?.[1];
+  return raw ? clipMemoryClause(raw) : "";
+}
+
 export function lessonsFromLocalWork(input: {
   brand: BrandKit;
   assets: AssetMeta[];

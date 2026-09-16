@@ -667,7 +667,7 @@ function inspectCarousel(pages: Artboard[]): QaIssue[] {
         title: "輪播標題對齊不統一",
         location: pageLabel(first, 0),
         detail: `有的頁置${align0 === "center" ? "中" : "左"}、有的頁不同。偶爾可接受，但超過一半頁面不一致時會像拼貼。`,
-        suggestion: "封面／案例可置左，引言頁可置中；同一角色的頁要相同。不要每頁換對齊。",
+        suggestion: "封面／現場可置左，引言頁可置中；同一角色的頁要相同。不要每頁換對齊。",
         pageIndex: 0,
       });
     }

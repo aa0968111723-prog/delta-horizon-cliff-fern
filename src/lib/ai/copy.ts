@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { learnedHookFromMemory, learnedRememberFromMemory } from "../creative/learning.ts";
 import type { CopyPack, CopyTone, CopyVariant } from "@/lib/studio/types";
 import type { AiStatus } from "./campaign";
 
@@ -75,6 +76,8 @@ function campusFromMemory(brandMemory?: string) {
 }
 
 function naturalHook(data: CopyRequest) {
+  const learned = learnedHookFromMemory(data.brandMemory);
+  if (learned) return learned;
   if (data.hook && !/誠摯邀請|法喜|殊勝/.test(data.hook)) return data.hook;
   const campus = campusFromMemory(data.brandMemory);
   if (campus && /雨/.test(campus)) return `淡水又下雨了，還是得趕下一堂嗎？`;
@@ -88,6 +91,7 @@ export function buildMockCopyPack(data: CopyRequest): CopyPack {
   const hook = naturalHook(data);
   const facts = eventFacts(data);
   const campus = campusFromMemory(data.brandMemory);
+  const remember = learnedRememberFromMemory(data.brandMemory);
   const core = data.concept || `${data.campaignName}，留一點空間給最近很忙的自己。`;
   const cta = data.cta || "找朋友一起來";
   const hashtags = cleanHashtags(data.hashtags);
@@ -103,7 +107,18 @@ export function buildMockCopyPack(data: CopyRequest): CopyPack {
     return { tone, hook: tone === "生活版" || tone === "幽默版" ? bodyByTone[tone].split("\n")[0] : hook, body: bodyByTone[tone], cta, hashtags };
   });
   const student = variants.find((item) => item.tone === "學生版") ?? variants[0];
-  const revisedCaption = `${student.body}\n\n${cta}${data.registrationUrl ? `｜${data.registrationUrl}` : ""}\n\n${hashtags.join(" ")}`;
+  const putFactsFirst = Boolean(remember && /時間|Caption|最上面/.test(remember) && facts);
+  const revisedCaption = putFactsFirst
+    ? `${facts}\n\n${student.body}\n\n${cta}${data.registrationUrl ? `｜${data.registrationUrl}` : ""}\n\n${hashtags.join(" ")}`
+    : `${student.body}\n\n${cta}${data.registrationUrl ? `｜${data.registrationUrl}` : ""}\n\n${hashtags.join(" ")}`;
+  const fieldNoteReview = [
+    learnedHookFromMemory(data.brandMemory)
+      ? { question: "有沒有沿用現場覺得像淡江的 Hook？", pass: true, feedback: `沿用現場筆記：「${hook}」。不是模擬讚數。` }
+      : null,
+    remember
+      ? { question: "有沒有用上次要記得的事？", pass: true, feedback: `現場筆記：${remember}` }
+      : null,
+  ].filter((item): item is { question: string; pass: boolean; feedback: string } => Boolean(item));
   return {
     variants,
     studentReview: [
@@ -111,8 +126,9 @@ export function buildMockCopyPack(data: CopyRequest): CopyPack {
       { question: "我看得懂活動在做什麼嗎？", pass: Boolean(core), feedback: "已用生活語言說明；避免只留下抽象情緒。" },
       { question: "是不是太宗教或太嚴肅？", pass: !/殊勝|法喜|開悟|修行/.test(revisedCaption), feedback: "沒有艱澀佛學詞，禪被轉成慢下來與整理情緒。" },
       { question: "是不是太像 AI？", pass: !/在這個快節奏|一場心靈|讓我們一起/.test(revisedCaption), feedback: "句型有長短與口語，不把每句寫成金句。" },
-      { question: "時間地點清楚嗎？", pass: Boolean(data.schedule && data.location), feedback: data.schedule && data.location ? "時間與地點集中在文末。" : "仍缺時間或地點，發布前必須補上。" },
+      { question: "時間地點清楚嗎？", pass: Boolean(data.schedule && data.location), feedback: data.schedule && data.location ? (putFactsFirst ? "依現場筆記把時間地點放在 Caption 最上面。" : "時間與地點集中在文末。") : "仍缺時間或地點，發布前必須補上。" },
       { question: "我知道怎麼報名嗎？", pass: Boolean(data.registrationUrl), feedback: data.registrationUrl ? "已附報名連結。" : "尚未提供報名連結，文案不會假裝已完成。" },
+      ...fieldNoteReview,
     ],
     revisedCaption,
     threads: `${hook}\n\n${core}\n\n${facts}\n${cta}`,
@@ -159,7 +175,7 @@ async function generateLive(data: CopyRequest): Promise<CopyPack> {
 variants 必須各有短版、一般版、感性版、學生版、生活版、幽默版，欄位 tone,hook,body,cta,hashtags。
 studentReview 必須逐題回答：會停下來嗎、看得懂嗎、是否太宗教／太嚴肅／太文青／太 AI／太長、時間地點是否清楚、會想找朋友嗎、知道怎麼報名嗎；欄位 question,pass,feedback。
 另外輸出 revisedCaption, threads, line, storyFrames(3–5), carouselPages(5–6), reelsScript(5 段，每段 timing,visual,subtitle,voiceover,transition,assetSuggestion)。
-Hook 不可用「淡江大學禪學社誠摯邀請您」。必須使用 brandMemory 裡的校園情境寫進 Hook 與學生版，近期 Campaign、Canva 風格與 IG hashtags 若有內容也要呼應。先連結課表、通勤、宿舍、人際、壓力或淡水生活，再進活動。不要寫優惠、限時瘋搶或電商促銷。`,
+Hook 不可用「淡江大學禪學社誠摯邀請您」。必須使用 brandMemory 裡的校園情境寫進 Hook 與學生版，近期 Campaign、Canva 風格與 IG hashtags 若有內容也要呼應。若記憶含「現場：」筆記，Hook 必須優先沿用覺得像淡江的那句，並遵守「下次要記得」；不要發明讚數、觸及或觀看次數。先連結課表、通勤、宿舍、人際、壓力或淡水生活，再進活動。不要寫優惠、限時瘋搶或電商促銷。`,
         },
       ],
     }),

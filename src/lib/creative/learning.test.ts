@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createEmptyBrand } from "../studio/brand.ts";
-import { lessonsFromInsights, lessonsFromLocalWork, lessonsFromOutcomes, mergeLearnedPatterns } from "./learning.ts";
+import { lessonsFromInsights, lessonsFromLocalWork, lessonsFromOutcomes, learnedHookFromMemory, learnedRememberFromMemory, mergeLearnedPatterns, stripOutcomeLessons } from "./learning.ts";
 import type { Campaign, ContentItem, PostOutcome } from "./types.ts";
 
 const campaign: Campaign = {
@@ -122,4 +122,25 @@ test("mergeLearnedPatterns keeps newest unique lines", () => {
     mergeLearnedPatterns(["先說學生生活"], ["先說學生生活", "時間地點集中"]),
     ["先說學生生活", "時間地點集中"],
   );
+});
+
+test("field-note memory parser reads hook and remember from the joined Brand Memory line", () => {
+  const memory = "已學到的規律：現場：「浮游禪光」覺得像淡江的 Hook「下課後先不要急著回完所有訊息」、現場：「浮游禪光」下次要記得：時間放 Caption 最上面";
+  assert.equal(learnedHookFromMemory(memory), "下課後先不要急著回完所有訊息");
+  assert.equal(learnedRememberFromMemory(memory), "時間放 Caption 最上面");
+});
+
+test("removing a field note also drops its Brand Memory lines", () => {
+  const outcome: PostOutcome = {
+    id: "o3",
+    contentItemId: "i1",
+    campaignId: "c1",
+    title: "浮游禪光",
+    whoShowedUp: "住宿生",
+    hookThatFeltTamkang: "下課後先不要急著回完所有訊息",
+    remember: "時間放 Caption 最上面",
+    createdAt: 1,
+  };
+  const existing = [...lessonsFromOutcomes([outcome]), "先說學生生活"];
+  assert.deepEqual(stripOutcomeLessons(existing, outcome), ["先說學生生活"]);
 });

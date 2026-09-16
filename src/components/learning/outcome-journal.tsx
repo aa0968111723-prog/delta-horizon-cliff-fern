@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { applyOutcomeToPatterns } from "@/lib/creative/learning";
+import { applyOutcomeToPatterns, stripOutcomeLessons } from "@/lib/creative/learning";
 import type { PostOutcome } from "@/lib/creative/types";
 import { emptyBrandMemory } from "@/lib/studio/brand";
 import { cn } from "@/lib/utils";
@@ -166,7 +166,22 @@ export function OutcomeJournal({
       {recent.length ? (
         <ul className="mt-5 space-y-2">
           {recent.map((item) => (
-            <OutcomeCard key={item.id} outcome={item} onRemove={() => removeOutcome(item.id)} />
+            <OutcomeCard
+              key={item.id}
+              outcome={item}
+              onRemove={(outcome) => {
+                removeOutcome(outcome.id);
+                if (!brand) return;
+                const memory = brand.memory ?? emptyBrandMemory();
+                updateBrand(brand.id, {
+                  memory: {
+                    ...memory,
+                    learnedPatterns: stripOutcomeLessons(memory.learnedPatterns, outcome),
+                    updatedAt: Date.now(),
+                  },
+                });
+              }}
+            />
           ))}
         </ul>
       ) : (
@@ -193,12 +208,18 @@ function Field({
   );
 }
 
-function OutcomeCard({ outcome, onRemove }: { outcome: PostOutcome; onRemove: () => void }) {
+function OutcomeCard({
+  outcome,
+  onRemove,
+}: {
+  outcome: PostOutcome;
+  onRemove: (outcome: PostOutcome) => void;
+}) {
   return (
     <li className="rounded-xl bg-bg p-3">
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 text-sm font-medium">{outcome.title}</p>
-        <Button type="button" size="icon" variant="ghost" className="min-h-11 min-w-11 shrink-0" aria-label={`移除 ${outcome.title}`} onClick={onRemove}>
+        <Button type="button" size="icon" variant="ghost" className="min-h-11 min-w-11 shrink-0" aria-label={`移除 ${outcome.title}`} onClick={() => onRemove(outcome)}>
           <Trash2 className="size-4" />
         </Button>
       </div>

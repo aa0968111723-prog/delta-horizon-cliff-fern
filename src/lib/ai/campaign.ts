@@ -127,7 +127,7 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
 圖片風格：${data.imageStyle || "無"}
 Creative Brain 記憶：
 ${data.brandMemory || "先說學生生活，再介紹活動；使用三色光與真實社員互動"}
-若記憶含校園情境、近期活動、Canva 風格或 IG hashtags，必須寫進 hook、insight 與 hashtags，不可做成通用心靈雞湯或電商促銷。
+若記憶含校園情境、近期活動、Canva 風格、IG hashtags 或「現場：」筆記，必須寫進 hook、insight 與 hashtags。現場筆記裡覺得像淡江的 Hook 要優先沿用，「下次要記得」寫進 checklist。不可做成通用心靈雞湯或電商促銷，也不要發明讚數、觸及或觀看次數。
 
 活動名稱：${data.eventName}
 時間：${data.schedule || "未填"}

@@ -118,7 +118,7 @@
 | 11 Calendar | 月／週／議程、改期、AI 節奏 | 手機 375–430 預設議程，可切本週；從節奏開 AI 會把該則內容連到新作品；已完成作品可去 IG 預覽 | — |
 | 12 IG Preview | Studio 畫面套進手機預覽 | 貼文／限動／Reels 框不同、Carousel 可滑、預設學生版 Caption、Reels 有播放示意、`#preview` 會打開預覽頁、不顯示假讚數／觀看次數 | 不是發文 |
 | 13 Reels | 腳本 + 9:16 封面 | 封面可進素材庫並放到 Studio Reels 封面；沒腳本時導去 Copy Studio；封面生成帶入 Creative Memory | 真實 AI 封面需 xAI；不能直接上傳 IG |
-| 14 Insights／現場學習 | 僅專業帳號授權後顯示官方數字；沒有 grant 時用社團現場筆記 | 無 grant 時 Insights 誠實 unavailable；現場筆記記下誰來了、哪句 Hook 像淡江、下次要記得，並寫入 Brand Memory learnedPatterns。不會用模擬讚數／觀看次數 | 真實 insights 數字；真實 xAI 圖片仍依部署金鑰 |
+| 14 Insights／現場學習 | 僅專業帳號授權後顯示官方數字；沒有 grant 時用社團現場筆記 | 無 grant 時 Insights 誠實 unavailable；現場筆記記下誰來了、哪句 Hook 像淡江、下次要記得，並寫入 Brand Memory learnedPatterns。下一次本機文案／企劃會沿用覺得像淡江的 Hook 與「下次要記得」，刪除筆記也會從 Brand Memory 拿掉對應句子。不會用模擬讚數／觀看次數來教你下次怎麼寫 | 真實 insights 數字；真實 xAI 圖片仍依部署金鑰 |
 | 15 Mobile | 375／390／430 | Brand Memory 單頁切換、流程條可橫滑、連接／Brand／IG 分頁 tap ≥44px；需以瀏覽器再驗 | — |
 
 ## Phase 1 驗收

@@ -35,7 +35,7 @@ type LastEdit = {
   changed: boolean;
 };
 
-export function EditorAgent({ projectId, compact }: Props) {
+export function CanvasEditor({ projectId, compact }: Props) {
   const project = useStudio((s) => s.projects.find((p) => p.id === projectId));
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);

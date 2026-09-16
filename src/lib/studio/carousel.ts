@@ -19,12 +19,12 @@ export const CAROUSEL_SEQUENCE: {
   label: string;
   hint: string;
 }[] = [
-  { role: "cover", templateId: "product", eyebrow: "COVER", label: "封面", hint: "主視覺與標題" },
-  { role: "problem", templateId: "quote", eyebrow: "ISSUE", label: "痛點", hint: "為什麼現在要看" },
-  { role: "detail", templateId: "editorial", eyebrow: "FOCUS", label: "重點", hint: "內容與規格" },
-  { role: "proof", templateId: "product", eyebrow: "PROOF", label: "案例", hint: "現場或證明" },
-  { role: "cta", templateId: "offer", eyebrow: "NOW", label: "行動", hint: "時間地點 CTA" },
-  { role: "close", templateId: "quote", eyebrow: "NOTE", label: "結尾", hint: "一句話收束" },
+  { role: "cover", templateId: "product", eyebrow: "今晚", label: "封面", hint: "主視覺與標題" },
+  { role: "problem", templateId: "quote", eyebrow: "最近", label: "痛點", hint: "為什麼現在要看" },
+  { role: "detail", templateId: "editorial", eyebrow: "這次", label: "重點", hint: "內容與時間地點" },
+  { role: "proof", templateId: "product", eyebrow: "現場", label: "現場", hint: "真實同學或活動空間" },
+  { role: "cta", templateId: "offer", eyebrow: "來坐", label: "行動", hint: "時間地點與參加方式" },
+  { role: "close", templateId: "quote", eyebrow: "記得", label: "結尾", hint: "一句話收束" },
 ];
 
 export const CAROUSEL_ROLES: CarouselPageRole[] = CAROUSEL_SEQUENCE.map((item) => item.role);
@@ -33,7 +33,7 @@ export const PAGE_ROLE_LABEL: Record<CarouselPageRole, string> = {
   cover: "封面",
   problem: "痛點",
   detail: "重點",
-  proof: "案例",
+  proof: "現場",
   cta: "行動",
   close: "結尾",
 };

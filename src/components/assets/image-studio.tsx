@@ -216,11 +216,11 @@ export function ImageStudio() {
             </Select>
             <Button
               className="min-h-11 flex-1 bg-accent-fg text-accent hover:bg-accent-fg/90"
-              disabled={busy}
+              disabled={busy || available === null}
               onClick={() => void generate()}
             >
               <WandSparkles className="size-4" />
-              {busy ? "正在生成一張…" : available && !available.available ? "確認圖片服務" : "生成並加入素材庫"}
+              {busy ? "正在生成一張…" : !available?.available ? "確認圖片服務" : "生成並加入素材庫"}
             </Button>
           </div>
           {available && !available.available ? (

@@ -259,7 +259,7 @@ export function createSeedProject(): Project {
 export function createSeedDraft(): Project {
   const draftCopy = {
     ...copy,
-    eyebrow: "STORY IDEA",
+    eyebrow: "限動想法",
     headline: "下課後\n先不要急著回訊息",
     subhead: "三十秒，看看自己現在的狀態",
     body: "",

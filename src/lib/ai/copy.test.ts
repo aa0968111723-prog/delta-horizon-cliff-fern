@@ -72,3 +72,15 @@ test("unavailable copy adapter never pretends Grok wrote the draft", () => {
   assert.equal(status.adapter, "mock");
   assert.match(status.detail, /不是 Grok 寫的/);
 });
+
+test("mock copy prefers a field-note hook over a generic campus line", () => {
+  const pack = buildMockCopyPack({
+    ...request,
+    hook: "最近是不是很久沒有好好坐下來？",
+    brandMemory: "校園情境：淡水雨天\n已學到的規律：現場：「浮游禪光」覺得像淡江的 Hook「下課後先不要急著回完所有訊息」、現場：「浮游禪光」下次要記得：時間放 Caption 最上面",
+  });
+  assert.equal(pack.variants[0].hook, "下課後先不要急著回完所有訊息");
+  assert.match(pack.revisedCaption, /^時間｜/);
+  assert.equal(pack.studentReview.some((item) => /現場筆記/.test(item.feedback)), true);
+  assert.equal(pack.source, "mock");
+});
