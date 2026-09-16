@@ -555,57 +555,65 @@ export function CreateStudio({
         />
       </div>
 
-      {imageSrc ? (
-        <img src={imageSrc} alt="生成或上傳的畫面" className="mt-6 w-full rounded-3xl shadow-[var(--shadow-artboard)]" />
-      ) : null}
       {vision ? (
-        <section className="mt-4 rounded-2xl bg-surface p-4 text-sm shadow-[var(--shadow-border)]">
-          <h2 className="text-sm font-medium">圖片理解</h2>
-          <p className="mt-2">{vision.scene}</p>
-          <ul className="mt-3 grid gap-1 text-xs text-muted sm:grid-cols-2">
-            <li>人物：{vision.people}</li>
-            <li>色彩：{vision.color}</li>
-            <li>光線：{vision.light}</li>
-            <li>構圖：{vision.composition}</li>
-            <li>文字比例：{vision.typeShare}</li>
-            <li>層級：{vision.hierarchy}</li>
-            <li>品牌感：{vision.brandFit}</li>
-            <li>停留感：{vision.stay}</li>
-          </ul>
-          <p className="mt-2 text-muted">{vision.studentFit}</p>
-          <p className="mt-2 text-xs">
-            太宗教 {vision.tooReligious ? "是" : "沒有"} · 太老氣 {vision.tooOld ? "是" : "沒有"} · 太 AI {vision.tooAi ? "是" : "沒有"}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => void fromVision("style")}>
-              延續這個風格
-            </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("restyle")}>
-              保留內容重新設計
-            </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("story")}>
-              做成限動
-            </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("carousel")}>
-              做成 Carousel
-            </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("reels")}>
-              做成 Reels Cover
-            </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("similar")}>
-              生成相似視覺
-            </Button>
-          </div>
-          <p className="mt-2 text-xs text-muted">延續風格會連文案、方向、Carousel 一起出，不是只換一張圖。</p>
-          {visionKit ? (
-            <div className="mt-4 space-y-3">
-              <pre className="whitespace-pre-wrap rounded-2xl bg-bg p-3 font-sans text-xs leading-relaxed">{visionKit.carousel}</pre>
-              <StoryStrip frames={visionKit.story} />
-              <ReelsDesk beats={visionKit.reels} coverSrc={reelsCoverSrc} />
-              <pre className="whitespace-pre-wrap font-sans text-xs text-muted">{visionKit.threads}</pre>
-            </div>
+        <section className="mt-6 grid items-start gap-4 md:grid-cols-[11rem_minmax(0,1fr)]">
+          {imageSrc ? (
+            <img
+              src={imageSrc}
+              alt="生成或上傳的畫面"
+              className="max-h-48 w-full rounded-3xl object-cover shadow-[var(--shadow-artboard)] md:max-h-56"
+            />
           ) : null}
+          <div className="rounded-2xl bg-surface p-4 text-sm shadow-[var(--shadow-border)]">
+            <h2 className="text-sm font-medium">圖片理解</h2>
+            <p className="mt-2">{vision.scene}</p>
+            <ul className="mt-3 grid gap-1 text-xs text-muted sm:grid-cols-2">
+              <li>人物：{vision.people}</li>
+              <li>色彩：{vision.color}</li>
+              <li>光線：{vision.light}</li>
+              <li>構圖：{vision.composition}</li>
+              <li>文字比例：{vision.typeShare}</li>
+              <li>層級：{vision.hierarchy}</li>
+              <li>品牌感：{vision.brandFit}</li>
+              <li>停留感：{vision.stay}</li>
+            </ul>
+            <p className="mt-2 text-muted">{vision.studentFit}</p>
+            <p className="mt-2 text-xs">
+              太宗教 {vision.tooReligious ? "是" : "沒有"} · 太老氣 {vision.tooOld ? "是" : "沒有"} · 太 AI {vision.tooAi ? "是" : "沒有"}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" disabled={busy} onClick={() => void fromVision("style")}>
+                延續這個風格
+              </Button>
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("restyle")}>
+                保留內容重新設計
+              </Button>
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("story")}>
+                做成限動
+              </Button>
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("carousel")}>
+                做成 Carousel
+              </Button>
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("reels")}>
+                做成 Reels Cover
+              </Button>
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("similar")}>
+                生成相似視覺
+              </Button>
+            </div>
+            <p className="mt-2 text-xs text-muted">延續風格會連文案、方向、Carousel 一起出，不是只換一張圖。</p>
+            {visionKit ? (
+              <div className="mt-4 space-y-3">
+                <pre className="whitespace-pre-wrap rounded-2xl bg-bg p-3 font-sans text-xs leading-relaxed">{visionKit.carousel}</pre>
+                <StoryStrip frames={visionKit.story} />
+                <ReelsDesk beats={visionKit.reels} coverSrc={reelsCoverSrc} />
+                <pre className="whitespace-pre-wrap font-sans text-xs text-muted">{visionKit.threads}</pre>
+              </div>
+            ) : null}
+          </div>
         </section>
+      ) : imageSrc ? (
+        <img src={imageSrc} alt="生成或上傳的畫面" className="mt-6 w-full rounded-3xl shadow-[var(--shadow-artboard)]" />
       ) : null}
 
       {hits.length ? (
