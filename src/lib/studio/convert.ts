@@ -140,6 +140,16 @@ function lineBoard(source: Project, brand: BrandKit, copy: CopyDeck): Artboard {
   return board;
 }
 
+/** 從一張圖做成貼文：有照片就 4:5 上圖下文，沒有照片才走編輯大標。 */
+function postBoard(source: Project, brand: BrandKit, copy: CopyDeck): Artboard {
+  const imageAssetId = visualAssetOf(source);
+  const templateId = imageAssetId ? "product" : "editorial";
+  const board = buildLayout("feed-portrait", copy, brand, templateId, { imageAssetId });
+  board.role = "cover";
+  board.templateId = templateId;
+  return board;
+}
+
 /** 從一張圖做成輪播時，一頁主視覺不能當成已經寫好的五頁腳本。 */
 function photoCarouselFallback(copy: CopyDeck, brief: Project["brief"]) {
   const hook = firstLine(copy.caption) || firstLine(copy.headline) || "先坐一下再說";
@@ -212,6 +222,8 @@ export function applyKindLayout(project: Project, brand: BrandKit, kind: Content
     pages = [reelsCoverBoard(project, brand, copy)];
   } else if (kind === "line") {
     pages = [lineBoard(project, brand, copy)];
+  } else if (kind === "ig-post") {
+    pages = [postBoard(project, brand, copy)];
   } else if (kindUsesPagedLayout(kind)) {
     pages = carouselPages(project, brand, copy);
   } else {
@@ -288,6 +300,8 @@ export function convertContent(source: Project, brand: BrandKit, kind: ContentKi
     }
   } else if (kind === "line") {
     pages = [lineBoard(source, brand, copy)];
+  } else if (kind === "ig-post") {
+    pages = [postBoard(source, brand, copy)];
   } else {
     const sourcePage = pagesOf(source)[0];
     pages = [

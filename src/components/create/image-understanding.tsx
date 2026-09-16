@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 
 const MAKE_KINDS: { id: ContentKind; label: string }[] = [
+  { id: "ig-post", label: "做成貼文" },
   { id: "story", label: "做成限動" },
   { id: "carousel", label: "做成輪播" },
   { id: "reels", label: "做成 Reels 封面" },
@@ -359,7 +360,7 @@ export function ImageUnderstanding({
           <div>
             <p className="text-xs text-muted">用這張圖直接開始</p>
             <p className="mt-1 text-xs text-subtle">
-              限動與 Reels 封面會排成 Story 9:16，輪播排成 IG 4:5 並拆成五頁。做成 Reels 封面會同時寫一支 20 秒腳本。做成 LINE 圖會排成橫式 1.91:1，照片在左側。只改構圖比例與留白，不是 AI 生成的畫面。用這張寫文案會依畫面寫 Hook，並自動用淡江學生視角檢查。
+              做成貼文會排成 IG 4:5，照片當主視覺。限動與 Reels 封面會排成 Story 9:16，輪播排成 IG 4:5 並拆成五頁。做成 Reels 封面會同時寫一支 20 秒腳本。做成 LINE 圖會排成橫式 1.91:1，照片在左側。只改構圖比例與留白，不是 AI 生成的畫面。用這張寫文案會依畫面寫 Hook，並自動用淡江學生視角檢查。
             </p>
             <div className="mt-1.5 flex flex-wrap gap-2">
               {onGenerateCopy ? (

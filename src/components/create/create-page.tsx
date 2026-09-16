@@ -627,7 +627,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           style: payload.stylePrompt,
           notes: summary,
           deliverables: {
-            post: false,
+            post: payload.kind === "ig-post",
             story: payload.kind === "story",
             carousel: payload.kind === "carousel",
             reels: payload.kind === "reels",
@@ -676,7 +676,12 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           toast.warning("輪播文案這次沒寫成，五頁畫面還是可以用。");
         }
       }
-      if (kindUsesPagedLayout(payload.kind) || payload.kind === "reels" || payload.kind === "line") {
+      if (
+        kindUsesPagedLayout(payload.kind) ||
+        payload.kind === "reels" ||
+        payload.kind === "line" ||
+        payload.kind === "ig-post"
+      ) {
         layoutFromKind(project.id, payload.kind);
       }
       if (payload.kind === "reels") {
@@ -721,9 +726,13 @@ export function CreatePage({ search }: { search: CreateSearch }) {
             ? framedNote
               ? `已做成輪播，五頁已排成 ${ratioLabel}`
               : "已做成輪播，已拆成五頁"
-            : framedNote
-              ? `已做成${kindLabel}，${framedNote}`
-              : `已做成${kindLabel}`,
+            : payload.kind === "ig-post"
+              ? framedNote
+                ? `已做成貼文，已排成 ${ratioLabel}`
+                : "已做成貼文，照片當主視覺"
+              : framedNote
+                ? `已做成${kindLabel}，${framedNote}`
+                : `已做成${kindLabel}`,
       );
       void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
     } catch {

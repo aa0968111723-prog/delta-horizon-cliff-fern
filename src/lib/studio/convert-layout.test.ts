@@ -226,6 +226,66 @@ test("convertContent to LINE uses landscape 1.91:1", () => {
   );
 });
 
+test("applyKindLayout turns one photo into a 4:5 product post", () => {
+  const brand = createEmptyBrand("禪學社");
+  const next = applyKindLayout(sampleProject(), brand, "ig-post");
+  assert.equal(next.contentKind, "ig-post");
+  assert.equal(next.activeFormatId, "feed-portrait");
+  const cover = pagesOf(next)[0];
+  assert.equal(cover?.formatId, "feed-portrait");
+  assert.equal(cover?.role, "cover");
+  assert.equal(cover?.templateId, "product");
+  assert.equal(extractImageAssetId(cover), "asset_photo");
+  const hero = cover?.layers.find((layer) => layer.type === "image" && layer.name === "主視覺");
+  assert.ok(hero && hero.type === "image");
+  assert.equal(hero.x, 0);
+  assert.equal(hero.y, 0);
+  assert.equal(hero.w, 1080);
+  assert.ok(hero.h > 1350 * 0.5, `photo height was ${hero.h}`);
+  assert.ok(hero.h < 1350 * 0.7, `photo height was ${hero.h}`);
+  assert.equal(
+    cover?.layers.some((layer) => layer.name === "主視覺色塊"),
+    false,
+  );
+});
+
+test("applyKindLayout without a photo keeps the editorial post", () => {
+  const brand = createEmptyBrand("禪學社");
+  const source = sampleProject();
+  const blank = buildLayout("feed-portrait", source.copy, brand, "editorial");
+  const next = applyKindLayout(
+    {
+      ...source,
+      artboards: { "feed-portrait": blank },
+      slides: { "feed-portrait": [blank] },
+    },
+    brand,
+    "ig-post",
+  );
+  const cover = pagesOf(next)[0];
+  assert.equal(cover?.templateId, "editorial");
+  assert.equal(extractImageAssetId(cover), null);
+  assert.equal(
+    cover?.layers.some((layer) => layer.name === "主視覺"),
+    false,
+  );
+});
+
+test("convertContent to ig-post from a LINE photo uses 4:5 product", () => {
+  const brand = createEmptyBrand("禪學社");
+  const line = convertContent(sampleProject(), brand, "line");
+  const next = convertContent(line, brand, "ig-post");
+  assert.equal(next.contentKind, "ig-post");
+  assert.equal(next.activeFormatId, "feed-portrait");
+  const cover = pagesOf(next)[0];
+  assert.equal(cover?.formatId, "feed-portrait");
+  assert.equal(extractImageAssetId(cover), "asset_photo");
+  const hero = cover?.layers.find((layer) => layer.type === "image" && layer.name === "主視覺");
+  assert.ok(hero && hero.type === "image");
+  assert.equal(hero.w, 1080);
+  assert.ok(hero.h < 1350, `photo should not fill the 4:5 canvas, height was ${hero.h}`);
+});
+
 test("convertContent to LINE without a photo keeps the offer frame", () => {
   const brand = createEmptyBrand("禪學社");
   const source = sampleProject();

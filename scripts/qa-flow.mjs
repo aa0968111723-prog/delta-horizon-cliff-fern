@@ -396,9 +396,11 @@ try {
   await page.locator('input[type="file"][accept="image/*"]').setInputFiles("/tmp/qa-image.png");
   await page.waitForSelector('img[alt="待分析的圖片"]', { timeout: 10000 });
   await expectText("做成限動入口", "做成限動");
+  await expectText("做成貼文入口", "做成貼文");
   await expectText("用這張寫文案", "用這張寫文案");
   await expectText("改這張圖", "改這張圖");
   await expectText("改版預設", "更像淡江生活");
+  await expectText("做成貼文會排成 4:5", "做成貼文會排成 IG 4:5");
   await expectText("做成限動會排成 9:16", "限動與 Reels 封面會排成 Story 9:16");
   await expectText("做成 LINE 會排橫式", "做成 LINE 圖會排成橫式 1.91:1");
   await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
@@ -508,6 +510,40 @@ try {
     carouselPhoto > 0 ? `畫布上有 ${carouselPhoto} 張主視覺` : "封面沒有主視覺照片",
   );
   await page.screenshot({ path: `${prefix}-from-image-carousel.png` });
+
+  // 8e. 從一張圖片做成貼文：單張 4:5，照片當主視覺
+  await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });
+  await expectText("做成貼文入口再點", "做成貼文");
+  await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
+  await page.waitForSelector("text=本機規則", { timeout: 20000 });
+  await tap(
+    page
+      .locator("section")
+      .filter({ hasText: "圖片理解" })
+      .getByTestId("make-kind-ig-post"),
+  );
+  await page.waitForURL(/\/studio\//, { timeout: 25000 });
+  await page.waitForLoadState("networkidle");
+  await page.waitForSelector("text=這則用到的來源", { timeout: 15000 });
+  await expectText("做成貼文來源", "這則用到的來源");
+  await expectText("做成貼文已排成比例", "已排成 IG 4:5");
+  await page.waitForSelector('[data-testid="artboard"]', { timeout: 15000 });
+  const postRatio = await page.getByTestId("artboard").first().getAttribute("data-ratio");
+  record("做成貼文畫布比例", postRatio === "4:5", `畫布是 ${postRatio ?? "沒有比例"}`);
+  const postFormat = await page.getByTestId("artboard").first().getAttribute("data-format");
+  record("做成貼文畫布格式", postFormat === "feed-portrait", `格式是 ${postFormat ?? "沒有格式"}`);
+  await page.waitForSelector('[data-testid="artboard-photo"]', { timeout: 15000 });
+  const postPhoto = await page
+    .getByTestId("artboard")
+    .first()
+    .locator("[data-testid=artboard-photo]")
+    .count();
+  record(
+    "做成貼文封面有照片",
+    postPhoto > 0,
+    postPhoto > 0 ? `畫布上有 ${postPhoto} 張主視覺` : "貼文沒有主視覺照片",
+  );
+  await page.screenshot({ path: `${prefix}-from-image-post.png` });
 
   await page.goto(`${base}/instagram`, { waitUntil: "networkidle" });
   await expectText("IG 個人頁", "追蹤者");
