@@ -15,7 +15,7 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: APP_NAME },
-      { name: "description", content: "淡江大學禪學社的一人 AI Creative Marketing Studio" },
+      { name: "description", content: "淡江大學禪學社的一人網宣創作室" },
       { name: "theme-color", content: "#F4F1EA" },
     ],
     links: [

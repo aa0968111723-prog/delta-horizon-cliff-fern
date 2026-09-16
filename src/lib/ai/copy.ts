@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { learnedHookFromMemory, learnedRememberFromMemory } from "../creative/learning.ts";
+import { reviewStudentCaption } from "../studio/ig-surfaces.ts";
 import type { CopyPack, CopyTone, CopyVariant } from "@/lib/studio/types";
 import type { AiStatus } from "./campaign";
 
@@ -119,15 +120,28 @@ export function buildMockCopyPack(data: CopyRequest): CopyPack {
       ? { question: "有沒有用上次要記得的事？", pass: true, feedback: `現場筆記：${remember}` }
       : null,
   ].filter((item): item is { question: string; pass: boolean; feedback: string } => Boolean(item));
+  const localReview = reviewStudentCaption({
+    caption: revisedCaption,
+    hook,
+    cta,
+    schedule: data.schedule,
+    location: data.location,
+    registrationUrl: data.registrationUrl,
+    hashtags,
+  }).map((item) => {
+    if (item.question.includes("時間地點") && data.schedule && data.location) {
+      return {
+        ...item,
+        pass: true,
+        feedback: putFactsFirst ? "依現場筆記把時間地點放在貼文最上面。" : "時間與地點集中在文末。",
+      };
+    }
+    return item;
+  });
   return {
     variants,
     studentReview: [
-      { question: "我會停下來嗎？", pass: true, feedback: "第一句先說學生正在經歷的事，沒有先報社團全名。" },
-      { question: "我看得懂活動在做什麼嗎？", pass: Boolean(core), feedback: "已用生活語言說明；避免只留下抽象情緒。" },
-      { question: "是不是太宗教或太嚴肅？", pass: !/殊勝|法喜|開悟|修行/.test(revisedCaption), feedback: "沒有艱澀佛學詞，禪被轉成慢下來與整理情緒。" },
-      { question: "是不是太像 AI？", pass: !/在這個快節奏|一場心靈|讓我們一起/.test(revisedCaption), feedback: "句型有長短與口語，不把每句寫成金句。" },
-      { question: "時間地點清楚嗎？", pass: Boolean(data.schedule && data.location), feedback: data.schedule && data.location ? (putFactsFirst ? "依現場筆記把時間地點放在 Caption 最上面。" : "時間與地點集中在文末。") : "仍缺時間或地點，發布前必須補上。" },
-      { question: "我知道怎麼報名嗎？", pass: Boolean(data.registrationUrl), feedback: data.registrationUrl ? "已附報名連結。" : "尚未提供報名連結，文案不會假裝已完成。" },
+      ...localReview,
       ...fieldNoteReview,
     ],
     revisedCaption,

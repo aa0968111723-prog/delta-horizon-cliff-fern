@@ -64,6 +64,7 @@ export type PostOutcome = {
   whoShowedUp: string;
   hookThatFeltTamkang: string;
   remember: string;
+  hashtags: string[];
   createdAt: number;
 };
 

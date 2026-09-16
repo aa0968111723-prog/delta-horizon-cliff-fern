@@ -93,7 +93,7 @@ export function ConnectionCenter() {
       setVisibleItems(result.data);
       rememberItems(result.data);
       setStatus("connected");
-      toast.success(`找到 ${result.data.length} 個 Drive 項目，已加入 Creative Brain 索引`);
+      toast.success(`找到 ${result.data.length} 個 Drive 項目，已加入 跨來源記憶 索引`);
     } catch (error) {
       setStatus("error");
       toast.error(error instanceof Error ? error.message : "Drive 搜尋失敗");
@@ -117,7 +117,7 @@ export function ConnectionCenter() {
       setVisibleItems((items) =>
         items.map((row) => row.id === item.id ? { ...row, snippet: result.data.text } : row),
       );
-      toast.success("內容摘要已加入 Creative Brain");
+      toast.success("內容摘要已加入 跨來源記憶");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "無法讀取檔案");
     } finally {
@@ -149,7 +149,7 @@ export function ConnectionCenter() {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="淡江禪學社 Creative Brain"
+        kicker="禪作所"
         title="連接"
         description="從已授權的 Google Drive、Canva、Instagram 找回歷屆企劃與畫面。憑證只留在伺服器，不會進入前端、瀏覽器儲存或 repository。"
         actions={<BrandSubnav current="connections" />}
@@ -167,7 +167,7 @@ export function ConnectionCenter() {
                 <ConnectionBadge status={status} />
               </div>
               <p className="mt-1 text-xs text-muted">
-                {lastSyncAt ? `Creative Brain 最近同步：${new Date(lastSyncAt).toLocaleString("zh-TW")}` : "尚未把 Drive 內容加入 Creative Brain"}
+                {lastSyncAt ? `跨來源記憶 最近同步：${new Date(lastSyncAt).toLocaleString("zh-TW")}` : "尚未把 Drive 內容加入 跨來源記憶"}
               </p>
             </div>
           </div>
@@ -214,7 +214,7 @@ export function ConnectionCenter() {
             detail="App 不會繞過授權範圍。請在 Grok 檢查連接權限後重新同步。"
           />
         ) : status === "error" ? (
-          <ConnectionMessage title="Google Drive 暫時無法使用" detail="既有 Creative Brain 索引仍保留，可稍後重新檢查。無法在此時匯入素材庫。" />
+          <ConnectionMessage title="Google Drive 暫時無法使用" detail="既有 跨來源記憶 索引仍保留，可稍後重新檢查。無法在此時匯入素材庫。" />
         ) : (
           <div className="p-5 md:p-6">
             {importBlocked && status !== "connected" && status !== "checking" ? (

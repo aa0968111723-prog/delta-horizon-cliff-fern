@@ -23,7 +23,7 @@ const NEXT: Record<CreationStep, { label: string; to: LoopHref; hash?: string }>
   copy: { label: "下一步：生成畫面", to: "/assets" },
   image: { label: "下一步：看 IG 預覽", to: "/instagram", hash: "preview" },
   preview: { label: "下一步：排進節奏", to: "/calendar" },
-  schedule: { label: "下一步：匯出內容包", to: "/export" },
+  schedule: { label: "下一步：匯出一人發佈包", to: "/export" },
   export: { label: "回活動看下一波", to: "/campaigns" },
 };
 

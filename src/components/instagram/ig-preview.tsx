@@ -1,5 +1,6 @@
 import { Heart, MessageCircle, Play, Send } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CaptionMeter } from "@/components/assistant/caption-meter";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -211,7 +212,7 @@ export function IgPreview({ projectId }: { projectId?: string }) {
         ) : null}
         {pack ? (
           <div>
-            <p className="text-xs text-muted">Caption 語氣</p>
+            <p className="text-xs text-muted">貼文語氣</p>
             <Select value={variant?.tone ?? "學生版"} onValueChange={setCaptionTone}>
               <SelectTrigger className="mt-2 min-h-11"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -220,13 +221,16 @@ export function IgPreview({ projectId }: { projectId?: string }) {
                 ))}
               </SelectContent>
             </Select>
+            <div className="mt-2">
+              <CaptionMeter caption={caption} hashtags={variant?.hashtags ?? project.copy.hashtags} />
+            </div>
           </div>
         ) : (
-          <p className="text-sm text-muted">還沒有 Copy Pack。到 AI 創作生成學生版文案後，這裡會套上 Caption 與 hashtags。</p>
+          <p className="text-sm text-muted">還沒有文案包。到 AI 創作生成學生版文案後，這裡會套上貼文與 hashtag。</p>
         )}
         <Badge variant="default">這是預覽，不是發文</Badge>
         <p className="text-xs leading-5 text-muted">
-          預設用學生版 Caption。先確認淡江同學會不會停下來，再去排程或匯出。
+          預設用學生版貼文。先確認淡江同學會不會停下來，再去排程或匯出。
         </p>
       </div>
     </div>

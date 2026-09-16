@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { generateCopyPack, describeCopyAdapter, getCopyAiStatus } from "@/lib/ai/copy";
 import type { AiStatus } from "@/lib/ai/campaign";
+import { CaptionMeter } from "@/components/assistant/caption-meter";
+import { IgSurfaceConvert } from "@/components/assistant/ig-surface-convert";
 import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
-import { lessonsFromLocalWork } from "@/lib/creative/learning";
+import { hashtagsFromOutcomes, lessonsFromLocalWork, mergeHashtagMemory } from "@/lib/creative/learning";
 import { buildCreativeMemoryContext, memoryInjectionHints } from "@/lib/creative/memory";
 import { CreationLoop } from "@/components/shared/creation-loop";
 import { emptyBrandMemory } from "@/lib/studio/brand";
@@ -28,7 +30,8 @@ export function CopyStudio({ projectId }: { projectId: string }) {
   const assets = useStudio((state) => state.assets);
   const instagramItems = useConnectionStore((state) => state.instagramItems);
   const styleReferences = useConnectionStore((state) => state.styleReferences);
-  const memoryHashtags = hashtagsFromInstagramMemory(instagramItems);
+  const outcomeHashtags = hashtagsFromOutcomes(outcomes);
+  const memoryHashtags = mergeHashtagMemory(outcomeHashtags, hashtagsFromInstagramMemory(instagramItems));
   const memoryHints = brand
     ? memoryInjectionHints({
         brand,
@@ -36,6 +39,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
         campaigns,
         styleReferences,
         instagramHashtags: memoryHashtags,
+        outcomeHashtags,
       })
     : [];
   const [busy, setBusy] = useState(false);
@@ -83,6 +87,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
             campaigns,
             styleReferences,
             instagramHashtags: memoryHashtags,
+            outcomeHashtags,
           }),
           hashtags: [...new Set([...(project.plan.hashtags ?? []), ...memoryHashtags])].slice(0, 20),
           forceMock,
@@ -96,7 +101,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
       setLiveFailed(false);
       patchPlan(projectId, { copyPack: result.pack });
       setActiveTone("學生版");
-      toast.success(result.pack.source === "live" ? "AI Copy Pack 已生成" : "本機 Copy Pack 草案已生成，不是 Grok 寫的");
+      toast.success(result.pack.source === "live" ? "文案包已生成" : "本機文案草案已生成，不是 Grok 寫的");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "文案生成失敗");
     } finally {
@@ -131,9 +136,6 @@ export function CopyStudio({ projectId }: { projectId: string }) {
     ? [
         { label: "Threads", text: pack.threads },
         { label: "LINE", text: pack.line },
-        { label: "Story", text: pack.storyFrames.map((item, index) => `${index + 1}. ${item}`).join("\n\n") },
-        { label: "Carousel", text: pack.carouselPages.map((item, index) => `Page ${index + 1}\n${item}`).join("\n\n") },
-        { label: "Reels Script", text: pack.reelsScript.map((item) => `${item.timing}\n畫面：${item.visual}\n字幕：${item.subtitle}\n旁白：${item.voiceover}\n轉場：${item.transition}\n素材：${item.assetSuggestion}`).join("\n\n") },
       ]
     : [];
 
@@ -145,7 +147,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-display text-lg">IG Copy Studio</h3>
+            <h3 className="font-display text-lg">寫這則網宣文案</h3>
             {pack ? <Badge variant={pack.source === "live" ? "success" : "warn"}>{pack.source === "live" ? "AI" : "本機草案"}</Badge> : null}
           </div>
           <p className="mt-1 text-xs leading-5 text-muted">
@@ -153,7 +155,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
               ? banner.detail
               : "先確認有沒有連到 AI 文案，不會假裝 Grok 已寫好。"}
             {memoryHints.length ? ` 本次會帶入 Creative Memory：${memoryHints.join("、")}。` : " Brand Memory 尚未寫入校園情境時，會用預設的淡江生活場景。"}
-            {memoryHashtags.length ? ` 已帶入 IG 內容記憶 hashtags：${memoryHashtags.slice(0, 5).join(" ")}` : ""}
+            {memoryHashtags.length ? ` 已帶入現場／IG hashtag：${memoryHashtags.slice(0, 5).join(" ")}` : ""}
           </p>
         </div>
         <div className="flex min-h-11 flex-wrap gap-2">
@@ -164,7 +166,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
           ) : null}
           <Button size="sm" className="min-h-11" disabled={busy || !status} onClick={() => void generate(mockMode)}>
             <Sparkles className="size-4" />
-            {busy ? "生成中…" : mockMode ? (pack ? "重新生成本機草案" : "生成本機草案") : pack ? "重新生成" : "生成 Copy Pack"}
+            {busy ? "生成中…" : mockMode ? (pack ? "重新生成本機草案" : "生成本機草案") : pack ? "重新生成" : "生成文案包"}
           </Button>
         </div>
       </div>
@@ -188,7 +190,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
           </div>
 
           <div className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
-            <p className="text-xs text-muted">HOOK</p>
+            <p className="text-xs text-muted">開頭句</p>
             <p className="mt-2 font-display text-xl leading-snug">{variant.hook}</p>
             <p className="mt-3 whitespace-pre-line text-sm leading-6 text-muted">{variant.body}</p>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
@@ -196,6 +198,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
               <Button
                 size="sm"
                 variant="secondary"
+                className="min-h-11"
                 onClick={async () => {
                   await navigator.clipboard.writeText(`${variant.body}\n\n${variant.cta}\n\n${variant.hashtags.join(" ")}`);
                   toast.success("已複製這個版本");
@@ -203,6 +206,12 @@ export function CopyStudio({ projectId }: { projectId: string }) {
               >
                 <Copy className="size-4" />複製
               </Button>
+            </div>
+            <div className="mt-3">
+              <CaptionMeter
+                caption={`${variant.body}\n\n${variant.cta}\n\n${variant.hashtags.join(" ")}`}
+                hashtags={variant.hashtags}
+              />
             </div>
           </div>
 
@@ -249,7 +258,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
 
           {memoryHashtags.length ? (
             <div>
-              <p className="text-xs font-medium">從 IG 內容記憶建議</p>
+              <p className="text-xs font-medium">現場與 IG 記得的 hashtag</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {memoryHashtags.map((tag) => (
                   <button
@@ -269,8 +278,11 @@ export function CopyStudio({ projectId }: { projectId: string }) {
             </div>
           ) : null}
 
+          <IgSurfaceConvert projectId={projectId} />
+
+          {formats.length ? (
           <div>
-            <p className="text-xs font-medium">一鍵轉換</p>
+            <p className="text-xs font-medium">複製到 Threads／LINE</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {formats.map((item) => (
                 <button
@@ -288,6 +300,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
               ))}
             </div>
           </div>
+          ) : null}
           <Button asChild variant="ghost" className="mt-3 min-h-11">
             <Link to="/instagram" hash="preview">打開 Reels 腳本與 IG 預覽</Link>
           </Button>

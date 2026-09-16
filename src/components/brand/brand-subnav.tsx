@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 export function BrandSubnav({ current }: { current: "brand" | "assets" | "connections" }) {
   return (
-    <div className="inline-flex rounded-lg bg-surface-2 p-1">
+    <div className="inline-flex max-w-full overflow-x-auto rounded-lg bg-surface-2 p-1">
       <Link
         to="/brand"
         className={cn(

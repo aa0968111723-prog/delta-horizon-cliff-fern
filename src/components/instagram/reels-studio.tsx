@@ -90,7 +90,7 @@ export function ReelsStudio({ projectId }: { projectId?: string }) {
         generationPrompt: result.prompt,
         provenance: {
           provider: "generated",
-          label: "AI Generated／Reels Cover",
+          label: "xAI 生成／Reels 封面",
           collection: "Reels",
           importedAt: Date.now(),
         },
@@ -182,7 +182,7 @@ export function ReelsStudio({ projectId }: { projectId?: string }) {
       ) : (
         <div className="rounded-2xl bg-bg px-4 py-10 text-center">
           <p className="text-sm text-muted">
-            到 Studio 的 Copy Studio 生成 Copy Pack 後，這裡會出現五段 Reels 腳本。不會假裝能直接上傳 Instagram。
+            到 AI 創作的文案桌生成文案包後，這裡會出現五段 Reels 腳本。不會假裝能直接上傳 Instagram。
           </p>
           <Button asChild variant="secondary" className="mt-4 min-h-11">
             <Link to="/assistant">去生成文案</Link>

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { applyOutcomeToPatterns, stripOutcomeLessons } from "@/lib/creative/learning";
+import { extractHashtags } from "@/lib/connections/instagram-normalize";
 import type { PostOutcome } from "@/lib/creative/types";
 import { emptyBrandMemory } from "@/lib/studio/brand";
 import { cn } from "@/lib/utils";
@@ -34,11 +35,13 @@ export function OutcomeJournal({
   const removeOutcome = useCreative((state) => state.removeOutcome);
   const setContentStatus = useCreative((state) => state.setContentStatus);
   const brand = useStudio((state) => state.brands[0]);
+  const projects = useStudio((state) => state.projects);
   const updateBrand = useStudio((state) => state.updateBrand);
   const [contentId, setContentId] = useState(presetContentId ?? "none");
   const [whoShowedUp, setWhoShowedUp] = useState("");
   const [hookThatFeltTamkang, setHookThatFeltTamkang] = useState("");
   const [remember, setRemember] = useState("");
+  const [hashtagDraft, setHashtagDraft] = useState("");
   const [markPublished, setMarkPublished] = useState(false);
 
   useEffect(() => {
@@ -47,12 +50,23 @@ export function OutcomeJournal({
 
   const selected = contentItems.find((item) => item.id === contentId);
   const campaign = campaigns.find((item) => item.id === (selected?.campaignId ?? campaigns[0]?.id));
+  const linkedProject = selected?.projectId ? projects.find((item) => item.id === selected.projectId) : undefined;
+
+  useEffect(() => {
+    if (!linkedProject) return;
+    const tags = linkedProject.plan?.hashtags ?? linkedProject.copy.hashtags;
+    if (tags?.length && !hashtagDraft.trim()) setHashtagDraft(tags.join(" "));
+    // Prefill once when a linked work is chosen; student can delete before save.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedProject?.id]);
+
   const recent = useMemo(() => outcomes.slice(0, compact ? 3 : 8), [compact, outcomes]);
 
   function reset() {
     setWhoShowedUp("");
     setHookThatFeltTamkang("");
     setRemember("");
+    setHashtagDraft("");
     setMarkPublished(false);
   }
 
@@ -66,6 +80,10 @@ export function OutcomeJournal({
       return;
     }
     const title = selected?.title || campaign?.name || "這則網宣";
+    const hashtags = [...new Set([
+      ...extractHashtags(hashtagDraft),
+      ...extractHashtags(`${hookThatFeltTamkang} ${remember}`),
+    ])].slice(0, 12);
     const outcome = addOutcome({
       contentItemId: selected?.id ?? null,
       campaignId: selected?.campaignId ?? campaign?.id ?? null,
@@ -73,6 +91,7 @@ export function OutcomeJournal({
       whoShowedUp: whoShowedUp.trim(),
       hookThatFeltTamkang: hookThatFeltTamkang.trim(),
       remember: remember.trim(),
+      hashtags,
     });
     const memory = brand.memory ?? emptyBrandMemory();
     updateBrand(brand.id, {
@@ -147,6 +166,15 @@ export function OutcomeJournal({
             onChange={(event) => setRemember(event.target.value)}
             placeholder="例如：時間放 Caption 最上面，宿舍同學才找得到"
             className="min-h-20"
+          />
+        </Field>
+        <Field label="這則有用的 hashtag（選填）" htmlFor="outcome-hashtags">
+          <Input
+            id="outcome-hashtags"
+            value={hashtagDraft}
+            onChange={(event) => setHashtagDraft(event.target.value)}
+            placeholder="例如：#淡江禪學社 #浮游禪光。沒有就留空。"
+            className="min-h-11"
           />
         </Field>
         {selected ? (
@@ -231,6 +259,9 @@ function OutcomeCard({
       ) : null}
       {outcome.remember ? (
         <p className="mt-1 text-xs leading-5 text-muted">下次：{outcome.remember}</p>
+      ) : null}
+      {outcome.hashtags?.length ? (
+        <p className="mt-1 break-words text-xs leading-5 text-muted">hashtag：{outcome.hashtags.join(" ")}</p>
       ) : null}
     </li>
   );

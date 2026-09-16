@@ -166,7 +166,7 @@ export function AssetDetailSheet({
           importedAt: Date.now(),
         },
       });
-      toast.success("延伸視覺已加入 Creative Library");
+      toast.success("延伸視覺已加入素材庫");
       onCreated?.(id);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "圖片改版失敗");
@@ -193,11 +193,15 @@ export function AssetDetailSheet({
             </p>
             <p className="mt-1">來源：{sourceLabel(asset.source)}</p>
             {asset.provenance ? (
-              <p className="mt-1">
-                {asset.provenance.label}
+              <p className="mt-1 break-words">
+                出處：{asset.provenance.label}
                 {asset.provenance.collection ? `／${asset.provenance.collection}` : ""}
+                {asset.provenance.externalId ? `／${asset.provenance.externalId}` : ""}
                 {asset.provenance.sourceDate ? `／${asset.provenance.sourceDate}` : ""}
               </p>
+            ) : null}
+            {asset.source === "google-drive" && asset.width === 0 ? (
+              <p className="mt-1 text-warn">這是 Drive 來源參考，沒有原圖像素，不能放到畫布，也不會用假檔冒充。</p>
             ) : null}
             <p className="mt-1">狀態：{usageLabel(usage)}</p>
             <p className="mt-1">使用 {asset.useCount} 次</p>

@@ -285,7 +285,7 @@ export function HomePage() {
             <h2 className="mt-1 font-display text-xl">最近素材</h2>
           </div>
           <Button asChild variant="ghost" size="sm">
-            <Link to="/assets">AI Creative Library <ChevronRight className="size-4" /></Link>
+            <Link to="/assets">素材庫 <ChevronRight className="size-4" /></Link>
           </Button>
         </div>
         <ul className="-mx-4 mt-3 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-6 sm:px-0">

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createEmptyBrand } from "../studio/brand.ts";
-import { lessonsFromInsights, lessonsFromLocalWork, lessonsFromOutcomes, learnedHookFromMemory, learnedRememberFromMemory, mergeLearnedPatterns, stripOutcomeLessons } from "./learning.ts";
+import { hashtagsFromOutcomes, lessonsFromInsights, lessonsFromLocalWork, lessonsFromOutcomes, learnedHookFromMemory, learnedRememberFromMemory, mergeHashtagMemory, mergeLearnedPatterns, stripOutcomeLessons } from "./learning.ts";
 import type { Campaign, ContentItem, PostOutcome } from "./types.ts";
 
 const campaign: Campaign = {
@@ -72,6 +72,7 @@ test("outcome lessons write what actually happened, never fake Insights", () => 
     whoShowedUp: "住宿生比較多，有兩個新生問要不要帶坐墊",
     hookThatFeltTamkang: "最近是不是連休息都覺得有罪惡感？",
     remember: "時間放 Caption 最上面，宿舍同學才找得到",
+    hashtags: ["#淡江禪學社"],
     createdAt: 1,
   };
   const lessons = lessonsFromOutcomes([outcome]);
@@ -90,6 +91,7 @@ test("empty outcome fields do not invent attendance or reach", () => {
     whoShowedUp: "   ",
     hookThatFeltTamkang: "",
     remember: "",
+    hashtags: [],
     createdAt: 1,
   }]), []);
 });
@@ -109,6 +111,7 @@ test("local learning prefers field notes over inferred copy lessons", () => {
       whoShowedUp: "商管的同學來了幾位",
       hookThatFeltTamkang: "下課後先不要急著回完所有訊息",
       remember: "別把報名連結藏在最後一行",
+      hashtags: ["#浮游禪光"],
       createdAt: 1,
     }],
     insights: null,
@@ -139,8 +142,39 @@ test("removing a field note also drops its Brand Memory lines", () => {
     whoShowedUp: "住宿生",
     hookThatFeltTamkang: "下課後先不要急著回完所有訊息",
     remember: "時間放 Caption 最上面",
+    hashtags: ["#淡江生活"],
     createdAt: 1,
   };
   const existing = [...lessonsFromOutcomes([outcome]), "先說學生生活"];
   assert.deepEqual(stripOutcomeLessons(existing, outcome), ["先說學生生活"]);
+});
+
+test("hashtags from outcomes rank field-note tags ahead of unused ones", () => {
+  const tags = hashtagsFromOutcomes([
+    {
+      id: "o4",
+      contentItemId: "i1",
+      campaignId: "c1",
+      title: "浮游禪光",
+      whoShowedUp: "",
+      hookThatFeltTamkang: "",
+      remember: "",
+      hashtags: ["#淡江禪學社", "#浮游禪光"],
+      createdAt: 1,
+    },
+    {
+      id: "o5",
+      contentItemId: null,
+      campaignId: "c1",
+      title: "招生",
+      whoShowedUp: "",
+      hookThatFeltTamkang: "",
+      remember: "下次加 #淡江禪學社",
+      hashtags: [],
+      createdAt: 2,
+    },
+  ]);
+  assert.equal(tags[0], "#淡江禪學社");
+  assert.ok(tags.includes("#浮游禪光"));
+  assert.deepEqual(mergeHashtagMemory(["#浮游禪光"], ["#淡江禪學社", "#浮游禪光"]), ["#浮游禪光", "#淡江禪學社"]);
 });

@@ -155,7 +155,7 @@ export function ImageStudio() {
         generationPrompt: result.prompt,
         provenance: {
           provider: "generated",
-          label: "AI Generated／Grok Imagine",
+          label: "xAI 生成／Grok Imagine",
           collection: direction.label,
           importedAt: Date.now(),
         },

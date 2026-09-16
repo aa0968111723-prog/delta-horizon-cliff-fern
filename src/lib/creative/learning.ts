@@ -1,3 +1,4 @@
+import { extractHashtags } from "../connections/instagram-normalize.ts";
 import type { InstagramInsightRow } from "../connections/types.ts";
 import type { AssetMeta, BrandKit, CopyPack, StudentReviewItem } from "../studio/types.ts";
 import type { Campaign, ContentItem, PostOutcome } from "./types.ts";
@@ -68,7 +69,57 @@ export function formatOutcomeLesson(outcome: PostOutcome) {
   if (hook) lines.push(`現場：「${title}」覺得像淡江的 Hook「${hook}」`);
   if (who) lines.push(`現場：「${title}」實際來的人／反應：${who}`);
   if (remember) lines.push(`現場：「${title}」下次要記得：${remember}`);
+  if (outcome.hashtags?.length) {
+    lines.push(`現場：「${title}」有用的 hashtag：${outcome.hashtags.join(" ")}`);
+  }
   return lines;
+}
+
+export function migrateOutcome(raw: Partial<PostOutcome> & Pick<PostOutcome, "id" | "createdAt">): PostOutcome {
+  const freeText = [raw.hookThatFeltTamkang, raw.remember].filter(Boolean).join(" ");
+  const hashtags = [...new Set([
+    ...(raw.hashtags ?? []),
+    ...extractHashtags(freeText),
+  ].map((tag) => tag.startsWith("#") ? tag : `#${tag}`))].slice(0, 12);
+  return {
+    id: raw.id,
+    contentItemId: raw.contentItemId ?? null,
+    campaignId: raw.campaignId ?? null,
+    title: raw.title ?? "",
+    whoShowedUp: raw.whoShowedUp ?? "",
+    hookThatFeltTamkang: raw.hookThatFeltTamkang ?? "",
+    remember: raw.remember ?? "",
+    hashtags,
+    createdAt: raw.createdAt,
+  };
+}
+
+export function hashtagsFromOutcomes(outcomes: PostOutcome[] | undefined) {
+  const counts = new Map<string, number>();
+  for (const outcome of outcomes ?? []) {
+    for (const tag of migrateOutcome(outcome).hashtags) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "zh-TW"))
+    .map(([tag]) => tag)
+    .slice(0, 12);
+}
+
+export function mergeHashtagMemory(...groups: Array<string[] | undefined>) {
+  const seen = new Set<string>();
+  const next: string[] = [];
+  for (const group of groups) {
+    for (const tag of group ?? []) {
+      const normalized = tag.trim().startsWith("#") ? tag.trim() : `#${tag.trim()}`;
+      if (!normalized || normalized === "#" || seen.has(normalized)) continue;
+      seen.add(normalized);
+      next.push(normalized);
+      if (next.length >= 12) return next;
+    }
+  }
+  return next;
 }
 
 export function applyOutcomeToPatterns(existing: string[] | undefined, outcome: PostOutcome) {

@@ -2,7 +2,7 @@ import { BrainCircuit, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ASSET_DRAG_MIME, categoryLabel, sourceLabel, usageLabel } from "@/lib/studio/assets";
+import { ASSET_DRAG_MIME, categoryLabel, provenanceLabel, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import type { AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +57,9 @@ export function AssetCard({
               {usageLabel(usage)}
             </Badge>
           </span>
+          <span className="absolute bottom-2 left-2">
+            <Badge variant="accent">{sourceLabel(asset.source)}</Badge>
+          </span>
           {asset.analysis ? (
             <span className="absolute top-2 right-2 rounded-full bg-surface/90 p-1.5 text-accent shadow-sm" title="已有 AI 視覺分析">
               <BrainCircuit className="size-3.5" />
@@ -69,7 +72,7 @@ export function AssetCard({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{asset.name}</p>
             <p className="truncate text-xs text-muted">
-              {categoryLabel(asset.category)} · {sourceLabel(asset.source)}
+              {categoryLabel(asset.category)} · {provenanceLabel(asset)}
             </p>
           </div>
           <Button

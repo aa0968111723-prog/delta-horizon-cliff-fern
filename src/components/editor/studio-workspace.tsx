@@ -240,7 +240,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
                     <TabsTrigger value="copy">文字</TabsTrigger>
                     <TabsTrigger value="qa">檢查</TabsTrigger>
                     <TabsTrigger value="ai" data-testid="studio-tab-ai">
-                      AI
+                      企劃
                     </TabsTrigger>
                   </TabsList>
                 </div>
@@ -263,7 +263,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
           </Group>
         </div>
 
-        <div className="flex h-0 min-h-0 min-w-0 flex-1 flex-col lg:hidden">
+        <div className="flex h-0 min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:hidden">
           <div className="border-b border-border bg-surface">
             <EditorToolbar />
           </div>
@@ -277,13 +277,13 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
               onChange={(id) => setActiveFormat(project.id, id)}
             />
           </div>
-          <div className="flex h-12 border-t border-border bg-surface">
+          <div className="flex h-12 min-w-0 overflow-x-auto border-t border-border bg-surface">
             <MobileTab icon={<Layers className="size-4" />} label="圖層" onClick={() => setPanel("layers")} active={panel === "layers"} />
             <MobileTab icon={<Images className="size-4" />} label="素材" onClick={() => setPanel("assets")} active={panel === "assets"} />
             <MobileTab icon={<Type className="size-4" />} label="文字" onClick={() => setPanel("copy")} active={panel === "copy"} />
             <MobileTab icon={<Scan className="size-4" />} label="屬性" onClick={() => setPanel("inspect")} active={panel === "inspect"} />
             <MobileTab icon={<History className="size-4" />} label="版本" onClick={() => setPanel("versions")} active={panel === "versions"} />
-            <MobileTab icon={<Sparkles className="size-4" />} label="AI" onClick={() => setPanel("ai")} active={panel === "ai"} testId="studio-tab-ai-mobile" />
+            <MobileTab icon={<Sparkles className="size-4" />} label="企劃" onClick={() => setPanel("ai")} active={panel === "ai"} testId="studio-tab-ai-mobile" />
           </div>
         </div>
       </div>
@@ -303,7 +303,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
                       ? "版本"
                       : panel === "qa"
                         ? "品質檢查"
-                        : "AI 操作"}
+                        : "企劃／畫面"}
           </SheetTitle>
           <div className="min-h-0 flex-1 overflow-y-auto">
             {panel === "layers" && (
@@ -355,7 +355,7 @@ function MobileTab({
       data-testid={testId}
       onClick={onClick}
       className={cn(
-        "flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 text-xs",
+        "flex min-h-11 min-w-12 shrink-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[10px] sm:text-xs",
         active ? "text-fg" : "text-muted",
       )}
     >

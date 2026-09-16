@@ -155,7 +155,7 @@ export function BrandEditor() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="淡江禪學社 Creative Brain"
+        kicker="禪作所"
         title="Brand Memory"
         description="Logo、龜龜、三色光、語氣、CTA、圖片風格與禁用規則會優先進入每一次 AI 創作。"
         actions={
@@ -243,7 +243,7 @@ export function BrandEditor() {
         className="space-y-4 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
       >
         <div>
-          <h2 className="text-sm font-medium">Creative Brain 記得什麼</h2>
+          <h2 className="text-sm font-medium">Brand Memory 記得什麼</h2>
           <p className="mt-1 text-xs leading-5 text-muted">
             這些不是對外的漂亮文案，而是每次 AI 企劃、文案與圖片生成前會讀取的淡江情境與已學到規律。
           </p>

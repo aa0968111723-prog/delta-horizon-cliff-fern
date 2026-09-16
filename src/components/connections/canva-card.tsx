@@ -156,7 +156,7 @@ export function CanvaCard() {
         notes: result.data.analysis.summary,
         provider: canvaProvenanceLabel(result.data.collection),
       });
-      toast.success(result.data.source === "vision" ? "風格分析已加入 Creative Brain" : "已用 Canva metadata 寫入風格摘要（此環境沒有像素分析）");
+      toast.success(result.data.source === "vision" ? "風格分析已加入 跨來源記憶" : "已用 Canva metadata 寫入風格摘要（此環境沒有像素分析）");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "風格分析失敗");
     } finally {
@@ -198,7 +198,7 @@ export function CanvaCard() {
               {provider?.mode === "mcp" ? <Badge variant="default">MCP</Badge> : null}
             </div>
             <p className="mt-1 text-xs text-muted">
-              {lastSyncAt ? `Creative Brain 最近同步：${new Date(lastSyncAt).toLocaleString("zh-TW")}` : "尚未把 Canva 設計加入 Creative Brain"}
+              {lastSyncAt ? `跨來源記憶 最近同步：${new Date(lastSyncAt).toLocaleString("zh-TW")}` : "尚未把 Canva 設計加入 跨來源記憶"}
             </p>
           </div>
         </div>
@@ -261,7 +261,7 @@ export function CanvaCard() {
       ) : status === "scope_denied" || status === "access_denied" ? (
         <ConnectionMessage title="目前授權不包含讀取設計" detail="App 不會繞過授權範圍。請重新授權後再同步。" />
       ) : status === "error" ? (
-        <ConnectionMessage title="Canva 暫時無法使用" detail="既有 Creative Brain 索引仍保留，可稍後重新檢查。" />
+        <ConnectionMessage title="Canva 暫時無法使用" detail="既有 跨來源記憶 索引仍保留，可稍後重新檢查。" />
       ) : (
         <div className="p-5 md:p-6">
           <div className="flex flex-col gap-2 sm:flex-row">

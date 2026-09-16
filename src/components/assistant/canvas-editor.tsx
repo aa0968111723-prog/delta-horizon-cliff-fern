@@ -13,13 +13,9 @@ import { useStudio } from "@/stores/studio-store";
 
 const EXAMPLES = [
   "把標題放大並移到上方中央",
-  "將這張圖換成比較明亮的照片",
-  "把整體改成淡江學生喜歡的活潑風格",
   "轉成限時動態尺寸",
-  "刪除左下角資訊",
-  "增加活動日期與報名 QR Code",
+  "增加活動日期",
   "讓畫面更有留白",
-  "產生三個不同排版版本",
 ];
 
 type Props = {
@@ -195,7 +191,7 @@ export function CanvasEditor({ projectId, compact }: Props) {
   if (!project || !brand || !scene) {
     return (
       <div className="rounded-lg bg-surface-2 px-3 py-3 text-sm text-muted">
-        先開啟一個專案，才能讀畫布、圖層與品牌。
+        先開啟一則網宣，才能讀畫布、圖層與 Brand Memory。
       </div>
     );
   }
@@ -207,9 +203,9 @@ export function CanvasEditor({ projectId, compact }: Props) {
   return (
     <div className="space-y-3" data-testid="canvas-editor">
       <div>
-        <h2 className="text-sm font-medium">操作畫布</h2>
-        <p className="mt-1 text-xs text-muted">
-          先讀目前頁面、圖層、品牌與選取物件，再執行。小改直接套用；刪多層或大改會先預覽。
+        <h2 className="text-sm font-medium">改這則畫面</h2>
+        <p className="mt-1 text-xs leading-5 text-muted">
+          這不是聊天機器人。用上面的 Feed／Story／Reels／Carousel 轉尺寸，或寫一句要改的排版。
         </p>
       </div>
       <div
@@ -218,7 +214,7 @@ export function CanvasEditor({ projectId, compact }: Props) {
           !status ? "bg-surface-2" : status.available ? "bg-surface-2" : "bg-warn/15",
         )}
       >
-        <p className="text-sm font-medium">{status ? banner.label : "正在確認畫布指令"}</p>
+        <p className="text-sm font-medium">{status ? banner.label : "正在確認畫面指令"}</p>
         <p className="mt-1 text-xs text-muted">
           {status ? banner.detail : "先確認有沒有連到 AI，不會假裝已經改好畫布。"}
         </p>

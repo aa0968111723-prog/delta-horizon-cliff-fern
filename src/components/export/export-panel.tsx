@@ -5,10 +5,12 @@ import { Label } from "@/components/ui/label";
 import { canvasToBlob, collectArtboardAssetIds, downloadBlob, renderArtboardToCanvas } from "@/lib/studio/export-png";
 import { buildExportCopyPack } from "@/lib/studio/export-copy";
 import { formatById } from "@/lib/studio/formats";
+import { projectImageNote, scheduleReminder } from "@/lib/studio/ig-surfaces";
 import { getAssetBlob } from "@/lib/studio/assets-idb";
 import { uid } from "@/lib/studio/ids";
 import { pagesOf } from "@/lib/studio/layers";
 import type { Artboard, BrandKit, Project } from "@/lib/studio/types";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
 async function loadImages(ids: string[]): Promise<Record<string, HTMLImageElement>> {
@@ -44,6 +46,8 @@ export function ExportPanel({
   artboard: Artboard;
 }) {
   const recordExport = useStudio((s) => s.recordExport);
+  const contentItems = useCreative((s) => s.contentItems);
+  const campaigns = useCreative((s) => s.campaigns);
   const [scale, setScale] = useState<1 | 2 | 3>(2);
   const [type, setType] = useState<"image/png" | "image/jpeg">("image/png");
   const [busy, setBusy] = useState(false);
@@ -173,13 +177,26 @@ export function ExportPanel({
         variant="secondary"
         className="w-full min-h-11"
         onClick={() => {
-          const text = buildExportCopyPack(project);
-          downloadBlob(new Blob([text], { type: "text/plain;charset=utf-8" }), `${project.name.replace(/[\\/:*?"<>|]/g, "").slice(0, 40) || "export"}-copy.txt`);
-          toast.success("已下載文案包。這不是重新下載舊圖，也不是發文。");
+          const text = buildExportCopyPack(project, { contentItems, campaigns });
+          downloadBlob(new Blob([text], { type: "text/plain;charset=utf-8" }), `${project.name.replace(/[\\/:*?"<>|]/g, "").slice(0, 40) || "export"}-publish.txt`);
+          toast.success("已下載一人發佈包：文案、畫面備註、排程提醒。這不是發文。");
         }}
       >
-        下載文案包
+        下載一人發佈包
       </Button>
+      <p className="text-xs leading-5 text-muted">
+        包裡有貼文文案、畫面備註、排程提醒。沒有官方 Insights，也不會幫你貼到 Instagram。
+      </p>
+      <p className="text-xs leading-5 text-muted whitespace-pre-line">
+        {scheduleReminder({
+          schedule: project.brief.schedule,
+          location: project.brief.location,
+          content: contentItems.find((item) => item.projectId === project.id) ?? null,
+        })}
+      </p>
+      {projectImageNote(project) ? (
+        <p className="text-xs leading-5 text-muted">畫面備註：{projectImageNote(project)}</p>
+      ) : null}
       {project.copy.altText ? (
         <p className="text-xs text-muted">Alt：{project.copy.altText}</p>
       ) : null}

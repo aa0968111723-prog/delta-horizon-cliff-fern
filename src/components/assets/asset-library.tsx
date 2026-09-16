@@ -176,9 +176,9 @@ export function AssetLibrary() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="淡江禪學社 Creative Brain"
-        title="AI Creative Library"
-        description="集中活動照片、社員、淡江校園、淡水、龜龜、三色光與歷屆網宣；生成新主視覺、分析素材，再直接放入 Studio。"
+        kicker="禪作所"
+        title="素材庫"
+        description="集中活動照片、社員、淡江校園、淡水、龜龜、三色光與歷屆網宣。每張都會標來源：本機、Drive、Canva、xAI 或 Instagram。沒有官方檔案時，不會匯入假的 Drive 圖。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="assets" />
@@ -253,23 +253,10 @@ export function AssetLibrary() {
         </div>
       ) : null}
 
-      <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜尋名稱、標籤、授權、來源" className="max-w-sm" />
-        <Select value={source} onValueChange={(v) => setSource(v as typeof source)}>
-          <SelectTrigger className="md:w-40">
-            <SelectValue placeholder="來源" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">全部來源</SelectItem>
-            {ASSET_SOURCES.map((item) => (
-              <SelectItem key={item.id} value={item.id}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="mt-6 flex min-w-0 flex-col gap-3 md:flex-row md:items-center">
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜尋名稱、標籤、授權、來源" className="min-w-0 max-w-sm" />
         <Select value={usageFilter} onValueChange={(v) => setUsageFilter(v as typeof usageFilter)}>
-          <SelectTrigger className="md:w-40">
+          <SelectTrigger className="min-h-11 md:w-40">
             <SelectValue placeholder="使用狀態" />
           </SelectTrigger>
           <SelectContent>
@@ -282,7 +269,23 @@ export function AssetLibrary() {
         <p className="text-xs text-subtle tabular-nums">{filter === "template" ? TEMPLATE_STARTERS.length : filtered.length} 件</p>
       </div>
 
-      <div className="-mx-4 mt-4 flex gap-1 overflow-x-auto px-4 pb-1">
+      <div className="-mx-4 mt-4 flex gap-1 overflow-x-auto px-4 pb-1" data-testid="asset-source-chips">
+        <FilterChip active={source === "all"} onClick={() => setSource("all")} count={assets.length}>
+          全部來源
+        </FilterChip>
+        {ASSET_SOURCES.map((item) => (
+          <FilterChip
+            key={item.id}
+            active={source === item.id}
+            onClick={() => setSource(item.id)}
+            count={assets.filter((asset) => asset.source === item.id).length}
+          >
+            {item.label}
+          </FilterChip>
+        ))}
+      </div>
+
+      <div className="-mx-4 mt-2 flex gap-1 overflow-x-auto px-4 pb-1">
         <FilterChip active={filter === "all"} onClick={() => setFilter("all")} count={counts.all}>
           全部
         </FilterChip>
@@ -439,7 +442,7 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs",
+        "flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs",
         active ? "bg-accent text-accent-fg" : "bg-surface text-muted shadow-[var(--shadow-border)]",
       )}
     >

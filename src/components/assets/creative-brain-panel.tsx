@@ -73,7 +73,7 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
       setLiveNotes(notes);
       setLoginUrl(nextLogin);
       if ([bundle.drive, bundle.canva, bundle.instagram].some((item) => item.ok)) {
-        toast.success("已把已連接來源的真實結果併入 Creative Brain");
+        toast.success("已把已連接來源的真實結果併入跨來源記憶");
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "連線來源搜尋失敗");
@@ -129,11 +129,11 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
         <div>
           <Badge variant="default">
             <BrainCircuit className="size-3.5" />
-            Creative Brain
+            跨來源記憶
           </Badge>
           <h2 className="mt-3 text-xl font-semibold tracking-tight">從做過的內容開始，不再每次從零</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
-            同一個搜尋框會找素材、Campaign、節奏、Copy Pack、Brand Memory、Canva 風格、Drive 與 Instagram。沒連接的來源不會假裝有結果。
+            同一個搜尋框會找素材、活動、節奏、文案包、Brand Memory、Canva 風格、Drive 與 Instagram。沒連接的來源不會假裝有結果。
           </p>
         </div>
         <div className="grid grid-cols-4 gap-2 text-center">

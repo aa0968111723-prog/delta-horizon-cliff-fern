@@ -13,6 +13,7 @@ export function toBriefInput(
     campaigns?: Campaign[];
     styleReferences?: { provider: string; collection: string; title: string; notes: string }[];
     instagramHashtags?: string[];
+    outcomeHashtags?: string[];
   },
 ): BriefInput {
   const b = migrateBrief(brief);
@@ -51,6 +52,7 @@ export function toBriefInput(
       campaigns: extra?.campaigns ?? [],
       styleReferences: extra?.styleReferences,
       instagramHashtags: extra?.instagramHashtags,
+      outcomeHashtags: extra?.outcomeHashtags,
     }),
     ...(extra?.forceMock ? { forceMock: true } : {}),
   };

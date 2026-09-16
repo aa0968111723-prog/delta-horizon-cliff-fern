@@ -34,11 +34,14 @@ test("copy pack provides six tones and complete cross-format drafts", () => {
   assert.match(pack.line, /淡江大學商管大樓/);
 });
 
-test("student review does not pretend missing registration information is complete", () => {
+test("student review flags missing registration and counts caption length", () => {
   const pack = buildMockCopyPack(request);
   const registration = pack.studentReview.find((item) => item.question.includes("報名"));
   assert.equal(registration?.pass, false);
   assert.match(registration?.feedback ?? "", /尚未提供/);
+  assert.equal(pack.studentReview.some((item) => item.question.includes("太長")), true);
+  assert.equal(pack.studentReview.some((item) => item.question.includes("文青")), true);
+  assert.equal(pack.studentReview.some((item) => item.question.includes("找朋友")), true);
 });
 
 test("mock copy weaves Brand Memory campus context into the student voice", () => {

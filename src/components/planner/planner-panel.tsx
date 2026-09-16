@@ -8,6 +8,7 @@ import { CreationLoop } from "@/components/shared/creation-loop";
 import { describeAdapter, generateCampaignPlan, getCampaignAiStatus, type AiStatus } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
 import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
+import { hashtagsFromOutcomes } from "@/lib/creative/learning";
 import { migrateBrief } from "@/lib/studio/brief";
 import type { BrandKit, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -62,6 +63,7 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
           campaigns,
           styleReferences,
           instagramHashtags,
+          outcomeHashtags: hashtagsFromOutcomes(useCreative.getState().outcomes),
         }),
       });
       if (!result.ok) {

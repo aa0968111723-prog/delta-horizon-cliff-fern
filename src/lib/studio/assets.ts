@@ -30,11 +30,16 @@ export const ASSET_CATEGORIES: {
 export const ASSET_SOURCES: { id: AssetSourceKind; label: string }[] = [
   { id: "upload", label: "本機上傳" },
   { id: "seed", label: "示範素材" },
-  { id: "generated", label: "AI Generated" },
+  { id: "generated", label: "xAI 生成" },
   { id: "google-drive", label: "Google Drive" },
   { id: "canva", label: "Canva" },
   { id: "instagram", label: "Instagram" },
 ];
+
+export function provenanceLabel(asset: Pick<AssetMeta, "source" | "provenance">) {
+  if (asset.provenance?.label) return asset.provenance.label;
+  return sourceLabel(asset.source);
+}
 
 const SOURCE_IDS = new Set<AssetSourceKind>(ASSET_SOURCES.map((item) => item.id));
 
@@ -100,7 +105,7 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
     generationPrompt: raw.generationPrompt,
     provenance: raw.provenance ?? {
       provider: source,
-      label: source === "generated" ? "AI Generated" : source === "seed" ? "內建品牌素材" : raw.name,
+      label: source === "generated" ? "xAI 生成" : source === "seed" ? "內建品牌素材" : raw.name,
       importedAt: raw.createdAt ?? Date.now(),
     },
   };

@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { CopyStudio } from "@/components/assistant/copy-studio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -16,9 +15,11 @@ import { useUi } from "@/stores/ui-store";
 type Props = {
   projectId: string;
   onOpenEditor?: (id: string) => void;
+  onWriteCopy?: () => void;
+  onEditArt?: () => void;
 };
 
-export function PlanResult({ projectId, onOpenEditor }: Props) {
+export function PlanResult({ projectId, onOpenEditor, onWriteCopy, onEditArt }: Props) {
   const project = useStudio((s) => s.projects.find((p) => p.id === projectId));
   const patchPlan = useStudio((s) => s.patchPlan);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
@@ -65,7 +66,7 @@ export function PlanResult({ projectId, onOpenEditor }: Props) {
       <Field label="CTA">
         <Input value={plan.cta} onChange={(e) => set("cta", e.target.value)} />
       </Field>
-      <Field label="Caption">
+      <Field label="貼文文案">
         <Textarea
           rows={6}
           value={plan.captions[0]?.text ?? ""}
@@ -83,7 +84,7 @@ export function PlanResult({ projectId, onOpenEditor }: Props) {
           size="sm"
           onClick={async () => {
             await navigator.clipboard.writeText(plan.captions[0]?.text ?? "");
-            toast.success("已複製 Caption");
+            toast.success("已複製貼文文案");
           }}
         >
           複製文案
@@ -130,8 +131,6 @@ export function PlanResult({ projectId, onOpenEditor }: Props) {
           }
         />
       </Field>
-
-      <CopyStudio projectId={projectId} />
 
       <div className="space-y-1.5">
         <Label>建議版型</Label>
@@ -265,12 +264,24 @@ export function PlanResult({ projectId, onOpenEditor }: Props) {
         </div>
       ) : null}
 
-      <Button className="w-full" onClick={applyToCanvas}>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {onWriteCopy ? (
+          <Button className="min-h-11 w-full" onClick={onWriteCopy}>
+            去寫文案
+          </Button>
+        ) : null}
+        {onEditArt ? (
+          <Button className="min-h-11 w-full" variant="secondary" onClick={onEditArt}>
+            去轉尺寸／改畫面
+          </Button>
+        ) : null}
+      </div>
+      <Button className="w-full min-h-11" onClick={applyToCanvas}>
         套用到畫布
       </Button>
       {onOpenEditor ? (
-        <Button className="w-full" variant="secondary" onClick={() => onOpenEditor(projectId)}>
-          進入編輯器
+        <Button className="w-full min-h-11" variant="secondary" onClick={() => onOpenEditor(projectId)}>
+          打開 Studio 細修
         </Button>
       ) : null}
 

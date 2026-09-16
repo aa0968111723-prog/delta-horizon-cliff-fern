@@ -35,11 +35,15 @@ function project(partial: Partial<Project> = {}): Project {
 
 test("export copy pack uses local caption and never claims it was posted", () => {
   const text = buildExportCopyPack(project());
+  assert.match(text, /一人發佈包/);
   assert.match(text, /浮游禪光/);
   assert.match(text, /最近是不是很久沒有好好坐下來？/);
   assert.match(text, /#淡江禪學社/);
   assert.match(text, /不是 Instagram 發文/);
   assert.match(text, /夜晚校園主視覺/);
+  assert.match(text, /畫面備註/);
+  assert.match(text, /排程提醒/);
+  assert.match(text, /還沒排進日曆/);
   assert.equal(text.includes("Insights"), true);
 });
 
@@ -100,6 +104,8 @@ test("export copy pack prefers Copy Pack 學生版 when present", () => {
   assert.match(text, /#淡江生活/);
   assert.match(text, /Threads 版/);
   assert.match(text, /LINE 版/);
-  assert.match(text, /Story/);
+  assert.match(text, /限動|Story/);
   assert.match(text, /Reels/);
+  assert.match(text, /畫面備註/);
+  assert.match(text, /排程提醒/);
 });

@@ -104,7 +104,7 @@ export function searchCreativeMemory(
       kind: "campaign" as const,
       title: campaign.name,
       subtitle: `${campaign.type}・${campaign.eventDate}・${campaign.oneLiner}`,
-      provider: "Campaign",
+      provider: "活動",
       matchedBy: found,
       campaignId: campaign.id,
     }];
@@ -212,7 +212,7 @@ export function searchCreativeMemory(
         kind: "copy" as const,
         title: row.title,
         subtitle: row.subtitle,
-        provider: "Copy Pack",
+        provider: "文案包",
         matchedBy: found,
         projectId: project.id,
         copyText: row.copyText,
@@ -265,6 +265,7 @@ export function memoryInjectionHints(input: {
   campaigns?: Campaign[];
   styleReferences?: { provider: string; collection: string; title: string; notes: string }[];
   instagramHashtags?: string[];
+  outcomeHashtags?: string[];
 }) {
   const hints: string[] = [];
   if (input.brand.memory?.campusContexts?.length) hints.push("校園情境");
@@ -272,6 +273,7 @@ export function memoryInjectionHints(input: {
   if (input.assets?.some((asset) => asset.analysis)) hints.push("已分析素材");
   if (input.styleReferences?.length) hints.push("Canva 風格");
   if (input.brand.memory?.learnedPatterns?.some((item) => item.startsWith("現場："))) hints.push("現場筆記");
+  if (input.outcomeHashtags?.length) hints.push("現場 hashtag");
   if (input.instagramHashtags?.length) hints.push("IG hashtags");
   return hints;
 }
@@ -289,8 +291,9 @@ export function buildCreativeMemoryContext(input: {
   campaigns?: Campaign[];
   styleReferences?: { provider: string; collection: string; title: string; notes: string }[];
   instagramHashtags?: string[];
+  outcomeHashtags?: string[];
 }) {
-  const { brand, assets = [], campaigns = [], styleReferences, instagramHashtags } = input;
+  const { brand, assets = [], campaigns = [], styleReferences, instagramHashtags, outcomeHashtags } = input;
   const memory = brand.memory;
   const analyzed = assets.filter((asset) => asset.analysis);
   const recentCampaigns = [...campaigns]
@@ -313,7 +316,8 @@ export function buildCreativeMemoryContext(input: {
     `近期 Campaign：${recentCampaigns.length ? recentCampaigns.join("；") : "尚無"}`,
     `可參考素材：${usefulAssets.length ? usefulAssets.join("；") : "目前沒有完成 AI 分析的素材"}`,
     styleReferencePrompt(styleReferences),
-    instagramHashtags?.length ? `IG 內容記憶 hashtags：${instagramHashtags.slice(0, 12).join(" ")}` : "",
+    outcomeHashtags?.length ? `現場覺得有用的 hashtag：${outcomeHashtags.slice(0, 12).join(" ")}` : "",
+    instagramHashtags?.length ? `IG 內容記憶 hashtag：${instagramHashtags.slice(0, 12).join(" ")}` : "",
   ].filter(Boolean).join("\n"));
 }
 

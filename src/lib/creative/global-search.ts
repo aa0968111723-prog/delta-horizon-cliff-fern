@@ -18,7 +18,7 @@ export const GLOBAL_SEARCH_FILTERS: { id: GlobalSearchFilter; label: string }[] 
   { id: "all", label: "全部" },
   { id: "asset", label: "素材" },
   { id: "generated", label: "AI 生成" },
-  { id: "campaign", label: "Campaign" },
+  { id: "campaign", label: "活動" },
   { id: "content", label: "節奏" },
   { id: "copy", label: "文案" },
   { id: "memory", label: "記憶" },
@@ -54,7 +54,7 @@ export function emptySearchHint(filter: GlobalSearchFilter) {
   if (filter === "google-drive") return "目前沒有已同步的 Drive 項目。Continue with Grok 只會在官方回 loginRequired 且帶 loginUrl 時出現。";
   if (filter === "generated") return "目前沒有 AI 生成素材。";
   if (filter === "memory") return "Brand Memory 裡還沒有符合的使命、支柱或已學到規律。";
-  if (filter === "copy") return "還沒有可重用的 Copy Pack。到 AI 創作生成文案後會出現在這裡。";
+  if (filter === "copy") return "還沒有可重用的文案包。到 AI 創作生成文案後會出現在這裡。";
   if (filter === "style") return "還沒有 Canva 風格參考。未連接時不會放模擬稿。";
-  return "Creative Brain 目前找不到這個內容。";
+  return "跨來源記憶目前找不到這個內容。";
 }

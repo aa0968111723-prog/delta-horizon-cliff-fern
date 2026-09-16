@@ -141,6 +141,7 @@ export const useCreative = create<CreativeState>()(
       addOutcome: (input) => {
         const outcome: PostOutcome = {
           ...input,
+          hashtags: input.hashtags ?? [],
           id: uid("outcome"),
           createdAt: Date.now(),
         };
@@ -154,7 +155,7 @@ export const useCreative = create<CreativeState>()(
     }),
     {
       name: "zen-creative-brain-v1",
-      version: 3,
+      version: 4,
       skipHydration: true,
       migrate: (persisted) => {
         const state = persisted as {
@@ -166,7 +167,10 @@ export const useCreative = create<CreativeState>()(
         return {
           campaigns: state.campaigns ?? [SEED_CAMPAIGN],
           contentItems: state.contentItems ?? seedItems,
-          outcomes: state.outcomes ?? [],
+          outcomes: (state.outcomes ?? []).map((item) => ({
+            ...item,
+            hashtags: item.hashtags ?? [],
+          })),
           activeCampaignId: state.activeCampaignId ?? state.campaigns?.[0]?.id ?? SEED_CAMPAIGN.id,
         };
       },

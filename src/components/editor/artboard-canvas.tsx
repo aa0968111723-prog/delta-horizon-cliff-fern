@@ -311,7 +311,7 @@ export function ArtboardCanvas({
   return (
     <div
       ref={wrapRef}
-      className="relative flex h-0 min-h-0 w-full flex-1 items-center justify-center overflow-auto bg-bg touch-none"
+      className="relative flex h-0 min-h-0 w-full min-w-0 flex-1 items-center justify-center overflow-auto bg-bg touch-none"
       style={{ cursor }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
