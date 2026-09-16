@@ -12,12 +12,21 @@ import {
   roleTemplate,
   stampSlideMeta,
 } from "@/lib/studio/carousel";
+import { defaultWavePlan, migrateCampaign } from "@/lib/studio/campaign";
+import { applyKindLayout, convertContent } from "@/lib/studio/convert";
+import { applyAssetToArtboard } from "@/lib/studio/reels-cover";
+import { sourceFromAsset } from "@/lib/studio/sources";
 import { emptyCopy, withBoilerplate } from "@/lib/studio/copy";
+import { copyFromDraft } from "@/lib/studio/copy-draft";
+import { applyPackCopyToProject, spreadCopyAcrossPack } from "@/lib/studio/pack-copy";
+import { paintAssetOnProject, spreadVisualAcrossPack, visualAssetOf } from "@/lib/studio/pack-visual";
 import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
-import { uid } from "@/lib/studio/ids";
+import { uid, uniqueById } from "@/lib/studio/ids";
 import { applyCopyToArtboard, buildLayout, extractImageAssetId } from "@/lib/studio/layout";
+import { migrateStatus } from "@/lib/studio/status";
 import { inspectProject } from "@/lib/studio/quality";
+import { CONTENT_KIND_META, inferContentKind, migrateStatus } from "@/lib/studio/status";
 import { applyQaFixToPages } from "@/lib/studio/quality-fix";
 import {
   cloneArtboard,
@@ -55,6 +64,7 @@ import type {
   AssetMeta,
   BrandKit,
   Brief,
+  Campaign,
   CampaignPlan,
   ClubCampaign,
   CampaignWave,
@@ -62,17 +72,19 @@ import type {
   ContentKind,
   ContentStatus,
   CopyDeck,
+  CopyDraft,
+  CreativeSourceRef,
   EditorTool,
   ExportVersion,
   FormatId,
   IgMemoryPost,
   Layer,
   Project,
-  ProjectStatus,
   QaIssue,
   RemoteFile,
   ScheduleItem,
   Snapshot,
+  StudentReview,
   TemplateId,
 } from "@/lib/studio/types";
 
@@ -110,8 +122,18 @@ type StudioState = {
   historyPaused: boolean;
   setHydrated: (v: boolean) => void;
   setLastProjectId: (id: string | null) => void;
+  createCampaign: (input: Partial<Campaign> & { name: string }) => Campaign;
+  updateCampaign: (id: string, patch: Partial<Campaign> | ((c: Campaign) => Campaign)) => void;
+  deleteCampaign: (id: string) => void;
+  createContent: (input: Partial<ContentItem> & { type: ContentItem["type"] }) => ContentItem;
+  updateContent: (id: string, patch: Partial<ContentItem> | ((c: ContentItem) => ContentItem)) => void;
+  setContentStatus: (id: string, status: ContentStatus) => void;
+  scheduleContent: (id: string, at: number | null) => void;
+  deleteContent: (id: string) => void;
+  duplicateContent: (id: string) => ContentItem | null;
   createBrand: (name: string) => BrandKit;
   updateBrand: (id: string, patch: Partial<BrandKit>) => void;
+  applyBrandKit: (projectId: string) => boolean;
   deleteBrand: (id: string) => void;
   addAsset: (meta: AssetMeta) => void;
   updateAsset: (id: string, patch: Partial<AssetMeta>) => void;
@@ -119,6 +141,9 @@ type StudioState = {
   markAssetUsed: (id: string) => void;
   removeAsset: (id: string) => void;
   placeAsset: (projectId: string, assetId: string, at?: { x: number; y: number }) => boolean;
+  applyCoverAsset: (projectId: string, assetId: string) => boolean;
+  applyVisualAsset: (projectId: string, assetId: string) => boolean;
+  applyVisualToPack: (projectId: string, assetId?: string) => number;
   createProject: (input: {
     name: string;
     brandId: string;
@@ -161,7 +186,7 @@ type StudioState = {
   patchPlan: (projectId: string, patch: Partial<CampaignPlan> | ((plan: CampaignPlan) => CampaignPlan)) => void;
   applyAiEdit: (projectId: string, label: string, mutate: () => void | Promise<void>) => Promise<void>;
   updateProject: (id: string, patch: Partial<Project> | ((p: Project) => Project)) => void;
-  setProjectStatus: (id: string, status: ProjectStatus) => void;
+  setProjectStatus: (id: string, status: ContentStatus) => void;
   deleteProject: (id: string) => void;
   duplicateProject: (id: string) => Project | null;
   recordExport: (id: string, version: ExportVersion) => void;
@@ -231,12 +256,14 @@ function migrateAssetRecord(raw: AssetMeta): AssetMeta {
     tags: next.tags.length ? next.tags : seed.tags,
     licenseNotes: next.licenseNotes || seed.licenseNotes,
     licenseOwner: next.licenseOwner || seed.licenseOwner,
-    source: next.source || seed.source,
+    source: seed.source,
     favorite: raw.favorite ?? seed.favorite,
   };
 }
 
 function migrateProject(raw: Project): Project {
+  if (raw.id === SEED_PROJECT_ID && raw.name.includes("耶加雪菲")) return createSeedProject();
+  if (raw.id === SEED_DRAFT_ID && raw.name.includes("手沖")) return createSeedDraft();
   const artboards: Partial<Record<FormatId, Artboard>> = {};
   for (const [key, value] of Object.entries(raw.artboards ?? {})) {
     if (value) artboards[key as FormatId] = normalizeArtboard(value);
@@ -385,17 +412,110 @@ export const useStudio = create<StudioState>()(
       historyPaused: false,
       setHydrated: (v) => set({ hydrated: v }),
       setLastProjectId: (id) => set({ lastProjectId: id }),
+      createCampaign: (input) => {
+        const campaign = migrateCampaign({ ...input, id: input.id ?? uid("camp") });
+        set((s) => ({ campaigns: [campaign, ...s.campaigns] }));
+        return campaign;
+      },
+      updateCampaign: (id, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) => {
+            if (c.id !== id) return c;
+            const next = typeof patch === "function" ? patch(c) : { ...c, ...patch };
+            return { ...next, updatedAt: Date.now() };
+          }),
+        })),
+      deleteCampaign: (id) =>
+        set((s) => ({
+          campaigns: s.campaigns.filter((c) => c.id !== id),
+          contents: s.contents.map((c) => (c.campaignId === id ? { ...c, campaignId: null } : c)),
+        })),
+      createContent: (input) => {
+        const content = migrateContent({ ...input, id: input.id ?? uid("content") });
+        set((s) => ({ contents: [content, ...s.contents] }));
+        return content;
+      },
+      updateContent: (id, patch) =>
+        set((s) => ({
+          contents: s.contents.map((c) => {
+            if (c.id !== id) return c;
+            const next = typeof patch === "function" ? patch(c) : { ...c, ...patch };
+            return { ...next, updatedAt: Date.now() };
+          }),
+        })),
+      setContentStatus: (id, status) =>
+        get().updateContent(id, (c) => ({
+          ...c,
+          status,
+          publishedAt: status === "published" ? (c.publishedAt ?? Date.now()) : c.publishedAt,
+        })),
+      scheduleContent: (id, at) =>
+        get().updateContent(id, (c) => ({
+          ...c,
+          scheduledAt: at,
+          status: at ? (c.status === "published" ? "published" : "scheduled") : c.status === "scheduled" ? "done" : c.status,
+        })),
+      deleteContent: (id) =>
+        set((s) => ({
+          contents: s.contents.filter((c) => c.id !== id),
+          campaigns: s.campaigns.map((camp) =>
+            camp.strategy
+              ? {
+                  ...camp,
+                  strategy: {
+                    ...camp.strategy,
+                    waves: camp.strategy.waves.map((w) => (w.contentId === id ? { ...w, contentId: null } : w)),
+                  },
+                }
+              : camp,
+          ),
+        })),
+      duplicateContent: (id) => {
+        const src = get().contents.find((c) => c.id === id);
+        if (!src) return null;
+        const copy: ContentItem = {
+          ...clone(src),
+          id: uid("content"),
+          title: `${src.title} 副本`,
+          status: "drafting",
+          scheduledAt: null,
+          publishedAt: null,
+          metrics: null,
+          projectId: null,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        set((s) => ({ contents: [copy, ...s.contents] }));
+        return copy;
+      },
       createBrand: (name) => {
         const brand = createEmptyBrand(name);
         set((s) => ({ brands: [...s.brands, brand] }));
         return brand;
       },
       updateBrand: (id, patch) =>
-        set((s) => ({
-          brands: s.brands.map((b) =>
-            b.id === id ? { ...b, ...patch, updatedAt: Date.now() } : b,
-          ),
-        })),
+        set((s) => {
+          const prev = s.brands.find((b) => b.id === id);
+          if (!prev) return s;
+          const next = { ...prev, ...patch, updatedAt: Date.now() };
+          return {
+            brands: s.brands.map((b) => (b.id === id ? next : b)),
+            projects: s.projects.map((p) =>
+              p.brandId === id ? applyBrandToProject(p, next, prev, "follow") : p,
+            ),
+          };
+        }),
+      applyBrandKit: (projectId) => {
+        const s = get();
+        const project = s.projects.find((p) => p.id === projectId);
+        if (!project) return false;
+        const brand = brandById(s.brands, project.brandId);
+        const next = applyBrandToProject(project, brand, brand, "force");
+        set({
+          projects: s.projects.map((p) => (p.id === projectId ? next : p)),
+        });
+        return true;
+      },
       deleteBrand: (id) =>
         set((s) => {
           if (s.brands.length <= 1) return s;
@@ -467,6 +587,7 @@ export const useStudio = create<StudioState>()(
           get().addLayer(projectId, createImageLayer(asset.id, asset.name, { x, y, w, h }));
         }
         get().markAssetUsed(asset.id);
+        get().addSources(projectId, [sourceFromAsset(asset)]);
         return true;
       },
       createProject: ({ name, brandId, formatId, brief, templateId, campaignId, contentKind, imageAssetId }) => {
@@ -494,6 +615,10 @@ export const useStudio = create<StudioState>()(
           brief: nextBrief,
           copy,
           plan: null,
+          copyDrafts: [],
+          studentReview: null,
+          reels: null,
+          sources: sources ?? [],
           artboards: { [formatId]: artboard },
           slides: { [formatId]: [artboard] },
           slideIndex: 0,
@@ -504,6 +629,120 @@ export const useStudio = create<StudioState>()(
         set((s) => ({ projects: [project, ...s.projects], lastProjectId: project.id }));
         return project;
       },
+      createCampaign: (patch) => {
+        const campaign = migrateCampaign({ ...patch, id: patch?.id ?? uid("camp") });
+        set((s) => ({ campaigns: [campaign, ...s.campaigns] }));
+        return campaign;
+      },
+      updateCampaign: (id, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) => (c.id === id ? { ...c, ...patch, updatedAt: Date.now() } : c)),
+        })),
+      deleteCampaign: (id) =>
+        set((s) => ({
+          campaigns: s.campaigns.filter((c) => c.id !== id),
+          projects: s.projects.map((p) => (p.campaignId === id ? { ...p, campaignId: null } : p)),
+        })),
+      setCampaignWaves: (id, waves) => get().updateCampaign(id, { waves }),
+      updateWave: (campaignId, waveId, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) =>
+            c.id === campaignId
+              ? {
+                  ...c,
+                  waves: c.waves.map((w) => (w.id === waveId ? { ...w, ...patch } : w)),
+                  updatedAt: Date.now(),
+                }
+              : c,
+          ),
+        })),
+      fillDefaultWaves: (id) => {
+        const campaign = get().campaigns.find((c) => c.id === id);
+        if (!campaign) return;
+        get().updateCampaign(id, { waves: defaultWavePlan(campaign), planSource: "mock" });
+      },
+      setContentKind: (projectId, kind) => {
+        const meta = CONTENT_KIND_META[kind];
+        get().updateProject(projectId, { contentKind: kind });
+        if (meta && meta.formatId !== get().projects.find((p) => p.id === projectId)?.activeFormatId) {
+          get().setActiveFormat(projectId, meta.formatId);
+        }
+      },
+      setSchedule: (projectId, at) =>
+        get().updateProject(projectId, (p) => ({
+          ...p,
+          scheduledAt: at,
+          status: at ? (p.status === "published" ? p.status : "scheduled") : p.status === "scheduled" ? "done" : p.status,
+        })),
+      applySchedule: (entries) => {
+        const byId = new Map(entries.map((entry) => [entry.projectId, entry.at]));
+        let count = 0;
+        set((state) => ({
+          projects: state.projects.map((project) => {
+            const at = byId.get(project.id);
+            if (at == null || project.status === "published") return project;
+            count += 1;
+            return {
+              ...project,
+              scheduledAt: at,
+              status: "scheduled" as const,
+              updatedAt: Date.now(),
+            };
+          }),
+        }));
+        return count;
+      },
+      markPublished: (projectId, at) =>
+        get().updateProject(projectId, (p) => ({
+          ...p,
+          status: "published",
+          publishedAt: at ?? Date.now(),
+        })),
+      addCopyDraft: (projectId, draft) =>
+        get().updateProject(projectId, (p) => ({
+          ...p,
+          copyDrafts: uniqueById([draft, ...p.copyDrafts]).slice(0, 12),
+        })),
+      useCopyDraft: (projectId, draftId) => {
+        const project = get().projects.find((p) => p.id === projectId);
+        const draft = project?.copyDrafts.find((d) => d.id === draftId);
+        if (!project || !draft) return;
+        get().applyCopyDeckToPack(projectId, copyFromDraft(project.copy, draft));
+        get().updateProject(projectId, (p) => ({
+          ...p,
+          status: p.status === "idea" ? "making" : p.status,
+        }));
+      },
+      applyCopyDeckToPack: (projectId, deck) => {
+        const updates = spreadCopyAcrossPack(get().projects, projectId, deck);
+        for (const update of updates) {
+          const member = get().projects.find((item) => item.id === update.projectId);
+          if (!member) continue;
+          const brand = brandById(get().brands, member.brandId);
+          get().updateProject(update.projectId, (item) => applyPackCopyToProject(item, brand, update.copy));
+          if (update.reels) get().setReels(update.projectId, update.reels);
+        }
+        return updates.length;
+      },
+      applyCopyToPack: (projectId) => {
+        const project = get().projects.find((item) => item.id === projectId);
+        if (!project) return 0;
+        return get().applyCopyDeckToPack(projectId, project.copy);
+      },
+      setStudentReview: (projectId, review) => get().updateProject(projectId, { studentReview: review }),
+      setReels: (projectId, reels) => get().updateProject(projectId, { reels }),
+      addSources: (projectId, sources) =>
+        get().updateProject(projectId, (p) => {
+          const seen = new Set(p.sources.map((s) => `${s.kind}:${s.label}`));
+          const next = [...p.sources];
+          for (const src of sources) {
+            const key = `${src.kind}:${src.label}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            next.push(src);
+          }
+          return { ...p, sources: next.slice(0, 24) };
+        }),
       createFromTemplate: ({ templateId, brandId }) => {
         const brand = brandById(get().brands, brandId);
         const starter = templateById(templateId);
@@ -530,6 +769,10 @@ export const useStudio = create<StudioState>()(
           brief: migrateBrief(starter.brief),
           copy,
           plan: null,
+          copyDrafts: [],
+          studentReview: null,
+          reels: null,
+          sources: [],
           artboards: { [starter.formatId]: artboard },
           slides: { [starter.formatId]: [artboard] },
           slideIndex: 0,
@@ -803,6 +1046,26 @@ export const useStudio = create<StudioState>()(
         };
         set((s) => ({ projects: [copy, ...s.projects], lastProjectId: copy.id }));
         return copy;
+      },
+      convertProject: (id, kind) => {
+        const s = get();
+        const src = s.projects.find((p) => p.id === id);
+        if (!src) return null;
+        if (src.contentKind === kind) {
+          return get().duplicateProject(id);
+        }
+        const brand = brandById(s.brands, src.brandId);
+        const next = convertContent(src, brand, kind);
+        set((state) => ({ projects: [next, ...state.projects], lastProjectId: next.id }));
+        return next;
+      },
+      layoutFromKind: (id, kind) => {
+        const s = get();
+        const project = s.projects.find((p) => p.id === id);
+        if (!project) return false;
+        const brand = brandById(s.brands, project.brandId);
+        get().updateProject(id, applyKindLayout(project, brand, kind));
+        return true;
       },
       recordExport: (id, version) =>
         get().updateProject(id, (p) => ({
@@ -1334,9 +1597,13 @@ export const useStudio = create<StudioState>()(
           remoteFiles: RemoteFile[];
           lastProjectId: string | null;
         }>;
+        const legacySeed = p.brands?.some(
+          (brand) => brand.id === SEED_BRAND_ID && brand.name === "日食咖啡",
+        ) ?? false;
         const brands = (p.brands ?? current.brands).map(migrateBrandRecord);
         const assets = (p.assets ?? current.assets).map(migrateAssetRecord);
         const projects = (p.projects ?? current.projects).map(migrateProject);
+        const campaigns = (p.campaigns ?? current.campaigns).map(migrateCampaign);
         return {
           ...current,
           ...p,

@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/campaigns",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "禪作所",
+      "hasCanvas": false,
+      "bodyTextLen": 613,
+      "bodyTextHash": "29284054e811945fb0b7539f6d7cdf4df66c4f210d5e06d5a06216c6a4ce3a05",
+      "bodyTextPrefix": "禪 首頁 AI 創作 Studio 素材 品牌 一人完成整套淡江禪學社網宣 Campaign 活動資訊、學生情境與每一波內容放在",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/campaign-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "禪作所",
+      "hasCanvas": false,
+      "bodyTextLen": 611,
+      "bodyTextHash": "c9353bbc0ab253ad552815cc13c791943887223b3f6965413cf4734441dd7854",
+      "bodyTextPrefix": "一人完成整套淡江禪學社網宣 Campaign 活動資訊、學生情境與每一波內容放在一起。沒有負責人、審核人或多人工單。 建立活動 ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/campaign-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/campaign-preview.json"
+}

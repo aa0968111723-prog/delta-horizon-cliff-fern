@@ -5,6 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import type { CampaignPlan, TemplateId } from "@/lib/studio/types";
 import { buildMockPlan } from "./mock";
 import { BriefInputSchema, PlanJsonSchema, type BriefInput } from "./schema";
+import { buildZenContext, ZEN_SYSTEM_PROMPT } from "./zen-context";
 
 export type PlanResult =
   | {
@@ -99,12 +100,11 @@ export function describeAdapter(available: boolean): AiStatus {
 }
 
 export const getCampaignAiStatus = createServerFn({ method: "POST" }).handler(async (): Promise<AiStatus> => {
-  return describeAdapter(Boolean(process.env.XAI_API_KEY));
+  return describeAdapter(grokAvailable());
 });
 
 async function generateLive(data: BriefInput): Promise<PlanResult> {
-  const apiKey = process.env.XAI_API_KEY;
-  if (!apiKey) {
+  if (!grokAvailable()) {
     return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
 
@@ -194,11 +194,7 @@ cta 2-6 字，像「來坐一下」。`;
     return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
 
-  const body = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const text = body.choices?.[0]?.message?.content ?? "";
-  const plan = planFromModel(text);
+  const plan = planFromModel(chat.text);
   if (!plan) {
     return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
@@ -221,7 +217,7 @@ function parseBriefInput(input: unknown) {
 export const generateCampaignPlan = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseBriefInput(input))
   .handler(async ({ data }): Promise<PlanResult> => {
-    const hasKey = Boolean(process.env.XAI_API_KEY);
+    const hasKey = grokAvailable();
     if (!hasKey || data.forceMock) {
       return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
     }

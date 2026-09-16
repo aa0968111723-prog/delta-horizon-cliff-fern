@@ -46,7 +46,7 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
       return;
     }
     if (!brief.eventName.trim() || !brief.audience.trim()) {
-      setError("請填寫活動名稱與受眾，之後企劃代理才有依據。");
+      setError("請填寫活動名稱與受眾，之後創作才有依據。");
       return;
     }
     if (!brandId) {
@@ -123,7 +123,7 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
               onChange={(e) =>
                 setBrief({ ...brief, eventName: e.target.value, product: brief.product || e.target.value })
               }
-              placeholder="賣什麼、什麼檔期"
+              placeholder="浮游禪光、週三社課"
             />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -203,7 +203,7 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
             <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
               取消
             </Button>
-            <Button type="submit">進入工作區</Button>
+            <Button type="submit">打開 Studio</Button>
           </div>
         </form>
       </DialogContent>

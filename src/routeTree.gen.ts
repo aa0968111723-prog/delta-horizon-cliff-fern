@@ -80,6 +80,11 @@ const InspireRoute = InspireRouteImport.update({
   path: '/inspire',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudioRoute = StudioRouteImport.update({
   id: '/studio',
   path: '/studio',
@@ -298,6 +303,13 @@ declare module '@tanstack/react-router' {
       path: '/inspire'
       fullPath: '/inspire'
       preLoaderRoute: typeof InspireRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio': {

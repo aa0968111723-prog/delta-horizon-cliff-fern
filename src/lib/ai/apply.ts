@@ -25,7 +25,7 @@ export function copyFromCampaign(plan: CampaignPlan, brand: BrandKit): CopyDeck 
       body: plan.body,
       cta: plan.cta,
       handle: brand.handle,
-      caption: plan.captions[0]?.text ?? "",
+      caption: plan.captions.find((row) => row.style === "一般版")?.text ?? plan.captions[0]?.text ?? "",
       hashtags: plan.hashtags,
       altText: plan.altText,
     },
@@ -37,7 +37,7 @@ function storyCopy(base: CopyDeck, plan: CampaignPlan): CopyDeck {
   const beats = plan.storyBeats;
   return {
     ...base,
-    eyebrow: "STORY",
+    eyebrow: "限動",
     headline: plan.hook || base.headline,
     subhead: beats[0] || base.subhead,
     body: beats.slice(1).join("\n") || base.body,

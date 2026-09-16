@@ -37,6 +37,7 @@ export function HomePage() {
   const publishSchedule = useStudio((s) => s.publishSchedule);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const projects = useStudio((s) => s.projects);
+  const campaigns = useStudio((s) => s.campaigns);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
   const campaigns = useStudio((s) => s.campaigns);
@@ -89,6 +90,16 @@ export function HomePage() {
     } finally {
       setPublishingId(null);
     }
+    for (const b of brands) if (b.logoAssetId) ids.push(b.logoAssetId);
+    for (const a of assets) ids.push(a.id);
+    return ids;
+  }, [projects, brands, assets]);
+  const urls = useAssetUrls(assetIds);
+
+  function startTemplate(id: (typeof TEMPLATE_STARTERS)[number]["id"]) {
+    if (!brand) return;
+    const project = createFromTemplate({ templateId: id, brandId: brand.id });
+    void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
   }
 
   useEffect(() => {
@@ -106,6 +117,12 @@ export function HomePage() {
   if (!hydrated) {
     return <LoadingState label="讀取禪光…" />;
   }
+
+  const suggestion =
+    todaysWave?.hook ||
+    focus?.painPoint ||
+    localTodayIdeas()[0]?.hook ||
+    "第一次來，會經歷什麼？";
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-nav md:px-8 md:py-10" data-testid="home-ready">
@@ -533,4 +550,14 @@ export function HomePage() {
       </section>
     </main>
   );
+}
+
+function sourceLabel(source: string) {
+  if (source === "drive") return "Google Drive";
+  if (source === "canva") return "Canva";
+  if (source === "instagram") return "Instagram";
+  if (source === "generated") return "AI Generated";
+  if (source === "campaign") return "活動";
+  if (source === "brand") return "Brand";
+  return "素材";
 }

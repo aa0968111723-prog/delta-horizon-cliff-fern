@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AssetCard } from "@/components/assets/asset-card";
 import { AssetDetailSheet } from "@/components/assets/asset-detail";
+import { CreativeBrainPanel } from "@/components/assets/creative-brain-panel";
+import { ImageStudio } from "@/components/assets/image-studio";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { EmptyState, ErrorState, LoadingState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
@@ -51,12 +53,14 @@ import { useStudio } from "@/stores/studio-store";
 
 type FilterId = "all" | AssetCategory | "favorite";
 
-export function AssetLibrary() {
+export function AssetLibrary({ initialAssetId, initialCategory }: { initialAssetId?: string; initialCategory?: string } = {}) {
   const navigate = useNavigate();
   const hydrated = useStudio((s) => s.hydrated);
   const assets = useStudio((s) => s.assets);
   const brands = useStudio((s) => s.brands);
   const projects = useStudio((s) => s.projects);
+  const campaigns = useStudio((s) => s.campaigns);
+  const contents = useStudio((s) => s.contents);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const remoteFiles = useStudio((s) => s.remoteFiles);
   const addAsset = useStudio((s) => s.addAsset);
@@ -66,18 +70,23 @@ export function AssetLibrary() {
   const createFromTemplate = useStudio((s) => s.createFromTemplate);
   const fileRef = useRef<HTMLInputElement>(null);
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<FilterId>("all");
+  const [filter, setFilter] = useState<FilterId>(
+    initialCategory && ASSET_CATEGORIES.some((c) => c.id === initialCategory) ? (initialCategory as FilterId) : "all",
+  );
   const [source, setSource] = useState<"all" | AssetSourceKind>("all");
   const [usageFilter, setUsageFilter] = useState<"all" | "in-use" | "used" | "unused">("all");
   const [uploadCategory, setUploadCategory] = useState<AssetCategory>("photo");
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(initialAssetId ?? null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [dropOver, setDropOver] = useState(false);
   const [liveNote, setLiveNote] = useState("");
 
-  const usedIds = useMemo(() => collectUsedAssetIds(projects, brands), [projects, brands]);
+  const usedIds = useMemo(
+    () => collectUsedAssetIds(projects, brands, [...campaigns, ...contents]),
+    [projects, brands, campaigns, contents],
+  );
   const brand = brands[0];
   const remotes = useMemo(() => {
     return remoteFiles.filter((file) => {
@@ -89,7 +98,7 @@ export function AssetLibrary() {
 
   const filtered = useMemo(() => {
     return assets.filter((asset) => {
-      if (!matchesAssetQuery(asset, q)) return false;
+      if (!matchesAssetQuery(asset, q) && !(asset.insight?.summary ?? "").toLowerCase().includes(q.trim().toLowerCase())) return false;
       if (source !== "all" && asset.source !== source) return false;
       const usage = assetUsageStatus(asset, usedIds);
       if (usageFilter !== "all" && usage !== usageFilter) return false;
@@ -187,7 +196,7 @@ export function AssetLibrary() {
     }
     const ok = placeAsset(lastProjectId, asset.id);
     if (!ok) {
-      toast.error("無法放到畫布");
+      toast.error(asset.width === 0 ? "這是來源參考，沒有原圖像素，不能放到畫布。" : "無法放到畫布");
       return;
     }
     toast.success(`已放入「${asset.name}」`);
@@ -218,6 +227,8 @@ export function AssetLibrary() {
         }
       />
 
+      <ImageStudio />
+      <CreativeBrainPanel onOpenAsset={setActiveId} />
       <StorageNotice className="mt-4" />
 
       <input
@@ -248,7 +259,7 @@ export function AssetLibrary() {
           if (e.dataTransfer.files.length) void onFiles(e.dataTransfer.files);
         }}
       >
-        <p>把圖片拖到這裡。JPG / PNG / WebP / GIF / SVG，單檔上限 8 MB。</p>
+        <p>把圖片拖到這裡：活動照、歷屆海報、IG 截圖、社員照、校園與淡水照。JPG / PNG / WebP / GIF / SVG，單檔 8 MB。</p>
         <div className="mx-auto mt-3 flex max-w-xs items-center gap-2">
           <span className="text-xs">上傳分類</span>
           <Select value={uploadCategory} onValueChange={(v) => setUploadCategory(v as AssetCategory)}>
@@ -301,7 +312,7 @@ export function AssetLibrary() {
           </SelectContent>
         </Select>
         <Select value={usageFilter} onValueChange={(v) => setUsageFilter(v as typeof usageFilter)}>
-          <SelectTrigger className="md:w-40">
+          <SelectTrigger className="min-h-11 md:w-40">
             <SelectValue placeholder="使用狀態" />
           </SelectTrigger>
           <SelectContent>
@@ -320,7 +331,23 @@ export function AssetLibrary() {
         </p>
       ) : null}
 
-      <div className="-mx-4 mt-4 flex gap-1 overflow-x-auto px-4 pb-1">
+      <div className="-mx-4 mt-4 flex gap-1 overflow-x-auto px-4 pb-1" data-testid="asset-source-chips">
+        <FilterChip active={source === "all"} onClick={() => setSource("all")} count={assets.length}>
+          全部來源
+        </FilterChip>
+        {ASSET_SOURCES.map((item) => (
+          <FilterChip
+            key={item.id}
+            active={source === item.id}
+            onClick={() => setSource(item.id)}
+            count={assets.filter((asset) => asset.source === item.id).length}
+          >
+            {item.label}
+          </FilterChip>
+        ))}
+      </div>
+
+      <div className="-mx-4 mt-2 flex gap-1 overflow-x-auto px-4 pb-1">
         <FilterChip active={filter === "all"} onClick={() => setFilter("all")} count={counts.all}>
           全部
         </FilterChip>
@@ -356,7 +383,7 @@ export function AssetLibrary() {
                       const project = createFromTemplate({ templateId: tpl.id, brandId: brand.id });
                       void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
                     }}
-                    className="w-full rounded-2xl bg-surface p-3 text-left shadow-[var(--shadow-border)]"
+                    className="w-full rounded-2xl surface-card p-3 text-left"
                   >
                     <div className="flex h-32 items-center justify-center overflow-hidden rounded-lg bg-bg">
                       {preview && brand ? (
@@ -434,6 +461,7 @@ export function AssetLibrary() {
                 onFavorite={() => toggleFavorite(asset.id)}
                 onDelete={() => setPendingDelete(asset.id)}
                 onPlace={lastProjectId ? () => place(asset) : undefined}
+                onCreate={() => void navigate({ to: "/create", search: { from: "image", asset: asset.id } })}
               />
             </li>
           ))}
@@ -451,6 +479,7 @@ export function AssetLibrary() {
         onDelete={() => {
           if (active) setPendingDelete(active.id);
         }}
+        onCreated={(id) => setActiveId(id)}
       />
 
       <AlertDialog open={Boolean(pendingDelete)} onOpenChange={() => setPendingDelete(null)}>
@@ -499,7 +528,7 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs",
+        "flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs",
         active ? "bg-accent text-accent-fg" : "bg-surface text-muted shadow-[var(--shadow-border)]",
       )}
     >

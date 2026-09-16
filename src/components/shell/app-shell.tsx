@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
   House,
@@ -11,11 +11,12 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { AssistantSheet } from "@/components/assistant/assistant-sheet";
-import { CreateSheet } from "@/components/create/create-sheet";
-import { CreativeSearch } from "@/components/search/creative-search";
 import { SaveIndicator } from "@/components/shared/save-indicator";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
+import { useState } from "react";
 
 const SIDE: { to: string; label: string; icon: LucideIcon; match: string }[] = [
   { to: "/", label: "首頁", icon: House, match: "home" },
@@ -36,9 +37,25 @@ function activeKey(pathname: string) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const setCreateOpen = useUi((s) => s.setCreateOpen);
-  const setSearchOpen = useUi((s) => s.setSearchOpen);
+  const lastProjectId = useStudio((s) => s.lastProjectId);
+  const setAssistantOpen = useUi((s) => s.setAssistantOpen);
   const current = activeKey(pathname);
+  const [createOpen, setCreateOpen] = useState(false);
+  const navigate = useNavigate();
+
+  function hrefFor(item: NavItem) {
+    if (item.match === "studio" && lastProjectId) {
+      return { to: "/studio/$projectId" as const, params: { projectId: lastProjectId } };
+    }
+    return { to: item.to };
+  }
+
+  function hrefFor(item: (typeof NAV)[number]) {
+    if (item.match === "studio" && lastProjectId) {
+      return { to: "/studio/$projectId" as const, params: { projectId: lastProjectId } };
+    }
+    return { to: item.to };
+  }
 
   return (
     <div className="flex min-h-dvh bg-bg text-fg">
@@ -53,16 +70,18 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav className="flex flex-1 flex-col gap-1 p-2">
           {SIDE.map((item) => {
             const active = current === item.match;
+            const dest = hrefFor(item);
             return (
               <Link
                 key={item.match}
-                to={item.to}
+                to={dest.to}
+                params={"params" in dest ? dest.params : undefined}
                 className={cn(
-                  "flex min-h-12 flex-col items-center justify-center gap-1 rounded-md text-xs transition-colors",
+                  "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[0.68rem] transition-colors",
                   active ? "bg-surface-2 text-fg" : "text-muted hover:bg-surface-2 hover:text-fg",
                 )}
               >
-                <item.icon className="size-4" />
+                <item.icon className="size-[1.15rem]" />
                 {item.label}
               </Link>
             );
@@ -73,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => setSearchOpen(true)}
             className="flex size-11 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-fg"
-            aria-label="搜尋素材"
+            aria-label="開啟 AI 助手"
           >
             <Search className="size-4" />
           </button>
@@ -104,8 +123,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </nav>
       </div>
-      <CreateSheet />
-      <CreativeSearch />
+      {current !== "studio" && current !== "home" ? (
+        <button
+          type="button"
+          onClick={() => setAssistantOpen(true)}
+          className="fixed right-4 z-30 flex size-12 items-center justify-center rounded-full bg-accent text-accent-fg shadow-[var(--shadow-artboard)] lg:hidden"
+          style={{ bottom: "calc(var(--spacing-nav-safe) + 0.75rem)" }}
+          aria-label="快速開啟 AI 助手"
+        >
+          <Sparkles className="size-5" />
+        </button>
+      ) : null}
       <AssistantSheet />
     </div>
   );

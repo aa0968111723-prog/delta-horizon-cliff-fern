@@ -5,9 +5,9 @@ export const STATUS_META: Record<
   ProjectStatus,
   { label: string; tone: "default" | "warn" | "success" | "accent" }
 > = {
-  draft: { label: "創作中", tone: "warn" },
-  ready: { label: "完成", tone: "accent" },
-  exported: { label: "已發布", tone: "success" },
+  draft: { label: "草稿", tone: "warn" },
+  ready: { label: "可輸出", tone: "accent" },
+  exported: { label: "已輸出", tone: "success" },
 };
 
 export function statusLabel(status: ProjectStatus, contentStatus?: ContentStatus) {

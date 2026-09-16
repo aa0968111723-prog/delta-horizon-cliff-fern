@@ -3,6 +3,10 @@ import { objectUrlForAsset } from "@/lib/studio/assets-idb";
 import { resolveAssetSrc, seedSrcById } from "@/lib/studio/asset-src";
 import { useStudio } from "@/stores/studio-store";
 
+/**
+ * 素材預覽網址。示範素材先用 public `seedSrc`，IndexedDB blob 載到再補上。
+ * 這樣素材庫不會在水合期間顯示「預覽失敗」。
+ */
 export function useAssetUrls(ids: string[]): Record<string, string> {
   const assets = useStudio((s) => s.assets);
   const key = [...new Set(ids.filter(Boolean))].sort().join("|");

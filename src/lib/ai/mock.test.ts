@@ -20,8 +20,8 @@ const base: BriefInput = {
   wantStory: true,
   wantCarousel: true,
   wantReels: false,
-  brandName: "日食咖啡",
-  handle: "@nisshoku.coffee",
+  brandName: "淡江大學禪學社",
+  handle: "@tku.zen",
   voice: "沉靜",
   doSay: "單品",
   dontSay: "爆款",
@@ -39,7 +39,7 @@ test("buildMockPlan is structured Traditional Chinese and marked mock", () => {
   assert.ok(plan.headline.length > 0);
   assert.ok(plan.cta.length >= 2);
   assert.ok(plan.captions[0]?.text.includes("週六下午"));
-  assert.ok(plan.hashtags.some((tag) => tag.includes("日食")));
+  assert.ok(plan.hashtags.some((tag) => tag.includes("淡江大學禪學社")));
   assert.equal(plan.carouselPages.length, 6);
   assert.deepEqual(
     plan.carouselPages.map((page) => page.role),
@@ -135,4 +135,18 @@ test("buildMockPlan strips forbidden words", () => {
   assert.equal(blob.includes("爆款"), false);
   assert.equal(plan.carouselPages.length, 1);
   assert.equal(plan.source, "mock");
+});
+
+test("mock campaign reuses a field-note hook and remember line", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "浮游禪光",
+    features: "一起坐坐",
+    audience: "剛開學的淡江學生",
+    brandMemory: "已學到的規律：現場：「浮游禪光」覺得像淡江的 Hook「下課後先不要急著回完所有訊息」、現場：「浮游禪光」實際來的人／反應：住宿生比較多、現場：「浮游禪光」下次要記得：時間放 Caption 最上面",
+  });
+  assert.equal(plan.hook, "下課後先不要急著回完所有訊息");
+  assert.match(plan.insight, /住宿生比較多/);
+  assert.equal(plan.checklist[0], "現場筆記：時間放 Caption 最上面");
+  assert.doesNotMatch(plan.hook, /Insights|觀看次數/);
 });

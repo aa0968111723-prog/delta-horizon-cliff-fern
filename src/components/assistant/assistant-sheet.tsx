@@ -14,7 +14,7 @@ export function AssistantSheet() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent side="bottom" className="flex max-h-[86dvh] flex-col p-0 lg:max-h-[92dvh]">
         <div className="border-b border-border px-4 py-3 pr-12">
-          <SheetTitle>畫布代理</SheetTitle>
+          <SheetTitle>寫這則網宣</SheetTitle>
           <p className="mt-1 text-sm text-muted">
             對目前畫面下指令。完整網宣請走 AI 創作。{" "}
             <Link

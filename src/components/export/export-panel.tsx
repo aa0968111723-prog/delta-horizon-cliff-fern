@@ -1,37 +1,20 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { Calendar, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { DownloadPackButton, PackExportHint } from "@/components/export/download-pack";
 import { canvasToBlob, collectArtboardAssetIds, downloadBlob, renderArtboardToCanvas } from "@/lib/studio/export-png";
+import { loadArtboardImages } from "@/lib/studio/export-download";
+import { exportFilename } from "@/lib/studio/export-name";
 import { formatById } from "@/lib/studio/formats";
-import { getAssetBlob } from "@/lib/studio/assets-idb";
 import { uid } from "@/lib/studio/ids";
 import { pagesOf } from "@/lib/studio/layers";
+import { igPostText, packStats, packLimit, threadsPostText } from "@/lib/studio/post-pack";
 import type { Artboard, BrandKit, Project } from "@/lib/studio/types";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
-
-async function loadImages(ids: string[]): Promise<Record<string, HTMLImageElement>> {
-  const map: Record<string, HTMLImageElement> = {};
-  await Promise.all(
-    [...new Set(ids)].map(async (id) => {
-      const blob = await getAssetBlob(id);
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      try {
-        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const el = new Image();
-          el.onload = () => resolve(el);
-          el.onerror = () => reject(new Error("圖片載入失敗"));
-          el.src = url;
-        });
-        map[id] = img;
-      } finally {
-        URL.revokeObjectURL(url);
-      }
-    }),
-  );
-  return map;
-}
+import { useCampaignStore } from "@/lib/studio/campaign-store";
 
 export function ExportPanel({
   project,
@@ -43,6 +26,7 @@ export function ExportPanel({
   artboard: Artboard;
 }) {
   const recordExport = useStudio((s) => s.recordExport);
+  const addScheduledPost = useCampaignStore((s) => s.addScheduledPost);
   const [scale, setScale] = useState<1 | 2 | 3>(2);
   const [type, setType] = useState<"image/png" | "image/jpeg">("image/png");
   const [busy, setBusy] = useState(false);
@@ -53,12 +37,11 @@ export function ExportPanel({
   const pages = pagesOf(project, artboard.formatId);
 
   async function exportArtboard(target: Artboard, suffix: string) {
-    const images = await loadImages(collectArtboardAssetIds(target, brand));
+    const images = await loadArtboardImages(collectArtboardAssetIds(target, brand), assets);
     const canvas = await renderArtboardToCanvas(target, brand, images, scale);
     const blob = await canvasToBlob(canvas, type, 0.95);
     const ext = type === "image/png" ? "png" : "jpg";
-    const safe = project.name.replace(/[\\/:*?"<>|]/g, "").slice(0, 40) || "export";
-    const filename = `${safe}-${format.short}${suffix}-${outW}x${outH}.${ext}`;
+    const filename = exportFilename(project.name, format.short, suffix, outW, outH, ext);
     downloadBlob(blob, filename);
     recordExport(project.id, {
       id: uid("exp"),
@@ -78,6 +61,44 @@ export function ExportPanel({
     try {
       await exportArtboard(artboard, "");
       toast.success("已開始下載此頁");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "匯出失敗";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function exportPublishPack() {
+    setBusy(true);
+    setError(null);
+    try {
+      const stem = safePackStem(project.name);
+      const manifest = publishPackManifest(stem, format.short, pages.length);
+      const files: { name: string; blob: Blob }[] = [
+        { name: manifest.noteName, blob: new Blob([buildExportCopyPack(project, { contentItems, campaigns })], { type: "text/plain;charset=utf-8" }) },
+      ];
+      for (let index = 0; index < pages.length; index += 1) {
+        const target = pages[index]!;
+        const images = await loadImages(collectArtboardAssetIds(target, brand));
+        const canvas = await renderArtboardToCanvas(target, brand, images, scale);
+        const blob = await canvasToBlob(canvas, "image/png", 0.95);
+        const filename = manifest.imageNames[index] ?? `${stem}-p${index + 1}.png`;
+        files.push({ name: filename, blob });
+        recordExport(project.id, {
+          id: uid("exp"),
+          createdAt: Date.now(),
+          formatId: target.formatId,
+          scale,
+          mime: "image/png",
+          width: format.width * scale,
+          height: format.height * scale,
+          filename,
+        });
+      }
+      downloadBlob(await zipBlobs(files), manifest.zipName);
+      toast.success(pages.length > 1 ? `已下載一人發佈包：${pages.length} 頁畫布與備註` : "已下載一人發佈包：畫布 PNG 與備註");
     } catch (err) {
       const message = err instanceof Error ? err.message : "匯出失敗";
       setError(message);
@@ -112,7 +133,7 @@ export function ExportPanel({
       <div>
         <h2 className="text-sm font-medium">高畫質輸出</h2>
         <p className="mt-1 text-xs text-muted">
-          Instagram 以 1080 邊長為準。建議 PNG 2x 再壓縮，避免平台二次糊掉。
+          Instagram 以 1080 邊長為準。建議 PNG 2x 再壓縮。這是本機下載，不是發文，也不含官方 Insights。
         </p>
       </div>
       <div>
@@ -149,28 +170,75 @@ export function ExportPanel({
         </div>
       </div>
       {error ? <p className="text-sm text-danger">{error}</p> : null}
-      <Button className="w-full" disabled={busy} onClick={() => void exportNow()}>
+      <Button className="w-full min-h-11" disabled={busy} onClick={() => void exportNow()}>
         {busy ? "匯出中…" : "下載此頁"}
       </Button>
       {pages.length > 1 ? (
-        <Button className="w-full" variant="secondary" disabled={busy} onClick={() => void exportCarousel()}>
+        <Button className="w-full min-h-11" variant="secondary" disabled={busy} onClick={() => void exportCarousel()}>
           匯出輪播全部（{pages.length} 頁）
         </Button>
       ) : null}
       <Button
         variant="secondary"
-        className="w-full"
+        className="w-full min-h-11"
         onClick={async () => {
-          const text = `${project.copy.caption}\n\n${project.copy.hashtags.join(" ")}`.trim();
+          const text = igPostText(project.copy);
           await navigator.clipboard.writeText(text);
           toast.success("已複製貼文文案");
         }}
       >
         複製貼文文案
       </Button>
+      <Button
+        variant="outline"
+        className="w-full gap-1.5 text-xs border-primary/40 text-primary hover:bg-primary/5"
+        onClick={() => {
+          const contentType =
+            pages.length > 1
+              ? "carousel"
+              : format.id === "story"
+              ? "story"
+              : format.id === "reels-cover"
+              ? "reels"
+              : "ig-post";
+
+          addScheduledPost({
+            projectId: project.id,
+            title: project.name,
+            contentType,
+            status: "scheduled",
+            scheduledAt: new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 16).replace("T", " "),
+            hook: project.copy.headline.replace("\n", " "),
+            caption: project.copy.caption,
+            hashtags: project.copy.hashtags,
+            cta: project.copy.cta,
+            visualDirection: `${format.name} · ${brand.name}`,
+            slidesCount: pages.length,
+            sourceKind: "brand-memory",
+            sourceRef: `Studio 畫布 / ${project.name}`,
+          });
+          toast.success(`已將「${project.name}」排入社團內容日曆！`);
+        }}
+      >
+        <Calendar className="size-3.5" />
+        排入社團內容日曆
+      </Button>
       {project.copy.altText ? (
-        <p className="text-xs text-muted">Alt：{project.copy.altText}</p>
-      ) : null}
+        <Button
+          variant="secondary"
+          className="w-full"
+          onClick={async () => {
+            await navigator.clipboard.writeText(project.copy.altText);
+            toast.success("已複製無障礙說明");
+          }}
+        >
+          複製 Alt
+        </Button>
+      ) : (
+        <p className="text-xs text-subtle">還沒有無障礙說明。套用一版文案後會自動寫一句畫面描述。</p>
+      )}
+      <DownloadPackButton projectId={project.id} className="w-full" variant="secondary" />
+      <PackExportHint projectId={project.id} />
     </div>
   );
 }

@@ -28,7 +28,24 @@ export type Align = "left" | "center" | "right";
 
 export type ColorRole = "primary" | "secondary" | "accent" | "background" | "ink";
 
-export type ProjectStatus = "draft" | "ready" | "exported";
+/** 一人創作流程只需要這五個狀態。沒有審核、沒有負責人。 */
+export type ContentStatus = "idea" | "making" | "done" | "scheduled" | "published";
+
+/** 禪學社實際會發的內容型態。 */
+export type ContentKind =
+  | "ig-post"
+  | "carousel"
+  | "story"
+  | "reels"
+  | "threads"
+  | "line"
+  | "poster"
+  | "recap"
+  | "member-story"
+  | "countdown"
+  | "qa"
+  | "poll"
+  | "knowledge";
 
 export type ContentKind =
   | "ig-post"
@@ -117,6 +134,38 @@ export type BrandRules = {
   notes: string;
 };
 
+/** AI 讀過這個帳號過去內容之後留下的整理，生成時會優先延續。 */
+export type IgHistoryReading = {
+  voice: string;
+  continueWith: string[];
+  avoid: string[];
+  nextPost: string;
+  analyzedAt: number;
+  sampleCount: number;
+  adapter: "live" | "local";
+};
+
+/**
+ * 品牌記憶裡「不是規範、而是社團自己的東西」：理念、固定介紹、龜龜、三色光的意義、
+ * 喜歡與不喜歡的風格、歷屆文宣。AI 每次生成前都會先讀這一段。
+ */
+export type BrandMemory = {
+  mission: string;
+  introShort: string;
+  introLong: string;
+  mascotName: string;
+  mascotLook: string;
+  mascotPersonality: string;
+  mascotUsage: string;
+  lights: { label: string; hex: string; meaning: string }[];
+  likedStyles: string;
+  dislikedStyles: string;
+  /** 歷屆海報／文宣，AI 參考品牌 DNA 時會看 */
+  legacyAssetIds: string[];
+  /** 讀過過去 IG／本機內容後的整理。沒讀過就沒有。 */
+  igReading?: IgHistoryReading;
+};
+
 export type BrandKit = {
   id: string;
   name: string;
@@ -146,7 +195,16 @@ export type BrandKit = {
 
 export type AssetKind = "image" | "logo" | "pattern" | "video";
 
+/**
+ * AI Creative Library 分類。
+ * 舊分類 (photo / people / background / illustration / icon) 仍可讀取，
+ * 新增禪學社專用：mascot(龜龜) / campus(淡江校園) / tamsui(淡水) / poster(海報) /
+ * generated(AI 生成) / ig / story / reels / archive(歷屆活動)。
+ */
 export type AssetCategory =
+  | "mascot"
+  | "campus"
+  | "poster"
   | "photo"
   | "people"
   | "background"
@@ -165,9 +223,23 @@ export type AssetCategory =
   | "template"
   | "history";
 
-export type AssetSourceKind = "upload" | "seed" | "generated" | "drive" | "canva" | "instagram";
+export type AssetSourceKind = "upload" | "seed" | "generated";
 
 export type AssetUsageStatus = "in-use" | "used" | "unused";
+
+/** AI 讀過這張圖之後留下的理解，方便延續風格或寫文案。 */
+export type AssetInsight = {
+  summary: string;
+  stylePrompt: string;
+  captionIdea: string;
+  tooReligious: boolean;
+  tooAi: boolean;
+  fitsTku: boolean;
+  nextSteps: string[];
+  analyzedAt: number;
+  /** live = 線上模型看圖；local = 本機規則依名稱／分類／標籤。 */
+  source?: "live" | "local";
+};
 
 export type AssetMeta = {
   id: string;
@@ -188,6 +260,8 @@ export type AssetMeta = {
   favorite: boolean;
   lastUsedAt: number | null;
   useCount: number;
+  attribution?: string;
+  analysisNotes?: string;
 };
 
 export type Background = {
@@ -320,6 +394,8 @@ export type DeliverableFlags = {
   story: boolean;
   carousel: boolean;
   reels: boolean;
+  threads: boolean;
+  line: boolean;
 };
 
 export type CaptionVariant = {
@@ -423,6 +499,7 @@ export type CampaignPlan = {
   checklist: string[];
   altText: string;
   qaNotes: string[];
+  copyPack?: CopyPack;
   generatedAt: number;
   source: PlanSource;
   directions?: VisualDirection[];
@@ -465,6 +542,68 @@ export type ExportVersion = {
   filename: string;
 };
 
+/** IG 文案 AI 的語氣版本。 */
+export type CopyTone = "short" | "normal" | "emotional" | "student" | "life" | "humor";
+
+export type CopyDraft = {
+  id: string;
+  tone: CopyTone;
+  hook: string;
+  body: string;
+  cta: string;
+  hashtags: string[];
+  /** IG 無障礙說明。舊草稿可能沒有。 */
+  altText?: string;
+  createdAt: number;
+  source: PlanSource;
+};
+
+/** 反向學生模擬：生成後用淡江學生視角重看一次。 */
+export type StudentReviewItem = {
+  question: string;
+  verdict: "ok" | "risk";
+  note: string;
+};
+
+export type StudentReview = {
+  score: number;
+  items: StudentReviewItem[];
+  rewriteHook: string;
+  suggestions: string[];
+  createdAt: number;
+  source: PlanSource;
+};
+
+export type ReelsBeat = {
+  range: string;
+  visual: string;
+  caption: string;
+  voice: string;
+  transition: string;
+  asset: string;
+};
+
+export type ReelsScript = {
+  hook: string;
+  cover: string;
+  /** 依腳本生成、存進素材庫的封面圖 */
+  coverAssetId?: string | null;
+  beats: ReelsBeat[];
+  createdAt: number;
+  source: PlanSource;
+};
+
+/** AI 參考過的素材來源，一定要能顯示給使用者看。 */
+export type CreativeSourceKind = "drive" | "canva" | "instagram" | "generated" | "local";
+
+export type CreativeSourceRef = {
+  kind: CreativeSourceKind;
+  label: string;
+  detail: string;
+  href?: string;
+  assetId?: string;
+};
+
 export type Project = {
   id: string;
   name: string;
@@ -483,12 +622,306 @@ export type Project = {
   brief: Brief;
   copy: CopyDeck;
   plan: CampaignPlan | null;
+  copyDrafts: CopyDraft[];
+  studentReview: StudentReview | null;
+  reels: ReelsScript | null;
+  sources: CreativeSourceRef[];
+  /** 從哪一則一鍵轉換來的。全套列表用這個把同一則的貼文／限動／Threads 收在一起。 */
+  convertedFromId?: string;
   artboards: Partial<Record<FormatId, Artboard>>;
   slides: Partial<Record<FormatId, Artboard[]>>;
   slideIndex: number;
   snapshots: Snapshot[];
   planVersions: PlanVersion[];
   exports: ExportVersion[];
+  campaignId?: string | null;
+  contentKind?: ContentKind;
+  scheduledAt?: number | null;
+  publishedAt?: number | null;
+};
+
+/* ------------------------------------------------------------------ */
+/* Campaign（活動）                                                     */
+/* ------------------------------------------------------------------ */
+
+export type CampaignType =
+  | "tea"
+  | "meditation"
+  | "lecture"
+  | "class"
+  | "welcome"
+  | "retreat"
+  | "showcase"
+  | "recruit"
+  | "other";
+
+export type CampaignPainPoint =
+  | "stress"
+  | "lonely"
+  | "lost"
+  | "sleep"
+  | "focus"
+  | "friends"
+  | "curious"
+  | "belonging";
+
+export type Campaign = {
+  id: string;
+  name: string;
+  type: CampaignType;
+  /** ISO yyyy-mm-dd */
+  date: string;
+  time: string;
+  location: string;
+  oneLiner: string;
+  description: string;
+  theme: string;
+  painPoints: CampaignPainPoint[];
+  cta: string;
+  signupUrl: string;
+  coverAssetId: string | null;
+  assetIds: string[];
+  strategy: CampaignStrategy | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+/** 一波宣傳的角色（節奏），不硬寫死日期，由 AI 依活動型態調整。 */
+export type WaveRole =
+  | "teaser"
+  | "empathy"
+  | "keyvisual"
+  | "info"
+  | "reason"
+  | "life"
+  | "interactive"
+  | "knowledge"
+  | "story"
+  | "countdown"
+  | "dayof"
+  | "recap";
+
+export type CreativeDirection = {
+  id: string;
+  title: string;
+  concept: string;
+  palette: string[];
+  composition: string;
+  typography: string;
+  imagePrompt: string;
+  headline: string;
+  subhead: string;
+  mood: string;
+};
+
+export type CampaignWave = {
+  id: string;
+  role: WaveRole;
+  /** 距活動日的天數（負數 = 之前，0 = 當天，正數 = 之後）。 */
+  offsetDays: number;
+  contentType: ContentType;
+  title: string;
+  hook: string;
+  angle: string;
+  contentId: string | null;
+};
+
+export type CampaignStrategy = {
+  axis: string;
+  directions: CreativeDirection[];
+  chosenDirectionId: string | null;
+  waves: CampaignWave[];
+  rhythmNote: string;
+  generatedAt: number;
+  source: PlanSource;
+};
+
+/* ------------------------------------------------------------------ */
+/* Content（內容）                                                      */
+/* ------------------------------------------------------------------ */
+
+export type ContentType =
+  | "ig-post"
+  | "carousel"
+  | "story"
+  | "reels"
+  | "threads"
+  | "line"
+  | "poster"
+  | "recap"
+  | "member-story"
+  | "countdown"
+  | "qa"
+  | "poll"
+  | "knowledge";
+
+/** 只有這五個狀態：想法 / 創作中 / 完成 / 已排程 / 已發布。 */
+export type ContentStatus = "idea" | "drafting" | "done" | "scheduled" | "published";
+
+export type ToneId = "short" | "normal" | "warm" | "student" | "life" | "humor";
+
+export type ContentSourceKind = "drive" | "canva" | "instagram" | "ai" | "library" | "brand";
+
+export type ContentSource = {
+  kind: ContentSourceKind;
+  label: string;
+  refId?: string;
+  url?: string;
+};
+
+export type CopyDraft = {
+  hook: string;
+  body: string;
+  cta: string;
+  hashtags: string[];
+  tone: ToneId;
+};
+
+export type CarouselSlideDraft = {
+  index: number;
+  role: string;
+  title: string;
+  text: string;
+  visualNote: string;
+};
+
+export type StoryFrameDraft = {
+  index: number;
+  text: string;
+  sticker: string;
+  visualNote: string;
+};
+
+export type ReelsBeat = {
+  from: number;
+  to: number;
+  visual: string;
+  caption: string;
+  voiceover: string;
+  transition: string;
+  assetHint: string;
+  /** 素材庫裡對應這一秒的畫面，可空。 */
+  assetId?: string | null;
+};
+
+export type StudentReview = {
+  wouldStop: boolean;
+  understandable: boolean;
+  tooReligious: boolean;
+  tooSerious: boolean;
+  tooArtsy: boolean;
+  tooAi: boolean;
+  tooLong: boolean;
+  knowsWhat: boolean;
+  knowsWhenWhere: boolean;
+  wouldBringFriend: boolean;
+  knowsHowToSignup: boolean;
+  verdict: string;
+  suggestions: string[];
+  rewriteHook: string;
+  score: number;
+};
+
+export type ContentItem = {
+  id: string;
+  campaignId: string | null;
+  type: ContentType;
+  status: ContentStatus;
+  title: string;
+  copy: CopyDraft;
+  /** 其他語氣版本。 */
+  variants: CopyDraft[];
+  imagePrompt: string;
+  visualDirection: string;
+  carousel: CarouselSlideDraft[];
+  storyFrames: StoryFrameDraft[];
+  reels: ReelsBeat[];
+  threads: string;
+  line: string;
+  review: StudentReview | null;
+  sources: ContentSource[];
+  /** 對應的畫布專案（可為 null，先寫文案再做圖）。 */
+  projectId: string | null;
+  coverAssetId: string | null;
+  scheduledAt: number | null;
+  publishedAt: number | null;
+  metrics: ContentMetrics | null;
+  createdAt: number;
+  updatedAt: number;
+  generatedBy: PlanSource | null;
+};
+
+export type ContentMetrics = {
+  reach: number;
+  likes: number;
+  comments: number;
+  saves: number;
+  shares: number;
+  views: number;
+  clicks: number;
+  syncedAt: number;
+};
+
+/* ------------------------------------------------------------------ */
+/* Connections（Drive / Canva / Instagram）                             */
+/* ------------------------------------------------------------------ */
+
+export type ConnectionProvider = "drive" | "canva" | "instagram";
+
+export type ConnectionStatus = "disconnected" | "connected" | "expired" | "unconfigured";
+
+export type ConnectionInfo = {
+  provider: ConnectionProvider;
+  status: ConnectionStatus;
+  accountLabel: string | null;
+  lastSyncAt: number | null;
+  itemCount: number;
+  rootLabel: string | null;
+};
+
+/** 活動（Campaign）。沒有負責人、沒有審核人。 */
+export type CampaignDirection = {
+  id: string;
+  title: string;
+  concept: string;
+  visual: string;
+  sampleHook: string;
+};
+
+export type CampaignWave = {
+  id: string;
+  /** 相對活動日的天數，負數代表提前幾天 */
+  offsetDays: number;
+  stage: string;
+  title: string;
+  kind: ContentKind;
+  hook: string;
+  note: string;
+  contentId: string | null;
+};
+
+export type Campaign = {
+  id: string;
+  name: string;
+  kind: string;
+  date: string;
+  time: string;
+  location: string;
+  oneLiner: string;
+  intro: string;
+  theme: string;
+  painPoint: string;
+  cta: string;
+  signupUrl: string;
+  coverAssetId: string | null;
+  assetIds: string[];
+  audienceIds: string[];
+  axis: string;
+  directions: CampaignDirection[];
+  waves: CampaignWave[];
+  createdAt: number;
+  updatedAt: number;
+  planSource: PlanSource | null;
 };
 
 export type CampaignWaveKind =

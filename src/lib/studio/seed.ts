@@ -1,4 +1,20 @@
+import {
+  CLUB_CTAS,
+  CLUB_DONT_SAY,
+  CLUB_DO_SAY,
+  CLUB_HANDLE,
+  CLUB_HASHTAGS,
+  CLUB_INTRO_SHORT,
+  CLUB_NAME,
+  CLUB_PALETTE,
+  CLUB_SLOGANS,
+  CLUB_VOICE,
+  MASCOT,
+  VISUAL_ANCHORS,
+} from "@/lib/zen/club";
+import { clubBrandMemory } from "./brand";
 import { emptyBoilerplate } from "./boilerplate";
+import { defaultWavePlan, migrateCampaign } from "./campaign";
 import { migrateBrief, migratePlan, migratePlanVersions } from "./brief";
 import { kindFromFormat } from "./content";
 import { buildLayout } from "./layout";
@@ -37,7 +53,7 @@ export const DEFAULT_CONNECTIONS: ConnectionMeta[] = [
 ];
 
 export const SEED_ASSETS: AssetMeta[] = [
-  {
+  seedAsset({
     id: SEED_LOGO_ID,
     name: "禪光標誌",
     kind: "logo",
@@ -48,17 +64,19 @@ export const SEED_ASSETS: AssetMeta[] = [
     tags: ["logo", "品牌", "三色光"],
     createdAt: SEED_TIME,
     updatedAt: SEED_TIME,
-    seedSrc: "/seed/zen-mark.svg",
+    seedSrc: "/seed/nisshoku-mark.svg",
     source: "seed",
     licenseNotes: "社團標誌，僅限淡江禪學社網宣。",
     licenseOwner: "淡江大學禪學社",
     favorite: true,
     lastUsedAt: SEED_TIME,
     useCount: 2,
+    attribution: "社團自有標誌",
+    analysisNotes: "",
   },
   {
-    id: SEED_TURTLE_ID,
-    name: "龜龜",
+    id: SEED_CUP_ID,
+    name: "茶會暖心熱茶手捧",
     kind: "image",
     category: "mascot",
     mime: "image/svg+xml",
@@ -67,13 +85,15 @@ export const SEED_ASSETS: AssetMeta[] = [
     tags: ["龜龜", "角色", "吉祥物"],
     createdAt: SEED_TIME,
     updatedAt: SEED_TIME,
-    seedSrc: "/seed/turtle.svg",
+    seedSrc: "/seed/cup.jpg",
     source: "seed",
     licenseNotes: "社團角色，可進 IG 小位置，不要當宗教符號。",
     licenseOwner: "淡江大學禪學社",
     favorite: true,
     lastUsedAt: SEED_TIME,
     useCount: 1,
+    attribution: "Google Drive／2025 茶會紀錄",
+    analysisNotes: "",
   },
   {
     id: SEED_LIGHT_ID,
@@ -150,12 +170,22 @@ export const SEED_BRAND: BrandKit = {
     { id: "c4", hex: "#2F6F6A", role: "accent", label: "靜水" },
     { id: "c5", hex: "#1C2422", role: "ink", label: "文字" },
   ],
-  fontDisplay: "Noto Serif TC",
+  fontDisplay: "Noto Sans TC",
   fontBody: "Noto Sans TC",
   logoAssetId: SEED_LOGO_ID,
   logos: [
-    { id: "logo_zen_primary", name: "主標誌", assetId: SEED_LOGO_ID, usage: "primary" },
-    { id: "logo_zen_mark", name: "圖標", assetId: SEED_LOGO_ID, usage: "mark" },
+    {
+      id: "logo_nisshoku_primary",
+      name: "主標誌",
+      assetId: SEED_LOGO_ID,
+      usage: "primary",
+    },
+    {
+      id: "logo_nisshoku_mark",
+      name: "三色光圖標",
+      assetId: SEED_LOGO_ID,
+      usage: "mark",
+    },
   ],
   slogans: ["先坐下來。", "這好像跟我的生活有關。"],
   ctas: ["來坐一下", "找朋友一起來", "看時間地點"],
@@ -189,6 +219,10 @@ export const SEED_BRAND: BrandKit = {
   updatedAt: SEED_TIME,
 };
 
+/* ------------------------------------------------------------------ */
+/* 示範活動：浮游禪光                                                     */
+/* ------------------------------------------------------------------ */
+
 const copy = {
   eyebrow: "09 / 24",
   headline: "最近是不是\n很久沒坐好",
@@ -203,10 +237,7 @@ const copy = {
 };
 
 function stabilize(layers: Layer[], prefix: string): Layer[] {
-  return layers.map((layer, index) => ({
-    ...layer,
-    id: `${prefix}${index}`,
-  }));
+  return layers.map((layer, index) => ({ ...layer, id: `${prefix}${index}` }));
 }
 
 export function createSeedCampaign(): ClubCampaign {
@@ -261,6 +292,7 @@ export function createSeedProject(): Project {
     },
     SEED_BRAND,
     "quote",
+    { imageAssetId: SEED_NIGHT_ID },
   );
   page2.layers = stabilize(page2.layers, "seed_p2_ly_");
   page2.role = "problem";
@@ -317,7 +349,7 @@ export function createSeedProject(): Project {
   );
   page4.layers = stabilize(page4.layers, "seed_p4_ly_");
   page4.role = "proof";
-  page4.templateId = "product";
+  page4.templateId = "quote";
 
   const page5 = buildLayout(
     "feed-portrait",
@@ -332,9 +364,9 @@ export function createSeedProject(): Project {
     SEED_BRAND,
     "offer",
   );
-  page5.layers = stabilize(page5.layers, "seed_p5_ly_");
-  page5.role = "cta";
-  page5.templateId = "offer";
+  page4.layers = stabilize(page4.layers, "seed_p4_ly_");
+  page4.role = "cta";
+  page4.templateId = "offer";
 
   const page6 = buildLayout(
     "feed-portrait",
@@ -380,7 +412,7 @@ export function createSeedProject(): Project {
     colorMood: "霧園、靜水、琥珀光",
     eyebrow: copy.eyebrow,
     headline: copy.headline,
-    subhead: copy.subhead,
+    subhead: "開學第三週 · 給自己留一個放空的晚上",
     body: copy.body,
     cta: copy.cta,
     captions: [
@@ -497,7 +529,7 @@ export function createSeedProject(): Project {
     snapshots: [
       {
         id: "snap_seed_v1",
-        name: "初稿 · 六頁輪播",
+        name: "初稿 · 五頁輪播",
         createdAt: now,
         kind: "manual",
         formatId: "feed-portrait",
@@ -508,6 +540,10 @@ export function createSeedProject(): Project {
     ],
     planVersions: migratePlanVersions(undefined, plan),
     exports: [],
+    campaignId: "camp_floating_light",
+    contentKind: "carousel",
+    scheduledAt: Date.parse("2026-09-17T20:00:00+08:00"),
+    publishedAt: null,
   };
 }
 
@@ -571,6 +607,10 @@ export function createSeedDraft(): Project {
     snapshots: [],
     planVersions: [],
     exports: [],
+    campaignId: "camp_welcome_tea",
+    contentKind: "story",
+    scheduledAt: null,
+    publishedAt: null,
   };
 }
 

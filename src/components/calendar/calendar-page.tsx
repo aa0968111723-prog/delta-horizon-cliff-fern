@@ -432,3 +432,299 @@ export function CalendarPage() {
     </main>
   );
 }
+
+function keyOf(item: CellItem): string {
+  if (item.type === "content") return `c_${item.project.id}`;
+  if (item.type === "pack") return `p_${item.rootId}_${item.at}`;
+  if (item.type === "wave") return `w_${item.waveId}`;
+  return `e_${item.campaign.id}`;
+}
+
+function isCellSelected(item: CellItem, pick: MoveTarget | null): boolean {
+  if (!pick) return false;
+  if (item.type === "pack" && pick.kind === "pack") {
+    return pick.ids.some((id) => item.members.some((member) => member.id === id));
+  }
+  if (item.type === "content" && pick.kind === "content") return pick.id === item.project.id;
+  if (item.type === "wave" && pick.kind === "wave") return pick.waveId === item.waveId;
+  return false;
+}
+
+function CalendarChip({
+  item,
+  selected,
+  tapMove,
+  onBeginDrag,
+  onEndDrag,
+  onPick,
+}: {
+  item: CellItem;
+  selected?: boolean;
+  tapMove?: boolean;
+  onBeginDrag: (target: MoveTarget, transfer: DataTransfer | null) => void;
+  onEndDrag: () => void;
+  onPick: (target: MoveTarget) => void;
+}) {
+  if (item.type === "event") {
+    return (
+      <Link
+        to="/campaigns/$campaignId"
+        params={{ campaignId: item.campaign.id }}
+        className="block truncate rounded-lg bg-[color-mix(in_oklab,var(--color-warm)_28%,transparent)] px-1.5 py-1 text-xs font-medium"
+      >
+        {item.campaign.name || "活動"}
+      </Link>
+    );
+  }
+  if (item.type === "wave") {
+    const target: MoveTarget = { kind: "wave", campaignId: item.campaign.id, waveId: item.waveId };
+    return (
+      <Link
+        to="/campaigns/$campaignId"
+        params={{ campaignId: item.campaign.id }}
+        data-testid="calendar-chip-wave"
+        draggable={!tapMove}
+        onDragStart={(e) => onBeginDrag(target, e.dataTransfer)}
+        onDragEnd={onEndDrag}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!tapMove && !e.metaKey && !e.ctrlKey) return;
+          if (e.metaKey || e.ctrlKey) return;
+          e.preventDefault();
+          onPick(target);
+        }}
+        className={cn(
+          "block truncate rounded-lg px-1.5 py-1 text-xs text-muted",
+          selected && "bg-accent text-accent-fg",
+        )}
+        title={tapMove ? "點選後再點日期改期" : `${item.stage}·${item.title}（還沒建立，可拖去改期）`}
+      >
+        {item.title || item.stage}
+      </Link>
+    );
+  }
+  if (item.type === "pack") {
+    const primary = item.members.find((member) => member.id === item.rootId) ?? item.members[0]!;
+    const target: MoveTarget = { kind: "pack", ids: item.members.map((member) => member.id) };
+    const label = packChipLabel(item.members);
+    return (
+      <Link
+        to="/studio/$projectId"
+        params={{ projectId: primary.id }}
+        data-testid="calendar-chip-pack"
+        draggable={!tapMove}
+        onDragStart={(e) => onBeginDrag(target, e.dataTransfer)}
+        onDragEnd={onEndDrag}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!tapMove && !e.metaKey && !e.ctrlKey) return;
+          if (e.metaKey || e.ctrlKey) return;
+          e.preventDefault();
+          onPick(target);
+        }}
+        className={cn(
+          "block truncate rounded-lg px-1.5 py-1 text-xs font-medium",
+          selected
+            ? "bg-accent text-accent-fg"
+            : "bg-[color-mix(in_oklab,var(--color-clear)_22%,transparent)]",
+        )}
+        title={tapMove ? "點選後再點日期，全套一起改期" : `${primary.name} · ${label}`}
+      >
+        {label}
+      </Link>
+    );
+  }
+  const target: MoveTarget = { kind: "content", id: item.project.id };
+  return (
+    <Link
+      to="/studio/$projectId"
+      params={{ projectId: item.project.id }}
+      data-testid="calendar-chip-content"
+      draggable={!tapMove}
+      onDragStart={(e) => onBeginDrag(target, e.dataTransfer)}
+      onDragEnd={onEndDrag}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!tapMove && !e.metaKey && !e.ctrlKey) return;
+        if (e.metaKey || e.ctrlKey) return;
+        e.preventDefault();
+        onPick(target);
+      }}
+      className={cn(
+        "block truncate rounded-lg px-1.5 py-1 text-xs font-medium",
+        selected
+          ? "bg-accent text-accent-fg"
+          : "bg-[color-mix(in_oklab,var(--color-clear)_22%,transparent)]",
+      )}
+      title={tapMove ? "點選後再點日期改期" : item.project.name}
+    >
+      {contentKindLabel(item.project.contentKind)}
+    </Link>
+  );
+}
+
+function AgendaPackCard({
+  item,
+  onReschedulePack,
+}: {
+  item: PackDayItem;
+  onReschedulePack: (ids: string[], day: Date) => void;
+}) {
+  const primary = item.members.find((member) => member.id === item.rootId) ?? item.members[0]!;
+  const ids = item.members.map((member) => member.id);
+  const kinds = [...new Set(item.members.map((member) => member.contentKind))].sort(
+    (a, b) => kindOrder(a) - kindOrder(b),
+  );
+  return (
+    <>
+      <div className="flex items-center gap-3">
+        <label className="w-16 shrink-0 text-xs tabular-nums text-muted">
+          <span className="block">{format(item.at, "M/d")}</span>
+          <span className="block text-subtle">{format(item.at, "HH:mm")}</span>
+          <input
+            type="date"
+            aria-label={`改期 ${packChipLabel(item.members)}`}
+            value={format(item.at, "yyyy-MM-dd")}
+            onChange={(e) => {
+              if (!e.target.value) return;
+              onReschedulePack(ids, new Date(`${e.target.value}T00:00:00`));
+            }}
+            className="mt-1 w-full min-h-8 rounded-lg bg-surface-2 px-1 text-xs text-fg"
+          />
+        </label>
+        <Link to="/studio/$projectId" params={{ projectId: primary.id }} className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">{primary.name}</span>
+          <span className="block truncate text-xs text-muted">{packChipLabel(item.members)}</span>
+        </Link>
+        <StatusBadge status={primary.status} />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {kinds.map((kind) => {
+          const member = item.members.find((entry) => entry.contentKind === kind) ?? primary;
+          return (
+            <Link
+              key={member.id}
+              to="/studio/$projectId"
+              params={{ projectId: member.id }}
+              className="inline-flex min-h-9 items-center rounded-full bg-surface-2 px-3 text-xs text-muted"
+            >
+              {contentKindLabel(kind)}
+            </Link>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <PackFlowBar projectId={primary.id} />
+        <DownloadPackButton projectId={primary.id} size="sm" variant="secondary" />
+      </div>
+      <PostPackBar
+        copy={primary.copy}
+        kind={primary.contentKind}
+        projectId={primary.id}
+        variant="compact"
+        className="mt-3 pt-2"
+      />
+    </>
+  );
+}
+
+function AgendaList({
+  items,
+  onRescheduleContent,
+  onReschedulePack,
+  onRescheduleWave,
+}: {
+  items: CellItem[];
+  onRescheduleContent: (projectId: string, day: Date) => void;
+  onReschedulePack: (ids: string[], day: Date) => void;
+  onRescheduleWave: (campaignId: string, waveId: string, day: Date) => void;
+}) {
+  if (!items.length) return null;
+  return (
+    <ul className="mt-6 space-y-2">
+      {items.map((item) => (
+        <li key={keyOf(item)} className="rounded-2xl surface-card p-3">
+          {item.type === "pack" ? (
+            <AgendaPackCard item={item} onReschedulePack={onReschedulePack} />
+          ) : item.type === "content" ? (
+            <>
+            <div className="flex items-center gap-3">
+              <label className="w-16 shrink-0 text-xs tabular-nums text-muted">
+                <span className="block">{format(item.at, "M/d")}</span>
+                <span className="block text-subtle">{format(item.at, "HH:mm")}</span>
+                <input
+                  type="date"
+                  aria-label={`改期 ${item.project.name}`}
+                  value={format(item.at, "yyyy-MM-dd")}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    onRescheduleContent(item.project.id, new Date(`${e.target.value}T00:00:00`));
+                  }}
+                  className="mt-1 w-full min-h-8 rounded-lg bg-surface-2 px-1 text-xs text-fg"
+                />
+              </label>
+              <Link
+                to="/studio/$projectId"
+                params={{ projectId: item.project.id }}
+                className="min-w-0 flex-1"
+              >
+                <span className="block truncate text-sm font-medium">{item.project.name}</span>
+                <span className="block truncate text-xs text-muted">
+                  {contentKindLabel(item.project.contentKind)}
+                </span>
+              </Link>
+              <StatusBadge status={item.project.status} />
+            </div>
+            {item.project.status === "scheduled" || item.project.status === "done" ? (
+              <PostPackBar
+                copy={item.project.copy}
+                kind={item.project.contentKind}
+                projectId={item.project.id}
+                variant="compact"
+                className="mt-3"
+              />
+            ) : null}
+            </>
+          ) : item.type === "event" ? (
+            <Link
+              to="/campaigns/$campaignId"
+              params={{ campaignId: item.campaign.id }}
+              className="flex items-center gap-3"
+            >
+              <span className="w-14 shrink-0 text-xs tabular-nums text-muted">{format(item.at, "M/d")}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{item.campaign.name}</span>
+                <span className="block truncate text-xs text-muted">活動當天</span>
+              </span>
+            </Link>
+          ) : (
+            <div className="flex items-center gap-3">
+              <label className="w-16 shrink-0 text-xs tabular-nums text-subtle">
+                <span className="block">{format(item.at, "M/d")}</span>
+                <span className="block">節奏</span>
+                <input
+                  type="date"
+                  aria-label={`改期 ${item.title || item.stage}`}
+                  value={format(item.at, "yyyy-MM-dd")}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    onRescheduleWave(item.campaign.id, item.waveId, new Date(`${e.target.value}T00:00:00`));
+                  }}
+                  className="mt-1 w-full min-h-8 rounded-lg bg-surface-2 px-1 text-xs text-fg"
+                />
+              </label>
+              <Link
+                to="/campaigns/$campaignId"
+                params={{ campaignId: item.campaign.id }}
+                className="min-w-0 flex-1"
+              >
+                <span className="block truncate text-sm">{item.title}</span>
+                <span className="block truncate text-xs text-subtle">{item.stage}·還沒建立</span>
+              </Link>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}

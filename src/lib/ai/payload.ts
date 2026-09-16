@@ -1,5 +1,5 @@
 import { migrateBrief } from "@/lib/studio/brief";
-import type { BrandKit, Brief } from "@/lib/studio/types";
+import type { BrandKit, Brief, CitedSource } from "@/lib/studio/types";
 import type { BriefInput } from "./schema";
 
 export function toBriefInput(
@@ -26,6 +26,8 @@ export function toBriefInput(
     wantStory: d.story,
     wantCarousel: d.carousel,
     wantReels: d.reels,
+    wantThreads: d.threads,
+    wantLine: d.line,
     brandName: brand.name,
     handle: brand.handle,
     voice: brand.voice,

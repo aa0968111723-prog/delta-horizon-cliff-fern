@@ -1,5 +1,10 @@
+import { ConvertBar } from "@/components/create/convert-bar";
+import { PostPackBar } from "@/components/create/post-pack";
+import { ReelsTimeline } from "@/components/create/reels-timeline";
+import { ContentFlowBar } from "@/components/shared/content-flow";
+import { PackSyncButtons } from "@/components/shared/pack-sync";
+import { SourceList } from "@/components/shared/source-list";
 import type { ReactNode } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,29 +63,27 @@ export function CopyPanel({ project }: { project: Project }) {
           onChange={(e) => setCopy(project.id, { caption: e.target.value })}
         />
       </Field>
-      <div className="flex gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={async () => {
-            await navigator.clipboard.writeText(project.copy.caption);
-            toast.success("已複製 Caption");
-          }}
-        >
-          複製文案
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={async () => {
-            await navigator.clipboard.writeText(project.copy.hashtags.join(" "));
-            toast.success("已複製標籤");
-          }}
-        >
-          複製標籤
-        </Button>
-      </div>
+      <Field label="無障礙說明（Alt）">
+        <Textarea
+          rows={3}
+          value={project.copy.altText ?? ""}
+          onChange={(e) => setCopy(project.id, { altText: e.target.value })}
+        />
+      </Field>
+      <PostPackBar copy={project.copy} kind={project.contentKind} projectId={project.id} />
       <p className="text-xs leading-relaxed text-muted">{project.copy.hashtags.join(" ")}</p>
+      <ContentFlowBar project={project} className="pt-2" />
+      <SourceList sources={project.sources} className="pt-2" />
+      <ConvertBar project={project} className="pt-2" />
+      <div className="flex flex-wrap items-center gap-2 pt-2">
+        <PackSyncButtons projectId={project.id} />
+      </div>
+      {project.reels ? (
+        <div className="pt-2">
+          <p className="mb-2 text-sm font-medium">Reels 腳本</p>
+          <ReelsTimeline reels={project.reels} adapter={project.reels.source} projectId={project.id} />
+        </div>
+      ) : null}
     </div>
   );
 }
