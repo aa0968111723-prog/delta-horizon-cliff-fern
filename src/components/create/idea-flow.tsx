@@ -28,6 +28,7 @@ import { uid } from "@/lib/studio/ids";
 import { pagesOf } from "@/lib/studio/layers";
 import { searchCreative, type SearchHit } from "@/lib/search/creative";
 import { adoptIdeaFromHit } from "@/lib/search/hits";
+import { styleBriefFromReport, styleReportFromHit } from "@/lib/vision/from-hit";
 import type { CampaignPlan, ContentKind, CreativeDirection } from "@/lib/studio/types";
 import { sourceLabel, useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -64,6 +65,7 @@ export function IdeaFlow({
   const folder = useCreative((s) => s.folder);
   const igPosts = useCreative((s) => s.igPosts);
   const lastPackState = useCreative((s) => s.lastPack);
+  const rememberStyle = useCreative((s) => s.rememberStyle);
 
   const [idea, setIdea] = useState(seedIdea || "下週有一場茶會");
   const [phase, setPhase] = useState<Phase>("idea");
@@ -125,7 +127,7 @@ export function IdeaFlow({
       const foundHits = flattenHits(search.groups);
       setHits(foundHits);
       setStatus(`找到 ${search.found} 個相關素材。根據過去內容生成 3 個方向…`);
-      const brief = briefFromIdea(parsed, notesFromHits(parsed, foundHits));
+      const brief = briefFromIdea(parsed, notesFromHits(parsed, foundHits, useCreative.getState().styleMemory));
       const result = await generateCampaignPlan({
         data: toBriefInput(brief, brand, { igLessons: lessonPrompt(igPosts) }),
       });
@@ -160,7 +162,7 @@ export function IdeaFlow({
     const parsed = parseIdea(raw);
     const reviewed = applyStudentReviewToPlan(applyPickedDirection(currentPlan, direction));
     const nextPlan = reviewed.plan;
-    const brief = briefFromIdea(parsed, notesFromHits(parsed, currentHits));
+    const brief = briefFromIdea(parsed, notesFromHits(parsed, currentHits, useCreative.getState().styleMemory));
     const existing = campaigns.find((item) => item.name === parsed.eventName);
     const campaign = upsertCampaign({
       id: existing?.id,
@@ -259,6 +261,7 @@ export function IdeaFlow({
   function adoptHit(item: SearchHit) {
     setHeroUrl(item.thumb);
     setIdea(adoptIdeaFromHit(item));
+    rememberStyle(styleBriefFromReport(styleReportFromHit(item), sourceLabel(item.source)));
     const current = useCreative.getState().lastPack;
     if (current) {
       setLastPack({ ...current, heroThumb: item.thumb, updatedAt: Date.now() });

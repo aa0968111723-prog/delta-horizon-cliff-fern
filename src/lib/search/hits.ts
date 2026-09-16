@@ -1,5 +1,6 @@
 import type { MemoryItem } from "../club/memory.ts";
 import { matchHit, rankHits } from "../club/rank.ts";
+import { styleBriefFromReport, styleReportFromHit } from "../vision/from-hit.ts";
 
 export type FileLike = {
   id?: string;
@@ -54,8 +55,9 @@ export function mergeRanked<T extends MemoryItem>(query: string, live: T[], memo
   return rankHits(merged, query);
 }
 
-export function adoptIdeaFromHit(item: Pick<MemoryItem, "title" | "notes" | "subtitle" | "source">) {
+export function adoptIdeaFromHit(item: Pick<MemoryItem, "title" | "notes" | "subtitle" | "source"> & { tags?: string[] }) {
   const source = item.subtitle || item.source;
+  const report = styleReportFromHit(item);
   const dna =
     item.source === "canva"
       ? "延續配色、留白與文字層級，不要複製舊排版。"
@@ -64,5 +66,5 @@ export function adoptIdeaFromHit(item: Pick<MemoryItem, "title" | "notes" | "sub
         : item.source === "drive"
           ? "用現場感覺當參考，不要直接重貼舊照片。"
           : "延續龜龜與三色光，不要做成廟宇海報。";
-  return `延續這個來源的品牌 DNA，做新的活動。不要直接複製舊作品。來源：${source}。參考：「${item.title}」。${dna}${item.notes}`.slice(0, 420);
+  return `延續這個來源的品牌 DNA，做新的活動。不要直接複製舊作品。來源：${source}。參考：「${item.title}」。${dna}${styleBriefFromReport(report, source)}${item.notes}`.slice(0, 420);
 }

@@ -72,6 +72,7 @@ type CreativeState = {
   folder: FolderPref;
   lastSearch: string;
   lastPack: LastPack | null;
+  styleMemory: string[];
   setHydrated: (v: boolean) => void;
   upsertCampaign: (input: Partial<ClubCampaign> & Pick<ClubCampaign, "name">) => ClubCampaign;
   removeCampaign: (id: string) => void;
@@ -86,11 +87,17 @@ type CreativeState = {
   ingestIg: (posts: IgMemoryPost[]) => void;
   setLastSearch: (q: string) => void;
   setLastPack: (pack: LastPack | null) => void;
+  rememberStyle: (brief: string) => void;
 };
 
 function uniqueById<T extends { id: string }>(items: T[] | undefined, fallback: T[] = []) {
   const list = items?.length ? items : fallback;
   return list.filter((item, index, all) => item.id && all.findIndex((row) => row.id === item.id) === index);
+}
+
+function uniqueStrings(items: string[] | undefined, fallback: string[] = []) {
+  const list = items?.length ? items : fallback;
+  return list.filter((item, index, all) => item && all.indexOf(item) === index).slice(0, 6);
 }
 
 function seedCampaign(): ClubCampaign {
@@ -177,6 +184,7 @@ export const useCreative = create<CreativeState>()(
       folder: { driveFolder: "淡江禪學社主要資料夾", driveFolderId: "" },
       lastSearch: "",
       lastPack: null,
+      styleMemory: [],
       setHydrated: (hydrated) => set({ hydrated }),
       upsertCampaign: (input) => {
         const existing = input.id ? get().campaigns.find((c) => c.id === input.id) : undefined;
@@ -307,6 +315,13 @@ export const useCreative = create<CreativeState>()(
         }),
       setLastSearch: (lastSearch) => set({ lastSearch }),
       setLastPack: (lastPack) => set({ lastPack: persistablePack(lastPack) }),
+      rememberStyle: (brief) => {
+        const next = brief.replace(/\s+/g, " ").trim().slice(0, 180);
+        if (!next) return;
+        set((s) => ({
+          styleMemory: [next, ...(s.styleMemory ?? []).filter((row) => row !== next)].slice(0, 6),
+        }));
+      },
     }),
     {
       name: "zen-creative-v1",
@@ -319,6 +334,7 @@ export const useCreative = create<CreativeState>()(
         folder: s.folder,
         lastSearch: s.lastSearch,
         lastPack: persistablePack(s.lastPack),
+        styleMemory: s.styleMemory ?? [],
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<CreativeState>;
@@ -332,6 +348,8 @@ export const useCreative = create<CreativeState>()(
             driveFolder: p.folder?.driveFolder || current.folder.driveFolder,
             driveFolderId: p.folder?.driveFolderId || "",
           },
+          lastSearch: p.lastSearch || current.lastSearch,
+          styleMemory: uniqueStrings(p.styleMemory, current.styleMemory),
           lastPack: p.lastPack
             ? {
                 ...(current.lastPack ?? {

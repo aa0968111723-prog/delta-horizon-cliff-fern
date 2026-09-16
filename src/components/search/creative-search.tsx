@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { writeHandoff } from "@/lib/create/handoff";
 import { searchCreative } from "@/lib/search/creative";
 import { adoptIdeaFromHit } from "@/lib/search/hits";
+import { canvaOpenUrl, styleBriefFromReport, styleReportFromHit } from "@/lib/vision/from-hit";
 import { folderSearchInput } from "@/lib/connections/presets";
 import { sourceLabel } from "@/stores/creative-store";
 import { useCreative } from "@/stores/creative-store";
@@ -20,6 +21,7 @@ export function CreativeSearch() {
   const setSearchOpen = useUi((s) => s.setSearchOpen);
   const lastSearch = useCreative((s) => s.lastSearch);
   const setLastSearch = useCreative((s) => s.setLastSearch);
+  const rememberStyle = useCreative((s) => s.rememberStyle);
   const folder = useCreative((s) => s.folder);
   const [q, setQ] = useState(lastSearch);
   const [busy, setBusy] = useState(false);
@@ -100,11 +102,13 @@ export function CreativeSearch() {
                       <p className="truncate text-sm font-medium">{item.title}</p>
                       <p className="truncate text-xs text-muted">{item.subtitle}</p>
                     </div>
+                    <div className="flex shrink-0 flex-col gap-1">
                     <Button
                       size="sm"
                       variant="ghost"
                       data-testid="search-add-create"
                       onClick={() => {
+                        rememberStyle(styleBriefFromReport(styleReportFromHit(item), sourceLabel(item.source)));
                         writeHandoff({
                           idea: adoptIdeaFromHit(item),
                           tab: "campaign",
@@ -120,6 +124,56 @@ export function CreativeSearch() {
                         加入創作
                       </Link>
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      data-testid="search-analyze"
+                      onClick={() => {
+                        rememberStyle(styleBriefFromReport(styleReportFromHit(item), sourceLabel(item.source)));
+                        writeHandoff({
+                          idea: item.title,
+                          tab: "vision",
+                          imageSrc: item.thumb,
+                          visionNote: `${item.subtitle}。${item.notes}`,
+                          sourceLabel: `${sourceLabel(item.source)} / ${item.title}`,
+                          autoRun: true,
+                        });
+                        setSearchOpen(false);
+                      }}
+                      asChild
+                    >
+                      <Link to="/create" search={{ tab: "vision" }}>
+                        分析
+                      </Link>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      data-testid="search-style-ref"
+                      onClick={() => {
+                        rememberStyle(styleBriefFromReport(styleReportFromHit(item), sourceLabel(item.source)));
+                        writeHandoff({
+                          idea: adoptIdeaFromHit(item),
+                          tab: "campaign",
+                          autoRun: true,
+                          sourceLabel: `風格參考 / ${item.title}`,
+                        });
+                        setSearchOpen(false);
+                      }}
+                      asChild
+                    >
+                      <Link to="/create" search={{ tab: "campaign" }}>
+                        風格參考
+                      </Link>
+                    </Button>
+                    {canvaOpenUrl(item) ? (
+                      <Button size="sm" variant="ghost" asChild>
+                        <a href={canvaOpenUrl(item)} target="_blank" rel="noreferrer">
+                          開啟 Canva
+                        </a>
+                      </Button>
+                    ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>

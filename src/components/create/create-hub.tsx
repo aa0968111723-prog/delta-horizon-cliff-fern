@@ -14,12 +14,8 @@ import { consumeHandoff, takeAutoRun, type CreateHandoff, type CreateTab } from 
 import { generateImageDirections, generateStudioImage, IMAGE_ASPECTS } from "@/lib/image/studio";
 import { analyzeImage, type VisionReport } from "@/lib/vision/analyze";
 import { compactDataUrl, loadAssetDataUrl } from "@/lib/vision/media";
-import {
-  convertKindFromAction,
-  formatFromVisionAction,
-  ideaFromVision,
-  isImageVisionAction,
-} from "@/lib/vision/tags";
+import { convertKindFromAction, formatFromVisionAction, ideaFromVision, isImageVisionAction } from "@/lib/vision/tags";
+import { styleBriefFromReport } from "@/lib/vision/from-hit";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { createGeneratedAsset } from "@/lib/studio/assets";
 import { formatById } from "@/lib/studio/formats";
@@ -58,6 +54,7 @@ export function CreateHub({ initialTab = "campaign" }: { initialTab?: CreateTab 
 
   function applyVisionAction(action: { id: string; report: VisionReport; preview: string | null; note: string }) {
     const idea = ideaFromVision(action.id, action.report, action.note);
+    useCreative.getState().rememberStyle(styleBriefFromReport(action.report, action.note || "圖片理解"));
     const convertKind = convertKindFromAction(action.id);
     const next: CreateHandoff = {
       idea,
@@ -127,7 +124,7 @@ export function CreateHub({ initialTab = "campaign" }: { initialTab?: CreateTab 
         ) : null}
         {tab === "vision" ? (
           <VisionStudio
-            seedImage={bridge.imageDataUrl}
+            seedImage={bridge.imageDataUrl || bridge.imageSrc}
             seedNote={bridge.visionNote}
             seedAssetId={bridge.assetId}
             onAction={applyVisionAction}
@@ -454,11 +451,13 @@ function VisionStudio({
   async function runAnalyze(dataUrl: string, extraNote: string) {
     setBusy(true);
     try {
+      const packed = compactDataUrl(dataUrl, 5_500_000);
       const result = await analyzeImage({
         data: {
           imageDataUrl:
-            compactDataUrl(dataUrl, 5_500_000) ||
-            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+            packed && packed.startsWith("data:") && packed.length >= 20
+              ? packed
+              : "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
           note: extraNote || "原圖較大，以檔名與畫面描述分析",
         },
       });
@@ -477,7 +476,9 @@ function VisionStudio({
     started.current = true;
     if (seedImage) {
       setPreview(seedImage);
-      void runAnalyze(seedImage, seedNote || "");
+      void loadAssetDataUrl({ id: "vision-seed", previewUrl: seedImage, seedSrc: seedImage }).then((dataUrl) => {
+        void runAnalyze(dataUrl || seedImage, seedNote || "");
+      });
       return;
     }
     if (!seedAssetId) return;

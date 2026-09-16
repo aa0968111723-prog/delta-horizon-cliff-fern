@@ -9,6 +9,7 @@ export type CreateHandoff = {
   idea?: string;
   tab?: CreateTab;
   imageDataUrl?: string;
+  imageSrc?: string;
   visionNote?: string;
   visionAction?: string;
   convertKind?: ContentKind;
@@ -32,6 +33,7 @@ export function parseHandoff(raw: string | null, idea: string | null): CreateHan
   if (
     !parsed.idea &&
     !parsed.imageDataUrl &&
+    !parsed.imageSrc &&
     !parsed.convertKind &&
     !parsed.assetId &&
     !parsed.visionAction &&

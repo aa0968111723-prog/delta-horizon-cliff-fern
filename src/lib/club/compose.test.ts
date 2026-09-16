@@ -27,6 +27,9 @@ test("tea idea becomes a full campaign brief and sourced plan", () => {
   assert.match(brief.notes, /Canva 風格/);
   assert.match(brief.notes, /IG DNA/);
 
+  const withStyle = briefFromIdea(parsed, notesFromHits(parsed, hits, ["Canva / 茶會：延續配色與留白。不要複製舊作品。"]));
+  assert.match(withStyle.notes, /記住的風格/);
+
   const input: BriefInput = {
     eventName: brief.eventName,
     schedule: brief.schedule,

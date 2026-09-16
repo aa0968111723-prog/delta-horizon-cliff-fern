@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/input";
 import { writeHandoff } from "@/lib/create/handoff";
 import { generateCampaignPlan } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
-import { generateCopyPack } from "@/lib/copy/generate";
+import { generateCopyPack, type CopyTone } from "@/lib/copy/generate";
 import { generateImageDirections } from "@/lib/image/studio";
 import { emptyBrief } from "@/lib/studio/brief";
 import { lessonPrompt } from "@/lib/club/insights";
@@ -18,6 +18,7 @@ import { buildCampaignRhythm } from "@/lib/club/schedule";
 import { CONTENT_KIND_META } from "@/lib/studio/status";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
+import type { CampaignWave } from "@/lib/studio/types";
 
 export function CampaignListPage() {
   const campaigns = useCreative((s) => s.campaigns);
@@ -92,6 +93,36 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
   }
   const current = campaign;
 
+  async function rewriteWave(wave: CampaignWave, tone: CopyTone, idea?: string) {
+    setBusy(true);
+    try {
+      const result = await generateCopyPack({
+        data: {
+          idea: idea || wave.hook,
+          intent: wave.label,
+          tone,
+          eventName: current.name,
+          schedule: `${current.date} ${current.time}`,
+          location: current.location,
+          igLessons: lessonPrompt(igPosts),
+        },
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setWaves(
+        current.id,
+        current.waves.map((row) =>
+          row.id === wave.id ? { ...row, hook: result.pack.hook, topic: result.pack.body.split("\n")[0] ?? row.topic } : row,
+        ),
+      );
+      toast.success("這一波已改寫");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function generate() {
     const brand = brands[0];
     if (!brand) return;
@@ -105,7 +136,14 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
         location: current.location,
         audience: "淡江大學學生",
         features: current.description,
-        notes: `${current.oneLiner} 痛點：${current.studentPain}`,
+        notes: [
+          current.oneLiner,
+          `痛點：${current.studentPain}`,
+          ...useCreative.getState().styleMemory.slice(0, 2),
+        ]
+          .filter(Boolean)
+          .join("\n")
+          .slice(0, 1200),
         deliverables: { post: true, story: true, carousel: true, reels: true },
       };
       const result = await generateCampaignPlan({
@@ -217,37 +255,17 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                 <Button
                   size="sm"
                   variant="ghost"
+                  data-testid="wave-regen"
                   disabled={busy}
-                  onClick={() => {
-                    void (async () => {
-                      setBusy(true);
-                      try {
-                        const result = await generateCopyPack({
-                          data: {
-                            idea: wave.hook,
-                            intent: wave.label,
-                            tone: "學生版",
-                            eventName: current.name,
-                            schedule: `${current.date} ${current.time}`,
-                            location: current.location,
-                            igLessons: lessonPrompt(igPosts),
-                          },
-                        });
-                        if (!result.ok) {
-                          toast.error(result.error);
-                          return;
-                        }
-                        setWaves(
-                          current.id,
-                          current.waves.map((row) =>
-                            row.id === wave.id ? { ...row, hook: result.pack.hook, topic: result.pack.body.split("\n")[0] ?? row.topic } : row,
-                          ),
-                        );
-                      } finally {
-                        setBusy(false);
-                      }
-                    })();
-                  }}
+                  onClick={() => void rewriteWave(wave, "學生版", `${current.oneLiner} ${wave.label} ${current.name}`)}
+                >
+                  重新生成
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => void rewriteWave(wave, "學生版")}
                 >
                   改寫這一波
                 </Button>
@@ -255,36 +273,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                   size="sm"
                   variant="ghost"
                   disabled={busy}
-                  onClick={() => {
-                    void (async () => {
-                      setBusy(true);
-                      try {
-                        const result = await generateCopyPack({
-                          data: {
-                            idea: wave.hook,
-                            intent: wave.label,
-                            tone: "生活版",
-                            eventName: current.name,
-                            schedule: `${current.date} ${current.time}`,
-                            location: current.location,
-                            igLessons: lessonPrompt(igPosts),
-                          },
-                        });
-                        if (!result.ok) {
-                          toast.error(result.error);
-                          return;
-                        }
-                        setWaves(
-                          current.id,
-                          current.waves.map((row) =>
-                            row.id === wave.id ? { ...row, hook: result.pack.hook, topic: result.pack.body.split("\n")[0] ?? row.topic } : row,
-                          ),
-                        );
-                      } finally {
-                        setBusy(false);
-                      }
-                    })();
-                  }}
+                  onClick={() => void rewriteWave(wave, "生活版")}
                 >
                   換角度
                 </Button>

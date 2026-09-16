@@ -22,8 +22,9 @@ test("parseHandoff returns null when empty", () => {
   assert.equal(parseHandoff(null, null), null);
 });
 
-test("parseHandoff keeps autoRun so homepage can start IdeaFlow", () => {
-  const parsed = parseHandoff(JSON.stringify({ idea: "浮游禪光", tab: "campaign", autoRun: true }), null);
+test("parseHandoff keeps an image src so search can open 圖片理解", () => {
+  const parsed = parseHandoff(JSON.stringify({ tab: "vision", imageSrc: "/seed/tea.svg", visionNote: "Canva / 茶會", autoRun: true }), null);
+  assert.equal(parsed?.tab, "vision");
+  assert.equal(parsed?.imageSrc, "/seed/tea.svg");
   assert.equal(parsed?.autoRun, true);
-  assert.equal(parsed?.tab, "campaign");
 });

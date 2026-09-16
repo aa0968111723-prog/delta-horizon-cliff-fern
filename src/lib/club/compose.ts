@@ -51,12 +51,13 @@ export function summarizeFound(groups: Record<string, MemoryItem[] | undefined>)
   };
 }
 
-export function notesFromHits(parsed: ParsedIdea, hits: MemoryItem[]) {
+export function notesFromHits(parsed: ParsedIdea, hits: MemoryItem[], styleMemory: string[] = []) {
   const lines = hits.slice(0, 8).map((item) => `- ${item.subtitle} — ${item.title}：${item.notes}`);
   const canva = hits.filter((item) => item.source === "canva").slice(0, 2);
   const ig = hits.filter((item) => item.source === "instagram").slice(0, 2);
   return [
     `使用者想法：${parsed.raw}`,
+    styleMemory[0] ? `記住的風格：${styleMemory.slice(0, 2).join("／")}` : "",
     "已找到相關素材（延續品牌 DNA，不要複製舊作品）：",
     ...(lines.length ? lines : ["- Brand Memory / 龜龜與三色光"]),
     canva.length ? `Canva 風格：延續配色與留白，不要複製舊排版。${canva.map((item) => item.title).join("、")}` : "",
