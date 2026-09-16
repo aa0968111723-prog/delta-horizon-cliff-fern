@@ -17,10 +17,11 @@ import {
   varyImagePrompt,
   type VisionAnalysis,
 } from "@/lib/ai/image-studio";
+import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
 import { createCanvaDesign } from "@/lib/connect/canva";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
 import { persistGeneratedImage } from "@/lib/studio/raster";
-import { bytesToBase64 } from "@/lib/studio/bytes";
+import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
 import { FORMATS, formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { guessEventName } from "@/lib/zen/dates";
@@ -78,7 +79,8 @@ export function ImageStudioPage() {
     autoRan.current = true;
     void (async () => {
       await copyGo(idea, true);
-      await directionsGo();
+      const dirs = await directionsGo();
+      if (dirs[0]) await gen(dirs[0], undefined, undefined, true);
     })();
   }, []);
 
@@ -94,9 +96,10 @@ export function ImageStudioPage() {
       });
       if (!result.ok) {
         toast.error(result.error);
-        return;
+        return [];
       }
       setDirections(result.directions);
+      return result.directions;
     } finally {
       setBusy(false);
     }
@@ -124,33 +127,58 @@ export function ImageStudioPage() {
     }
   }
 
-  async function gen(dir: VisualDirection, kind?: (typeof VARIATIONS)[number]["id"], formatOverride?: FormatId) {
+  async function gen(dir: VisualDirection, kind?: (typeof VARIATIONS)[number]["id"], formatOverride?: FormatId, silent = false) {
     setBusy(true);
     try {
       const nextFormat = formatOverride ?? format;
-      const prompt = kind ? varyImagePrompt(dir.prompt, kind) : dir.prompt;
-      const result = await generateStudioImage({
-        data: {
-          prompt,
-          format: toImageFormat(nextFormat),
-          headline: dir.headline,
-          subhead: dir.subhead,
-          palette: dir.palette,
-          name: dir.name,
-          variation: kind,
-        },
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
       const spec = formatById(nextFormat);
-      const png = await persistGeneratedImage({
-        base64: result.imageBase64,
-        mime: result.mime,
-        width: spec.width,
-        height: spec.height,
-      });
+      const prompt = kind ? varyImagePrompt(dir.prompt, kind) : dir.prompt;
+      let payload = {
+        imageBase64: encodeUtf8Base64(
+          directionPosterSvg({
+            headline: dir.headline,
+            subhead: dir.subhead,
+            concept: dir.concept,
+            palette: dir.palette,
+            name: dir.name,
+            width: spec.width,
+            height: spec.height,
+            variation: kind,
+          }),
+        ),
+        mime: "image/svg+xml",
+      };
+      try {
+        const result = await generateStudioImage({
+          data: {
+            prompt,
+            format: toImageFormat(nextFormat),
+            headline: dir.headline,
+            subhead: dir.subhead,
+            palette: dir.palette,
+            name: dir.name,
+            variation: kind,
+          },
+        });
+        if (result.ok) payload = { imageBase64: result.imageBase64, mime: result.mime };
+      } catch {
+        /* keep poster */
+      }
+      let png: { blob: Blob; mime: string; base64: string };
+      try {
+        png = await persistGeneratedImage({
+          base64: payload.imageBase64,
+          mime: payload.mime,
+          width: spec.width,
+          height: spec.height,
+        });
+      } catch {
+        png = {
+          blob: blobFromBase64(payload.imageBase64, payload.mime),
+          mime: payload.mime,
+          base64: payload.imageBase64,
+        };
+      }
       const id = uid("asset");
       await putAssetBlob(id, png.blob);
       addAsset({
@@ -172,7 +200,7 @@ export function ImageStudioPage() {
         useCount: 0,
       });
       setLastImage({ base64: png.base64, mime: png.mime, headline: dir.headline });
-      toast.success("已存進素材庫（AI Generated）");
+      if (!silent) toast.success("已存進素材庫（AI Generated）");
     } finally {
       setBusy(false);
     }
@@ -247,7 +275,8 @@ export function ImageStudioPage() {
       setIdea(next);
       toast.success("已理解這張圖，接著生成文案與相似視覺");
       await copyGo(next);
-      await directionsGo(next);
+      const dirs = await directionsGo(next);
+      if (dirs[0]) await gen(dirs[0], undefined, undefined, true);
     } finally {
       setBusy(false);
     }

@@ -105,14 +105,25 @@ export function directionPosterSvg(input: PosterInput): string {
 </svg>`;
 }
 
+/** UTF-8 → base64 without relying on Node `Buffer` (works in the browser too). */
+export function encodeUtf8Base64(text: string): string {
+  if (typeof Buffer !== "undefined") return Buffer.from(text, "utf8").toString("base64");
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
 export function mockPosterImage(input: PosterInput & { prompt: string }): {
   imageBase64: string;
   mime: "image/svg+xml";
   prompt: string;
 } {
-  const svg = directionPosterSvg(input);
   return {
-    imageBase64: Buffer.from(svg, "utf8").toString("base64"),
+    imageBase64: encodeUtf8Base64(directionPosterSvg(input)),
     mime: "image/svg+xml",
     prompt: input.prompt,
   };

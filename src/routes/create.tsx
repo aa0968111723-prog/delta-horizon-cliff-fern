@@ -1,17 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CreateStudio } from "@/components/create/create-studio";
+import { createSearchParams, type CreateSearch } from "@/lib/studio/create-search";
 
-export type CreateSearch = {
-  mode?: string;
-  idea?: string;
-};
+export type { CreateSearch };
 
 export const Route = createFileRoute("/create")({
   validateSearch: (search: Record<string, unknown>): CreateSearch => {
-    const next: CreateSearch = {};
-    if (typeof search.mode === "string") next.mode = search.mode;
-    if (typeof search.idea === "string") next.idea = search.idea;
-    return next;
+    return createSearchParams({
+      mode: typeof search.mode === "string" ? search.mode : undefined,
+      idea: typeof search.idea === "string" ? search.idea : undefined,
+      asset: typeof search.asset === "string" ? search.asset : undefined,
+    });
   },
   component: CreateStudio,
 });

@@ -75,7 +75,10 @@ export function CreativeSearch() {
       return;
     }
     if (hit.assetId) {
-      void navigate({ to: "/create", search: { mode: "from-image", idea } });
+      void navigate({
+        to: "/create",
+        search: { mode: "from-image", idea, asset: hit.assetId },
+      });
       return;
     }
     void navigate({ to: "/create", search: { mode: "idea", idea } });

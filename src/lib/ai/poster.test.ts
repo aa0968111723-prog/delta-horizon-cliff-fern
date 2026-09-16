@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { directionPosterSvg, mockPosterImage, wrapCjk, xmlEscape } from "./poster.ts";
+import { directionPosterSvg, encodeUtf8Base64, mockPosterImage, wrapCjk, xmlEscape } from "./poster.ts";
 
 test("directionPosterSvg keeps the student headline and IG 4:5 size", () => {
   const svg = directionPosterSvg({
@@ -73,4 +73,14 @@ test("mockPosterImage is a usable SVG data payload", () => {
   assert.match(svg, /先坐下來/);
   assert.match(svg, /height="1920"/);
   assert.doesNotMatch(svg, /禪風海報/);
+});
+
+test("encodeUtf8Base64 round-trips a student hook without Node-only callers", () => {
+  const svg = directionPosterSvg({
+    headline: "最近是不是連休息都覺得有罪惡感？",
+    width: 1080,
+    height: 1350,
+  });
+  const encoded = encodeUtf8Base64(svg);
+  assert.equal(Buffer.from(encoded, "base64").toString("utf8"), svg);
 });

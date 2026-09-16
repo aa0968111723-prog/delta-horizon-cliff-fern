@@ -194,12 +194,53 @@ export function AssetDetailSheet({
             {busy ? "分析中…" : "AI 分析／標籤"}
           </Button>
           <Button variant="secondary" asChild>
-            <Link to="/create" search={{ mode: "from-image", idea: `延續「${asset.name}」的風格，做新的活動，不要複製舊作品。` }}>
+            <Link
+              to="/create"
+              search={{
+                mode: "from-image",
+                idea: `延續「${asset.name}」的風格，做新的活動，不要複製舊作品。`,
+                asset: asset.id,
+              }}
+              data-testid="asset-into-create"
+            >
               加入創作
             </Link>
           </Button>
           <Button variant="secondary" asChild>
-            <Link to="/image">生成相似視覺</Link>
+            <Link
+              to="/create"
+              search={{
+                mode: "from-image",
+                idea: `根據「${asset.name}」生成相似視覺，延續風格不要複製。`,
+                asset: asset.id,
+              }}
+            >
+              生成相似視覺
+            </Link>
+          </Button>
+          <Button variant="secondary" asChild>
+            <Link
+              to="/create"
+              search={{
+                mode: "from-image",
+                idea: `根據「${asset.name}」寫 IG 文案。先讓淡江學生覺得這在講自己。`,
+                asset: asset.id,
+              }}
+            >
+              生成文案
+            </Link>
+          </Button>
+          <Button variant="secondary" asChild>
+            <Link
+              to="/create"
+              search={{
+                mode: "from-image",
+                idea: `延伸「${asset.name}」做成 Story、Carousel、Reels Cover。`,
+                asset: asset.id,
+              }}
+            >
+              延伸生成
+            </Link>
           </Button>
           <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}

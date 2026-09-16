@@ -12,13 +12,14 @@ import {
   varyImagePrompt,
   type VisionAnalysis,
 } from "@/lib/ai/image-studio";
+import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
 import { toBriefInput } from "@/lib/ai/payload";
 import { createCanvaDesign } from "@/lib/connect/canva";
 import { searchDriveLive } from "@/lib/connect/sync";
 import { emptyBrief, migrateBrief } from "@/lib/studio/brief";
-import { putAssetBlob } from "@/lib/studio/assets-idb";
+import { getAssetBlob, hydrateSeedAsset, putAssetBlob } from "@/lib/studio/assets-idb";
 import { persistGeneratedImage } from "@/lib/studio/raster";
-import { bytesToBase64 } from "@/lib/studio/bytes";
+import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById, FORMATS } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { parseEventDate, parseEventTime, guessEventName } from "@/lib/zen/dates";
@@ -71,9 +72,10 @@ const MODE_HINT: Record<string, string> = {
 };
 
 export function CreateStudio() {
-  const search = useSearch({ strict: false }) as { mode?: string; idea?: string };
+  const search = useSearch({ strict: false }) as { mode?: string; idea?: string; asset?: string };
   const navigate = useNavigate();
   const brands = useStudio((s) => s.brands);
+  const hydrated = useStudio((s) => s.hydrated);
   const assets = useStudio((s) => s.assets);
   const projects = useStudio((s) => s.projects);
   const campaigns = useStudio((s) => s.campaigns);
@@ -119,6 +121,12 @@ export function CreateStudio() {
   const [campaign, setCampaign] = useState<ClubCampaign | null>(null);
   const [vision, setVision] = useState<VisionAnalysis | null>(null);
   const [lastImage, setLastImage] = useState<{ base64: string; mime: string; assetId?: string; headline?: string } | null>(null);
+  const [sourcePreview, setSourcePreview] = useState<{
+    id: string;
+    name: string;
+    mime: string;
+    base64: string;
+  } | null>(null);
   const autoRan = useRef(false);
   const foundGroups = useMemo(() => groupCreativeHits(found), [found]);
 
@@ -155,11 +163,16 @@ export function CreateStudio() {
   }, [mode]);
 
   useEffect(() => {
-    if (!status || !brand || autoRan.current) return;
+    if (!status || !brand || !hydrated || autoRan.current) return;
+    if (mode === "from-image" && search.asset) {
+      autoRan.current = true;
+      void analyzeSourceAsset(search.asset);
+      return;
+    }
     if (mode === "from-image" && !search.idea) return;
     autoRan.current = true;
     void runKit(undefined, true);
-  }, [status, brand, mode]);
+  }, [status, brand, hydrated, mode, search.asset]);
 
   useEffect(() => {
     if (!lastImage) return;
@@ -251,10 +264,76 @@ export function CreateStudio() {
       }
       setPlan(result.plan);
       setPacks(result.plan.copyPacks ?? []);
-      setDirections(result.plan.directions ?? []);
+      const dirs = result.plan.directions ?? [];
+      setDirections(dirs);
       setReview(result.plan.studentReview ? ensureRewriteDiffers(result.plan.studentReview, result.plan.hook) : null);
       setPickedDirection(null);
       if (!silent) toast.success(result.adapter === "mock" ? "本機宣傳草案" : "已生成完整宣傳");
+      if (dirs[0]) await saveGeneratedImage(dirs[0], { silent: true });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function analyzeSourceAsset(assetId: string) {
+    const meta = assets.find((item) => item.id === assetId);
+    if (!meta) {
+      toast.error("找不到這張素材。");
+      await runKit(undefined, true);
+      return;
+    }
+    setBusy(true);
+    try {
+      let blob = await getAssetBlob(assetId);
+      if (!blob && meta.seedSrc) {
+        try {
+          await hydrateSeedAsset(assetId, meta.seedSrc);
+          blob = await getAssetBlob(assetId);
+        } catch {
+          /* fetch below */
+        }
+      }
+      if (!blob && meta.seedSrc) {
+        const res = await fetch(meta.seedSrc);
+        if (res.ok) blob = await res.blob();
+      }
+      if (!blob) {
+        toast.error("這張圖還沒有檔案可分析。");
+        await runKit(undefined, true);
+        return;
+      }
+      const mime = blob.type || meta.mime || "image/jpeg";
+      const buf = await blob.arrayBuffer();
+      const b64 = bytesToBase64(new Uint8Array(buf));
+      if (b64.length > 1_800_000) {
+        toast.error("圖檔太大，請用較小的照片。");
+        return;
+      }
+      setSourcePreview({ id: assetId, name: meta.name, mime, base64: b64 });
+      const hit: CreativeHit = {
+        id: `asset:${meta.id}`,
+        source: meta.source === "generated" ? "generated" : "local",
+        title: meta.name,
+        subtitle: "來源素材",
+        kind: "素材",
+        score: 99,
+        assetId: meta.id,
+        thumbnail: meta.seedSrc,
+      };
+      setFound((rows) => (rows.some((row) => row.id === hit.id) ? rows : [hit, ...rows]));
+      setPinned((rows) => (rows.some((row) => row.id === hit.id) ? rows : [hit, ...rows]));
+      const result = await analyzeStudioImage({ data: { imageBase64: b64, mime } });
+      if (!result.ok) {
+        toast.error(result.error);
+        await runKit(search.idea || idea, true);
+        return;
+      }
+      setVision(result.analysis);
+      updateAsset(assetId, { tags: tagsFromVision(result.analysis, meta.tags) });
+      const nextIdea = ideaFromVision(result.analysis, search.idea || `延續「${meta.name}」的風格，做新的活動，不要複製舊作品。`);
+      setIdea(nextIdea);
+      toast.success("已理解這張圖，接著生成文案與方向");
+      await runKit(nextIdea, true);
     } finally {
       setBusy(false);
     }
@@ -289,6 +368,7 @@ export function CreateStudio() {
         toast.error("圖檔太大，請用較小的照片。");
         return;
       }
+      setSourcePreview({ id, name: file.name.replace(/\.[^.]+$/, "") || "上傳圖片", mime: file.type || "image/jpeg", base64: b64 });
       const result = await analyzeStudioImage({ data: { imageBase64: b64, mime: file.type } });
       if (!result.ok) {
         toast.error(result.error);
@@ -332,29 +412,45 @@ export function CreateStudio() {
     opts?: { kind?: (typeof VARIATIONS)[number]["id"]; format?: string; silent?: boolean },
   ) {
     const format = toImageFormat(opts?.format ?? toCreateImageFormat(mode));
-    const prompt = opts?.kind ? varyImagePrompt(dir.prompt, opts.kind) : dir.prompt;
-    const result = await generateStudioImage({
-      data: {
-        prompt,
-        format,
-        headline: dir.headline,
-        subhead: dir.subhead,
-        palette: dir.palette,
-        name: dir.name,
-        variation: opts?.kind,
-      },
-    });
-    if (!result.ok) {
-      if (!opts?.silent) toast.message("主視覺先用畫布方向。連上圖片生成後可以再出圖。");
-      return null;
-    }
     const spec = formatById(format);
-    const png = await persistGeneratedImage({
-      base64: result.imageBase64,
-      mime: result.mime,
-      width: spec.width,
-      height: spec.height,
-    });
+    const prompt = opts?.kind ? varyImagePrompt(dir.prompt, opts.kind) : dir.prompt;
+    let payload: { imageBase64: string; mime: string } = posterPayloadFromDirection(
+      dir,
+      spec,
+      opts?.kind,
+      prompt,
+    );
+    try {
+      const result = await generateStudioImage({
+        data: {
+          prompt,
+          format,
+          headline: dir.headline,
+          subhead: dir.subhead,
+          palette: dir.palette,
+          name: dir.name,
+          variation: opts?.kind,
+        },
+      });
+      if (result.ok) payload = { imageBase64: result.imageBase64, mime: result.mime };
+    } catch {
+      /* keep the student-hook poster so 主視覺 still appears */
+    }
+    let png: { blob: Blob; mime: string; base64: string };
+    try {
+      png = await persistGeneratedImage({
+        base64: payload.imageBase64,
+        mime: payload.mime,
+        width: spec.width,
+        height: spec.height,
+      });
+    } catch {
+      png = {
+        blob: blobFromBase64(payload.imageBase64, payload.mime),
+        mime: payload.mime,
+        base64: payload.imageBase64,
+      };
+    }
     const id = uid("asset");
     await putAssetBlob(id, png.blob);
     addAsset({
@@ -611,6 +707,21 @@ export function CreateStudio() {
         <div className="mt-3">
           <p className="text-sm font-medium">或從一張圖開始</p>
           <PhotoDrop disabled={busy} onFile={(file) => void onImage(file)} />
+          {sourcePreview ? (
+            <figure
+              className="mt-3 flex items-center gap-3 rounded-2xl bg-bg p-3"
+              data-testid="source-visual"
+            >
+              <img
+                src={`data:${sourcePreview.mime};base64,${sourcePreview.base64}`}
+                alt={sourcePreview.name}
+                className="size-16 shrink-0 rounded-xl object-cover"
+              />
+              <figcaption className="min-w-0 text-xs text-muted">
+                來源素材 · {sourcePreview.name}。會理解畫面再延續，不複製舊作品。
+              </figcaption>
+            </figure>
+          ) : null}
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <Field label="活動名">
@@ -949,6 +1060,29 @@ function toCreateImageFormat(mode: string) {
   if (mode === "story") return "story" as const;
   if (mode === "reels") return "reels-cover" as const;
   return "feed-portrait" as const;
+}
+
+function posterPayloadFromDirection(
+  dir: VisualDirection,
+  spec: { width: number; height: number },
+  variation?: "composition" | "mood" | "background" | "style" | "text",
+  prompt = dir.prompt,
+) {
+  const svg = directionPosterSvg({
+    headline: dir.headline,
+    subhead: dir.subhead,
+    concept: dir.concept,
+    palette: dir.palette,
+    name: dir.name,
+    width: spec.width,
+    height: spec.height,
+    variation,
+  });
+  return {
+    imageBase64: encodeUtf8Base64(svg),
+    mime: "image/svg+xml" as const,
+    prompt,
+  };
 }
 
 function sourceLine(hit: CreativeHit) {
