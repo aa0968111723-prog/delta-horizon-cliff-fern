@@ -13,6 +13,8 @@ import {
   parseDatetimeLocalTaipei,
   shiftHostEveningToTaipei,
   shouldReopenCampaign,
+  pieceNameForIdea,
+  isContentPieceName,
 } from "./dates.ts";
 
 test("下週有一場茶會 maps to 茶會, not an abstract youth label", () => {
@@ -65,6 +67,33 @@ test("Drive / Canva tea files reopen 茶會 instead of becoming a Hook-named pie
   assert.equal(shouldReopenCampaign("from-canva"), true);
   assert.equal(campaignNameForIdea({ mode: "from-drive", idea: "2025 茶會現場" }), "茶會");
   assert.equal(campaignNameForIdea({ mode: "from-canva", idea: "茶會 IG 主視覺" }), "茶會");
+});
+
+test("做成限動 from a Drive tea still is a piece, not a reopen of 茶會", () => {
+  assert.equal(shouldReopenCampaign("from-drive", null, "story"), false);
+  assert.equal(shouldReopenCampaign("from-canva", null, "carousel"), false);
+  assert.equal(shouldReopenCampaign("from-drive", "camp_tea", "story"), true);
+  assert.equal(isContentPieceName("茶會 · 限動"), true);
+  assert.equal(isContentPieceName("茶會"), false);
+  assert.equal(pieceNameForIdea("我要宣傳茶會", "story"), "茶會 · 限動");
+  assert.equal(
+    campaignNameForIdea({ mode: "from-drive", idea: "我要宣傳茶會", into: "story" }),
+    "茶會 · 限動",
+  );
+  assert.equal(
+    campaignNameForIdea({ mode: "from-drive", idea: "2025 茶會現場", into: "carousel" }),
+    "茶會 · Carousel",
+  );
+  assert.equal(
+    campaignNameForIdea({
+      mode: "from-drive",
+      campaignId: "camp_tea",
+      eventName: "茶會",
+      idea: "我要宣傳茶會",
+      into: "story",
+    }),
+    "茶會",
+  );
 });
 
 test("from-ig keeps the learned Hook as the name, not last week's 茶會", () => {

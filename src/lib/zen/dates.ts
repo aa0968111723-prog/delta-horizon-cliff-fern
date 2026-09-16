@@ -66,9 +66,37 @@ export function campaignMatchingIdea<T extends { id: string; name: string; oneLi
 }
 
 /** 「用這個 Hook 再寫一篇」is a new piece. Drive / Canva files may reopen 茶會. */
-export function shouldReopenCampaign(mode?: string | null, campaignId?: string | null): boolean {
+export function shouldReopenCampaign(
+  mode?: string | null,
+  campaignId?: string | null,
+  into?: string | null,
+): boolean {
   if (campaignId) return true;
+  if (into) return false;
   return mode !== "from-ig" && mode !== "from-image";
+}
+
+export function intoLabel(into?: string | null): string {
+  if (into === "story") return "限動";
+  if (into === "carousel") return "Carousel";
+  if (into === "reels") return "Reels";
+  if (into === "threads") return "Threads";
+  return "";
+}
+
+/** 「茶會 · 限動」is a format piece, not a new 活動. */
+export function isContentPieceName(name: string) {
+  return / · (限動|Carousel|Reels|Threads)\s*$/.test(name);
+}
+
+/** Image Studio 做成限動 keeps the event word, but names a piece. */
+export function pieceNameForIdea(idea: string, into?: string | null): string {
+  const label = intoLabel(into);
+  const spoken = idea.replace(/\s+/g, " ").trim().slice(0, 20);
+  const event = guessEventName(idea);
+  if (label && event) return `${event} · ${label}`;
+  if (label && spoken) return `${spoken} · ${label}`;
+  return spoken || "未命名活動";
 }
 
 /** Extend modes keep the spoken Hook as the name — never guess 茶會 from a plan. */
@@ -78,10 +106,15 @@ export function campaignNameForIdea(opts: {
   eventName?: string;
   idea: string;
   planName?: string;
+  into?: string | null;
 }): string {
   const typed = opts.eventName?.trim() ?? "";
+  if (opts.into && !opts.campaignId) {
+    if (typed && isContentPieceName(typed)) return typed;
+    return pieceNameForIdea(opts.idea, opts.into);
+  }
   if (typed) return typed;
-  if (shouldReopenCampaign(opts.mode, opts.campaignId)) {
+  if (shouldReopenCampaign(opts.mode, opts.campaignId, opts.into)) {
     return guessEventName(opts.idea) || opts.planName?.trim() || opts.idea.slice(0, 20) || "未命名活動";
   }
   return opts.idea.slice(0, 20) || "未命名活動";

@@ -1,7 +1,7 @@
 /** Home「今天推薦創作」— the campaign you just made, not the oldest seed date. */
 
 import { HOOK_EXAMPLES, daysUntil } from "./context.ts";
-import { guessEventName } from "./dates.ts";
+import { guessEventName, isContentPieceName } from "./dates.ts";
 
 /** Spec §6: recommend the live window, not the earliest calendar date. */
 export const RECOMMEND_WINDOW_DAYS = 21;
@@ -25,8 +25,9 @@ function studentLine(text: string | null | undefined): string {
   return line;
 }
 
-/** A learned Hook is a new post, not a new 活動 that should steal 今天推薦. */
+/** A learned Hook or format piece is a new post, not a new 活動 that should steal 今天推薦. */
 export function isEventCampaign(row: { name: string; type?: string }) {
+  if (isContentPieceName(row.name)) return false;
   if (guessEventName(row.name)) return true;
   if (row.type && row.type !== "other") return true;
   return !/[？?]/.test(row.name);

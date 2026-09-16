@@ -91,3 +91,19 @@ test("近期活動 only lists events, not a Hook-named piece", () => {
   assert.equal(isEventCampaign({ name: "茶會", type: "tea" }), true);
   assert.equal(isEventCampaign({ name: "浮游禪光", type: "light" }), true);
 });
+
+test("做成限動 from a tea still does not steal 今天推薦", () => {
+  const piece = {
+    id: "camp_story",
+    name: "茶會 · 限動",
+    type: "other",
+    date: "2026-09-16",
+    oneLiner: "最近是不是很久沒有好好坐下來？",
+    updatedAt: TEA_UPDATED + 9_000,
+  };
+  assert.equal(isEventCampaign({ name: "茶會 · 限動", type: "other" }), false);
+  assert.equal(isEventCampaign({ name: "茶會 · Carousel", type: "tea" }), false);
+  const hit = recommendCampaign([seed, tea, piece], NOW);
+  assert.equal(hit?.id, "camp_tea");
+  assert.equal(hit?.name, "茶會");
+});

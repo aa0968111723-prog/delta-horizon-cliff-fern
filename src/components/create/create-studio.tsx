@@ -26,7 +26,7 @@ import { persistGeneratedImage } from "@/lib/studio/raster";
 import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById, FORMATS } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
-import { parseEventDate, parseEventTime, guessEventName, defaultScheduleText, preferredScheduleText, campaignMatchingIdea, campaignNameForIdea, shouldReopenCampaign } from "@/lib/zen/dates";
+import { parseEventDate, parseEventTime, guessEventName, defaultScheduleText, preferredScheduleText, campaignMatchingIdea, campaignNameForIdea, shouldReopenCampaign, pieceNameForIdea } from "@/lib/zen/dates";
 import { DEFAULT_AUDIENCE, academicBeat } from "@/lib/zen/context";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
@@ -98,6 +98,13 @@ const MODE_HINT: Record<string, string> = {
   "from-ig": "會先讀自己的 IG 語氣，再寫下一篇。",
 };
 
+const INTO_HINT: Record<string, string> = {
+  story: "這張圖做成限動，不是重開一場活動。",
+  carousel: "這張圖做成 Carousel，不是重開一場活動。",
+  reels: "這張圖做成 Reels Cover，不是重開一場活動。",
+  threads: "這張圖做成 Threads 圖，不是重開一場活動。",
+};
+
 export function CreateStudio() {
   const search = useSearch({ strict: false }) as {
     mode?: string;
@@ -132,9 +139,11 @@ export function CreateStudio() {
 
   const [idea, setIdea] = useState(search.idea || "下週有一場茶會");
   const [eventName, setEventName] = useState(() =>
-    shouldReopenCampaign(search.mode, search.campaign)
+    shouldReopenCampaign(search.mode, search.campaign, search.into)
       ? guessEventName(search.idea || "下週有一場茶會")
-      : "",
+      : search.into
+        ? pieceNameForIdea(search.idea || "", search.into)
+        : "",
   );
   const studioHook = useMemo(() => ideaStudioHook(igMemory, idea, eventName), [igMemory, idea, eventName]);
   const [schedule, setSchedule] = useState(() => defaultScheduleText(search.idea || "下週有一場茶會"));
@@ -198,8 +207,12 @@ export function CreateStudio() {
   const autoRan = useRef(false);
   const foundGroups = useMemo(() => groupCreativeHits(found), [found]);
 
+  function reopenCampaign() {
+    return shouldReopenCampaign(search.mode, search.campaign, search.into);
+  }
+
   function typedEventName() {
-    if (shouldReopenCampaign(search.mode, search.campaign) || eventNameTouched.current) return eventName;
+    if (reopenCampaign() || eventNameTouched.current) return eventName;
     return "";
   }
 
@@ -216,10 +229,10 @@ export function CreateStudio() {
   useEffect(() => {
     if (!hydrated) return;
     if (search.idea) setIdea(search.idea);
-    if (!shouldReopenCampaign(search.mode, search.campaign)) {
+    if (!shouldReopenCampaign(search.mode, search.campaign, search.into)) {
       eventNameTouched.current = false;
       setCampaign(null);
-      setEventName("");
+      setEventName(search.into ? pieceNameForIdea(search.idea || "", search.into) : "");
       setOneLiner("");
       setPlan(null);
       setDirections([]);
@@ -256,7 +269,7 @@ export function CreateStudio() {
     } else if (search.idea) {
       setSchedule(defaultScheduleText(search.idea));
     }
-  }, [search.idea, search.campaign, search.mode, search.remote, hydrated]);
+  }, [search.idea, search.campaign, search.mode, search.remote, search.into, hydrated]);
 
   const activePack = packs.find((p) => p.tone === tone) ?? packs[0];
   const mode = search.mode || "idea";
@@ -269,8 +282,8 @@ export function CreateStudio() {
 
   useEffect(() => {
     autoRan.current = false;
-    if (!shouldReopenCampaign(search.mode, search.campaign)) eventNameTouched.current = false;
-  }, [search.idea, search.mode, search.campaign, search.asset, search.remote]);
+    if (!shouldReopenCampaign(search.mode, search.campaign, search.into)) eventNameTouched.current = false;
+  }, [search.idea, search.mode, search.campaign, search.asset, search.remote, search.into]);
 
   useEffect(() => {
     if (!status || !brand || !hydrated || autoRan.current) return;
@@ -612,6 +625,7 @@ export function CreateStudio() {
         campaignId: search.campaign,
         eventName: typedEventName(),
         idea: workingIdea,
+        into: search.into,
       });
       const brief = migrateBrief({
         ...emptyBrief(),
@@ -962,14 +976,18 @@ export function CreateStudio() {
       eventName: typedEventName(),
       idea,
       planName: nextPlan?.campaignName,
+      into: search.into,
     });
-    const asPiece = !shouldReopenCampaign(search.mode, search.campaign) && !typedEventName();
+    const asPiece =
+      Boolean(search.into && !search.campaign) ||
+      (!shouldReopenCampaign(search.mode, search.campaign, search.into) && !typedEventName());
     const date = parseEventDate(`${schedule} ${idea}`);
-    const type = eventKindFromText(`${name} ${idea}`);
-    const existing =
-      (search.campaign ? campaigns.find((row) => row.id === search.campaign) : undefined) ??
-      campaigns.find((row) => row.name === name && row.date === date) ??
-      (campaign && campaign.name === name ? campaign : undefined);
+    const type = asPiece ? "other" : eventKindFromText(`${name} ${idea}`);
+    const existing = asPiece
+      ? undefined
+      : ((search.campaign ? campaigns.find((row) => row.id === search.campaign) : undefined)
+        ?? campaigns.find((row) => row.name === name && row.date === date)
+        ?? (campaign && campaign.name === name ? campaign : undefined));
     const fresh = asPiece ? [] : suggestWaves({ date, type, name }, new Date(), { recentKinds });
     const waves = mergeCampaignWaves(existing?.waves, fresh).map((wave) => {
       const draft = mockWaveDraft({
@@ -1354,7 +1372,17 @@ export function CreateStudio() {
       };
       await saveIgPreviewStills(next, previewOpts).catch(() => undefined);
       setBusy(false);
-      toast.success("已用這個方向做出整套：主視覺、文案、Carousel、限動、Reels、Threads、LINE、月曆");
+      toast.success(
+        search.into === "story"
+          ? "已做成限動，沒有重開活動節奏"
+          : search.into === "carousel"
+            ? "已做成 Carousel，沒有重開活動節奏"
+            : search.into === "reels"
+              ? "已做成 Reels Cover，沒有重開活動節奏"
+              : search.into === "threads"
+                ? "已做成 Threads 圖，沒有重開活動節奏"
+                : "已用這個方向做出整套：主視覺、文案、Carousel、限動、Reels、Threads、LINE、月曆",
+      );
       requestAnimationFrame(() => {
         const intoTarget =
           search.into === "story"
@@ -1451,7 +1479,7 @@ export function CreateStudio() {
 
       <div className="mt-6 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] sm:p-6">
         <p className="text-xs text-muted">
-          {status?.label ?? "確認創作服務中"} · {MODE_HINT[mode] ?? MODE_HINT.idea}
+          {status?.label ?? "確認創作服務中"} · {search.into ? INTO_HINT[search.into] : (MODE_HINT[mode] ?? MODE_HINT.idea)}
         </p>
         <p className="mt-2 text-xs text-muted" data-testid="studio-learn-banner">
           這次會參考過去 IG：「{studioHook}」。{learning.avoid}
@@ -1488,14 +1516,14 @@ export function CreateStudio() {
           ) : null}
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <Field label="活動名">
+          <Field label={search.into ? "這篇叫什麼" : "活動名"}>
             <Input
               value={eventName}
               onChange={(e) => {
                 eventNameTouched.current = true;
                 setEventName(e.target.value);
               }}
-              placeholder="浮游禪光、茶會…"
+              placeholder={search.into ? "茶會 · 限動" : "浮游禪光、茶會…"}
               data-testid="event-name"
             />
           </Field>
@@ -1866,7 +1894,9 @@ export function CreateStudio() {
               <p className="mt-3 text-xs text-muted" data-testid="kit-campaign-name">
                 {campaign.waves.length
                   ? `已建立 ${campaign.name}，節奏含 ${campaign.waves.map((w) => waveLabel(w.kind)).join("、")}。`
-                  : `已做成一篇「${campaign.name}」：IG、Carousel、限動、Reels、Threads、LINE。`}
+                  : search.into
+                    ? `已做成一篇「${campaign.name}」，沒有重開活動節奏。`
+                    : `已做成一篇「${campaign.name}」：IG、Carousel、限動、Reels、Threads、LINE。`}
               </p>
               {sourceCredit ? (
                 <p className="mt-2 text-xs text-muted" data-testid="kit-visual-source">

@@ -25,7 +25,12 @@ const eventName = (await page.locator('[data-testid="event-name"]').inputValue()
 if (/畫面是現場|禪風海報/.test(eventName)) {
   issues.push(`活動名變成圖片理解全文: ${eventName}`);
 }
-if (!eventName) issues.push("做成限動沒有活動名");
+if (eventName === "茶會" || eventName === "浮游禪光") {
+  issues.push(`做成限動重開了整場活動: ${eventName}`);
+}
+if (eventName && !/限動/.test(eventName)) {
+  issues.push(`做成限動的篇名不像一篇限動: ${eventName}`);
+}
 await page.waitForSelector('[data-testid="source-visual"], [data-testid="kit-visual-source"], [data-testid="hero-visual-source"]', {
   timeout: 20_000,
 });
@@ -34,8 +39,30 @@ if (source && !/Drive|Instagram|來源|茶會|淡水/.test(source)) {
   issues.push(`來源標示不像延續這張圖: ${source.slice(0, 120)}`);
 }
 await page.waitForSelector('[data-testid="kit-ready"], [data-testid="story-board"]', { timeout: 60_000 });
+await page.waitForSelector('[data-testid="kit-piece"]', { timeout: 20_000 });
+await page.waitForSelector('[data-testid="story-board"]', { timeout: 20_000 });
+const kitName = ((await page.locator('[data-testid="kit-campaign-name"]').innerText()) ?? "");
+if (/預熱|情緒共鳴|參加理由|倒數/.test(kitName)) {
+  issues.push(`做成限動還是整場活動節奏: ${kitName}`);
+}
+if (!/一篇|限動/.test(kitName)) {
+  issues.push(`kit 沒說這是一篇限動: ${kitName}`);
+}
 await page.screenshot({ path: "/workspace/screenshots/image-into-story.png", fullPage: true });
 
+await page.goto(`${base}/`, { waitUntil: "networkidle" });
+await page.waitForSelector('[data-testid="home-ready"]', { timeout: 20_000 });
+const recommend = ((await page.locator('[data-testid="home-recommend-name"]').innerText()) ?? "").trim();
+if (/限動|Carousel/.test(recommend)) {
+  issues.push(`首頁今天推薦被限動篇偷走: ${recommend}`);
+}
+if (!/浮游禪光|茶會/.test(recommend)) {
+  issues.push(`首頁今天推薦不是活動: ${recommend}`);
+}
+await page.screenshot({ path: "/workspace/screenshots/image-into-story-home.png" });
+
+await page.goto(url, { waitUntil: "networkidle" });
+await page.waitForSelector('[data-testid="story-board"]', { timeout: 40_000 });
 await page.setViewportSize({ width: 390, height: 844 });
 const overflow = await page.evaluate(
   () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
@@ -46,7 +73,7 @@ await page.screenshot({ path: "/workspace/screenshots/image-into-story-390.png" 
 if (errors.length) issues.push(`pageerror ${errors.join(" | ")}`);
 await browser.close();
 if (issues.length) {
-  console.error(JSON.stringify({ ok: false, issues, eventName, url, source: source.slice(0, 120) }, null, 2));
+  console.error(JSON.stringify({ ok: false, issues, eventName, url, source: source.slice(0, 120), kitName, recommend }, null, 2));
   process.exit(1);
 }
-console.log(JSON.stringify({ ok: true, eventName, url: url.slice(0, 180) }));
+console.log(JSON.stringify({ ok: true, eventName, kitName, recommend, url: url.slice(0, 180) }));
