@@ -48,7 +48,7 @@ const PackInput = z.object({
     .max(24)
     .optional()
     .catch([]),
-  dnaNotes: z.string().max(2400).optional(),
+  dnaNotes: z.string().max(3600).optional(),
   inspirationNotes: z.string().max(1200).optional(),
   forceMock: z.boolean().optional(),
 });

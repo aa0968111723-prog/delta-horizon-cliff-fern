@@ -8,6 +8,7 @@ import type {
   BrandKit,
   Project,
 } from "./types.ts";
+import { expandQuery } from "../creative/search.ts";
 
 export const ASSET_DRAG_MIME = "application/x-kouzhen-asset";
 
@@ -145,12 +146,22 @@ export function createGeneratedAsset(input: {
 }
 
 export function matchesAssetQuery(asset: AssetMeta, query: string) {
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   if (!q) return true;
-  const blob = [asset.name, asset.category, categoryLabel(asset.category), asset.licenseNotes, ...(asset.tags ?? [])]
+  const blob = [
+    asset.name,
+    asset.category,
+    categoryLabel(asset.category),
+    asset.licenseNotes,
+    asset.source,
+    ...(asset.tags ?? []),
+  ]
     .join(" ")
     .toLowerCase();
-  return q.split(/\s+/).every((part) => blob.includes(part));
+  const raw = q.toLowerCase();
+  if (blob.includes(raw)) return true;
+  const tokens = [...new Set(expandQuery(q).toLowerCase().split(/\s+/).filter((token) => token.length >= 2))];
+  return tokens.some((token) => blob.includes(token));
 }
 
 function collectFromBoard(board: Artboard | undefined, ids: Set<string>) {

@@ -146,12 +146,12 @@ export function AssetDetailSheet({
           <Button onClick={place} disabled={!lastProjectId}>
             放到目前畫布
           </Button>
-          <Button
+            <Button
             variant="secondary"
             onClick={() => {
               void navigate({
                 to: "/create",
-                search: { q: `用「${asset.name}」做新的網宣`, mode: "vision", auto: "1" },
+                search: { q: `用「${asset.name}」做新的網宣`, mode: "vision", auto: "1", asset: asset.id },
               });
               onOpenChange(false);
             }}
@@ -163,7 +163,7 @@ export function AssetDetailSheet({
             onClick={() => {
               void navigate({
                 to: "/create",
-                search: { q: `延續「${asset.name}」的風格生成相似視覺`, mode: "image", auto: "1" },
+                search: { q: `延續「${asset.name}」的風格生成相似視覺`, mode: "image", auto: "1", asset: asset.id },
               });
               onOpenChange(false);
             }}
@@ -175,7 +175,7 @@ export function AssetDetailSheet({
             onClick={() => {
               void navigate({
                 to: "/create",
-                search: { q: `用「${asset.name}」寫一篇 IG 文案`, mode: "post", auto: "1" },
+                search: { q: `用「${asset.name}」寫一篇 IG 文案`, mode: "post", auto: "1", asset: asset.id },
               });
               onOpenChange(false);
             }}

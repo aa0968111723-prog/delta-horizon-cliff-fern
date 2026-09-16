@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createEmptyBrand, migrateBrand } from "./brand.ts";
-import { inferCategory, migrateAsset } from "./assets.ts";
+import { createEmptyBrand, migrateBrand, brandMemoryBlock } from "./brand.ts";
+import { inferCategory, matchesAssetQuery, migrateAsset } from "./assets.ts";
 import { validateAssetFile } from "./asset-upload.ts";
 
 test("migrateBrand fills slogans, logos, image style and rules", () => {
@@ -53,6 +53,49 @@ test("migrateAsset infers category and local source", () => {
   assert.equal(next.source, "upload");
   assert.equal(next.favorite, false);
   assert.equal(next.useCount, 0);
+});
+
+test("spoken asset search finds 龜龜 without the filename", () => {
+  const turtle = migrateAsset({
+    id: "asset_turtle",
+    name: "社團吉祥物",
+    kind: "image",
+    mime: "image/png",
+    width: 100,
+    height: 100,
+    tags: ["龜龜"],
+    createdAt: 1,
+  });
+  assert.equal(matchesAssetQuery(turtle, "找有龜龜的素材"), true);
+  assert.equal(matchesAssetQuery(turtle, "茶會照片"), false);
+});
+
+test("brand memory block is Traditional Chinese and names the club motifs", () => {
+  const brand = migrateBrand({
+    id: "brand_zen",
+    name: "淡江大學禪學社",
+    handle: "@tkuzen",
+    voice: "口語、先生活",
+    doSay: "淡江、淡水、坐下來",
+    dontSay: "誠摯邀請",
+    forbiddenWords: ["誠摯邀請", "年輕人"],
+    slogans: ["先坐下來。"],
+    ctas: ["晚上來坐一下"],
+    imageStyle: {
+      mood: "夜間暖光",
+      lighting: "三色光",
+      paletteHint: "霧亞麻",
+      composition: "下半留白",
+      do: "龜龜、茶杯",
+      dont: "香爐特寫",
+    },
+  } as Parameters<typeof migrateBrand>[0]);
+  const block = brandMemoryBlock(brand);
+  assert.ok(block.includes("Brand Memory"));
+  assert.ok(block.includes("龜龜"));
+  assert.ok(block.includes("三色光"));
+  assert.equal(block.includes("Z世代"), false);
+  assert.ok(block.includes("不要說"));
 });
 
 test("validateAssetFile rejects empty, huge and non-image files", () => {

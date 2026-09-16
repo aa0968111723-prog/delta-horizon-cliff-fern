@@ -134,7 +134,12 @@ export function IgCenter() {
               onClick={() =>
                 void navigate({
                   to: "/create",
-                  search: { q: `延續這篇 IG：${active.caption.split("\n")[0]}`, auto: "1", mode: "post" },
+                  search: {
+                    q: `延續這篇 IG：${active.caption.split("\n")[0]}`,
+                    auto: "1",
+                    mode: "post",
+                    asset: active.assetIds[0],
+                  },
                 })
               }
             >

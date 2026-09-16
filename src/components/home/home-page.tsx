@@ -132,7 +132,12 @@ export function HomePage() {
               setLastQuery(q.trim() || hit.title);
               void navigate({
                 to: "/create",
-                search: { q: `${q.trim() || hit.title}（參考 ${hit.sourceLabel}）`, auto: "1" },
+                search: {
+                  q: `${q.trim() || hit.title}（參考 ${hit.sourceLabel}）`,
+                  auto: "1",
+                  asset: hit.assetId,
+                  mode: hit.assetId ? "vision" : undefined,
+                },
               });
             }}
           />

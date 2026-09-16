@@ -23,6 +23,7 @@ import { inferCampaignType, inferEventDate } from "@/lib/creative/schedule";
 import { searchCreative } from "@/lib/creative/search";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { createGeneratedAsset } from "@/lib/studio/assets";
+import { brandMemoryBlock } from "@/lib/studio/brand";
 import { emptyBrief } from "@/lib/studio/brief";
 import { uid } from "@/lib/studio/ids";
 import { COPY_TONES } from "@/lib/studio/content";
@@ -36,6 +37,18 @@ const ASPECTS = [
   { id: "1:1" as const, label: "IG 1:1 / LINE" },
   { id: "9:16" as const, label: "Story / Reels Cover" },
 ];
+
+async function readAssetAsDataUrl(asset: { id: string; seedSrc?: string }) {
+  const stored = await getAssetStorage().get(asset.id);
+  const blob = stored ?? (asset.seedSrc ? await (await fetch(asset.seedSrc)).blob() : undefined);
+  if (!blob) return null;
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("read"));
+    reader.readAsDataURL(blob);
+  });
+}
 
 function starterQuery(mode: string, campaignName?: string) {
   if (mode === "image") return "我要宣傳茶會";
@@ -54,11 +67,13 @@ export function CreateStudio({
   autoRun = false,
   mode = "idea",
   campaignId,
+  initialAssetId,
 }: {
   initialQuery?: string;
   autoRun?: boolean;
   mode?: string;
   campaignId?: string;
+  initialAssetId?: string;
 }) {
   const navigate = useNavigate();
   const brands = useStudio((s) => s.brands);
@@ -133,7 +148,7 @@ export function CreateStudio({
           location: campaign?.location,
           oneLiner: campaign?.oneLiner,
           sources,
-          dnaNotes: `${dnaPromptBlock(dna)}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}`.slice(0, 2400),
+          dnaNotes: `${brands[0] ? brandMemoryBlock(brands[0]) : ""}\n${dnaPromptBlock(dna)}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}`.slice(0, 3600),
           inspirationNotes: useCreative
             .getState()
             .inspirations.slice(0, 4)
@@ -156,15 +171,45 @@ export function CreateStudio({
   }
 
   useEffect(() => {
+    if (ran.current) return;
+    if (initialAssetId) {
+      ran.current = true;
+      void (async () => {
+        const asset = useStudio.getState().assets.find((item) => item.id === initialAssetId);
+        if (!asset) {
+          if (autoRun) await runPack();
+          return;
+        }
+        setBusy(true);
+        try {
+          const dataUrl = await readAssetAsDataUrl(asset);
+          if (dataUrl) {
+            setImageSrc(dataUrl);
+            const result = await analyzeImage({
+              data: { imageDataUrl: dataUrl, note: query || asset.name },
+            });
+            if (result.ok) {
+              setVision(result.report);
+              toast.success(`已讀「${asset.name}」，可以延續風格或整套生成`);
+            }
+          }
+          if (autoRun) await runPack();
+        } catch {
+          toast.error("這張圖讀不到，改丟一張進來也可以。");
+          if (autoRun) await runPack();
+        } finally {
+          setBusy(false);
+        }
+      })();
+      return;
+    }
     if (mode === "vision") fileRef.current?.click();
-  }, [mode]);
-
-  useEffect(() => {
-    if (!autoRun || ran.current) return;
-    ran.current = true;
-    void runPack();
+    if (autoRun) {
+      ran.current = true;
+      void runPack();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoRun]);
+  }, [autoRun, initialAssetId, mode]);
 
   async function runCopy() {
     setBusy(true);
@@ -175,12 +220,12 @@ export function CreateStudio({
           kind: mode,
           when: campaign ? `${campaign.date} ${campaign.time}` : undefined,
           where: campaign?.location,
-          insightNotes: `${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}\n${dnaPromptBlock(
+          insightNotes: `${brands[0] ? brandMemoryBlock(brands[0]) : ""}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}\n${dnaPromptBlock(
             clubDnaFromMemory({
               igPosts: useCreative.getState().igPosts,
               memory: useCreative.getState().memory,
             }),
-          )}`.slice(0, 1500),
+          )}`.slice(0, 1600),
         },
       });
       if (result.ok) setCopies(result.copies);

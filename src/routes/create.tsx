@@ -6,6 +6,7 @@ type Search = {
   auto?: string;
   mode?: string;
   campaign?: string;
+  asset?: string;
 };
 
 export const Route = createFileRoute("/create")({
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/create")({
     auto: typeof s.auto === "string" ? s.auto : undefined,
     mode: typeof s.mode === "string" ? s.mode : undefined,
     campaign: typeof s.campaign === "string" ? s.campaign : undefined,
+    asset: typeof s.asset === "string" ? s.asset : undefined,
   }),
   component: CreatePage,
 });
@@ -26,6 +28,7 @@ function CreatePage() {
       autoRun={search.auto === "1"}
       mode={search.mode}
       campaignId={search.campaign}
+      initialAssetId={search.asset}
     />
   );
 }

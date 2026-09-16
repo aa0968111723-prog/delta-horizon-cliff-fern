@@ -137,3 +137,33 @@ export function migrateBrand(raw: Partial<BrandKit> & { id: string; name: string
 export function imageStyleSummary(style: ImageStyle) {
   return [style.mood, style.lighting, style.paletteHint].filter(Boolean).join(" · ");
 }
+
+export function brandMemoryBlock(
+  brand: Pick<
+    BrandKit,
+    | "name"
+    | "handle"
+    | "voice"
+    | "doSay"
+    | "dontSay"
+    | "forbiddenWords"
+    | "colors"
+    | "slogans"
+    | "ctas"
+    | "imageStyle"
+  >,
+) {
+  const palette = brand.colors.map((color) => `${color.label} ${color.hex}`).join("、");
+  return `Brand Memory（生成前先讀，不要從零開始）：
+${brand.name} ${brand.handle}
+語氣：${brand.voice}
+可以說：${brand.doSay}
+不要說：${brand.dontSay}
+禁用：${brand.forbiddenWords.join("、") || "誠摯邀請"}
+配色：${palette}
+標語：${brand.slogans.join("／")}
+CTA：${brand.ctas.join("／")}
+畫面：${imageStyleSummary(brand.imageStyle)}。${brand.imageStyle.do}
+不要拍：${brand.imageStyle.dont}
+龜龜與三色光是配角。不要寺廟金、僧袍、滿版經文。`;
+}
