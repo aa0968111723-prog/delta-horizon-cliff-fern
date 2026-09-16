@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { addMonths, addWeeks, format, isSameDay, parseISO, startOfToday } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { CalendarDays, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreationLoop } from "@/components/shared/creation-loop";
@@ -9,7 +9,7 @@ import { OutcomeJournal } from "@/components/learning/outcome-journal";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { campaignToBrief } from "@/lib/creative/brief-from-campaign";
+import { useOpenContentWork } from "@/hooks/use-open-content";
 import {
   agendaDays,
   campaignNameOf,
@@ -20,10 +20,10 @@ import {
   type CalendarView,
   weekGrid,
 } from "@/lib/creative/calendar";
+import { contentOpenLabel, contentOpenPlan } from "@/lib/creative/open-content";
 import type { ContentItem } from "@/lib/creative/types";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
-import { useUi } from "@/stores/ui-store";
 
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 
@@ -32,7 +32,7 @@ export function ContentCalendar() {
   const contentItems = useCreative((state) => state.contentItems);
   const rescheduleContent = useCreative((state) => state.rescheduleContent);
   const generateRhythm = useCreative((state) => state.generateRhythm);
-  const startCreative = useUi((state) => state.startCreative);
+  const { openWork } = useOpenContentWork();
   const [anchor, setAnchor] = useState(() => startOfToday());
   const [view, setView] = useState<CalendarView>("month");
   const [mobileView, setMobileView] = useState<Extract<CalendarView, "agenda" | "week">>("agenda");
@@ -72,12 +72,6 @@ export function ContentCalendar() {
     if (!item) return;
     rescheduleContent(contentId, movePlannedAt(item.plannedAt, day));
     toast.success("已改期，不會自動發布");
-  }
-
-  function createFrom(item: ContentItem) {
-    const campaign = campaigns.find((row) => row.id === item.campaignId);
-    if (!campaign) return;
-    startCreative(campaignToBrief(campaign, item), item.id);
   }
 
   return (
@@ -182,7 +176,7 @@ export function ContentCalendar() {
                         key={item.id}
                         item={item}
                         campaignName={campaignNameOf(campaigns, item.campaignId)}
-                        onCreate={() => createFrom(item)}
+                        onOpen={(prefer) => openWork(item, prefer)}
                         onMove={(next) => dropOnDay(next, item.id)}
                       />
                     ))}
@@ -204,7 +198,7 @@ export function ContentCalendar() {
                       key={item.id}
                       item={item}
                       campaignName={campaignNameOf(campaigns, item.campaignId)}
-                      onCreate={() => createFrom(item)}
+                      onOpen={(prefer) => openWork(item, prefer)}
                       onMove={(next) => dropOnDay(next, item.id)}
                     />
                   ))}
@@ -230,7 +224,7 @@ export function ContentCalendar() {
                     key={item.id}
                     item={item}
                     campaignName={campaignNameOf(campaigns, item.campaignId)}
-                    onCreate={() => createFrom(item)}
+                    onOpen={(prefer) => openWork(item, prefer)}
                     onMove={(next) => dropOnDay(next, item.id)}
                   />
                 ))}
@@ -272,7 +266,7 @@ export function ContentCalendar() {
                         draggable
                         data-testid="calendar-item"
                         onDragStart={(event) => event.dataTransfer.setData("text/zen-content", item.id)}
-                        onClick={() => createFrom(item)}
+                        onClick={() => openWork(item)}
                         className="w-full rounded-lg bg-accent/10 px-1.5 py-1 text-left"
                       >
                         <span className="block truncate text-xs font-medium">{item.title}</span>
@@ -318,28 +312,30 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 function AgendaRow({
   item,
   campaignName,
-  onCreate,
+  onOpen,
   onMove,
 }: {
   item: ContentItem;
   campaignName: string;
-  onCreate: () => void;
+  onOpen: (prefer?: "studio" | "copy" | "preview") => void;
   onMove: (day: string) => void;
 }) {
+  const plan = contentOpenPlan(item);
   return (
     <div className="flex min-w-0 flex-col gap-3 rounded-xl bg-bg p-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
+      <button type="button" className="min-w-0 text-left" data-testid="calendar-open-work" onClick={() => onOpen()}>
         <div className="flex flex-wrap items-center gap-2">
           <Badge>{item.type}</Badge>
           <span className="text-xs text-muted">{campaignName}</span>
         </div>
         <p className="mt-1 font-medium">{item.title}</p>
         <p className="mt-1 text-xs text-muted">{item.angle}</p>
-      </div>
+      </button>
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <input
           type="date"
           data-testid="calendar-reschedule"
+          aria-label={`${item.title} 改期`}
           value={isoDay(item.plannedAt)}
           onChange={(event) => {
             if (!event.target.value) return;
@@ -347,13 +343,17 @@ function AgendaRow({
           }}
           className="h-11 min-h-11 w-full min-w-0 max-w-full rounded-md border border-border bg-surface px-3 text-sm sm:w-auto"
         />
-        <Button size="sm" className="min-h-11" onClick={onCreate}>
-          <Sparkles className="size-4" />
-          AI 創作
+        <Button size="sm" className="min-h-11" data-testid="calendar-open-primary" onClick={() => onOpen()}>
+          {contentOpenLabel(plan)}
         </Button>
-        {item.projectId ? (
-          <Button size="sm" className="min-h-11" variant="secondary" asChild>
-            <Link to="/instagram" hash="preview">IG 預覽</Link>
+        {plan.hasWork && plan.kind === "studio" ? (
+          <Button size="sm" className="min-h-11" variant="secondary" onClick={() => onOpen("copy")}>
+            文案
+          </Button>
+        ) : null}
+        {plan.hasWork ? (
+          <Button size="sm" className="min-h-11" variant="secondary" onClick={() => onOpen("preview")}>
+            IG 預覽
           </Button>
         ) : null}
         {(item.status === "complete" || item.status === "published" || item.status === "scheduled") ? (

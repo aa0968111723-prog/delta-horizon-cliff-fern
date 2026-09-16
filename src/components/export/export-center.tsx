@@ -52,14 +52,14 @@ export function ExportCenter() {
   }, [artboard, brand]);
   const urls = useAssetUrls(assetIds);
 
-  if (!hydrated) return <LoadingState label="讀取作品…" />;
+  if (!hydrated) return <LoadingState label="讀取網宣…" />;
 
   if (!project || !brand) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-16">
         <EmptyState
           icon={Images}
-          title="還沒有可輸出的作品"
+          title="還沒有可輸出的網宣"
           description="先完成一則網宣，再回來檢查與下載。"
           action={
             <Button asChild>

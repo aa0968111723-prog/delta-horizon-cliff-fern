@@ -213,7 +213,7 @@ export function HomePage() {
           <div className="flex items-end justify-between gap-3">
             <div>
             <p className="text-xs text-muted">最近網宣</p>
-            <h2 className="mt-1 font-display text-xl">最近作品</h2>
+            <h2 className="mt-1 font-display text-xl">最近網宣</h2>
             </div>
             <Button
               variant="ghost"

@@ -2,10 +2,10 @@ import { toast } from "sonner";
 import { CaptionMeter } from "@/components/assistant/caption-meter";
 import { Badge } from "@/components/ui/badge";
 import {
-  convertCopyForSurface,
-  copyPatchForSurface,
   IG_SURFACES,
+  livePreviewCopy,
   reviewIgSurface,
+  surfaceConversionPatch,
   type IgSurface,
 } from "@/lib/studio/ig-surfaces";
 import { pagesOf } from "@/lib/studio/layers";
@@ -29,7 +29,8 @@ export function IgSurfaceConvert({
 
   function apply(surface: IgSurface) {
     if (!project) return;
-    const converted = convertCopyForSurface(pack, surface, project.copy.caption, project.copy.hashtags);
+    const patch = surfaceConversionPatch(project, surface);
+    const converted = patch.converted;
     const pageCount = surface === "carousel" ? pagesOf(project).length : converted.overlay.length;
     const review = reviewIgSurface(surface, converted, {
       schedule: project.brief.schedule,
@@ -37,17 +38,9 @@ export function IgSurfaceConvert({
       registrationUrl: project.brief.notes.match(/https?:\/\/\S+/)?.[0],
       pageCount,
     });
-    adaptToFormat(project.id, converted.formatId);
-    setCopy(project.id, copyPatchForSurface(converted, project.copy));
-    if (project.plan) {
-      patchPlan(project.id, {
-        captions: [
-          { style: surface === "feed" ? "學生版" : surface, text: converted.caption },
-          ...(project.plan.captions ?? []).slice(0, 3),
-        ],
-        hashtags: converted.hashtags,
-      });
-    }
+    adaptToFormat(project.id, patch.formatId);
+    setCopy(project.id, patch.copy);
+    if (patch.planPatch) patchPlan(project.id, patch.planPatch);
     const failed = review.filter((item) => !item.pass);
     toast.success(
       failed.length
@@ -99,12 +92,7 @@ function SurfaceReview({ projectId }: { projectId: string }) {
       : pageCount > 1
         ? "carousel"
         : "feed";
-  const converted = convertCopyForSurface(
-    project.plan?.copyPack,
-    surface,
-    project.copy.caption,
-    project.copy.hashtags,
-  );
+  const converted = livePreviewCopy(project, surface, pageCount);
   const review = reviewIgSurface(surface, converted, {
     schedule: project.brief.schedule,
     location: project.brief.location,

@@ -32,9 +32,15 @@ export function firstCaptionLine(text: string) {
   return (text ?? "").split(/\n/)[0]?.trim() ?? "";
 }
 
-export function formatIdForSurface(surface: IgSurface): FormatId {
+export function formatIdForSurface(surface: IgSurface, current?: FormatId): FormatId {
   if (surface === "story") return "story";
   if (surface === "reels") return "reels-cover";
+  if (
+    (surface === "feed" || surface === "carousel")
+    && (current === "feed-square" || current === "feed-landscape" || current === "feed-portrait")
+  ) {
+    return current;
+  }
   return "feed-portrait";
 }
 
@@ -89,18 +95,27 @@ function studentVariant(pack?: CopyPack | null): CopyVariant | undefined {
   return pack?.variants.find((item) => item.tone === "學生版") ?? pack?.variants[0];
 }
 
+export function composeCaption(caption: string, hashtags: string[] = []) {
+  const body = (caption ?? "").trim();
+  const tags = hashtags.map((tag) => tag.trim()).filter(Boolean);
+  if (!tags.length) return body;
+  if (tags.every((tag) => body.includes(tag))) return body;
+  return [body, tags.join(" ")].filter(Boolean).join("\n\n");
+}
+
 export function convertCopyForSurface(
   pack: CopyPack | null | undefined,
   surface: IgSurface,
   fallbackCaption = "",
   fallbackHashtags: string[] = [],
+  currentFormat?: FormatId,
 ): SurfaceCopy {
   const variant = studentVariant(pack);
   const hashtags = variant?.hashtags?.length ? variant.hashtags : fallbackHashtags;
   const feedCaption = variant
     ? [variant.body, variant.cta, hashtags.join(" ")].filter(Boolean).join("\n\n")
-    : [fallbackCaption, fallbackHashtags.join(" ")].filter(Boolean).join("\n\n");
-  const formatId = formatIdForSurface(surface);
+    : composeCaption(fallbackCaption, fallbackHashtags);
+  const formatId = formatIdForSurface(surface, currentFormat);
 
   if (surface === "story") {
     const overlay = (pack?.storyFrames?.length ? pack.storyFrames : [variant?.hook, variant?.cta].filter(Boolean) as string[])
@@ -383,4 +398,76 @@ export function projectImageNote(project: Project) {
   return imageNoteFromPlan(project.plan, project.slideIndex ?? 0)
     || project.copy.altText
     || "還沒有畫面備註。進 Studio 看主視覺再補一句拍攝／排版提醒。";
+}
+
+function overlayFromPlan(project: Project, surface: IgSurface): string[] {
+  const pack = project.plan?.copyPack;
+  if (surface === "story") {
+    if (pack?.storyFrames?.length) return pack.storyFrames.map((frame) => frame.trim()).filter(Boolean);
+    return (project.plan?.storyBeats ?? []).map((beat) => beat.trim()).filter(Boolean);
+  }
+  if (surface === "reels") {
+    return (pack?.reelsScript ?? []).map((beat) => beat.subtitle.trim()).filter(Boolean);
+  }
+  if (surface === "carousel") {
+    if (pack?.carouselPages?.length) return pack.carouselPages.map((page) => page.trim()).filter(Boolean);
+    return (project.plan?.carouselPages ?? []).map((page) => page.headline.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+export function livePreviewCopy(project: Project, surface: IgSurface, _pageCount = 1): SurfaceCopy {
+  const converted = convertCopyForSurface(
+    project.plan?.copyPack,
+    surface,
+    project.copy.caption,
+    project.copy.hashtags,
+    project.activeFormatId,
+  );
+  const planOverlay = overlayFromPlan(project, surface);
+  const overlay = converted.overlay.length ? converted.overlay : planOverlay;
+  const liveHashtags = project.copy.hashtags.length ? project.copy.hashtags : converted.hashtags;
+  const onFeedCanvas =
+    project.activeFormatId === "feed-square"
+    || project.activeFormatId === "feed-portrait"
+    || project.activeFormatId === "feed-landscape";
+  const onThisCanvas =
+    (surface === "story" && project.activeFormatId === "story")
+    || (surface === "reels" && project.activeFormatId === "reels-cover")
+    || ((surface === "feed" || surface === "carousel") && onFeedCanvas);
+  if (onThisCanvas && project.copy.caption.trim()) {
+    return {
+      ...converted,
+      overlay,
+      caption: composeCaption(project.copy.caption, liveHashtags),
+      hashtags: liveHashtags,
+    };
+  }
+  if (overlay.length && (surface === "story" || converted.overlay.length === 0)) {
+    return {
+      ...converted,
+      overlay,
+      caption: surface === "story" ? overlay.join("\n") : converted.caption,
+      hashtags: liveHashtags,
+    };
+  }
+  return { ...converted, overlay, hashtags: converted.hashtags.length ? converted.hashtags : liveHashtags };
+}
+
+export function surfaceConversionPatch(project: Project, surface: IgSurface) {
+  const converted = livePreviewCopy(project, surface);
+  return {
+    converted,
+    formatId: converted.formatId,
+    copy: copyPatchForSurface(converted, project.copy),
+    planPatch: project.plan
+      ? {
+          captions: [
+            { style: surface === "feed" ? "學生版" : surface, text: converted.caption },
+            ...(project.plan.captions ?? []).slice(0, 3),
+          ],
+          hashtags: converted.hashtags,
+        }
+      : null,
+  };
 }

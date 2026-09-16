@@ -114,6 +114,7 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
 
   useEffect(() => {
     if (useUi.getState().creativePreset) return;
+    if (projectId) return;
     if (brief.eventName.trim() || brief.product.trim()) return;
     const campaign = campaigns.find((item) => item.id === activeCampaignId) ?? campaigns[0];
     if (!campaign) return;
@@ -125,6 +126,19 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
     // Only fill an empty form once — do not overwrite a student who clears the name.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (useUi.getState().creativePreset) return;
+    if (!projectId) return;
+    const project = useStudio.getState().projects.find((item) => item.id === projectId);
+    if (!project) return;
+    setTargetId(project.id);
+    setDoneId(project.plan ? project.id : null);
+    setBrief(migrateBrief(project.brief));
+    setBrandId(project.brandId);
+    setFormatId(project.activeFormatId);
+    setName(project.name);
+  }, [projectId]);
 
   function patchBrief(patch: Partial<Brief>) {
     setBrief((b) => ({ ...b, ...patch, deliverables: patch.deliverables ?? b.deliverables }));

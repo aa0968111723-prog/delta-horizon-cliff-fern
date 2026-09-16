@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CanvaCard } from "@/components/connections/canva-card";
 import { InstagramCard } from "@/components/connections/instagram-card";
+import { EnvironmentCard } from "@/components/connections/environment-card";
 import { ConnectionBadge, ConnectionMessage } from "@/components/connections/connection-status";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { PageHeader } from "@/components/shared/page-header";
@@ -154,6 +155,8 @@ export function ConnectionCenter() {
         description="從已授權的 Google Drive、Canva、Instagram 找回歷屆企劃與畫面。憑證只留在伺服器，不會進入前端、瀏覽器儲存或 repository。"
         actions={<BrandSubnav current="connections" />}
       />
+
+      <EnvironmentCard />
 
       <section className="mt-6 overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-border)]">
         <div className="flex flex-col gap-4 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between md:p-6">

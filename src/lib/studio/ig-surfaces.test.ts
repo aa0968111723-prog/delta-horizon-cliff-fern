@@ -5,11 +5,13 @@ import {
   captionMeter,
   convertCopyForSurface,
   formatIdForSurface,
+  livePreviewCopy,
   reviewIgSurface,
   reviewStudentCaption,
   copyPatchForSurface,
   scheduleReminder,
 } from "./ig-surfaces.ts";
+import type { Project } from "./types.ts";
 
 const pack = buildMockCopyPack({
   campaignName: "期中喘口氣茶會",
@@ -30,6 +32,63 @@ test("Feed / Story / Reels / Carousel map to the right Studio size", () => {
   assert.equal(formatIdForSurface("carousel"), "feed-portrait");
   assert.equal(formatIdForSurface("story"), "story");
   assert.equal(formatIdForSurface("reels"), "reels-cover");
+});
+
+test("Feed keeps a square canvas if that is the current Studio size", () => {
+  assert.equal(formatIdForSurface("feed", "feed-square"), "feed-square");
+  assert.equal(formatIdForSurface("story", "feed-square"), "story");
+});
+
+function previewProject(patch: Partial<Project> = {}): Project {
+  return {
+    id: "proj_preview",
+    name: "浮游禪光",
+    createdAt: 1,
+    updatedAt: 1,
+    brandId: "brand",
+    templateId: "editorial",
+    activeFormatId: "feed-portrait",
+    status: "complete",
+    brief: { schedule: "09/24 19:00", location: "淡江大學校園" },
+    copy: {
+      eyebrow: "",
+      headline: "最近是不是很久沒有好好坐下來？",
+      subhead: "",
+      body: "",
+      cta: "保留這個晚上",
+      handle: "@tku_zen",
+      caption: "這是我剛改的貼文\n\n時間｜09/24 19:00",
+      hashtags: ["#淡江禪學社", "#淡江生活"],
+      altText: "",
+    },
+    plan: {
+      campaignName: "浮游禪光",
+      storyBeats: ["最近連休息都在想下一件事嗎？", "今晚不用懂禪，只要來坐坐", "09/24 19:00・找朋友一起來"],
+      carouselPages: [],
+      captions: [],
+      hashtags: ["#淡江禪學社"],
+    },
+    artboards: {},
+    slides: {},
+    slideIndex: 0,
+    snapshots: [],
+    planVersions: [],
+    exports: [],
+    ...patch,
+  } as Project;
+}
+
+test("live preview prefers the caption they actually wrote, not a disconnected pack", () => {
+  const preview = livePreviewCopy(previewProject(), "feed", 1);
+  assert.match(preview.caption, /這是我剛改的貼文/);
+  assert.ok(preview.hashtags.includes("#淡江禪學社"));
+  assert.doesNotMatch(preview.caption, /讚數|觀看次數|Insights/);
+});
+
+test("story preview uses campaign story beats when there is no copy pack", () => {
+  const preview = livePreviewCopy(previewProject({ activeFormatId: "story" }), "story", 1);
+  assert.ok(preview.overlay.length >= 3);
+  assert.ok(preview.overlay.every((frame) => !/Insights|觀看次數|讚數/.test(frame)));
 });
 
 test("surface conversion keeps a student caption and does not invent Insights", () => {

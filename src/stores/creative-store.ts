@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { buildCampaignRhythm } from "@/lib/creative/rhythm";
+import { SEED_PROJECT_ID } from "@/lib/studio/seed-zen";
 import type {
   Campaign,
   CampaignInput,
@@ -50,9 +51,22 @@ function uid(prefix: string) {
   return `${prefix}_${crypto.randomUUID()}`;
 }
 
-const seedItems = buildCampaignRhythm(
-  SEED_CAMPAIGN,
-  new Date("2026-09-16T00:00:00+08:00"),
+function linkSeedWork(items: ContentItem[]): ContentItem[] {
+  return items.map((item) => {
+    if (item.campaignId !== SEED_CAMPAIGN.id || item.projectId) return item;
+    return {
+      ...item,
+      projectId: SEED_PROJECT_ID,
+      status: item.status === "idea" ? "creating" : item.status,
+    };
+  });
+}
+
+const seedItems = linkSeedWork(
+  buildCampaignRhythm(
+    SEED_CAMPAIGN,
+    new Date("2026-09-16T00:00:00+08:00"),
+  ),
 );
 
 export const useCreative = create<CreativeState>()(
@@ -157,7 +171,7 @@ export const useCreative = create<CreativeState>()(
     }),
     {
       name: "zen-creative-brain-v1",
-      version: 5,
+      version: 6,
       skipHydration: true,
       migrate: (persisted) => {
         const state = persisted as {
@@ -167,9 +181,11 @@ export const useCreative = create<CreativeState>()(
           activeCampaignId?: string;
         };
         const campaigns = state.campaigns?.length ? state.campaigns : [SEED_CAMPAIGN];
-        const contentItems = state.contentItems?.length
-          ? state.contentItems
-          : campaigns.flatMap((campaign) => buildCampaignRhythm(campaign));
+        const contentItems = linkSeedWork(
+          state.contentItems?.length
+            ? state.contentItems
+            : campaigns.flatMap((campaign) => buildCampaignRhythm(campaign)),
+        );
         return {
           campaigns,
           contentItems,
@@ -190,7 +206,7 @@ export const useCreative = create<CreativeState>()(
         if (!state?.campaigns.length) return;
         if (state.contentItems.length) return;
         useCreative.setState({
-          contentItems: state.campaigns.flatMap((campaign) => buildCampaignRhythm(campaign)),
+          contentItems: linkSeedWork(state.campaigns.flatMap((campaign) => buildCampaignRhythm(campaign))),
         });
       },
     },

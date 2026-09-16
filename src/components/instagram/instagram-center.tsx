@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { IgPreview } from "@/components/instagram/ig-preview";
 import { ReelsStudio } from "@/components/instagram/reels-studio";
+import type { IgSurface } from "@/lib/studio/ig-surfaces";
 import { OutcomeJournal } from "@/components/learning/outcome-journal";
 import { CreationLoop } from "@/components/shared/creation-loop";
 import { PageHeader } from "@/components/shared/page-header";
@@ -20,7 +21,13 @@ import { emptyBrandMemory } from "@/lib/studio/brand";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useStudio } from "@/stores/studio-store";
 
-export function InstagramCenter() {
+export function InstagramCenter({
+  projectId,
+  surface,
+}: {
+  projectId?: string;
+  surface?: IgSurface;
+}) {
   const items = useConnectionStore((state) => state.instagramItems);
   const syncItems = useConnectionStore((state) => state.syncInstagramItems);
   const username = useConnectionStore((state) => state.instagramUsername);
@@ -113,12 +120,12 @@ export function InstagramCenter() {
         }}
         className="mt-6"
       >
-        <TabsList className="h-auto min-h-11 w-full flex-wrap justify-start">
-          <TabsTrigger value="memory" className="min-h-11">內容記憶</TabsTrigger>
-          <TabsTrigger value="preview" className="min-h-11">IG 預覽</TabsTrigger>
-          <TabsTrigger value="reels" className="min-h-11">Reels</TabsTrigger>
-          <TabsTrigger value="learn" className="min-h-11">現場筆記</TabsTrigger>
-          <TabsTrigger value="insights" className="min-h-11">Insights</TabsTrigger>
+        <TabsList className="h-auto min-h-11 w-full justify-start overflow-x-auto">
+          <TabsTrigger value="memory" className="min-h-11 shrink-0">內容記憶</TabsTrigger>
+          <TabsTrigger value="preview" className="min-h-11 shrink-0">IG 預覽</TabsTrigger>
+          <TabsTrigger value="reels" className="min-h-11 shrink-0">Reels</TabsTrigger>
+          <TabsTrigger value="learn" className="min-h-11 shrink-0">現場筆記</TabsTrigger>
+          <TabsTrigger value="insights" className="min-h-11 shrink-0">Insights</TabsTrigger>
         </TabsList>
 
         <TabsContent value="memory" className="mt-5">
@@ -174,7 +181,7 @@ export function InstagramCenter() {
         </TabsContent>
 
         <TabsContent value="preview" className="mt-5">
-          <IgPreview projectId={lastProjectId ?? undefined} />
+          <IgPreview projectId={projectId ?? lastProjectId ?? undefined} surface={surface} />
         </TabsContent>
 
         <TabsContent value="reels" className="mt-5">

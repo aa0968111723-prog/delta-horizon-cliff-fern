@@ -102,6 +102,16 @@ export function CopyStudio({ projectId }: { projectId: string }) {
       }
       setLiveFailed(false);
       patchPlan(projectId, { copyPack: result.pack });
+      const student = result.pack.variants.find((item) => item.tone === "學生版") ?? result.pack.variants[0];
+      if (student) {
+        setCopy(projectId, {
+          headline: student.hook,
+          body: student.body,
+          cta: student.cta,
+          caption: `${student.body}\n\n${student.cta}\n\n${student.hashtags.join(" ")}`,
+          hashtags: student.hashtags,
+        });
+      }
       setActiveTone("學生版");
       toast.success(result.pack.source === "live" ? "文案包已生成" : "本機文案草案已生成，不是 Grok 寫的");
     } catch (error) {
@@ -128,6 +138,13 @@ export function CopyStudio({ projectId }: { projectId: string }) {
           .slice(0, 3)
           .map((item) => ({ style: item.tone, text: item.body })),
       ],
+    });
+    setCopy(projectId, {
+      headline: variant.hook,
+      body: variant.body,
+      cta: variant.cta,
+      caption: `${variant.body}\n\n${variant.cta}\n\n${variant.hashtags.join(" ")}`,
+      hashtags: variant.hashtags,
     });
     setActiveTone(tone);
     toast.success(`已套用${tone}`);

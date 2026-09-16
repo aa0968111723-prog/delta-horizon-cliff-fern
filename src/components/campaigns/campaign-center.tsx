@@ -25,8 +25,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useOpenContentWork } from "@/hooks/use-open-content";
 import { campaignToBrief } from "@/lib/creative/brief-from-campaign";
 import { isoDay, movePlannedAt } from "@/lib/creative/calendar";
+import { contentOpenLabel, contentOpenPlan } from "@/lib/creative/open-content";
 import type {
   Campaign,
   ContentItem,
@@ -56,6 +58,7 @@ export function CampaignCenter() {
   const rescheduleContent = useCreative((state) => state.rescheduleContent);
   const setProjectStatus = useStudio((state) => state.setProjectStatus);
   const startCreative = useUi((state) => state.startCreative);
+  const { openWork } = useOpenContentWork();
   const setActiveCampaignId = useCreative((state) => state.setActiveCampaignId);
   const [selectedId, setSelectedId] = useState(campaigns[0]?.id ?? "");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -76,13 +79,6 @@ export function CampaignCenter() {
 
   function campaignBrief(target: Campaign, item?: ContentItem) {
     return campaignToBrief(target, item);
-  }
-
-  function createContent(item: ContentItem) {
-    if (!campaign) return;
-    setContentStatus(item.id, "creating");
-    if (item.projectId) setProjectStatus(item.projectId, "creating");
-    startCreative(campaignBrief(campaign, item), item.id);
   }
 
   if (!campaign) {
@@ -212,6 +208,7 @@ export function CampaignCenter() {
         <ol className="mt-4 space-y-3">
           {items.map((item, index) => {
             const meta = STATUS[item.status];
+            const plan = contentOpenPlan(item);
             return (
               <li key={item.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] sm:p-5">
                 <div className="grid gap-4 sm:grid-cols-[minmax(0,8.5rem)_1fr_auto] sm:items-center">
@@ -241,7 +238,11 @@ export function CampaignCenter() {
                       <Badge>{item.type}</Badge>
                       <Badge variant={meta.tone}>{meta.label}</Badge>
                     </div>
-                    <h3 className="mt-2 font-medium">{item.title}</h3>
+                    <h3 className="mt-2 font-medium">
+                      <button type="button" className="text-left" data-testid="campaign-open-work" onClick={() => openWork(item)}>
+                        {item.title}
+                      </button>
+                    </h3>
                     <p className="mt-1 text-sm leading-6 text-muted">{item.angle}</p>
                   </div>
                   <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
@@ -260,14 +261,18 @@ export function CampaignCenter() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button size="sm" className="min-h-11" onClick={() => createContent(item)}>
-                      <Sparkles className="size-4" />
-                      AI 創作
+                    <Button size="sm" className="min-h-11" onClick={() => openWork(item)}>
+                      {contentOpenLabel(plan)}
                     </Button>
-                    {item.projectId ? (
+                    {plan.hasWork && plan.kind === "studio" ? (
+                      <Button size="sm" className="min-h-11" variant="secondary" onClick={() => openWork(item, "copy")}>
+                        文案
+                      </Button>
+                    ) : null}
+                    {plan.hasWork ? (
                       <>
-                        <Button size="sm" className="min-h-11" variant="secondary" asChild>
-                          <Link to="/instagram" hash="preview">IG 預覽</Link>
+                        <Button size="sm" className="min-h-11" variant="secondary" onClick={() => openWork(item, "preview")}>
+                          IG 預覽
                         </Button>
                         <Button size="sm" className="min-h-11" variant="ghost" asChild>
                           <Link to="/export">匯出</Link>
