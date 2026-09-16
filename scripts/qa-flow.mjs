@@ -94,9 +94,8 @@ try {
     el instanceof HTMLElement ? el.click() : undefined,
   );
   await page.waitForURL(/\/studio\//, { timeout: 15000 });
-  await page.waitForLoadState("networkidle");
-  const linePage = await text();
-  record("LINE 橫式", linePage.includes("1.91:1") || linePage.includes("LINE"), "轉換 LINE 後不是橫式");
+  await page.waitForSelector("text=1.91:1", { timeout: 15000 });
+  await expectText("LINE 橫式", "1.91:1");
   await page.screenshot({ path: `${prefix}-line.png` });
   await page.goBack({ waitUntil: "networkidle" });
   await page.waitForSelector("text=這則完成了", { timeout: 15000 });

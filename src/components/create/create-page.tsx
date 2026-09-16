@@ -46,6 +46,7 @@ import {
   visualIntent,
   wantsArrivalAutofill,
 } from "@/lib/studio/wave-draft";
+import { uniqueById } from "@/lib/studio/ids";
 import type { ContentKind, CopyDraft, CopyTone, StudentReview } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { AUDIENCE_SEGMENTS, DEFAULT_AUDIENCE_IDS } from "@/lib/zen/audience";
@@ -141,7 +142,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const [reels, setReelsLocal] = useState(linkedProject?.reels ?? null);
   const [reelsAdapter, setReelsAdapter] = useState<"live" | "local" | "mock" | undefined>(linkedProject?.reels?.source);
   const [copyBusy, setCopyBusy] = useState(false);
-  const [drafts, setDrafts] = useState<CopyDraft[]>(linkedProject?.copyDrafts ?? []);
+  const [drafts, setDrafts] = useState<CopyDraft[]>(() => uniqueById(linkedProject?.copyDrafts ?? []));
   const [usedDraftId, setUsedDraftId] = useState<string | null>(null);
   const [review, setReview] = useState<StudentReview | null>(linkedProject?.studentReview ?? null);
   const [reviewBusy, setReviewBusy] = useState(false);
@@ -235,7 +236,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           tones,
         },
       });
-      setDrafts(res.drafts);
+      setDrafts(uniqueById(res.drafts));
       if (!res.ok) toast.warning(res.error);
       else if (res.adapter === "local") toast.info("目前是本機草稿，可以直接編輯。");
       const first = res.drafts[0];
@@ -591,7 +592,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           tones,
         },
       });
-      setDrafts(res.drafts);
+      setDrafts(uniqueById(res.drafts));
       if (!res.ok) toast.warning(res.error);
       else if (res.adapter === "local") toast.info("目前是本機草稿，可以直接編輯。");
       resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -958,7 +959,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
             }
           />
           <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {drafts.map((draft) => (
+            {uniqueById(drafts).map((draft) => (
               <li key={draft.id}>
                 <CopyDraftCard
                   draft={draft}

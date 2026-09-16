@@ -19,7 +19,7 @@ import { sourceFromAsset } from "@/lib/studio/sources";
 import { emptyCopy, withBoilerplate } from "@/lib/studio/copy";
 import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
-import { uid } from "@/lib/studio/ids";
+import { uid, uniqueById } from "@/lib/studio/ids";
 import { applyCopyToArtboard, buildLayout, extractImageAssetId } from "@/lib/studio/layout";
 import { inspectProject } from "@/lib/studio/quality";
 import { CONTENT_KIND_META, inferContentKind, migrateStatus } from "@/lib/studio/status";
@@ -555,7 +555,7 @@ export const useStudio = create<StudioState>()(
       addCopyDraft: (projectId, draft) =>
         get().updateProject(projectId, (p) => ({
           ...p,
-          copyDrafts: [draft, ...p.copyDrafts].slice(0, 12),
+          copyDrafts: uniqueById([draft, ...p.copyDrafts]).slice(0, 12),
         })),
       useCopyDraft: (projectId, draftId) => {
         const project = get().projects.find((p) => p.id === projectId);
