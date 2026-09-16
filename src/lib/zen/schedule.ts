@@ -3,6 +3,7 @@ import { uid } from "../studio/ids.ts";
 import type { ContentKind, ProjectStatus } from "../studio/types.ts";
 import { convertFromPlan } from "./convert.ts";
 import { applyStudentRewrite } from "./review.ts";
+import { daysUntil } from "./season.ts";
 import type { ClubCampaign, CampaignType, CampaignWave, CreativePack, ScheduleItem, WaveKind } from "./types.ts";
 
 const DEFAULT_OFFSETS: Record<WaveKind, number> = {
@@ -22,19 +23,45 @@ function atDate(iso: string, offsetDays: number, hour: number) {
   return dt.getTime();
 }
 
+export function waveOffsets(input: { date: string; type: CampaignType; now?: Date }): Record<WaveKind, number> {
+  const days = daysUntil(input.date, input.now);
+  const base = { ...DEFAULT_OFFSETS };
+  if (input.type === "recruit") {
+    base.tease = -18;
+    base.emotion = -14;
+    base["key-visual"] = -10;
+  }
+  if (days < 6) {
+    return {
+      tease: -4,
+      emotion: -3,
+      "key-visual": -3,
+      info: -2,
+      reason: -2,
+      countdown: -1,
+      "day-of": 0,
+      recap: 1,
+    };
+  }
+  if (days < 10 || (input.type !== "tea" && input.type !== "light" && input.type !== "recruit")) {
+    base.tease = -9;
+    base.emotion = -6;
+  }
+  return base;
+}
+
 export function suggestWaves(input: {
   date: string;
   type: CampaignType;
   name: string;
+  now?: Date;
 }): CampaignWave[] {
-  const span = input.type === "recruit" ? 18 : input.type === "light" || input.type === "tea" ? 14 : 10;
+  const offsets = waveOffsets({ date: input.date, type: input.type, now: input.now });
   const kinds: WaveKind[] = ["tease", "emotion", "key-visual", "info", "reason", "countdown", "day-of", "recap"];
   return kinds.map((kind) => {
-    let offset = DEFAULT_OFFSETS[kind];
-    if (span < 12 && kind === "tease") offset = -9;
-    if (span < 12 && kind === "emotion") offset = -6;
+    const offset = offsets[kind];
     const hour = kind === "day-of" ? 17 : kind === "recap" ? 21 : 20;
-    const status: ProjectStatus = offset > 0 ? "idea" : "idea";
+    const status: ProjectStatus = "idea";
     return {
       id: uid("wave"),
       kind,
@@ -93,7 +120,9 @@ export function nextWaveVisual(prompt: string, currentIndex = 0) {
 }
 
 export function copyKindForWave(kind: WaveKind) {
+  if (kind === "tease") return "knowledge" as const;
   if (kind === "emotion") return "emotion" as const;
+  if (kind === "reason") return "member" as const;
   if (kind === "countdown") return "countdown" as const;
   if (kind === "day-of") return "story" as const;
   if (kind === "recap") return "recap" as const;
@@ -102,6 +131,8 @@ export function copyKindForWave(kind: WaveKind) {
 }
 
 export function contentKindForWave(kind: WaveKind): ContentKind {
+  if (kind === "tease") return "knowledge";
+  if (kind === "reason") return "member-story";
   if (kind === "day-of") return "story";
   if (kind === "key-visual") return "carousel";
   if (kind === "recap") return "recap";

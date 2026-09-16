@@ -2,7 +2,7 @@ import { Lightbulb } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { abstractInspiration, INSPIRATION_SEEDS } from "@/lib/zen/inspiration";
+import { abstractInspiration, inspirationFeed } from "@/lib/zen/inspiration";
 import { useCreative } from "@/stores/creative-store";
 
 export function InspirePage() {
@@ -17,7 +17,7 @@ export function InspirePage() {
         description="研究大學生社群、校園活動、Carousel 與 Reels Cover。不抄作品，只抽象構圖、配色、排版、Hook，再轉成淡江禪學社。"
       />
       <ul className="mt-6 space-y-4">
-        {INSPIRATION_SEEDS.map((seed) => {
+        {inspirationFeed().map((seed) => {
           const abs = abstractInspiration(seed);
           return (
             <li key={seed.id} className="rounded-[1.5rem] bg-surface p-5 shadow-[var(--shadow-border)]">

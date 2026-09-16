@@ -1,3 +1,5 @@
+import { seasonContext, type SeasonBeat } from "./season.ts";
+
 export type InspirationSeed = {
   id: string;
   watch: string;
@@ -85,4 +87,105 @@ export function abstractInspiration(seed: InspirationSeed) {
     hook: seed.hookShape,
     form: seed.form,
   };
+}
+
+const SEASON_BEATS: Record<
+  SeasonBeat,
+  { title: string; hook: string; visual: string; composition: string; palette: string; layout: string; hookShape: string; form: string }
+> = {
+  orientation: {
+    title: "開學季的第一個晚上",
+    hook: "剛到淡水的人，通常還沒找到可以坐下的地方。",
+    visual: "淡水斜坡黃昏、還沒拆完的行李、遠一點的燈",
+    composition: "人很小、路很長，封面只有生活句",
+    palette: "暮藍加一點暖窗光",
+    layout: "上半風景、下半短句，活動名不進封面",
+    hookShape: "講剛到淡水，不講社團章程",
+    form: "Carousel：生活 → 課表 → 找地方坐 → 茶會 → 時間地點",
+  },
+  settling: {
+    title: "課表開始固定之後",
+    hook: "最近是不是很久沒有好好坐下來？",
+    visual: "校園夜色、同學側臉、茶",
+    composition: "留白多、字少",
+    palette: "低飽和夜色",
+    layout: "一句 Hook 壓在最安靜的角落",
+    hookShape: "問句，像在講疲勞而不是活動",
+    form: "單張 IG + Story 三張",
+  },
+  midterm: {
+    title: "期中前後的出口",
+    hook: "最近是不是連休息都覺得有罪惡感？",
+    visual: "圖書館燈、宿舍桌、短的夜",
+    composition: "不要海報資訊牆",
+    palette: "冷一點的墨藍，暖燈只留一點",
+    layout: "極短字、大留白",
+    hookShape: "先承認累，再給一個晚上",
+    form: "Story 互動 + 短 Caption，不要連續招生",
+  },
+  "after-midterm": {
+    title: "學期過半還在的人",
+    hook: "有些人開始從社團消失，你還好嗎？",
+    visual: "熟面孔、茶、龜龜不要搶戲",
+    composition: "社員故事，不是招生海報",
+    palette: "木色與苔綠",
+    layout: "照片滿版，字很少",
+    hookShape: "對還在的人說話",
+    form: "社員故事 → 日常 → 下一次茶會",
+  },
+  finals: {
+    title: "撐完之前",
+    hook: "這個晚上不用產出任何東西。",
+    visual: "短、暗、具體的一盞燈",
+    composition: "一行字就能讀完",
+    palette: "深墨與一點暖光",
+    layout: "9:16，底部才放時間",
+    hookShape: "極短，不要詩意堆疊",
+    form: "Story 或 Reels Cover，15 秒內講完",
+  },
+  break: {
+    title: "人離開淡水之後",
+    hook: "你已經不在淡水了，可是晚上還是會想起那盞燈。",
+    visual: "河岸回顧、舊照片、預告",
+    composition: "回顧大於招生",
+    palette: "褪色的暖色",
+    layout: "舊照片 + 一句話",
+    hookShape: "想念，不是招新",
+    form: "回顧 Carousel → 下學期預告",
+  },
+  summer: {
+    title: "暑假還在的人",
+    hook: "淡水變空的時候，其實也還可以坐一下。",
+    visual: "河風、空一點的校園",
+    composition: "生活感，不要空教室海報",
+    palette: "午後熱、晚上涼",
+    layout: "風景大、字小",
+    hookShape: "給還在淡水的人",
+    form: "生活單張 + 預告下學期",
+  },
+};
+
+export function seasonInspiration(now = new Date()): InspirationSeed {
+  const season = seasonContext(now);
+  const beat = SEASON_BEATS[season.beat];
+  return {
+    id: `season-${season.beat}`,
+    watch: `${season.label} · 淡江學生現在`,
+    composition: beat.composition,
+    palette: beat.palette,
+    layout: beat.layout,
+    hookShape: beat.hookShape,
+    form: beat.form,
+    zenClub: {
+      title: beat.title,
+      hook: beat.hook,
+      visual: `${season.weather} ${beat.visual}`,
+      why: `${season.studentNow} ${season.contentHint}`,
+    },
+  };
+}
+
+export function inspirationFeed(now = new Date()): InspirationSeed[] {
+  const live = seasonInspiration(now);
+  return [live, ...INSPIRATION_SEEDS];
 }

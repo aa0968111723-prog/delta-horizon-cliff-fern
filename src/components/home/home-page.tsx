@@ -21,7 +21,7 @@ import { migrateBrief } from "@/lib/studio/brief";
 import { APP_NAME, APP_TAGLINE, CLUB_SHORT } from "@/lib/zen/club";
 import { igDnaBlock } from "@/lib/zen/insights";
 import { clientMemoryLines } from "@/lib/zen/ingest";
-import { INSPIRATION_SEEDS } from "@/lib/zen/inspiration";
+import { inspirationFeed } from "@/lib/zen/inspiration";
 import { applyPackToWaves } from "@/lib/zen/schedule";
 import { daysUntil, formatMd, seasonContext } from "@/lib/zen/season";
 import { creativeSearch, groupSearchHits, type SearchHit } from "@/lib/zen/search";
@@ -193,10 +193,17 @@ export function HomePage() {
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="搜尋茶會、龜龜、浮游禪光…"
+          placeholder="找以前晚上的茶會照片、龜龜、浮游禪光…"
           className="h-12 rounded-2xl pl-10"
         />
       </div>
+      {q.trim() ? (
+        <p className="mt-3 text-sm text-muted">
+          {hits.length > 0
+            ? `找到 ${hits.length} 個相關素材 · 依 Drive、Canva、IG、AI 生成分類`
+            : "本機還沒對上這句。試試「找以前晚上的茶會照片」或「找有龜龜的素材」。"}
+        </p>
+      ) : null}
       {hits.length > 0 ? (
         <div className="mt-3 space-y-4">
           {grouped.map((group) => (
@@ -232,7 +239,7 @@ export function HomePage() {
           </Button>
         </div>
         <ul className="grid gap-2 sm:grid-cols-2">
-          {INSPIRATION_SEEDS.slice(0, 2).map((seed) => (
+          {inspirationFeed().slice(0, 2).map((seed) => (
             <li key={seed.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
               <p className="text-xs text-muted">{seed.watch}</p>
               <p className="mt-2 text-sm font-medium">{seed.zenClub.hook}</p>

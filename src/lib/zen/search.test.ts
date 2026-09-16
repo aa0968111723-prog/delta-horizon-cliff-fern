@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { creativeSearch, expandCreativeQuery, groupSearchHits } from "./search.ts";
-import { applyPackToWaves, copyKindForWave, emptyCampaign, nextWaveAngle, nextWaveVisual, scheduleItemsFromCampaign, suggestWaves } from "./schedule.ts";
+import { SEED_MEMORY } from "./memory.ts";
+import { creativeSearch, expandCreativeQuery, groupSearchHits, searchTerms } from "./search.ts";
+import { applyPackToWaves, contentKindForWave, copyKindForWave, emptyCampaign, nextWaveAngle, nextWaveVisual, rhythmHint, scheduleItemsFromCampaign, suggestWaves, waveOffsets } from "./schedule.ts";
 import { canvaDraftNotes, canvaDraftTitle, canvaPresetForAspect, canvaPresetForKind } from "./canva-draft.ts";
 import { convertFromPlan, CONVERT_TARGETS, briefFlagsForTarget, captionForTarget } from "./convert.ts";
 import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
@@ -181,14 +182,87 @@ test("convert targets map six formats to canvas and calendar kinds", () => {
 });
 
 test("expandCreativeQuery adds tea night terms", () => {
-  const { expanded } = expandCreativeQuery("找以前晚上的茶會照片");
+  const { expanded, terms } = expandCreativeQuery("找以前晚上的茶會照片");
   assert.ok(expanded.includes("茶會"));
   assert.ok(expanded.includes("night"));
+  assert.ok(terms.includes("茶會"));
+  assert.ok(terms.includes("晚上"));
+  assert.equal(searchTerms("找有龜龜的素材").includes("龜龜"), true);
   const grouped = groupSearchHits([
     { id: "1", source: "drive", title: "a", subtitle: "", tags: [] },
     { id: "2", source: "canva", title: "b", subtitle: "", tags: [] },
   ]);
   assert.equal(grouped[0]?.source, "drive");
+});
+
+test("natural language search finds tea night and ranks turtle first", () => {
+  const input = {
+    assets: [
+      {
+        id: "asset_tea_night",
+        name: "夜晚茶會",
+        kind: "image" as const,
+        category: "photo",
+        mime: "image/svg+xml",
+        width: 1,
+        height: 1,
+        tags: ["茶會", "晚上", "同學互動"],
+        createdAt: 1,
+        updatedAt: 1,
+        source: "seed" as const,
+        licenseNotes: "",
+        licenseOwner: "",
+        favorite: false,
+        lastUsedAt: null,
+        useCount: 0,
+      },
+      {
+        id: "asset_turtle",
+        name: "龜龜",
+        kind: "image" as const,
+        category: "mascot",
+        mime: "image/svg+xml",
+        width: 1,
+        height: 1,
+        tags: ["龜龜", "吉祥物"],
+        createdAt: 1,
+        updatedAt: 1,
+        source: "seed" as const,
+        licenseNotes: "",
+        licenseOwner: "",
+        favorite: false,
+        lastUsedAt: null,
+        useCount: 0,
+      },
+      {
+        id: "asset_club_mark",
+        name: "禪學社標誌",
+        kind: "logo" as const,
+        category: "logo",
+        mime: "image/svg+xml",
+        width: 1,
+        height: 1,
+        tags: ["logo", "龜龜"],
+        createdAt: 1,
+        updatedAt: 1,
+        source: "seed" as const,
+        licenseNotes: "",
+        licenseOwner: "",
+        favorite: false,
+        lastUsedAt: null,
+        useCount: 0,
+      },
+    ],
+    campaigns: [],
+    igPosts: [],
+    memory: SEED_MEMORY,
+  };
+  const tea = creativeSearch("找以前晚上的茶會照片", input);
+  assert.ok(tea.some((hit) => hit.title.includes("茶會")));
+  assert.ok(tea[0]?.title.includes("茶") || (tea[0]?.tags ?? []).includes("茶會"));
+  const turtle = creativeSearch("找有龜龜的素材", input);
+  assert.ok(turtle[0]?.title.includes("龜龜"));
+  assert.ok(turtle.length >= 2);
 });
 
 test("ideaFromHit turns each source into a creation brief", () => {
@@ -247,8 +321,24 @@ test("scheduleItemsFromCampaign maps waves without owners", () => {
   assert.equal(items[0]?.status, "scheduled");
   assert.equal(items[0]?.captionPreview, "最近是不是很久沒坐好？");
   assert.equal(items.find((row) => row.title.startsWith("今晚"))?.contentKind, "story");
+  assert.equal(items.find((row) => row.title.startsWith("預告"))?.contentKind, "knowledge");
+  assert.equal(items.find((row) => row.title.startsWith("為什麼來"))?.contentKind, "member-story");
   assert.ok(items.every((row) => row.campaignId === "camp_x"));
   assert.ok(items.every((row) => !("assignee" in row) && !("reviewer" in row)));
+});
+
+test("waveOffsets compress when the event is soon and recruit starts earlier", () => {
+  const soon = waveOffsets({ date: "2026-09-24", type: "tea", now: new Date("2026-09-20T12:00:00+08:00") });
+  assert.equal(soon.tease, -4);
+  assert.equal(soon.recap, 1);
+  const recruit = waveOffsets({ date: "2026-10-20", type: "recruit", now: new Date("2026-09-16T12:00:00+08:00") });
+  assert.equal(recruit.tease, -18);
+  const light = waveOffsets({ date: "2026-10-20", type: "light", now: new Date("2026-09-16T12:00:00+08:00") });
+  assert.equal(light.tease, -14);
+  assert.equal(contentKindForWave("tease"), "knowledge");
+  assert.equal(contentKindForWave("reason"), "member-story");
+  assert.equal(contentKindForWave("day-of"), "story");
+  assert.match(rhythmHint([{ contentKind: "ig-post" }, { contentKind: "carousel" }, { contentKind: "ig-post" }]), /招生/);
 });
 
 test("applyStudentRewrite swaps the first sentence", () => {
@@ -357,6 +447,8 @@ test("copy kinds include Q&A poll and member stories", async () => {
   assert.ok(COPY_KIND_IDS.includes("member"));
   assert.equal(copyKindForWave("day-of"), "story");
   assert.equal(copyKindForWave("emotion"), "emotion");
+  assert.equal(copyKindForWave("tease"), "knowledge");
+  assert.equal(copyKindForWave("reason"), "member");
 });
 
 test("canva draft title includes hook and stays short", () => {

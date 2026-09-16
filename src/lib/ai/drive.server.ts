@@ -5,8 +5,9 @@ import { expandCreativeQuery } from "@/lib/zen/search";
 import type { DriveSearchResult } from "./drive";
 
 export async function executeDriveSearch(query: string, folderHint?: string): Promise<DriveSearchResult> {
-  const { expanded } = expandCreativeQuery(query);
-  const scoped = folderHint?.trim() ? `${folderHint.trim()} ${expanded}` : expanded;
+  const { original, terms } = expandCreativeQuery(query);
+  const keyword = terms.length ? terms.join(" ") : original;
+  const scoped = folderHint?.trim() ? `${folderHint.trim()} ${keyword}` : keyword;
   const { callTool } = await import("@/lib/app-data/client.server");
   const result = await callTool(
     GoogleDriveTools.search,
