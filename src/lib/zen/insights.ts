@@ -105,6 +105,33 @@ export function whyPostWorked(post: IgMemoryPost) {
   return bits.join(" · ");
 }
 
+export function analysisFromInsights(post: {
+  likes: number;
+  comments: number;
+  saves: number;
+  reach: number;
+  hook?: string;
+  caption: string;
+  mediaType: IgMemoryPost["mediaType"];
+}) {
+  const why = whyPostWorked({
+    id: "insight",
+    mediaType: post.mediaType,
+    caption: post.caption,
+    postedAt: 0,
+    assetId: "",
+    likes: post.likes,
+    comments: post.comments,
+    saves: post.saves,
+    reach: post.reach,
+    hook: post.hook,
+  });
+  if (post.reach <= 0 && post.saves <= 0) {
+    return `官方貼文已同步，Insights 還沒有觸及或收藏。${why}`;
+  }
+  return `官方 Insights：觸及 ${post.reach}、收藏 ${post.saves}、讚 ${post.likes}、留言 ${post.comments}。${why}`;
+}
+
 export function nextCreateHint(posts: IgMemoryPost[] = SEED_IG_POSTS, now = Date.now()) {
   const learned = learnFromPosts(posts);
   const recent = recentPostedNotes(posts, now);

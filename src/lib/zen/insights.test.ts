@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dnaPromptIdea, igDnaBlock, learnFromPosts, nextCreateHint, recentPostedNotes, scorePost, whyPostWorked } from "./insights.ts";
+import { analysisFromInsights, dnaPromptIdea, igDnaBlock, learnFromPosts, nextCreateHint, recentPostedNotes, scorePost, whyPostWorked } from "./insights.ts";
 import { SEED_IG_POSTS } from "./memory.ts";
 import { systemPrompt } from "./voice.ts";
 
@@ -105,4 +105,30 @@ test("nextCreateHint asks for event info after a studio-published life post", as
   const hint = nextCreateHint([post, ...SEED_IG_POSTS], now);
   assert.match(hint.line, /剛發過/);
   assert.match(hint.line, /活動內容或倒數/);
+});
+
+test("analysisFromInsights reports official numbers and does not invent reach", () => {
+  const empty = analysisFromInsights({
+    likes: 0,
+    comments: 0,
+    saves: 0,
+    reach: 0,
+    caption: "來坐一下，不用先懂禪。",
+    hook: "來坐一下，不用先懂禪。",
+    mediaType: "image",
+  });
+  assert.match(empty, /還沒有觸及或收藏/);
+  assert.doesNotMatch(empty, /觸及 0、收藏/);
+  const live = analysisFromInsights({
+    likes: 12,
+    comments: 3,
+    saves: 9,
+    reach: 400,
+    caption: "最近是不是連休息都覺得有罪惡感？",
+    hook: "最近是不是連休息都覺得有罪惡感？",
+    mediaType: "image",
+  });
+  assert.match(live, /觸及 400/);
+  assert.match(live, /收藏 9/);
+  assert.match(live, /問句 Hook/);
 });

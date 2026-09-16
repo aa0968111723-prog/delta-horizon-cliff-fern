@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/input";
 import { useAssetUrls, resolveAssetSrc } from "@/hooks/use-asset-urls";
 import { generateCopyPack } from "@/lib/ai/copy";
 import { syncInstagramMemory } from "@/lib/ai/oauth";
-import { ingestUrlToLibrary } from "@/lib/zen/ingest-client";
+import { ingestOfficialIgPosts } from "@/components/instagram/ingest-live";
 import { FORMATS } from "@/lib/studio/formats";
 import { pagesOf } from "@/lib/studio/layers";
 import { SEED_ASSETS } from "@/lib/studio/seed";
@@ -28,7 +28,7 @@ import { canvaDraftNotes, canvaPresetForFormat } from "@/lib/zen/canva-draft";
 import type { FormatId } from "@/lib/studio/types";
 import { uid } from "@/lib/studio/ids";
 import { hitFromIgPost } from "@/lib/zen/from-hit";
-import { dnaPromptIdea, igDnaBlock, learnFromPosts, recentPostedNotes } from "@/lib/zen/insights";
+import { dnaPromptIdea, igDnaBlock, learnFromPosts, nextCreateHint, recentPostedNotes } from "@/lib/zen/insights";
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
 import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatIdForContentKind, formatScript } from "@/lib/zen/convert";
@@ -67,7 +67,6 @@ export function InstagramCenter() {
   const setLastProjectId = useStudio((s) => s.setLastProjectId);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
-  const addAsset = useStudio((s) => s.addAsset);
   const setCopy = useStudio((s) => s.setCopy);
   const ensureArtboard = useStudio((s) => s.ensureArtboard);
   const setActiveFormat = useStudio((s) => s.setActiveFormat);
@@ -111,6 +110,7 @@ export function InstagramCenter() {
   const post = igPosts.find((p) => p.id === active);
   const brand = brands[0];
   const learned = useMemo(() => learnFromPosts(igPosts), [igPosts]);
+  const createHint = useMemo(() => nextCreateHint(igPosts), [igPosts]);
   const filmstrip = useMemo(() => {
     if (previewFormat === "story") {
       return sequences.find((row) => row.kind === "story") ?? (lastSequence?.kind === "story" ? lastSequence : null);
@@ -137,6 +137,14 @@ export function InstagramCenter() {
     projects.find((p) => pagesOf(p, previewFormat).length) ??
     projects[0];
   const previewPages = previewProject ? pagesOf(previewProject, previewFormat) : [];
+  const alreadyOnCalendar = schedule.some(
+    (item) =>
+      item.status !== "published" &&
+      !isWaveScheduleItem(item) &&
+      (item.id === previewScheduleId ||
+        (previewProject?.id != null && item.projectId === previewProject.id) ||
+        (filmstrip?.projectId != null && item.sequence?.projectId === filmstrip.projectId)),
+  );
   const previewScript = useMemo(() => {
     if (!lastPack) return null;
     return formatScript(convertFromPlan(lastPack.plan), previewFormat, previewProject?.contentKind);
@@ -229,30 +237,14 @@ export function InstagramCenter() {
         });
         return;
       }
-      for (const live of result.posts) {
-        const pixelId = `asset_${live.id}`.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 60);
-        const ingested = live.mediaUrl
-          ? await ingestUrlToLibrary({
-              id: pixelId,
-              name: live.hook || live.caption.slice(0, 24),
-              source: "instagram",
-              url: live.mediaUrl,
-              tags: [live.mediaType],
-              addAsset,
-            })
-          : false;
-        addIgPost({
-          ...live,
-          assetId: ingested ? pixelId : "asset_tamsui",
-        });
-      }
+      const hint = await ingestOfficialIgPosts(result.posts);
       if (result.posts[0]) setActive(result.posts[0].id);
       setConnection("instagram", {
         status: "connected",
         lastSyncAt: Date.now(),
         detail: `已讀取 ${result.posts.length} 則官方貼文`,
       });
-      toast.success(`已同步 ${result.posts.length} 則 IG 進記憶`);
+      toast.success(`已同步 ${result.posts.length} 則。${hint.line}`);
     } finally {
       setSyncBusy(false);
     }
@@ -498,6 +490,9 @@ export function InstagramCenter() {
         <p className="mt-2 text-sm">{learned.whatWorks}</p>
         <p className="mt-1 text-xs text-muted">{learned.whatFails}</p>
         <p className="mt-2 text-sm">{recentPostedNotes(igPosts)}</p>
+        <p className="mt-2 text-sm" data-testid="ig-next-hint">
+          {createHint.line}
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button size="sm" disabled={dnaBusy} onClick={() => void writeFromDna()}>
             {dnaBusy ? "寫作中…" : "用這個 DNA 寫新文案"}
@@ -731,10 +726,17 @@ export function InstagramCenter() {
               ) : null}
             </div>
             <div className="space-y-3">
+              {lastPack && lastVisualAssetId ? (
+                <div className="rounded-2xl bg-bg p-3" data-testid="preview-after-suite">
+                  <p className="text-sm font-medium">剛做成整套，已排進日曆</p>
+                  <p className="mt-1 text-xs text-muted">
+                    看畫面 → 需要時送到 Canva → 用目前畫面發到 IG，或到時間從首頁發。
+                  </p>
+                </div>
+              ) : null}
               <p className="text-sm font-medium">Caption</p>
               <Textarea value={caption} onChange={(e) => setCaption(e.target.value)} rows={8} />
               <p className="text-xs text-muted">{IG_DNA.hashtags.join(" ")}</p>
-              <p className="text-xs text-muted">下一步：Canva 微調 → 排進日曆 → 發布</p>
               <Button size="sm" onClick={saveCaption} disabled={!previewProject}>
                 更新文案
               </Button>
@@ -747,9 +749,15 @@ export function InstagramCenter() {
               >
                 {canvaBusy ? "送出中…" : "送到 Canva 微調"}
               </Button>
-              <Button size="sm" variant="secondary" onClick={scheduleCurrent} disabled={!caption.trim()}>
-                排進日曆
-              </Button>
+              {alreadyOnCalendar ? (
+                <Button size="sm" variant="ghost" asChild>
+                  <Link to="/calendar">已排進日曆</Link>
+                </Button>
+              ) : (
+                <Button size="sm" variant="secondary" onClick={scheduleCurrent} disabled={!caption.trim()}>
+                  排進日曆
+                </Button>
+              )}
               <PublishIgButton
                 caption={caption}
                 imageSrc={previewImageSrc}

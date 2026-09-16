@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { createFromHit } from "@/components/create/from-hit";
+import { ingestOfficialIgPosts } from "@/components/instagram/ingest-live";
 import { SearchHitCard } from "@/components/search/hit-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,6 @@ export function ConnectionCenter() {
   const connections = useCreative((s) => s.connections);
   const setConnection = useCreative((s) => s.setConnection);
   const addMemory = useCreative((s) => s.addMemory);
-  const addIgPost = useCreative((s) => s.addIgPost);
   const addAsset = useStudio((s) => s.addAsset);
   const memory = useCreative((s) => s.memory);
   const driveFolderQuery = useCreative((s) => s.driveFolderQuery);
@@ -214,43 +214,14 @@ export function ConnectionCenter() {
             });
             return;
           }
+          const hint = await ingestOfficialIgPosts(found.posts);
           setConnection("instagram", {
             status: "connected",
             lastSyncAt: Date.now(),
             accountName: caps.instagramAccount ?? "Instagram",
             detail: `已讀取 ${found.posts.length} 則貼文`,
           });
-          for (const post of found.posts.slice(0, 12)) {
-            const pixelId = `asset_${post.id}`.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 60);
-            const ingested = post.mediaUrl
-              ? await ingestUrlToLibrary({
-                  id: pixelId,
-                  name: post.hook || post.caption.slice(0, 24),
-                  source: "instagram",
-                  url: post.mediaUrl,
-                  tags: [post.mediaType],
-                  addAsset,
-                })
-              : false;
-            const assetId = ingested ? pixelId : "asset_tamsui";
-            addIgPost({
-              ...post,
-              assetId,
-            });
-            addMemory({
-              id: post.id,
-              source: "instagram",
-              title: post.hook || post.caption.slice(0, 24),
-              subtitle: post.permalink
-                ? `Instagram / ${new Date(post.postedAt).toISOString().slice(0, 10)}`
-                : "Instagram",
-              tags: [post.mediaType],
-              kind: "IG",
-              url: post.permalink,
-              thumbAssetId: ingested ? pixelId : undefined,
-            });
-          }
-          toast.success("Instagram 已同步進記憶");
+          toast.success(`Instagram 已同步。${hint.line}`);
           return;
         }
         window.location.assign("/api/oauth/instagram/start");
