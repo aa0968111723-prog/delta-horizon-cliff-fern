@@ -101,92 +101,94 @@ export function CampaignEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto bg-surface text-fg sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden bg-surface p-4 text-fg sm:max-w-lg">
+        <DialogHeader className="mb-2 shrink-0">
           <DialogTitle>{existing ? "編輯活動" : "建立社團活動"}</DialogTitle>
-          <DialogDescription>一人網宣用：名稱、類型、時間地點、主題、學生痛點與 CTA。</DialogDescription>
+          <DialogDescription>名稱、時間地點、主題、學生痛點與 CTA。給一人網宣用。</DialogDescription>
         </DialogHeader>
-        <form className="space-y-3" onSubmit={submit} data-testid="campaign-form">
-          <Field label="活動名稱">
-            <Input
-              data-testid="campaign-name"
-              value={draft.name}
-              onChange={(e) => patch("name", e.target.value)}
-              placeholder="例如：09/24 浮游禪光"
-            />
-          </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="類型">
-              <Select value={draft.type} onValueChange={(v) => patch("type", v as Campaign["type"])}>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit} data-testid="campaign-form">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+            <Field label="活動名稱">
+              <Input
+                data-testid="campaign-name"
+                value={draft.name}
+                onChange={(e) => patch("name", e.target.value)}
+                placeholder="例如：09/24 浮游禪光"
+              />
+            </Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="類型">
+                <Select value={draft.type} onValueChange={(v) => patch("type", v as Campaign["type"])}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(CAMPAIGN_TYPE_LABELS) as Campaign["type"][]).map((id) => (
+                      <SelectItem key={id} value={id}>
+                        {CAMPAIGN_TYPE_LABELS[id]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="日期">
+                <Input type="date" value={draft.date} onChange={(e) => patch("date", e.target.value)} />
+              </Field>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="時間">
+                <Input value={draft.time} onChange={(e) => patch("time", e.target.value)} placeholder="18:30 - 20:30" />
+              </Field>
+              <Field label="地點">
+                <Input
+                  data-testid="campaign-location"
+                  value={draft.location}
+                  onChange={(e) => patch("location", e.target.value)}
+                  placeholder="活動中心或覺軒花園"
+                />
+              </Field>
+            </div>
+            <Field label="主題一句話">
+              <Input value={draft.theme} onChange={(e) => patch("theme", e.target.value)} placeholder="放鬆・光影・呼吸" />
+            </Field>
+            <Field label="學生痛點">
+              <Select
+                value={STUDENT_PAIN_PRESETS.find((p) => p.hint === draft.studentPain)?.id ?? "custom"}
+                onValueChange={(id) => {
+                  const preset = STUDENT_PAIN_PRESETS.find((p) => p.id === id);
+                  if (preset) patch("studentPain", preset.hint);
+                }}
+              >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="選擇常見痛點" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(CAMPAIGN_TYPE_LABELS) as Campaign["type"][]).map((id) => (
-                    <SelectItem key={id} value={id}>
-                      {CAMPAIGN_TYPE_LABELS[id]}
+                  {STUDENT_PAIN_PRESETS.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </Field>
-            <Field label="日期">
-              <Input type="date" value={draft.date} onChange={(e) => patch("date", e.target.value)} />
-            </Field>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="時間">
-              <Input value={draft.time} onChange={(e) => patch("time", e.target.value)} placeholder="18:30 - 20:30" />
-            </Field>
-            <Field label="地點">
-              <Input
-                data-testid="campaign-location"
-                value={draft.location}
-                onChange={(e) => patch("location", e.target.value)}
-                placeholder="活動中心或覺軒花園"
+              <Textarea
+                className="mt-2 min-h-16"
+                value={draft.studentPain}
+                onChange={(e) => patch("studentPain", e.target.value)}
+                placeholder="用學生的話寫，不要公文腔"
               />
             </Field>
+            <Field label="CTA">
+              <Input value={draft.mainCta} onChange={(e) => patch("mainCta", e.target.value)} />
+            </Field>
+            <Field label="報名／主頁連結">
+              <Input value={draft.signupUrl} onChange={(e) => patch("signupUrl", e.target.value)} />
+            </Field>
+            <Field label="一句介紹（選填）">
+              <Textarea className="min-h-16" value={draft.oneLiner} onChange={(e) => patch("oneLiner", e.target.value)} />
+            </Field>
+            {error ? <p className="text-sm text-danger">{error}</p> : null}
           </div>
-          <Field label="主題一句話">
-            <Input value={draft.theme} onChange={(e) => patch("theme", e.target.value)} placeholder="放鬆・光影・呼吸" />
-          </Field>
-          <Field label="學生痛點">
-            <Select
-              value={STUDENT_PAIN_PRESETS.find((p) => p.hint === draft.studentPain)?.id ?? "custom"}
-              onValueChange={(id) => {
-                const preset = STUDENT_PAIN_PRESETS.find((p) => p.id === id);
-                if (preset) patch("studentPain", preset.hint);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="選擇常見痛點" />
-              </SelectTrigger>
-              <SelectContent>
-                {STUDENT_PAIN_PRESETS.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Textarea
-              className="mt-2"
-              value={draft.studentPain}
-              onChange={(e) => patch("studentPain", e.target.value)}
-              placeholder="用學生的話寫，不要公文腔"
-            />
-          </Field>
-          <Field label="CTA">
-            <Input value={draft.mainCta} onChange={(e) => patch("mainCta", e.target.value)} />
-          </Field>
-          <Field label="報名／主頁連結">
-            <Input value={draft.signupUrl} onChange={(e) => patch("signupUrl", e.target.value)} />
-          </Field>
-          <Field label="一句介紹（選填）">
-            <Textarea value={draft.oneLiner} onChange={(e) => patch("oneLiner", e.target.value)} />
-          </Field>
-          {error ? <p className="text-sm text-danger">{error}</p> : null}
-          <div className="flex flex-col gap-2 pt-1 sm:flex-row">
+          <div className="mt-3 flex shrink-0 flex-col gap-2 border-t border-border pt-3 sm:flex-row">
             <Button type="submit" variant="secondary" className="flex-1" data-testid="campaign-save">
               {existing ? "儲存活動" : "建立活動"}
             </Button>

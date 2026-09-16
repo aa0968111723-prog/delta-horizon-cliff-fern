@@ -274,19 +274,6 @@ export function AiCreativeModal({
                 <div className="select-all rounded-lg border border-border bg-bg/80 p-2.5 font-mono text-xs text-muted">
                   {selectedDir.imagePrompt}
                 </div>
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <Button data-testid="apply-to-canvas" size="sm" onClick={applyToCanvas} className="gap-1.5">
-                    <CheckCircle2 className="size-4" /> 套用至畫布
-                  </Button>
-                  <Button
-                    data-testid="schedule-to-calendar"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => schedule()}
-                  >
-                    排入內容日曆
-                  </Button>
-                </div>
               </div>
             </TabsContent>
 
@@ -425,6 +412,14 @@ export function AiCreativeModal({
             </TabsContent>
           </ScrollArea>
         </Tabs>
+        <div className="mt-3 flex shrink-0 flex-wrap gap-2 border-t border-border pt-3">
+          <Button data-testid="apply-to-canvas" size="sm" onClick={applyToCanvas} className="gap-1.5">
+            <CheckCircle2 className="size-4" /> 套用至畫布
+          </Button>
+          <Button data-testid="schedule-to-calendar" variant="outline" size="sm" onClick={() => schedule()}>
+            排入內容日曆
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
