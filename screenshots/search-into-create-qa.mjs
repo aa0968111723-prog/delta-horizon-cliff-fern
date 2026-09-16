@@ -56,6 +56,10 @@ if ((await page.locator('[data-testid="kit-piece"]').count()) > 0) {
 const kitName = (await page.locator('[data-testid="kit-campaign-name"]').innerText()) ?? "";
 if (!/已建立 茶會/.test(kitName)) issues.push(`kit 不是茶會活動: ${kitName}`);
 if (!/預熱/.test(kitName)) issues.push(`短宣傳期沒有預熱: ${kitName}`);
+const visualSource = (await page.locator('[data-testid="kit-visual-source"]').innerText()) ?? "";
+if (!/Google Drive/.test(visualSource) || !/2025 茶會現場/.test(visualSource)) {
+  issues.push(`主視覺沒有延續 Drive 茶會照片: ${visualSource}`);
+}
 const waveCaps = await page.locator('[data-testid="wave-caption"]').allInnerTexts();
 if (!waveCaps.some((text) => /罪惡感/.test(text))) {
   issues.push(`宣傳節奏沒有預熱生活文案: ${waveCaps.join(" / ").slice(0, 180)}`);

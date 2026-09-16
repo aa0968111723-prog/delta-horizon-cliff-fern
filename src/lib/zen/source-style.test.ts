@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { pickSourceRefs, styleFromHits, visionFromHits } from "./source-style.ts";
+import { pickSourceRefs, sourceCreditFromHits, styleFromHits, visionFromHits } from "./source-style.ts";
 import type { CreativeHit } from "./search.ts";
 
 function hit(source: CreativeHit["source"], title: string): CreativeHit {
@@ -27,6 +27,11 @@ test("pickSourceRefs pins the Drive file that was added from search", () => {
   const picked = pickSourceRefs("from-drive", hits, { remoteId: "drv_tea_2025" });
   assert.equal(picked[0]?.title, "2025 茶會現場");
   assert.ok(picked.some((row) => row.title === "浮游禪光企劃"));
+});
+
+test("sourceCreditFromHits labels Google Drive, not a generic brand kit", () => {
+  assert.equal(sourceCreditFromHits([hit("drive", "2025 茶會現場")]), "Google Drive / 2025 茶會現場");
+  assert.equal(sourceCreditFromHits([]), "");
 });
 
 test("styleFromHits continues DNA and never says copy the old poster", () => {

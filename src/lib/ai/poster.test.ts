@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { atmospherePosterSvg, directionPosterSvg, encodeUtf8Base64, mockPosterImage, reelsAtmosphereInput, wrapCjk, xmlEscape } from "./poster.ts";
+import { atmospherePosterSvg, directionPosterSvg, encodeUtf8Base64, mockPosterImage, reelsAtmosphereInput, sourcePhotoMarkup, wrapCjk, xmlEscape } from "./poster.ts";
 
 test("directionPosterSvg keeps the student headline and IG 4:5 size", () => {
   const svg = directionPosterSvg({
@@ -114,4 +114,24 @@ test("encodeUtf8Base64 round-trips a student hook without Node-only callers", ()
   });
   const encoded = encodeUtf8Base64(svg);
   assert.equal(Buffer.from(encoded, "base64").toString("utf8"), svg);
+});
+
+test("Drive tea photo is nested into 主視覺 and credited, not copied as a temple poster", () => {
+  const tea = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350"><rect x="140" y="420" width="220" height="400" fill="#1C2422"/></svg>`;
+  const svg = directionPosterSvg({
+    headline: "可以自己來？",
+    width: 1080,
+    height: 1350,
+    photoEmbed: tea,
+    sourceCredit: "Google Drive / 2025 茶會現場",
+  });
+  assert.match(svg, /data-source-photo="1"/);
+  assert.match(svg, /x="140"/);
+  assert.match(svg, /Google Drive \/ 2025 茶會現場/);
+  assert.match(svg, /可以自己來/);
+  assert.match(svg, /data-turtle="龜龜"/);
+  assert.doesNotMatch(svg, /寺廟|佛像|誠摯邀請/);
+  const layer = sourcePhotoMarkup(tea, 1080, 1350, "composition");
+  assert.match(layer, /data-source-photo="1"/);
+  assert.notEqual(layer, sourcePhotoMarkup(tea, 1080, 1350));
 });

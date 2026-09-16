@@ -37,7 +37,7 @@ import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction"
 import { researchInspiration } from "@/lib/zen/inspiration";
 import { convertedScheduledAt, skipConvertedIgPost, rhythmHint } from "@/lib/zen/rhythm";
 import { searchCreative, groupCreativeHits, hitFromRemote, igSearchHookBlock, type CreativeHit } from "@/lib/zen/search";
-import { pickSourceRefs, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
+import { loadSourceEmbed, pickSourceRefs, sourceCreditFromHits, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import {
   suggestWaves,
@@ -186,6 +186,8 @@ export function CreateStudio() {
     src?: string;
     source?: string;
   } | null>(null);
+  const sourcePhotoRef = useRef<{ embed: string; credit: string }>({ embed: "", credit: "" });
+  const [sourceCredit, setSourceCredit] = useState("");
   const autoRan = useRef(false);
   const foundGroups = useMemo(() => groupCreativeHits(found), [found]);
 
@@ -396,7 +398,14 @@ export function CreateStudio() {
   function togglePin(hit: CreativeHit) {
     const next = pinned.some((row) => row.id === hit.id) ? pinned.filter((row) => row.id !== hit.id) : [...pinned, hit];
     setPinned(next);
-    void refreshDirections(next);
+    void (async () => {
+      const credit = sourceCreditFromHits(next);
+      const href = next.find((row) => row.thumbnail)?.thumbnail;
+      const embed = href ? (await loadSourceEmbed(href)) || "" : "";
+      sourcePhotoRef.current = { embed, credit };
+      setSourceCredit(credit);
+      await refreshDirections(next);
+    })();
   }
 
   async function refreshDirections(refs: CreativeHit[]) {
@@ -447,18 +456,28 @@ export function CreateStudio() {
     const variation = waveVisualVariation(kind);
     const formatId = waveFormatId(kind);
     const spec = formatById(formatId);
+    const photo = sourcePhotoRef.current;
     const storyLine = kind === "countdown" ? "明天晚上" : "今天";
     const payload =
       formatId === "story"
         ? {
             imageBase64: encodeUtf8Base64(
-              directionPosterSvg(
-                storyPosterInput(storyLine, 0, { eventName: eventName || idea, palette: dir.palette }),
-              ),
+              directionPosterSvg({
+                ...storyPosterInput(storyLine, 0, { eventName: eventName || idea, palette: dir.palette }),
+                photoEmbed: photo.embed || undefined,
+                sourceCredit: photo.credit || undefined,
+              }),
             ),
             mime: "image/svg+xml" as const,
           }
-        : posterPayloadFromDirection({ ...dir, name: `${waveLabel(kind)} · ${dir.name}` }, spec, variation);
+        : posterPayloadFromDirection(
+            { ...dir, name: `${waveLabel(kind)} · ${dir.name}` },
+            spec,
+            variation,
+            dir.prompt,
+            false,
+            photo,
+          );
     const id = uid("asset");
     await putAssetBlob(id, blobFromBase64(payload.imageBase64, payload.mime));
     addAsset({
@@ -473,7 +492,7 @@ export function CreateStudio() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       source: "generated",
-      licenseNotes: "來源：AI Generated",
+      licenseNotes: photo.credit ? `來源：${photo.credit} · AI 延續，不複製` : "來源：AI Generated",
       licenseOwner: "禪光",
       favorite: false,
       lastUsedAt: Date.now(),
@@ -571,7 +590,11 @@ export function CreateStudio() {
     const nextPins = [...refs, ...extraPins].slice(0, 6);
     if (nextPins.length) setPinned(nextPins);
     const previewHit = nextPins[0];
+    const credit = sourceCreditFromHits(nextPins);
     if (previewHit?.thumbnail) {
+      const embed = await loadSourceEmbed(previewHit.thumbnail);
+      sourcePhotoRef.current = { embed: embed || "", credit };
+      setSourceCredit(credit);
       setSourcePreview({
         id: previewHit.remoteId || previewHit.assetId || previewHit.id,
         name: previewHit.title,
@@ -580,6 +603,9 @@ export function CreateStudio() {
         src: previewHit.thumbnail,
         source: previewHit.source,
       });
+    } else {
+      sourcePhotoRef.current = { embed: "", credit };
+      setSourceCredit(credit);
     }
     setBusy(true);
     try {
@@ -766,12 +792,14 @@ export function CreateStudio() {
     const spec = formatById(format);
     const prompt = opts?.kind ? varyImagePrompt(dir.prompt, opts.kind) : dir.prompt;
     const atmosphere = format === "reels-cover";
+    const photo = sourcePhotoRef.current;
     let payload: { imageBase64: string; mime: string } = posterPayloadFromDirection(
       dir,
       spec,
       opts?.kind,
       prompt,
       atmosphere,
+      photo,
     );
     try {
       const result = await generateStudioImage({
@@ -785,9 +813,15 @@ export function CreateStudio() {
           variation: opts?.kind,
           memoryHint: kitMemoryHint(found),
           atmosphere,
+          photoEmbed: photo.embed.slice(0, 400_000) || undefined,
+          sourceCredit: photo.credit || undefined,
         },
       });
-      if (result.ok) payload = { imageBase64: result.imageBase64, mime: result.mime };
+      if (result.ok && result.adapter === "live") {
+        payload = { imageBase64: result.imageBase64, mime: result.mime };
+      } else if (result.ok && !photo.embed) {
+        payload = { imageBase64: result.imageBase64, mime: result.mime };
+      }
     } catch {
       /* keep the student-hook poster so 主視覺 still appears */
     }
@@ -822,7 +856,7 @@ export function CreateStudio() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       source: "generated",
-      licenseNotes: "來源：AI Generated",
+      licenseNotes: photo.credit ? `來源：${photo.credit} · AI 延續，不複製` : "來源：AI Generated",
       licenseOwner: "禪光",
       favorite: false,
       lastUsedAt: Date.now(),
@@ -1768,6 +1802,11 @@ export function CreateStudio() {
                   ? `已建立 ${campaign.name}，節奏含 ${campaign.waves.map((w) => waveLabel(w.kind)).join("、")}。`
                   : `已做成一篇「${campaign.name}」：IG、Carousel、限動、Reels、Threads、LINE。`}
               </p>
+              {sourceCredit ? (
+                <p className="mt-2 text-xs text-muted" data-testid="kit-visual-source">
+                  主視覺延續 {sourceCredit}，沒有整張複製。
+                </p>
+              ) : null}
               {!campaign.waves.length ? (
                 <p className="sr-only" data-testid="kit-piece">
                   一篇內容
@@ -1905,6 +1944,7 @@ function posterPayloadFromDirection(
   variation?: "composition" | "mood" | "background" | "style" | "text",
   prompt = dir.prompt,
   atmosphere = false,
+  photo?: { embed?: string; credit?: string },
 ) {
   const svg = directionPosterSvg({
     headline: atmosphere ? "" : dir.headline,
@@ -1916,6 +1956,8 @@ function posterPayloadFromDirection(
     height: spec.height,
     variation,
     atmosphere,
+    photoEmbed: photo?.embed || undefined,
+    sourceCredit: atmosphere ? undefined : photo?.credit || undefined,
   });
   return {
     imageBase64: encodeUtf8Base64(svg),

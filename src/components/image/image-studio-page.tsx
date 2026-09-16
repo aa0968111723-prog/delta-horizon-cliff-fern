@@ -80,6 +80,7 @@ export function ImageStudioPage() {
   const [review, setReview] = useState<StudentReview | null>(null);
   const autoRan = useRef(false);
   const regenTick = useRef<Record<string, number>>({});
+  const photoEmbedRef = useRef("");
 
   const activePack = packs.find((p) => p.tone === tone) ?? packs[0];
 
@@ -151,6 +152,7 @@ export function ImageStudioPage() {
       const spec = formatById(nextFormat);
       const prompt = kind ? varyImagePrompt(dir.prompt, kind) : dir.prompt;
       const atmosphere = nextFormat === "reels-cover";
+      const photoEmbed = photoEmbedRef.current.slice(0, 400_000);
       let payload = {
         imageBase64: encodeUtf8Base64(
           directionPosterSvg({
@@ -163,6 +165,8 @@ export function ImageStudioPage() {
             height: spec.height,
             variation: kind,
             atmosphere,
+            photoEmbed: photoEmbed || undefined,
+            sourceCredit: photoEmbed ? "本機上傳 / 延續這張" : undefined,
           }),
         ),
         mime: "image/svg+xml",
@@ -179,9 +183,12 @@ export function ImageStudioPage() {
             variation: kind,
             memoryHint: composeMemoryHint([learning.promptBlock, dna.promptBlock]),
             atmosphere,
+            photoEmbed: photoEmbed || undefined,
+            sourceCredit: photoEmbed ? "本機上傳 / 延續這張" : undefined,
           },
         });
-        if (result.ok) payload = { imageBase64: result.imageBase64, mime: result.mime };
+        if (result.ok && result.adapter === "live") payload = { imageBase64: result.imageBase64, mime: result.mime };
+        else if (result.ok && !photoEmbed) payload = { imageBase64: result.imageBase64, mime: result.mime };
       } catch {
         /* keep poster */
       }
@@ -268,6 +275,9 @@ export function ImageStudioPage() {
       toast.error("圖檔太大，請用較小的照片。");
       return;
     }
+    photoEmbedRef.current = (file.type.includes("svg") || file.name.endsWith(".svg"))
+      ? new TextDecoder().decode(buf)
+      : `data:${file.type || "image/jpeg"};base64,${b64}`;
     setBusy(true);
     try {
       const id = uid("asset");

@@ -1,4 +1,5 @@
 import type { CreativeHit } from "./search.ts";
+import { bytesToBase64 } from "../studio/bytes.ts";
 
 function sourceLabel(source: CreativeHit["source"]) {
   if (source === "drive") return "Google Drive";
@@ -49,7 +50,36 @@ export function pickSourceRefs(
   return out.slice(0, 6);
 }
 
-/** Style brief for generators — continue DNA, never duplicate the old poster. */
+export function sourceCreditFromHits(hits: CreativeHit[]): string {
+  const hit = hits.find((row) => row.thumbnail) ?? hits[0];
+  if (!hit) return "";
+  return `${sourceLabel(hit.source)} / ${hit.title}`;
+}
+
+export function photoHrefFromHits(hits: CreativeHit[]): string | undefined {
+  return hits.find((row) => row.thumbnail)?.thumbnail;
+}
+
+/** Fetch a Drive / Canva still as nestable SVG or a data URI. */
+export async function loadSourceEmbed(href: string): Promise<string | undefined> {
+  if (!href) return undefined;
+  if (href.startsWith("data:")) return href;
+  try {
+    const res = await fetch(href);
+    if (!res.ok) return undefined;
+    const mime = res.headers.get("content-type") || "";
+    if (mime.includes("svg") || href.endsWith(".svg")) {
+      const text = await res.text();
+      if (text.includes("<svg")) return text.slice(0, 80_000);
+    }
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (!buf.byteLength || buf.byteLength > 900_000) return undefined;
+    return `data:${mime || "image/jpeg"};base64,${bytesToBase64(buf)}`;
+  } catch {
+    return undefined;
+  }
+}
+
 export function styleFromHits(hits: CreativeHit[]): string {
   if (!hits.length) return "延續淡江禪學社 DNA，不要複製舊作品。";
   const bits = hits.slice(0, 6).map((hit) => `${sourceLabel(hit.source)}「${hit.title}」：${abstract(hit)}`);

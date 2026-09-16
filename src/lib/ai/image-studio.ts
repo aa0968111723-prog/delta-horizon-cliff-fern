@@ -140,6 +140,8 @@ const ImageGenInput = z.object({
   forceMock: z.boolean().optional(),
   memoryHint: z.string().max(1200).optional(),
   atmosphere: z.boolean().optional(),
+  photoEmbed: z.string().max(400_000).optional(),
+  sourceCredit: z.string().max(160).optional(),
 });
 
 function parseImageGen(input: unknown) {
@@ -164,6 +166,8 @@ export function mockStudioImage(data: z.infer<typeof ImageGenInput>): ImageGenRe
     height: spec.height,
     variation: data.variation ?? (atmosphere ? "mood" : undefined),
     atmosphere,
+    photoEmbed: data.photoEmbed,
+    sourceCredit: data.sourceCredit,
   });
   return { ok: true, adapter: "mock", ...poster };
 }
@@ -179,6 +183,35 @@ export const generateStudioImage = createServerFn({ method: "POST" })
         : data.format === "feed-portrait"
           ? "4:5"
           : "1:1";
+    const prompt = `${data.prompt}. Aspect ${aspect}. ${data.memoryHint ? `Club memory: ${data.memoryHint.slice(0, 180)}.` : ""}${data.sourceCredit ? ` Continue ${data.sourceCredit}; do not duplicate the old poster.` : ""}${data.format === "reels-cover" || data.atmosphere ? " Absolutely no Chinese or English words, logos, or captions in the image; empty lower third." : ""} Airy Tamkang student life, not temple, not luxury brand, not stock influencer.`;
+    const photoUrl =
+      data.photoEmbed?.startsWith("data:")
+        ? data.photoEmbed
+        : data.photoEmbed?.startsWith("<?xml") || data.photoEmbed?.startsWith("<svg")
+          ? `data:image/svg+xml;base64,${Buffer.from(data.photoEmbed, "utf8").toString("base64")}`
+          : undefined;
+    if (photoUrl) {
+      const edited = await fetch("https://api.x.ai/v1/images/edits", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "grok-imagine-image",
+          prompt,
+          image: { url: photoUrl },
+          n: 1,
+          resolution: "1k",
+          response_format: "b64_json",
+        }),
+      });
+      if (edited.ok) {
+        const body = (await edited.json()) as { data?: { b64_json?: string }[] };
+        const b64 = body.data?.[0]?.b64_json;
+        if (b64) return { ok: true, adapter: "live", imageBase64: b64, mime: "image/png", prompt: data.prompt };
+      }
+    }
     const res = await fetch("https://api.x.ai/v1/images/generations", {
       method: "POST",
       headers: {
@@ -187,7 +220,7 @@ export const generateStudioImage = createServerFn({ method: "POST" })
       },
       body: JSON.stringify({
         model: "grok-imagine-image",
-        prompt: `${data.prompt}. Aspect ${aspect}. ${data.memoryHint ? `Club memory: ${data.memoryHint.slice(0, 180)}.` : ""}${data.format === "reels-cover" || data.atmosphere ? " Absolutely no Chinese or English words, logos, or captions in the image; empty lower third." : ""} Airy Tamkang student life, not temple, not luxury brand, not stock influencer.`,
+        prompt,
         n: 1,
         resolution: "1k",
         response_format: "b64_json",
