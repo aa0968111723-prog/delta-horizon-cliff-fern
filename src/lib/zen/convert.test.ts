@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildMockPlan } from "../ai/mock.ts";
-import { convertFromPlan, formatScript, formatScriptClipboard } from "./convert.ts";
+import { convertFromPlan, formatScript, formatScriptClipboard, sequenceBeats } from "./convert.ts";
 
 const converted = convertFromPlan(
   buildMockPlan({
@@ -52,4 +52,15 @@ test("carousel uses contentKind even on a 4:5 board", () => {
   assert.equal(script.kind, "carousel");
   assert.ok(script.rows.length >= 5);
   assert.ok(script.rows[0]?.kicker.includes("cover") || script.rows[0]?.kicker.includes("Page 1"));
+});
+
+test("carousel sequence is five pages, story is at least three frames", () => {
+  const carousel = sequenceBeats(converted, "feed-portrait", "carousel");
+  assert.equal(carousel.length, 5);
+  assert.ok(carousel[0]?.kicker.includes("cover") || carousel[0]?.kicker.includes("Page 1"));
+  const story = sequenceBeats(converted, "story");
+  assert.ok(story.length >= 3);
+  assert.ok(story.length <= 5);
+  const reels = sequenceBeats(converted, "reels-cover");
+  assert.equal(reels.length, 5);
 });

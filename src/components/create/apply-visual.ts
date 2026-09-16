@@ -31,6 +31,11 @@ export async function applyVisualDirection(input: {
   contentKind?: ContentKind;
   caption?: string;
   reuseAssetId?: string;
+  projectId?: string;
+  headline?: string;
+  subhead?: string;
+  preview?: boolean;
+  touchCampaign?: boolean;
 }): Promise<ApplyVisualResult> {
   const studio = useStudio.getState();
   const creative = useCreative.getState();
@@ -43,14 +48,16 @@ export async function applyVisualDirection(input: {
   const formatMeta = FORMATS.find((item) => item.id === formatId);
   const dir = input.pack.directions?.find((item) => item.id === input.directionId) ?? input.pack.directions?.[0];
   const converted = convertFromPlan(input.pack.plan);
+  const headline = (input.headline || dir?.headline || input.pack.copy.hook).replace(/\n/g, " ").slice(0, 80);
+  const subhead = (input.subhead || dir?.subhead || input.pack.campaignName).slice(0, 80);
   const planBase = dir
     ? {
         ...input.pack.plan,
-        headline: dir.headline || input.pack.plan.headline,
-        subhead: dir.subhead || input.pack.plan.subhead,
+        headline: headline || input.pack.plan.headline,
+        subhead: subhead || input.pack.plan.subhead,
         visualDirection: dir.concept,
       }
-    : input.pack.plan;
+    : { ...input.pack.plan, headline: headline || input.pack.plan.headline, subhead };
   const plan = planForConvertTarget(planBase, converted, targetId);
   const brief = migrateBrief({
     eventName: input.pack.campaignName,
@@ -60,20 +67,23 @@ export async function applyVisualDirection(input: {
     notes: dir?.concept,
     deliverables: briefFlagsForTarget(targetId),
   });
-  const project = studio.createProject({
-    name: `${input.pack.campaignName}${targetId === "post" ? "" : ` · ${targetId}`}`,
-    brandId: brand.id,
-    formatId,
-    brief,
-    templateId: plan.templateId,
-  });
-  studio.applyCampaignPlan(project.id, plan, brief);
-  studio.setActiveFormat(project.id, formatId);
+  let project = input.projectId ? studio.projects.find((row) => row.id === input.projectId) : undefined;
+  if (!project) {
+    project = studio.createProject({
+      name: `${input.pack.campaignName}${targetId === "post" ? "" : ` · ${targetId}`}`,
+      brandId: brand.id,
+      formatId,
+      brief,
+      templateId: plan.templateId,
+    });
+    studio.applyCampaignPlan(project.id, plan, brief);
+    studio.setActiveFormat(project.id, formatId);
+  } else {
+    studio.ensureArtboard(project.id, formatId);
+  }
   studio.updateProject(project.id, {
     contentKind: input.contentKind ?? contentKindForFormat(formatId),
   });
-
-  const headline = (dir?.headline || input.pack.copy.hook).replace(/\n/g, " ").slice(0, 80);
   let assetId = input.reuseAssetId ?? "";
   let adapter: "live" | "mock" = "mock";
 
@@ -89,10 +99,10 @@ export async function applyVisualDirection(input: {
   } else {
     const result = await generateStudioImage({
       data: {
-        prompt: `${dir?.imagePrompt || plan.visualDirection || input.pack.copy.hook}. ${formatMeta?.usage ?? targetId}`,
+        prompt: `${dir?.imagePrompt || plan.visualDirection || input.pack.copy.hook}. ${input.subhead || formatMeta?.usage || targetId}`,
         aspect,
         headline,
-        subhead: (dir?.subhead || input.pack.campaignName).slice(0, 80),
+        subhead,
       },
     });
     if (!result.ok) return { ok: false, error: result.error };
@@ -128,31 +138,29 @@ export async function applyVisualDirection(input: {
       .trim();
   studio.setCopy(project.id, { headline, caption });
 
-  const campaignId =
-    input.campaignId ??
-    creative.campaigns.find(
-      (campaign) =>
-        campaign.name === input.pack.campaignName || input.pack.campaignName.includes(campaign.name),
-    )?.id;
-  if (campaignId) {
-    const campaign = creative.campaigns.find((row) => row.id === campaignId);
-    if (campaign) {
-      creative.upsertCampaign({
-        ...campaign,
-        coverAssetId: targetId === "post" || targetId === "carousel" ? assetId : campaign.coverAssetId ?? assetId,
-        relatedAssetIds: [assetId, ...campaign.relatedAssetIds.filter((id) => id !== assetId)].slice(0, 8),
-        projectIds: campaign.projectIds.includes(project.id)
-          ? campaign.projectIds
-          : [...campaign.projectIds, project.id],
-        waves: campaign.waves.map((wave) =>
-          wave.kind === "key-visual" && (targetId === "post" || targetId === "carousel")
-            ? { ...wave, projectId: project.id, status: "done" }
-            : wave,
-        ),
-      });
+  if (input.touchCampaign !== false) {
+    const campaignId =
+      input.campaignId ??
+      creative.campaigns.find(
+        (campaign) =>
+          campaign.name === input.pack.campaignName || input.pack.campaignName.includes(campaign.name),
+      )?.id;
+    if (campaignId) {
+      const campaign = useCreative.getState().campaigns.find((row) => row.id === campaignId);
+      if (campaign) {
+        creative.patchCampaign(campaignId, {
+          coverAssetId: targetId === "post" || targetId === "carousel" ? assetId : campaign.coverAssetId ?? assetId,
+          relatedAssetIds: [assetId, ...campaign.relatedAssetIds.filter((id) => id !== assetId)].slice(0, 8),
+          projectIds: campaign.projectIds.includes(project.id)
+            ? campaign.projectIds
+            : [...campaign.projectIds, project.id],
+        });
+      }
     }
   }
 
-  creative.setIgPreview(assetId, formatId);
+  if (input.preview !== false) {
+    useCreative.getState().setIgPreview(assetId, formatId);
+  }
   return { ok: true, assetId, projectId: project.id, adapter, formatId };
 }

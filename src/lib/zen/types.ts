@@ -72,6 +72,13 @@ export type ScheduleItem = {
   captionPreview: string;
 };
 
+export type VisualSequence = {
+  kind: string;
+  labels: string[];
+  assetIds: string[];
+  projectId: string;
+};
+
 export type IgMemoryPost = {
   id: string;
   mediaType: "image" | "carousel" | "reels";

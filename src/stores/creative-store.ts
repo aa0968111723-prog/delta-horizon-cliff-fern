@@ -15,6 +15,7 @@ import type {
   IgMemoryPost,
   MemoryItem,
   ScheduleItem,
+  VisualSequence,
 } from "@/lib/zen/types";
 
 const STORAGE_KEY = "tkuzc-creative-v1";
@@ -81,6 +82,7 @@ type CreativeState = {
   connections: ConnectionState[];
   lastPack: CreativePack | null;
   lastVisualAssetId: string | null;
+  lastSequence: VisualSequence | null;
   igView: IgView;
   igFormat: FormatId;
   searchQuery: string;
@@ -92,6 +94,7 @@ type CreativeState = {
   consumeCreateIntent: () => CreateIntent | null;
   setDriveFolderQuery: (q: string) => void;
   setLastPack: (pack: CreativePack | null) => void;
+  setLastSequence: (sequence: VisualSequence | null) => void;
   setIgView: (igView: IgView) => void;
   setIgFormat: (igFormat: FormatId) => void;
   setIgPreview: (assetId: string | null, formatId?: FormatId) => void;
@@ -123,6 +126,7 @@ export const useCreative = create<CreativeState>()(
       connections: SEED_CONNECTIONS,
       lastPack: null,
       lastVisualAssetId: null,
+      lastSequence: null,
       igView: "grid",
       igFormat: "feed-portrait",
       searchQuery: "",
@@ -150,6 +154,7 @@ export const useCreative = create<CreativeState>()(
       },
       setDriveFolderQuery: (driveFolderQuery) => set({ driveFolderQuery }),
       setLastPack: (lastPack) => set({ lastPack }),
+      setLastSequence: (lastSequence) => set({ lastSequence }),
       setIgView: (igView) => set({ igView }),
       setIgFormat: (igFormat) => set({ igFormat }),
       setIgPreview: (assetId, formatId) =>

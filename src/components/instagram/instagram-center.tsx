@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { applyVisualDirection } from "@/components/create/apply-visual";
+import { applyFormatSequence } from "@/components/create/apply-sequence";
 import { FormatScriptPanel } from "@/components/instagram/format-script";
 import { PublishIgButton } from "@/components/instagram/publish-button";
 import { PageHeader } from "@/components/shared/page-header";
@@ -41,8 +42,10 @@ export function InstagramCenter() {
   const igFormat = useCreative((s) => s.igFormat);
   const setIgView = useCreative((s) => s.setIgView);
   const lastVisualAssetId = useCreative((s) => s.lastVisualAssetId);
+  const lastSequence = useCreative((s) => s.lastSequence);
   const lastPack = useCreative((s) => s.lastPack);
   const setIgFormat = useCreative((s) => s.setIgFormat);
+  const setIgPreview = useCreative((s) => s.setIgPreview);
   const patchCampaign = useCreative((s) => s.patchCampaign);
   const addIgPost = useCreative((s) => s.addIgPost);
   const setConnection = useCreative((s) => s.setConnection);
@@ -56,6 +59,7 @@ export function InstagramCenter() {
   const setCopy = useStudio((s) => s.setCopy);
   const ensureArtboard = useStudio((s) => s.ensureArtboard);
   const setActiveFormat = useStudio((s) => s.setActiveFormat);
+  const setSlide = useStudio((s) => s.setSlide);
   const upcoming = useMemo(
     () =>
       [...schedule]
@@ -69,9 +73,10 @@ export function InstagramCenter() {
       ...igPosts.map((p) => p.assetId),
       ...upcoming.map((item) => schedulePreviewAssetId(item, campaigns)).filter((id): id is string => Boolean(id)),
       ...(lastVisualAssetId ? [lastVisualAssetId] : []),
+      ...(lastSequence?.assetIds ?? []),
     ];
     return [...new Set(ids)];
-  }, [assets, igPosts, upcoming, campaigns, lastVisualAssetId]);
+  }, [assets, igPosts, upcoming, campaigns, lastVisualAssetId, lastSequence]);
   const urls = useAssetUrls(previewIds);
   const [tab, setTab] = useState<Tab>(igView);
   const [active, setActive] = useState(igPosts[0]?.id ?? null);
@@ -249,6 +254,30 @@ export function InstagramCenter() {
     }
     toast.success("已排進日曆（今晚）");
     void navigate({ to: "/calendar" });
+  }
+
+  async function makeAllVisuals() {
+    if (!lastPack || !previewScript) return;
+    const kind = previewScript.kind;
+    if (kind !== "carousel" && kind !== "story" && kind !== "reels") return;
+    setBeatBusy("all");
+    try {
+      const result = await applyFormatSequence({
+        pack: lastPack,
+        kind,
+        campaignId:
+          campaigns.find(
+            (campaign) => campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name),
+          )?.id ?? null,
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`已做成 ${result.labels.length} 張畫面`);
+    } finally {
+      setBeatBusy(null);
+    }
   }
 
   async function makeBeatVisual(beat: { id: string; title: string; kicker: string }) {
@@ -453,11 +482,48 @@ export function InstagramCenter() {
           </div>
           <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
             <div className="rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-artboard)]">
-              {previewPages[0] && brand ? (
+              {previewPages[previewProject?.slideIndex ?? 0] && brand ? (
+                <ArtboardView
+                  artboard={previewPages[previewProject?.slideIndex ?? 0]!}
+                  brand={brand}
+                  urls={urls}
+                  width={280}
+                />
+              ) : previewPages[0] && brand ? (
                 <ArtboardView artboard={previewPages[0]} brand={brand} urls={urls} width={280} />
               ) : (
                 <p className="py-16 text-center text-xs text-muted">還沒有這個尺寸的預覽，先去創作一則。</p>
               )}
+              {lastSequence && lastSequence.assetIds.length > 1 ? (
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                  {lastSequence.assetIds.map((id, index) => {
+                    const seedSrc = assets.find((a) => a.id === id)?.seedSrc;
+                    const src = resolveAssetSrc(id, urls, seedSrc);
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => {
+                          setIgPreview(id, previewFormat);
+                          if (lastSequence.projectId) setSlide(lastSequence.projectId, index);
+                        }}
+                        className={cn(
+                          "h-20 w-16 shrink-0 overflow-hidden rounded-xl bg-bg",
+                          lastVisualAssetId === id && "ring-2 ring-accent",
+                        )}
+                      >
+                        {src ? (
+                          <img src={src} alt="" className="size-full object-cover" />
+                        ) : (
+                          <span className="flex size-full items-center justify-center px-1 text-xs text-muted">
+                            {lastSequence.labels[index] ?? index + 1}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
             <div className="space-y-3">
               <p className="text-sm font-medium">Caption</p>
@@ -475,6 +541,7 @@ export function InstagramCenter() {
                   script={previewScript}
                   busyId={beatBusy}
                   onMakeVisual={(beat) => makeBeatVisual(beat)}
+                  onMakeAll={() => void makeAllVisuals()}
                 />
               ) : null}
             </div>

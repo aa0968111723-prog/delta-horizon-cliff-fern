@@ -7,10 +7,12 @@ export function FormatScriptPanel({
   script,
   busyId,
   onMakeVisual,
+  onMakeAll,
 }: {
   script: FormatScript;
   busyId: string | null;
   onMakeVisual?: (row: FormatScriptRow) => void | Promise<void>;
+  onMakeAll?: () => void | Promise<void>;
 }) {
   const [copying, setCopying] = useState(false);
   const actionable = script.kind === "reels" || script.kind === "story" || script.kind === "carousel";
@@ -31,11 +33,18 @@ export function FormatScriptPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium">{script.label}</p>
-        <Button size="sm" variant="ghost" disabled={copying} onClick={() => void copyAll()}>
-          複製全部分鏡
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {onMakeAll ? (
+            <Button size="sm" disabled={busyId !== null} onClick={() => void onMakeAll()}>
+              {busyId === "all" ? "生成中…" : "做成全部畫面"}
+            </Button>
+          ) : null}
+          <Button size="sm" variant="ghost" disabled={copying} onClick={() => void copyAll()}>
+            複製全部分鏡
+          </Button>
+        </div>
       </div>
       <ol className="space-y-2">
         {script.rows.map((row) => (

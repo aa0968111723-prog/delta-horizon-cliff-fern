@@ -212,6 +212,17 @@ export function formatScriptClipboard(script: FormatScript) {
   return script.rows.map((row) => `${row.kicker}\n${row.title}\n${row.body}`).join("\n\n");
 }
 
+export function sequenceBeats(
+  converted: ConvertedFormats,
+  formatId: FormatId,
+  contentKind?: ContentKind,
+): FormatScriptRow[] {
+  const script = formatScript(converted, formatId, contentKind);
+  if (script.kind === "carousel") return script.rows.slice(0, 5);
+  if (script.kind === "story" || script.kind === "reels") return script.rows;
+  return [];
+}
+
 export function captionForTarget(converted: ConvertedFormats, id: ConvertTargetId) {
   if (id === "post") return `${converted.post.hook}\n\n${converted.post.body}`;
   if (id === "carousel") return converted.carousel.map((p) => p.headline.replace(/\n/g, " ")).join(" → ");

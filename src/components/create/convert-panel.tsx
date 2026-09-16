@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { applyVisualDirection } from "@/components/create/apply-visual";
+import { applyFormatSequence } from "@/components/create/apply-sequence";
 import { Button } from "@/components/ui/button";
 import {
   CONVERT_TARGETS,
@@ -34,6 +35,20 @@ export function ConvertPanel({
     const target = CONVERT_TARGETS.find((row) => row.id === id)!;
     setBusyId(id);
     try {
+      if (id === "carousel" || id === "story" || id === "reels") {
+        const result = await applyFormatSequence({
+          pack,
+          kind: id,
+          campaignId,
+        });
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
+        toast.success(`已做成 ${result.labels.length} 張${target.label}，打開 IG Preview`);
+        await navigate({ to: "/instagram" });
+        return;
+      }
       const result = await applyVisualDirection({
         pack,
         campaignId,
@@ -106,7 +121,15 @@ export function ConvertPanel({
           </ul>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button size="sm" disabled={Boolean(busyId)} onClick={() => void toPreview(target.id)}>
-              {busyId === target.id ? "生成中…" : `做成 ${target.label}`}
+              {busyId === target.id
+                ? "生成中…"
+                : target.id === "carousel"
+                  ? "做成 5 頁 Carousel"
+                  : target.id === "story"
+                    ? "做成 3–5 張 Story"
+                    : target.id === "reels"
+                      ? "做成 Reels 分鏡畫面"
+                      : `做成 ${target.label}`}
             </Button>
             <Button size="sm" variant="secondary" disabled={Boolean(busyId)} onClick={() => toCalendar(target.id)}>
               排進日曆
