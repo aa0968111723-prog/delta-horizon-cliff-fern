@@ -27,14 +27,3 @@ export function redirectToLoginIfRequired(result: CallToolResult): boolean {
   window.location.assign(url);
   return true;
 }
-
-/** Drive / connector search may flag login while still returning ok:true. */
-export function maybeConnectorLogin(result: { loginRequired?: boolean; loginUrl?: string }): boolean {
-  if (!result.loginRequired || !result.loginUrl) return false;
-  return redirectToLoginIfRequired({
-    ok: false,
-    data: null,
-    loginRequired: true,
-    loginUrl: result.loginUrl,
-  });
-}

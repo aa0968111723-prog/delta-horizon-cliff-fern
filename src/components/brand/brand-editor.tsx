@@ -25,7 +25,6 @@ import { STUDIO_FONTS } from "@/lib/studio/fonts";
 import { uid } from "@/lib/studio/ids";
 import type { BrandColor, BrandKit, ColorRole, LogoUsage, LogoVariant } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
-import { BRAND_MEMORY } from "@/lib/club/memory";
 import { useStudio } from "@/stores/studio-store";
 import { SwatchBook } from "lucide-react";
 
@@ -151,14 +150,6 @@ export function BrandEditor() {
       />
 
       <StorageNotice />
-
-      <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
-        <p className="text-xs tracking-[0.16em] text-muted">BRAND MEMORY</p>
-        <p className="mt-2 text-sm">{BRAND_MEMORY.idea}</p>
-        <p className="mt-2 text-sm">龜龜 · {BRAND_MEMORY.lights} · {BRAND_MEMORY.logo}</p>
-        <p className="mt-1 text-xs text-muted">喜歡：{BRAND_MEMORY.likes.join("、")}</p>
-        <p className="mt-1 text-xs text-muted">不要：{BRAND_MEMORY.dislikes.join("、")}</p>
-      </article>
 
       {brands.length > 1 && (
         <div className="flex flex-wrap gap-2">

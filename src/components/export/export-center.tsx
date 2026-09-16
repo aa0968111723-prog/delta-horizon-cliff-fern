@@ -8,7 +8,6 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { ExportPanel } from "@/components/export/export-panel";
 import { QualityPanel } from "@/components/qa/quality-panel";
 import { ArtboardView } from "@/components/studio/artboard-view";
-import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -118,7 +117,7 @@ export function ExportCenter() {
       <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <section className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
           <div className="mb-3 flex flex-wrap gap-1">
-            {(["feed-square", "feed-portrait", "feed-landscape", "story", "reels-cover", "threads", "line-promo"] as const).map(
+            {(["feed-square", "feed-portrait", "feed-landscape", "story", "reels-cover"] as const).map(
               (id) => (
                 <Button
                   key={id}

@@ -250,13 +250,7 @@ export function AssetLibrary() {
       ) : null}
 
       <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center">
-        <Input
-          data-testid="asset-search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="找以前晚上的茶會照片"
-          className="max-w-sm"
-        />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜尋名稱、標籤、授權、來源" className="max-w-sm" />
         <Select value={source} onValueChange={(v) => setSource(v as typeof source)}>
           <SelectTrigger className="md:w-40">
             <SelectValue placeholder="來源" />

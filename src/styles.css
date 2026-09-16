@@ -21,10 +21,7 @@
   --color-danger: #a33b2a;
   --color-warn: #9a6b2f;
   --color-success: #2f6a4a;
-  --color-ring: #2f5f56;
-  --color-water: #7eb8c9;
-  --color-lantern: #e0b07a;
-  --color-rose: #d9a3a3;
+  --color-ring: #1e4a45;
 
   --radius-xs: 4px;
   --radius-sm: 8px;
@@ -34,7 +31,7 @@
   --radius-2xl: 28px;
 
   --spacing-nav: 3.5rem;
-  --spacing-nav-safe: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  --spacing-nav-safe: calc(3.5rem + env(safe-area-inset-bottom, 0px));
   --spacing-header: 3.5rem;
 
   --shadow-border:
@@ -46,12 +43,8 @@
     0px 1px 2px -1px rgba(26, 24, 20, 0.08),
     0px 2px 4px 0px rgba(26, 24, 20, 0.06);
   --shadow-artboard:
-    0 18px 40px -24px rgba(28, 36, 34, 0.35),
-    0 0 0 1px rgba(28, 36, 34, 0.06);
-  --shadow-float:
-    0 28px 60px -32px rgba(28, 36, 34, 0.4),
-    0 8px 18px -12px rgba(28, 36, 34, 0.12),
-    0 0 0 1px rgba(28, 36, 34, 0.05);
+    0 18px 40px -24px rgba(26, 24, 20, 0.35),
+    0 0 0 1px rgba(26, 24, 20, 0.06);
 }
 
 @layer base {
@@ -98,24 +91,6 @@
 
   .h-app {
     height: calc(100dvh - var(--spacing-nav-safe));
-  }
-
-  .hero-wash {
-    background:
-      radial-gradient(ellipse 90% 55% at 8% -10%, color-mix(in oklab, var(--color-water) 28%, transparent), transparent 58%),
-      radial-gradient(ellipse 70% 45% at 96% 0%, color-mix(in oklab, var(--color-lantern) 22%, transparent), transparent 52%),
-      radial-gradient(ellipse 50% 40% at 70% 110%, color-mix(in oklab, var(--color-rose) 16%, transparent), transparent 55%);
-  }
-
-  .glass-card {
-    background: color-mix(in oklab, var(--color-surface) 82%, transparent);
-    box-shadow: var(--shadow-float);
-    backdrop-filter: blur(18px);
-  }
-
-  .card-3d {
-    transform: perspective(900px) rotateX(4deg);
-    box-shadow: var(--shadow-float);
   }
 
   @media (min-width: 1024px) {

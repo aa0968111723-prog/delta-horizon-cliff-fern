@@ -64,31 +64,6 @@ export function HomePage() {
         if (l.type === "image") ids.push(l.assetId);
         if (l.type === "logo" && l.assetId) ids.push(l.assetId);
       }
-      if (result.needsConnect) {
-        const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
-        if (started.ok) {
-          toast.message("正在連接 Instagram，回來後會接著發布。");
-          return;
-        }
-        ingestIg([result.post]);
-        rememberStyle(styleBriefFromPublish(result.pack));
-        toast.message(started.error);
-        void navigate({ to: "/connections" });
-        return;
-      }
-      ingestIg([result.post]);
-      rememberStyle(styleBriefFromPublish(result.pack));
-      setFocusIgId(result.post.id);
-      setScheduleStatus(row.id, "published");
-      if (row.projectId) {
-        updateProject(row.projectId, { contentStatus: "published", publishedAt: Date.now() });
-      }
-      toast.success(result.message);
-      void navigate({ to: "/instagram" });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "發布失敗");
-    } finally {
-      setPublishingId(null);
     }
     for (const b of brands) if (b.logoAssetId) ids.push(b.logoAssetId);
     for (const a of assets) ids.push(a.id);
@@ -96,22 +71,10 @@ export function HomePage() {
   }, [projects, brands, assets]);
   const urls = useAssetUrls(assetIds);
 
-  function startFeatured() {
-    if (!featured) return;
-    writeHandoff({
-      idea: featuredCampaignIdea({
-        ...FEATURED_EVENT,
-        name: featured.name,
-        date: featured.date,
-        time: featured.time,
-        location: featured.location,
-        oneLiner: featuredHook,
-      }),
-      tab: "campaign",
-      autoRun: true,
-      sourceLabel: `活動 / ${featured.name}`,
-    });
-    void navigate({ to: "/create", search: { tab: "campaign" } });
+  function startTemplate(id: (typeof TEMPLATE_STARTERS)[number]["id"]) {
+    if (!brand) return;
+    const project = createFromTemplate({ templateId: id, brandId: brand.id });
+    void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
   }
 
   function openAi(topic: string, camp?: Campaign | null) {
