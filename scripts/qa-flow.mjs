@@ -254,6 +254,10 @@ try {
   await page.screenshot({ path: `${prefix}-calendar-agenda.png` });
   await page.goto(`${base}/`, { waitUntil: "networkidle" });
   await expectText("首頁即將發的全套", "全套 ·");
+  await page.getByText("已排程內容", { exact: true }).evaluate((el) =>
+    el instanceof HTMLElement ? el.scrollIntoView({ block: "start" }) : undefined,
+  );
+  await page.waitForTimeout(300);
   await page.screenshot({ path: `${prefix}-home-scheduled.png` });
 
   // 8. 活動詳情 + AI 生成完整宣傳
