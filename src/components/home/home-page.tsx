@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { contentKindLabel } from "@/lib/studio/content";
 import { daysUntil, academicBeatLabel, academicBeat } from "@/lib/zen/context";
-import { INSPIRATION } from "@/lib/zen/inspiration";
+import { INSPIRATION, ideaFromInspiration } from "@/lib/zen/inspiration";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
@@ -115,7 +115,7 @@ export function HomePage() {
                 className="mt-3"
                 size="sm"
                 variant="secondary"
-                onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: card.hookShape } })}
+                onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: ideaFromInspiration(card) } })}
               >
                 用這個形狀創作
               </Button>

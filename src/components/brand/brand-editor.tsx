@@ -1,4 +1,4 @@
-import { Plus, Star, Trash2, Upload } from "lucide-react";
+import { Star, Trash2, Upload } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
@@ -50,7 +50,6 @@ export function BrandEditor() {
   const brands = useStudio((s) => s.brands);
   const updateBrand = useStudio((s) => s.updateBrand);
   const createBrand = useStudio((s) => s.createBrand);
-  const deleteBrand = useStudio((s) => s.deleteBrand);
   const addAsset = useStudio((s) => s.addAsset);
   const [activeId, setActiveId] = useState(brands[0]?.id ?? "");
   const [section, setSection] = useState<(typeof SECTIONS)[number]["id"]>("identity");
@@ -66,9 +65,9 @@ export function BrandEditor() {
       <main className="mx-auto w-full max-w-3xl px-4 py-16">
         <EmptyState
           icon={SwatchBook}
-          title="尚無品牌"
-          description="建立品牌規範後，排版與 AI 企劃都會跟著走。"
-          action={<Button onClick={() => setActiveId(createBrand("新品牌").id)}>建立品牌</Button>}
+          title="尚無品牌記憶"
+          description="淡江禪學社的 Logo、龜龜、三色光與語氣，每次生成都會先讀。"
+          action={<Button onClick={() => setActiveId(createBrand("淡江大學禪學社").id)}>建立禪學社品牌記憶</Button>}
         />
       </main>
     );
@@ -132,39 +131,10 @@ export function BrandEditor() {
         kicker="品牌記憶"
         title="淡江禪學社"
         description="Logo、龜龜、三色光、語氣、喜歡與不喜歡的風格，每次生成都會先讀。"
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <BrandSubnav current="brand" />
-            <Button variant="secondary" onClick={() => setActiveId(createBrand("新品牌").id)}>
-              <Plus className="size-4" />
-              新增品牌
-            </Button>
-            {brands.length > 1 && (
-              <Button variant="outline" onClick={() => deleteBrand(brand.id)}>
-                <Trash2 className="size-4" />
-                刪除
-              </Button>
-            )}
-          </div>
-        }
+        actions={<BrandSubnav current="brand" />}
       />
 
       <StorageNotice />
-
-      {brands.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          {brands.map((b) => (
-            <Button
-              key={b.id}
-              size="sm"
-              variant={b.id === brand.id ? "default" : "secondary"}
-              onClick={() => setActiveId(b.id)}
-            >
-              {b.name}
-            </Button>
-          ))}
-        </div>
-      )}
 
       <div
         className="overflow-hidden rounded-2xl p-5 shadow-[var(--shadow-border)]"

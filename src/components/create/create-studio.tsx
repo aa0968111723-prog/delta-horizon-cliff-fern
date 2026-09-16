@@ -1,7 +1,7 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { convertPlan } from "@/lib/ai/convert";
+import { convertPlan, type ConvertedPack } from "@/lib/ai/convert";
 import { generateCampaignPlan, getCampaignAiStatus, describeAdapter, type AiStatus } from "@/lib/ai/campaign";
 import { generateCopyPacks } from "@/lib/ai/copy-studio";
 import { generateStudioImage, generateVisualDirections } from "@/lib/ai/image-studio";
@@ -16,9 +16,10 @@ import { uid } from "@/lib/studio/ids";
 import { parseEventDate, parseEventTime, guessEventName } from "@/lib/zen/dates";
 import { DEFAULT_AUDIENCE } from "@/lib/zen/context";
 import { clubCreativeDna } from "@/lib/zen/dna";
-import { rhythmHint } from "@/lib/zen/rhythm";
+import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction";
+import { offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
 import { searchCreative, type CreativeHit } from "@/lib/zen/search";
-import { suggestWaves, eventKindFromText, waveLabel } from "@/lib/zen/schedule";
+import { suggestWaves, eventKindFromText, waveLabel, contentKindForWave } from "@/lib/zen/schedule";
 import type { CampaignPlan, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
 import { ReelsBoard } from "@/components/create/reels-board";
 import { WaveList } from "@/components/create/wave-list";
@@ -81,6 +82,8 @@ export function CreateStudio() {
   const [directions, setDirections] = useState<VisualDirection[]>([]);
   const [review, setReview] = useState<StudentReview | null>(null);
   const [found, setFound] = useState<CreativeHit[]>([]);
+  const [pinned, setPinned] = useState<CreativeHit[]>([]);
+  const [pickedDirection, setPickedDirection] = useState<VisualDirection | null>(null);
   const [campaign, setCampaign] = useState<ClubCampaign | null>(null);
 
   useEffect(() => {
@@ -109,23 +112,42 @@ export function CreateStudio() {
   const activePack = packs.find((p) => p.tone === tone) ?? packs[0];
   const mode = search.mode || "idea";
 
-  function gatherHits(query: string) {
-    const hits = searchCreative({ query, assets, projects, campaigns, igMemory, remoteFiles });
-    setFound(hits.slice(0, 8));
+  useEffect(() => {
+    if (mode === "from-drive" || mode === "from-canva" || mode === "from-ig") {
+      void gatherHits(idea || "茶會");
+    }
+  }, [mode]);
+
+  async function gatherHits(query: string) {
+    let remotes = remoteFiles;
+    try {
+      const live = await searchDriveLive({ data: { query: query.slice(0, 80) || "茶會" } });
+      if (live.files.length) {
+        upsertRemoteFiles(live.files);
+        const map = new Map(remotes.map((row) => [row.id, row]));
+        for (const file of live.files) map.set(file.id, file);
+        remotes = [...map.values()];
+      }
+    } catch {
+      /* keep local index */
+    }
+    const hits = searchCreative({ query, assets, projects, campaigns, igMemory, remoteFiles: remotes });
+    setFound(hits.slice(0, 12));
     return hits;
+  }
+
+  function sourceNotes(hits: CreativeHit[]) {
+    const refs = pinned.length ? pinned : hits.slice(0, 6);
+    return refs.map((h) => `${sourceLine(h)}/${h.title}`).join("、") || "品牌記憶";
+  }
+
+  function togglePin(hit: CreativeHit) {
+    setPinned((rows) => (rows.some((row) => row.id === hit.id) ? rows.filter((row) => row.id !== hit.id) : [...rows, hit]));
   }
 
   async function runCopy() {
     setBusy(true);
-    gatherHits(idea);
-    if (mode === "from-drive") {
-      try {
-        const live = await searchDriveLive({ data: { query: idea } });
-        if (live.files.length) upsertRemoteFiles(live.files);
-      } catch {
-        /* keep local index */
-      }
-    }
+    const hits = await gatherHits(idea);
     try {
       const result = await generateCopyPacks({
         data: {
@@ -133,7 +155,7 @@ export function CreateStudio() {
           eventName,
           schedule,
           location,
-          memoryHint,
+          memoryHint: `${memoryHint}\n參考來源：${sourceNotes(hits)}`.slice(0, 800),
           forceMock: !status?.available,
         },
       });
@@ -142,7 +164,7 @@ export function CreateStudio() {
         return;
       }
       setPacks(result.packs);
-      setReview(result.review);
+      setReview(ensureRewriteDiffers(result.review, result.packs[0]?.hook ?? ""));
       toast.success(result.adapter === "mock" ? "本機文案草案" : "文案已生成");
     } finally {
       setBusy(false);
@@ -151,7 +173,7 @@ export function CreateStudio() {
 
   async function runKit() {
     if (!brand) return;
-    const hits = gatherHits(`${idea} ${eventName}`);
+    const hits = await gatherHits(`${idea} ${eventName}`);
     setBusy(true);
     try {
       const brief = migrateBrief({
@@ -164,12 +186,7 @@ export function CreateStudio() {
         goal: "traffic",
         features: `${idea}\n一句介紹：${oneLiner}\n學生痛點：${studentPain}\n主題：${theme}`.slice(0, 400),
         style: "生活感、夜晚、年輕",
-        notes: `一人網宣。不要宗教語氣。${description ? `介紹：${description}。` : ""}參考來源：${
-          hits
-            .slice(0, 4)
-            .map((h) => `${h.kind}/${h.title}`)
-            .join("、") || "品牌記憶"
-        }`.slice(0, 400),
+        notes: `一人網宣。不要宗教語氣。${description ? `介紹：${description}。` : ""}參考來源：${sourceNotes(hits)}`.slice(0, 400),
         deliverables: { post: true, story: true, carousel: true, reels: true },
       });
       const result = await generateCampaignPlan({
@@ -182,7 +199,8 @@ export function CreateStudio() {
       setPlan(result.plan);
       setPacks(result.plan.copyPacks ?? []);
       setDirections(result.plan.directions ?? []);
-      setReview(result.plan.studentReview ?? null);
+      setReview(result.plan.studentReview ? ensureRewriteDiffers(result.plan.studentReview, result.plan.hook) : null);
+      setPickedDirection(null);
       toast.success(result.adapter === "mock" ? "本機宣傳草案" : "已生成完整宣傳");
     } finally {
       setBusy(false);
@@ -191,11 +209,11 @@ export function CreateStudio() {
 
   async function runDirections() {
     setBusy(true);
-    gatherHits(idea);
+    const hits = await gatherHits(idea);
     try {
       const result = await generateVisualDirections({
         data: {
-          idea,
+          idea: `${idea}。參考：${sourceNotes(hits)}`.slice(0, 400),
           eventName,
           forceMock: !status?.available,
         },
@@ -298,7 +316,7 @@ export function CreateStudio() {
         id: wave.id,
         projectId: null,
         campaignId: created.id,
-        kind: wave.kind === "hero" ? "carousel" : wave.kind === "dayof" ? "story" : "ig-post",
+        kind: contentKindForWave(wave.kind),
         title: wave.title,
         scheduledAt: wave.scheduledAt,
         publishedAt: null,
@@ -341,13 +359,45 @@ export function CreateStudio() {
     }
   }
 
+  function adoptDirection(dir: VisualDirection) {
+    setPickedDirection(dir);
+    setPlan((current) => (current ? applyDirectionToPlan(current, dir) : current));
+    setPacks((rows) =>
+      rows.map((pack) => ({
+        ...pack,
+        hook: /[？?]/.test(dir.headline) ? dir.headline : pack.hook,
+      })),
+    );
+    toast.success(`已選「${dir.name}」，文案與視覺會跟著走`);
+  }
+
+  function schedulePack(pack: ConvertedPack) {
+    const date = parseEventDate(schedule);
+    const when = Date.parse(`${date}T19:00:00+08:00`);
+    const scheduledAt = Number.isNaN(when)
+      ? Date.now()
+      : when + offsetDaysForConvertedKind(pack.kind) * 86_400_000;
+    upsertSchedule({
+      id: uid("sch"),
+      projectId: null,
+      campaignId: campaign?.id ?? null,
+      kind: pack.kind,
+      title: `${pack.title} · ${eventName || plan?.campaignName || idea.slice(0, 12)}`,
+      scheduledAt,
+      publishedAt: null,
+      status: "idea",
+    });
+    toast.success(`${pack.title}已進月曆`);
+    toast.message(rhythmHint([...recentKinds, pack.kind]));
+  }
+
   const converted = useMemo(() => {
     if (!plan) return [];
     return KINDS.map((kind) => convertPlan(plan, kind));
   }, [plan]);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-28 md:px-8 md:py-10 lg:pb-10">
       <PageHeader
         kicker="AI 創作"
         title="從一句話開始"
@@ -413,15 +463,24 @@ export function CreateStudio() {
       {found.length ? (
         <section className="mt-8">
           <h2 className="text-sm font-medium">找到 {found.length} 個相關素材</h2>
+          <p className="mt-1 text-xs text-muted">可釘選給 AI 當風格參考。來源會標出來。</p>
           <ul className="mt-3 space-y-2">
-            {found.map((hit) => (
-              <li key={hit.id} className="rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]">
-                <p>{hit.title}</p>
-                <p className="mt-1 text-xs text-muted">
-                  {sourceLine(hit)} · {hit.subtitle}
-                </p>
-              </li>
-            ))}
+            {found.map((hit) => {
+              const pinnedHit = pinned.some((row) => row.id === hit.id);
+              return (
+                <li key={hit.id} className="flex items-start justify-between gap-2 rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]">
+                  <div>
+                    <p>{hit.title}</p>
+                    <p className="mt-1 text-xs text-muted">
+                      {sourceLine(hit)} · {hit.subtitle}
+                    </p>
+                  </div>
+                  <Button size="sm" variant={pinnedHit ? "default" : "secondary"} onClick={() => togglePin(hit)}>
+                    {pinnedHit ? "已參考" : "加入參考"}
+                  </Button>
+                </li>
+              );
+            })}
           </ul>
         </section>
       ) : null}
@@ -474,9 +533,14 @@ export function CreateStudio() {
                 <p className="mt-1 text-sm text-muted">{dir.concept}</p>
                 <p className="mt-2 text-xs text-muted">{dir.palette} · {dir.composition}</p>
                 <p className="mt-1 text-sm">{dir.headline} · {dir.subhead}</p>
-                <Button className="mt-3" size="sm" disabled={busy} onClick={() => void generateFromDirection(dir)}>
-                  生成這個方向
-                </Button>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" variant={pickedDirection?.name === dir.name ? "default" : "secondary"} onClick={() => adoptDirection(dir)}>
+                    {pickedDirection?.name === dir.name ? "已選這個方向" : "用這個方向"}
+                  </Button>
+                  <Button size="sm" disabled={busy} onClick={() => void generateFromDirection(dir)}>
+                    生成圖片
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -495,6 +559,9 @@ export function CreateStudio() {
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
+                <Button className="mt-3" size="sm" variant="secondary" onClick={() => schedulePack(pack)}>
+                  排入這則
+                </Button>
               </article>
             ))}
           </div>
@@ -523,7 +590,25 @@ export function CreateStudio() {
       ) : null}
 
       {campaign?.waves.length ? (
-        <WaveList waves={campaign.waves} name={campaign.name} schedule={schedule} location={location} idea={idea} />
+        <WaveList
+          waves={campaign.waves}
+          name={campaign.name}
+          schedule={schedule}
+          location={location}
+          idea={idea}
+          onApplyDraft={(draft) => {
+            setPacks((rows) =>
+              rows.map((pack) => ({
+                ...pack,
+                hook: draft.hook,
+                body: draft.body,
+                cta: draft.cta,
+              })),
+            );
+            setPlan((current) => (current ? { ...current, hook: draft.hook, body: draft.body, cta: draft.cta } : current));
+            toast.success(`已套用「${draft.title}」文案`);
+          }}
+        />
       ) : null}
 
       <p className="mt-8 text-xs text-subtle">來源會標成 Google Drive / Canva / Instagram / AI Generated。沒連接時先用品牌記憶與本機素材。</p>

@@ -1,7 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { searchDriveLive } from "@/lib/connect/sync";
 import { searchCreative, type CreativeHit } from "@/lib/zen/search";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
@@ -15,7 +16,9 @@ export function CreativeSearch() {
   const campaigns = useStudio((s) => s.campaigns);
   const igMemory = useStudio((s) => s.igMemory);
   const remoteFiles = useStudio((s) => s.remoteFiles);
+  const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
   const [q, setQ] = useState("");
+  const [liveNote, setLiveNote] = useState("");
 
   const hits = useMemo(
     () => searchCreative({ query: q, assets, projects, campaigns, igMemory, remoteFiles }),
@@ -24,7 +27,29 @@ export function CreativeSearch() {
 
   const groups = groupHits(hits);
 
-  function openHit(hit: CreativeHit) {
+  useEffect(() => {
+    if (!open) return;
+    const query = q.trim().slice(0, 80);
+    if (query.length < 2) {
+      setLiveNote("");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void searchDriveLive({ data: { query } })
+        .then((live) => {
+          if (live.files.length) upsertRemoteFiles(live.files);
+          setLiveNote(live.note);
+        })
+        .catch(() => undefined);
+    }, 420);
+    return () => window.clearTimeout(timer);
+  }, [q, open, upsertRemoteFiles]);
+
+  function openHit(hit: CreativeHit, action: "create" | "source") {
+    if (action === "source" && hit.url) {
+      window.open(hit.url, "_blank", "noopener,noreferrer");
+      return;
+    }
     setSearchOpen(false);
     if (hit.projectId) {
       void navigate({ to: "/studio/$projectId", params: { projectId: hit.projectId } });
@@ -34,11 +59,24 @@ export function CreativeSearch() {
       void navigate({ to: "/create", search: { mode: "campaign", idea: hit.title } });
       return;
     }
-    if (hit.assetId) {
-      void navigate({ to: "/create", search: { mode: "from-image", idea: hit.title } });
+    const idea = hit.title;
+    if (hit.source === "canva") {
+      void navigate({ to: "/create", search: { mode: "from-canva", idea } });
       return;
     }
-    void navigate({ to: "/create", search: { mode: "idea", idea: hit.title } });
+    if (hit.source === "drive") {
+      void navigate({ to: "/create", search: { mode: "from-drive", idea } });
+      return;
+    }
+    if (hit.source === "instagram") {
+      void navigate({ to: "/create", search: { mode: "from-ig", idea } });
+      return;
+    }
+    if (hit.assetId) {
+      void navigate({ to: "/create", search: { mode: "from-image", idea } });
+      return;
+    }
+    void navigate({ to: "/create", search: { mode: "idea", idea } });
   }
 
   return (
@@ -52,6 +90,7 @@ export function CreativeSearch() {
             onChange={(e) => setQ(e.target.value)}
             placeholder="浮游禪光、茶會、龜龜、晚上的照片…"
           />
+          {liveNote ? <p className="mt-2 text-xs text-subtle">{liveNote}</p> : null}
         </div>
         <div className="max-h-[70dvh] overflow-y-auto p-3">
           {Object.entries(groups).map(([source, list]) => (
@@ -60,16 +99,28 @@ export function CreativeSearch() {
               <ul className="space-y-1">
                 {list.map((hit) => (
                   <li key={hit.id}>
-                    <button
-                      type="button"
-                      onClick={() => openHit(hit)}
-                      className="w-full rounded-xl px-3 py-2 text-left hover:bg-surface-2"
-                    >
-                      <p className="truncate text-sm">{hit.title}</p>
-                      <p className="truncate text-xs text-muted">
-                        {sourceLabel(hit.source)} · {hit.subtitle}
-                      </p>
-                    </button>
+                    <div className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface-2">
+                      {hit.thumbnail ? (
+                        <img src={hit.thumbnail} alt="" className="size-10 shrink-0 rounded-lg object-cover" />
+                      ) : (
+                        <span className="size-10 shrink-0 rounded-lg bg-surface" />
+                      )}
+                      <button type="button" onClick={() => openHit(hit, "create")} className="min-w-0 flex-1 text-left">
+                        <p className="truncate text-sm">{hit.title}</p>
+                        <p className="truncate text-xs text-muted">
+                          {sourceLabel(hit.source)} · {hit.subtitle}
+                        </p>
+                      </button>
+                      {hit.url ? (
+                        <button
+                          type="button"
+                          className="shrink-0 text-xs text-muted"
+                          onClick={() => openHit(hit, "source")}
+                        >
+                          開原檔
+                        </button>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -77,7 +128,11 @@ export function CreativeSearch() {
           ))}
           {hits.length === 0 ? <p className="py-8 text-center text-sm text-muted">沒有找到。試試活動名或龜龜。</p> : null}
           <p className="px-1 pb-2 text-xs text-subtle">
-            也可到 <Link to="/connect" className="underline" onClick={() => setSearchOpen(false)}>連接</Link> 把 Drive／Canva／IG 算進來。
+            也可到{" "}
+            <Link to="/connect" className="underline" onClick={() => setSearchOpen(false)}>
+              連接
+            </Link>{" "}
+            把 Drive／Canva／IG 算進來。
           </p>
         </div>
       </DialogContent>

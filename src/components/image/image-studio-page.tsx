@@ -214,6 +214,17 @@ export function ImageStudioPage() {
               >
                 生成相似視覺
               </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const next = `${vision.content}。保留畫面內容，重新設計成適合淡江學生停留的 IG 主視覺，不要複製舊作品。`;
+                  setIdea(next);
+                  void directionsGo(next);
+                }}
+              >
+                保留內容重新設計
+              </Button>
               <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: vision.content } })}>
                 延續這個風格
               </Button>

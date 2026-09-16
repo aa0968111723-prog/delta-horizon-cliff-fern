@@ -31,3 +31,23 @@ export function rhythmHint(recent: ContentKind[]) {
   }
   return `下一則可做 ${next}，穿插生活與互動，不要整排招生。`;
 }
+
+/** Spread converted formats so the calendar is not a stack of ads on one night. */
+export function offsetDaysForConvertedKind(kind: ContentKind): number {
+  switch (kind) {
+    case "ig-post":
+      return -7;
+    case "carousel":
+      return -5;
+    case "threads":
+      return -4;
+    case "reels":
+      return -3;
+    case "story":
+      return -2;
+    case "line":
+      return -1;
+    default:
+      return -5;
+  }
+}

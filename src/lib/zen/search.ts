@@ -6,9 +6,9 @@ const ALIASES: Array<{ keys: string[]; extra: string[] }> = [
   { keys: ["龜龜", "龜"], extra: ["龜龜", "角色", "吉祥物"] },
   { keys: ["浮游禪光", "禪光", "浮游"], extra: ["浮游禪光", "燈", "三色光", "夜晚"] },
   { keys: ["晚上", "夜晚", "夜"], extra: ["晚上", "夜", "暮色", "淡水"] },
-  { keys: ["主視覺", "海報"], extra: ["三色光", "主視覺", "海報", "ig"] },
+  { keys: ["主視覺", "海報", "適合 IG"], extra: ["三色光", "主視覺", "海報", "ig", "留白"] },
   { keys: ["招生", "招新"], extra: ["招新", "迎新", "新生"] },
-  { keys: ["同學", "互動"], extra: ["同學", "互動", "朋友"] },
+  { keys: ["同學", "互動", "很多同學"], extra: ["同學", "互動", "朋友", "圍坐"] },
 ];
 
 function expandQuery(query: string): string {
@@ -31,6 +31,7 @@ export type CreativeHit = {
   projectId?: string;
   campaignId?: string;
   remoteId?: string;
+  url?: string;
 };
 
 const WEIGHT: Record<CreativeHit["source"], number> = {
@@ -160,6 +161,7 @@ export function searchCreative(input: {
         score,
         remoteId: file.id,
         thumbnail: file.thumbnail,
+        url: file.url,
       });
     }
   }

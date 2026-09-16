@@ -10,8 +10,8 @@ export function proposedHook(text: string): string {
   const first = text.split(/[。\n]/)[0]?.trim() ?? "";
   if (/誠摯|敬邀|蒞臨|不容錯過/.test(first)) return HOOK_EXAMPLES[0];
   if (!/[？?]/.test(first)) return HOOK_EXAMPLES[2];
-  const alt = HOOK_EXAMPLES.find((hook) => !first.includes(hook.slice(0, 8)));
-  return alt ?? HOOK_EXAMPLES[1];
+  const alts = HOOK_EXAMPLES.filter((hook) => hook !== first && !first.includes(hook.slice(0, 8)));
+  return alts[0] ?? HOOK_EXAMPLES[1];
 }
 
 export function studentReviewOf(text: string, schedule = "", location = ""): StudentReview {

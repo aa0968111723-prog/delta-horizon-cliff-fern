@@ -11,12 +11,14 @@ export function WaveList({
   schedule,
   location,
   idea,
+  onApplyDraft,
 }: {
   waves: CampaignWave[];
   name: string;
   schedule: string;
   location: string;
   idea: string;
+  onApplyDraft?: (draft: WaveDraft) => void;
 }) {
   const [drafts, setDrafts] = useState<Partial<Record<CampaignWaveKind, WaveDraft>>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -59,6 +61,11 @@ export function WaveList({
                 </div>
               ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
+                {draft && onApplyDraft ? (
+                  <Button size="sm" onClick={() => onApplyDraft(draft)}>
+                    套用這則文案
+                  </Button>
+                ) : null}
                 <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => void regen(wave.kind, "rewrite")}>
                   重新生成
                 </Button>

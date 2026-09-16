@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { learnFromIg } from "./insights.ts";
-import { nextKindAfter, rhythmHint } from "./rhythm.ts";
+import { nextKindAfter, offsetDaysForConvertedKind, rhythmHint } from "./rhythm.ts";
 import { createPkce } from "../connect/pkce.ts";
 import { canvaPreset, canvaBrief } from "../connect/canva-format.ts";
 import { mockWaveDraft } from "../ai/wave-draft.ts";
@@ -39,6 +39,13 @@ test("learnFromIg prefers question hooks with higher saves", () => {
 test("rhythm avoids consecutive promo ads", () => {
   assert.equal(nextKindAfter(["carousel", "ig-post"]), "member-story");
   assert.match(rhythmHint(["carousel", "poster"]), /生活|故事/);
+});
+
+test("converted formats land on different days so the grid is not all ads", () => {
+  assert.equal(offsetDaysForConvertedKind("ig-post"), -7);
+  assert.equal(offsetDaysForConvertedKind("carousel"), -5);
+  assert.equal(offsetDaysForConvertedKind("story"), -2);
+  assert.ok(offsetDaysForConvertedKind("carousel") !== offsetDaysForConvertedKind("story"));
 });
 
 test("pkce verifier is not the challenge", () => {

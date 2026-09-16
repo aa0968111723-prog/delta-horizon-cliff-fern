@@ -4,6 +4,7 @@ import { academicBeat, daysUntil, studentSituation, zenSystemPrompt } from "./co
 import { parseEventDate, parseEventTime } from "./dates.ts";
 import { studentReviewOf } from "./review.ts";
 import { searchCreative } from "./search.ts";
+import { ideaFromInspiration, INSPIRATION } from "./inspiration.ts";
 import { eventKindFromText, suggestWaves } from "./schedule.ts";
 
 test("September mid-month is orientation season for Tamkang", () => {
@@ -133,6 +134,55 @@ test("searchCreative understands 晚上的茶會 without the filename", () => {
   });
   assert.ok(hits.some((h) => h.title.includes("茶會")));
   assert.ok(hits.some((h) => h.source === "drive"));
+});
+
+test("searchCreative understands 適合 IG 主視覺 and 很多同學", () => {
+  const hits = searchCreative({
+    query: "適合 IG 主視覺",
+    assets: [],
+    projects: [],
+    campaigns: [],
+    igMemory: [],
+    remoteFiles: [
+      {
+        id: "canva_hero",
+        provider: "canva",
+        name: "茶會 IG 主視覺",
+        mime: "application/canva",
+        tags: ["茶會", "主視覺", "三色光"],
+        summary: "Canva / 浮游禪光",
+        url: "https://www.canva.com",
+      },
+    ],
+  });
+  assert.ok(hits.some((h) => h.source === "canva"));
+  assert.ok(hits.some((h) => h.url));
+
+  const people = searchCreative({
+    query: "找有很多同學互動的照片",
+    assets: [],
+    projects: [],
+    campaigns: [],
+    igMemory: [],
+    remoteFiles: [
+      {
+        id: "drv_people",
+        provider: "drive",
+        name: "2025 茶會現場",
+        mime: "image/jpeg",
+        tags: ["同學", "互動", "圍坐"],
+        summary: "很多人圍坐",
+      },
+    ],
+  });
+  assert.ok(people.some((h) => h.source === "drive"));
+});
+
+test("inspiration idea carries composition not a swipe file", () => {
+  const idea = ideaFromInspiration(INSPIRATION[0]);
+  assert.match(idea, /構圖/);
+  assert.match(idea, /淡江禪學社/);
+  assert.doesNotMatch(idea, /抄/);
 });
 
 test("parseEventDate reads 2026/09/24 19:00", () => {

@@ -73,3 +73,13 @@ export const INSPIRATION: InspirationCard[] = [
     zenUse: "茶會、浮游禪光都可當『今晚有地方去』。",
   },
 ];
+
+export function ideaFromInspiration(card: InspirationCard): string {
+  return [
+    card.hookShape,
+    `構圖：${card.composition}`,
+    `配色：${card.palette}`,
+    `形式：${card.form}`,
+    `轉成淡江禪學社：${card.zenUse}`,
+  ].join("\n");
+}

@@ -163,9 +163,17 @@ async function listInstagram(token: string): Promise<{ files: RemoteFile[]; igPo
 }
 
 export const syncConnection = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    z.object({ provider: z.enum(["drive", "canva", "instagram"]), folderName: z.string().max(80).optional() }).parse(input),
-  )
+  .validator((input: unknown) => {
+    const schema = z.object({
+      provider: z.enum(["drive", "canva", "instagram"]),
+      folderName: z.string().max(80).optional(),
+    });
+    if (input && typeof input === "object" && "data" in input) {
+      const inner = (input as { data: unknown }).data;
+      if (inner && typeof inner === "object" && "provider" in inner) return schema.parse(inner);
+    }
+    return schema.parse(input);
+  })
   .handler(async ({ data }): Promise<SyncResult> => {
     const bundle = await accessTokenFor(data.provider);
     if (!bundle) {
@@ -219,30 +227,73 @@ export const syncConnection = createServerFn({ method: "POST" })
     }
   });
 
+function parseSearchQuery(input: unknown) {
+  const schema = z.object({ query: z.string().min(1).max(80) });
+  if (input && typeof input === "object" && "data" in input) {
+    const inner = (input as { data: unknown }).data;
+    if (inner && typeof inner === "object" && "query" in inner) return schema.parse(inner);
+  }
+  return schema.parse(input);
+}
+
+function canvaMatches(file: RemoteFile, query: string) {
+  const blob = `${file.name} ${file.summary} ${file.tags.join(" ")}`.toLowerCase();
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((token) => token.length >= 1)
+    .some((token) => blob.includes(token));
+}
+
 export const searchDriveLive = createServerFn({ method: "POST" })
-  .validator((input: unknown) => z.object({ query: z.string().min(1).max(80) }).parse(input))
+  .validator((input: unknown) => parseSearchQuery(input))
   .handler(async ({ data }): Promise<{ ok: boolean; files: RemoteFile[]; note: string }> => {
-    const bundle = await accessTokenFor("drive");
-    if (!bundle) return { ok: true, files: [], note: "尚未連接 Drive，改搜本機與品牌記憶。" };
-    const token = bundle.accessToken;
-    const q = driveQueryEscape(data.query);
-    const query = `trashed=false and (name contains '${q}' or fullText contains '${q}')`;
-    const url = `https://www.googleapis.com/drive/v3/files?pageSize=20&fields=files(id,name,mimeType,thumbnailLink,modifiedTime,webViewLink)&q=${encodeURIComponent(query)}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) return { ok: false, files: [], note: "Drive 搜尋暫時失敗。" };
-    const json = (await res.json()) as {
-      files?: { id: string; name: string; mimeType?: string; thumbnailLink?: string; modifiedTime?: string; webViewLink?: string }[];
+    const files: RemoteFile[] = [];
+    const notes: string[] = [];
+    const drive = await accessTokenFor("drive");
+    if (!drive) {
+      notes.push("尚未連接 Drive，改搜本機與品牌記憶。");
+    } else {
+      const q = driveQueryEscape(data.query);
+      const query = `trashed=false and (name contains '${q}' or fullText contains '${q}')`;
+      const url = `https://www.googleapis.com/drive/v3/files?pageSize=20&fields=files(id,name,mimeType,thumbnailLink,modifiedTime,webViewLink)&q=${encodeURIComponent(query)}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${drive.accessToken}` } });
+      if (!res.ok) {
+        notes.push("Drive 搜尋暫時失敗。");
+      } else {
+        const json = (await res.json()) as {
+          files?: { id: string; name: string; mimeType?: string; thumbnailLink?: string; modifiedTime?: string; webViewLink?: string }[];
+        };
+        for (const file of json.files ?? []) {
+          files.push({
+            id: `drive:${file.id}`,
+            provider: "drive",
+            name: file.name,
+            mime: file.mimeType || "application/octet-stream",
+            thumbnail: file.thumbnailLink,
+            url: file.webViewLink,
+            modifiedAt: file.modifiedTime ? Date.parse(file.modifiedTime) : undefined,
+            tags: ["Google Drive", data.query],
+            summary: `Google Drive / 搜尋「${data.query}」`,
+          });
+        }
+        notes.push(`Drive ${json.files?.length ?? 0}`);
+      }
+    }
+    const canva = await accessTokenFor("canva");
+    if (canva) {
+      try {
+        const listed = await listCanva(canva.accessToken);
+        const matched = listed.filter((file) => canvaMatches(file, data.query));
+        files.push(...(matched.length ? matched : listed.slice(0, 8)));
+        notes.push(`Canva ${matched.length || listed.length}`);
+      } catch {
+        notes.push("Canva 搜尋暫時失敗。");
+      }
+    }
+    return {
+      ok: true,
+      files,
+      note: files.length ? `找到 ${files.length} 個相關素材` : notes.join(" · ") || "沒有遠端檔，改搜品牌記憶。",
     };
-    const files = (json.files ?? []).map((file) => ({
-      id: `drive:${file.id}`,
-      provider: "drive" as const,
-      name: file.name,
-      mime: file.mimeType || "application/octet-stream",
-      thumbnail: file.thumbnailLink,
-      url: file.webViewLink,
-      modifiedAt: file.modifiedTime ? Date.parse(file.modifiedTime) : undefined,
-      tags: ["Google Drive", data.query],
-      summary: `Google Drive / 搜尋「${data.query}」`,
-    }));
-    return { ok: true, files, note: `找到 ${files.length} 個 Drive 檔` };
   });

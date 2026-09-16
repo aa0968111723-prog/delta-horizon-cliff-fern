@@ -1,5 +1,5 @@
 import { uid } from "../studio/ids.ts";
-import type { CampaignWave, CampaignWaveKind, ClubCampaign, EventKind } from "../studio/types.ts";
+import type { CampaignWave, CampaignWaveKind, ClubCampaign, ContentKind, EventKind } from "../studio/types.ts";
 
 const WAVE_LABEL: Record<CampaignWaveKind, string> = {
   warmup: "預熱",
@@ -70,12 +70,33 @@ export function suggestWaves(campaign: Pick<ClubCampaign, "date" | "type" | "nam
     }));
 }
 
+export function contentKindForWave(kind: CampaignWaveKind): ContentKind {
+  switch (kind) {
+    case "warmup":
+      return "member-story";
+    case "emotion":
+      return "ig-post";
+    case "hero":
+      return "carousel";
+    case "detail":
+      return "ig-post";
+    case "reason":
+      return "knowledge";
+    case "countdown":
+      return "countdown";
+    case "dayof":
+      return "story";
+    case "recap":
+      return "recap";
+  }
+}
+
 export function eventKindFromText(text: string): EventKind {
   if (/茶/.test(text)) return "tea";
   if (/光|浮游|燈/.test(text)) return "light";
   if (/坐|靜坐|冥想/.test(text)) return "sitting";
   if (/招新|招生|迎新/.test(text)) return "recruit";
-  if (/課|工作坊|工作坊/.test(text)) return "workshop";
+  if (/課|工作坊/.test(text)) return "workshop";
   if (/談|分享|講座/.test(text)) return "talk";
   return "other";
 }
