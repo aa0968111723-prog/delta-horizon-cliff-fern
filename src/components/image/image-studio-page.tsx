@@ -17,9 +17,11 @@ import {
   varyImagePrompt,
   type VisionAnalysis,
 } from "@/lib/ai/image-studio";
-import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
+import { directionLookOf, directionLookSvg, directionPosterSvg, encodeUtf8Base64, licenseFromLook } from "@/lib/ai/poster";
 import { createCanvaDesign } from "@/lib/connect/canva";
 import { canvaRemoteFromDesign } from "@/lib/connect/canva-format";
+import { searchDriveLive } from "@/lib/connect/sync";
+import { createSearchFromHit } from "@/lib/studio/create-search";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
 import { persistGeneratedImage } from "@/lib/studio/raster";
 import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
@@ -30,8 +32,11 @@ import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
 import { ideaStudioHook } from "@/lib/zen/studio-hook";
 import { composeMemoryHint } from "@/lib/zen/memory-hook";
+import { searchCreative, groupCreativeHits, type CreativeHit } from "@/lib/zen/search";
+import { loadSourceEmbed, pickSourceRefs, sourceCreditFromHits, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import type { CopyPack, FormatId, StudentReview, VisualDirection } from "@/lib/studio/types";
+import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { useStudio } from "@/stores/studio-store";
 
 const VARIATIONS: { id: "composition" | "mood" | "background" | "style" | "text"; label: string }[] = [
@@ -53,13 +58,16 @@ const TONE_LABEL: Record<CopyPack["tone"], string> = {
 
 export function ImageStudioPage() {
   const navigate = useNavigate();
+  const hydrated = useStudio((s) => s.hydrated);
   const addAsset = useStudio((s) => s.addAsset);
   const updateAsset = useStudio((s) => s.updateAsset);
   const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
+  const upsertIgMemory = useStudio((s) => s.upsertIgMemory);
   const brands = useStudio((s) => s.brands);
   const igMemory = useStudio((s) => s.igMemory);
   const campaigns = useStudio((s) => s.campaigns);
   const assets = useStudio((s) => s.assets);
+  const remoteFiles = useStudio((s) => s.remoteFiles);
   const dna = useMemo(
     () => clubCreativeDna({ brand: brands[0], igMemory, campaigns, assets }),
     [brands, igMemory, campaigns, assets],
@@ -78,33 +86,106 @@ export function ImageStudioPage() {
   const [tone, setTone] = useState<CopyPack["tone"]>("student");
   const [lastImage, setLastImage] = useState<{ base64: string; mime: string; headline?: string } | null>(null);
   const [review, setReview] = useState<StudentReview | null>(null);
+  const [found, setFound] = useState<CreativeHit[]>([]);
+  const [pinned, setPinned] = useState<CreativeHit[]>([]);
+  const [liveNote, setLiveNote] = useState("");
+  const [sourceCredit, setSourceCredit] = useState("");
+  const [sourceEmbed, setSourceEmbed] = useState("");
   const autoRan = useRef(false);
   const regenTick = useRef<Record<string, number>>({});
   const photoEmbedRef = useRef("");
+  const foundGroups = useMemo(() => groupCreativeHits(found), [found]);
+  const thumbIds = useMemo(() => found.flatMap((hit) => (hit.assetId ? [hit.assetId] : [])), [found]);
+  const urls = useAssetUrls(thumbIds);
+  const directionLooks = useMemo(() => {
+    const look = sourceEmbed ? { photoEmbed: sourceEmbed, sourceCredit: sourceCredit || undefined } : undefined;
+    return directions.map((dir, index) => encodeUtf8Base64(directionLookSvg(dir, index, look)));
+  }, [directions, sourceEmbed, sourceCredit]);
 
   const activePack = packs.find((p) => p.tone === tone) ?? packs[0];
 
   useEffect(() => {
-    if (autoRan.current) return;
+    if (!hydrated || autoRan.current) return;
     autoRan.current = true;
-    void (async () => {
-      await copyGo(idea, true);
-      const dirs = await directionsGo();
-      if (dirs[0]) await gen(dirs[0], undefined, undefined, true);
-    })();
-  }, []);
+    void boot(idea);
+  }, [hydrated]);
 
-  async function directionsGo(nextIdea = idea, formatOverride?: FormatId) {
+  function sourceNotes(hits: CreativeHit[]) {
+    const refs = pickSourceRefs("idea", hits.length ? hits : found);
+    const picked = refs.length ? refs : hits.slice(0, 6);
+    const sources = picked.map((hit) => `${sourceLabelOf(hit.source)}／${hit.title}`).join("、") || "品牌記憶";
+    return `${sources}。${styleFromHits(picked)}`.slice(0, 400);
+  }
+
+  async function gatherHits(query: string) {
+    let remotes = remoteFiles;
+    try {
+      const live = await searchDriveLive({ data: { query: query.slice(0, 80) || "茶會" } });
+      if (live.igPosts?.length) upsertIgMemory(live.igPosts);
+      if (live.files.length) {
+        upsertRemoteFiles(live.files);
+        const map = new Map(remotes.map((row) => [row.id, row]));
+        for (const file of live.files) map.set(file.id, file);
+        remotes = [...map.values()];
+      }
+      setLiveNote(live.note);
+    } catch {
+      /* keep local index */
+    }
+    const hits = searchCreative({
+      query,
+      assets: useStudio.getState().assets,
+      projects: useStudio.getState().projects,
+      campaigns: useStudio.getState().campaigns,
+      igMemory: useStudio.getState().igMemory,
+      remoteFiles: remotes,
+    });
+    setFound(hits.slice(0, 12));
+    return hits;
+  }
+
+  async function adoptSources(hits: CreativeHit[]) {
+    const refs = pickSourceRefs("idea", hits);
+    const visual = refs.find((hit) => hit.thumbnail) ?? refs[0];
+    const nextPins = visual ? [visual, ...refs.filter((hit) => hit.id !== visual.id)].slice(0, 6) : [];
+    setPinned(nextPins);
+    const credit = sourceCreditFromHits(nextPins);
+    const href = visual?.thumbnail;
+    const embed = href ? (await loadSourceEmbed(href)) || "" : "";
+    photoEmbedRef.current = embed;
+    setSourceEmbed(embed);
+    setSourceCredit(credit);
+    const fromHits = visionFromHits(nextPins);
+    if (fromHits) setVision((current) => current ?? fromHits);
+    return nextPins;
+  }
+
+  async function boot(nextIdea: string) {
+    setBusy(true);
+    try {
+      const hits = await gatherHits(nextIdea);
+      const refs = await adoptSources(hits);
+      await copyGo(nextIdea, true, refs);
+      const dirs = await directionsGo(nextIdea, undefined, refs);
+      if (dirs[0]) await gen(dirs[0], directionLookOf(0), undefined, true, refs);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function directionsGo(nextIdea = idea, formatOverride?: FormatId, refs: CreativeHit[] = pinned) {
     setBusy(true);
     try {
       const result = await generateVisualDirections({
         data: {
-          idea: nextIdea,
+          idea: `${nextIdea}。參考：${sourceNotes(refs)}`.slice(0, 400),
+          eventName: guessEventName(nextIdea) || "",
           format: toImageFormat(formatOverride ?? format),
           memoryHint: composeMemoryHint([
             `過去表現較好的 Hook：「${ideaStudioHook(igMemory, nextIdea, guessEventName(nextIdea))}」`,
             learning.promptBlock,
             dna.promptBlock,
+            sourceNotes(refs),
           ]),
         },
       });
@@ -119,7 +200,7 @@ export function ImageStudioPage() {
     }
   }
 
-  async function copyGo(nextIdea = idea, silent = false) {
+  async function copyGo(nextIdea = idea, silent = false, refs: CreativeHit[] = pinned) {
     setBusy(true);
     try {
       const result = await generateCopyPacks({
@@ -130,6 +211,7 @@ export function ImageStudioPage() {
             `過去表現較好的 Hook：「${ideaStudioHook(igMemory, nextIdea, guessEventName(nextIdea))}」`,
             learning.promptBlock,
             dna.promptBlock,
+            sourceNotes(refs),
           ]),
         },
       });
@@ -145,7 +227,13 @@ export function ImageStudioPage() {
     }
   }
 
-  async function gen(dir: VisualDirection, kind?: (typeof VARIATIONS)[number]["id"], formatOverride?: FormatId, silent = false) {
+  async function gen(
+    dir: VisualDirection,
+    kind?: (typeof VARIATIONS)[number]["id"],
+    formatOverride?: FormatId,
+    silent = false,
+    _refs?: CreativeHit[],
+  ) {
     setBusy(true);
     try {
       const nextFormat = formatOverride ?? format;
@@ -153,6 +241,7 @@ export function ImageStudioPage() {
       const prompt = kind ? varyImagePrompt(dir.prompt, kind) : dir.prompt;
       const atmosphere = nextFormat === "reels-cover";
       const photoEmbed = photoEmbedRef.current.slice(0, 400_000);
+      const credit = sourceCredit || undefined;
       let payload = {
         imageBase64: encodeUtf8Base64(
           directionPosterSvg({
@@ -166,7 +255,7 @@ export function ImageStudioPage() {
             variation: kind,
             atmosphere,
             photoEmbed: photoEmbed || undefined,
-            sourceCredit: photoEmbed ? "本機上傳 / 延續這張" : undefined,
+            sourceCredit: atmosphere ? undefined : credit,
           }),
         ),
         mime: "image/svg+xml",
@@ -181,10 +270,10 @@ export function ImageStudioPage() {
             palette: dir.palette,
             name: dir.name,
             variation: kind,
-            memoryHint: composeMemoryHint([learning.promptBlock, dna.promptBlock]),
+            memoryHint: composeMemoryHint([learning.promptBlock, dna.promptBlock, sourceNotes(pinned)]),
             atmosphere,
             photoEmbed: photoEmbed || undefined,
-            sourceCredit: photoEmbed ? "本機上傳 / 延續這張" : undefined,
+            sourceCredit: credit,
           },
         });
         if (result.ok && result.adapter === "live") payload = { imageBase64: result.imageBase64, mime: result.mime };
@@ -221,17 +310,31 @@ export function ImageStudioPage() {
         createdAt: Date.now(),
         updatedAt: Date.now(),
         source: "generated",
-        licenseNotes: "來源：AI Generated",
+        licenseNotes: licenseFromLook(credit ? { sourceCredit: credit } : undefined),
         licenseOwner: "禪光",
         favorite: false,
         lastUsedAt: Date.now(),
         useCount: 0,
       });
       setLastImage({ base64: png.base64, mime: png.mime, headline: dir.headline });
-      if (!silent) toast.success("已存進素材庫（AI Generated）");
+      if (!silent) toast.success(credit ? `已存進素材庫（延續 ${credit}）` : "已存進素材庫（AI Generated）");
     } finally {
       setBusy(false);
     }
+  }
+
+  function togglePin(hit: CreativeHit) {
+    const next = pinned.some((row) => row.id === hit.id) ? pinned.filter((row) => row.id !== hit.id) : [...pinned, hit];
+    setPinned(next);
+    void (async () => {
+      const credit = sourceCreditFromHits(next);
+      const href = next.find((row) => row.thumbnail)?.thumbnail;
+      const embed = href ? (await loadSourceEmbed(href)) || "" : "";
+      photoEmbedRef.current = embed;
+      setSourceEmbed(embed);
+      setSourceCredit(credit);
+      await directionsGo(idea, undefined, next);
+    })();
   }
 
   async function sendToCanva(dir?: VisualDirection) {
@@ -278,6 +381,8 @@ export function ImageStudioPage() {
     photoEmbedRef.current = (file.type.includes("svg") || file.name.endsWith(".svg"))
       ? new TextDecoder().decode(buf)
       : `data:${file.type || "image/jpeg"};base64,${b64}`;
+    setSourceEmbed(photoEmbedRef.current);
+    setSourceCredit("本機上傳 / 延續這張");
     setBusy(true);
     try {
       const id = uid("asset");
@@ -312,18 +417,20 @@ export function ImageStudioPage() {
       toast.success("已理解這張圖，接著生成文案與相似視覺");
       await copyGo(next);
       const dirs = await directionsGo(next);
-      if (dirs[0]) await gen(dirs[0], undefined, undefined, true);
+      if (dirs[0]) await gen(dirs[0], directionLookOf(0), undefined, true);
     } finally {
       setBusy(false);
     }
   }
 
+  if (!hydrated) return null;
+
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-36 md:px-8 md:py-10 lg:pb-10">
+    <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-nav md:px-8 md:py-10">
       <PageHeader
         kicker="Image Studio"
         title="不要只生禪風海報"
-        description="先想學生情境、淡水夜晚、三色光、龜龜，再給三個方向。"
+        description="先找自己的茶會照片與設計，再想學生情境、淡水夜晚、三色光、龜龜，給三個方向。"
       />
       <p className="mt-3 text-xs text-muted" data-testid="studio-learn-banner">
         這次會參考過去 IG：「{studioHook}」。{learning.avoid}
@@ -337,7 +444,7 @@ export function ImageStudioPage() {
         ))}
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button disabled={busy} onClick={() => void directionsGo()}>
+        <Button disabled={busy} onClick={() => void boot(idea)}>
           提出三個視覺方向
         </Button>
         <Button variant="secondary" disabled={busy} onClick={() => void copyGo()}>
@@ -346,18 +453,87 @@ export function ImageStudioPage() {
         <Button variant="secondary" disabled={busy} onClick={() => void sendToCanva()}>
           送進 Canva
         </Button>
+        <Button
+          variant="secondary"
+          data-testid="image-into-create"
+          onClick={() =>
+            void navigate({
+              to: "/create",
+              search: pinned[0] ? createSearchFromHit(pinned[0]) : { mode: "idea", idea },
+            })
+          }
+        >
+          做成完整宣傳
+        </Button>
       </div>
+
+      {found.length || liveNote ? (
+        <section className="mt-8" data-testid="found-sources">
+          <h2 className="text-sm font-medium">找到 {found.length} 個相關素材</h2>
+          <p className="mt-1 text-xs text-muted" data-testid="live-found-note">
+            可釘選當風格參考。來源會標出來。
+            {liveNote ? ` ${liveNote.replace(/[。.]+\s*$/, "")}。` : ""}{" "}
+            {Object.entries(foundGroups)
+              .map(([source, list]) => `${sourceLabelOf(source)} ${list.length}`)
+              .join(" · ")}
+          </p>
+          {Object.entries(foundGroups).map(([source, list]) => (
+            <div key={source} className="mt-3">
+              <h3 className="text-xs tracking-[0.14em] text-muted uppercase">{sourceLabelOf(source)}</h3>
+              <ul className="mt-2 space-y-2">
+                {list.map((hit) => {
+                  const pinnedHit = pinned.some((row) => row.id === hit.id);
+                  const thumb = hit.thumbnail || (hit.assetId ? urls[hit.assetId] : undefined);
+                  return (
+                    <li key={hit.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-surface px-3 py-2 text-sm shadow-[var(--shadow-border)]">
+                      {thumb ? (
+                        <img src={thumb} alt="" data-testid="found-thumb" className="size-12 shrink-0 rounded-xl object-cover" />
+                      ) : (
+                        <span className="size-12 shrink-0 rounded-xl bg-surface-2" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate">{hit.title}</p>
+                        <p className="mt-1 truncate text-xs text-muted">
+                          {sourceLabelOf(hit.source)} · {hit.subtitle}
+                        </p>
+                      </div>
+                      <Button size="sm" variant={pinnedHit ? "default" : "secondary"} onClick={() => togglePin(hit)}>
+                        {pinnedHit ? "已參考" : "加入參考"}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </section>
+      ) : null}
+
       {lastImage ? (
-        <section className="mt-6">
+        <section className="mt-6" data-testid="image-ready">
           <h2 className="text-sm font-medium">主視覺</h2>
+          <p className="mt-1 text-xs text-muted">來源：{sourceCredit || "AI Generated"}</p>
           <div className="mt-3">
-            <HeroVisual base64={lastImage.base64} mime={lastImage.mime} headline={lastImage.headline} />
+            <HeroVisual
+              base64={lastImage.base64}
+              mime={lastImage.mime}
+              headline={lastImage.headline}
+              source={sourceCredit || "AI Generated"}
+            />
           </div>
         </section>
       ) : null}
-      <ul className="mt-6 space-y-3">
-        {directions.map((dir) => (
+      <ul className="mt-6 space-y-3" data-testid="direction-list">
+        {directions.map((dir, index) => (
           <li key={dir.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+            {directionLooks[index] ? (
+              <img
+                alt={`${dir.name} 視覺方向`}
+                src={`data:image/svg+xml;base64,${directionLooks[index]}`}
+                className="mb-3 aspect-[4/5] w-full max-w-[13rem] rounded-xl object-cover"
+                data-testid={index === 0 ? "direction-look-a" : index === 1 ? "direction-look-b" : "direction-look-c"}
+              />
+            ) : null}
             <p className="font-medium">{dir.name}</p>
             <p className="mt-1 text-sm">{dir.concept}</p>
             <p className="mt-2 text-xs text-muted">配色 {dir.palette}</p>
@@ -373,7 +549,11 @@ export function ImageStudioPage() {
               </p>
             </details>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button size="sm" disabled={busy} onClick={() => void gen(dir)}>
+              <Button
+                size="sm"
+                disabled={busy}
+                onClick={() => void gen(dir, directionLookOf(index))}
+              >
                 生成此方向
               </Button>
               <Button
@@ -399,7 +579,7 @@ export function ImageStudioPage() {
                   size="sm"
                   variant="secondary"
                   disabled={busy}
-                  onClick={() => void gen(dir, undefined, item.id)}
+                  onClick={() => void gen(dir, directionLookOf(index), item.id)}
                 >
                   延伸 {item.short}
                 </Button>
@@ -499,4 +679,12 @@ export function ImageStudioPage() {
       </section>
     </main>
   );
+}
+
+function sourceLabelOf(source: string) {
+  if (source === "drive") return "Google Drive";
+  if (source === "canva") return "Canva";
+  if (source === "instagram") return "Instagram";
+  if (source === "generated") return "AI Generated";
+  return "本機／品牌記憶";
 }

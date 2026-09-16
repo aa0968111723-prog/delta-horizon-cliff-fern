@@ -101,6 +101,20 @@ test("searchCreative groups Drive / Canva / IG for 茶會", () => {
   assert.ok(hits.some((hit) => hit.source === "instagram"));
 });
 
+test("searchCreative finds tea-party Drive files from 我要宣傳茶會", () => {
+  const hits = searchCreative({
+    query: "我要宣傳茶會",
+    assets: [turtle],
+    projects: [],
+    campaigns: [],
+    igMemory: [nightIg],
+    remoteFiles: [teaDrive, teaCanva],
+  });
+  assert.ok(hits.some((hit) => hit.source === "drive" && /茶會/.test(hit.title)));
+  assert.ok(hits.some((hit) => hit.source === "canva"));
+  assert.ok(!hits.some((hit) => /負責人|Assignee/.test(hit.title)));
+});
+
 test("searchCreative keeps thumbnails so tea-party sources can show pictures", () => {
   const tamsui: AssetMeta = { ...turtle, id: "asset_tamsui", name: "淡水晚上", seedSrc: "/seed/tamsui.svg", tags: ["淡水"] };
   const hits = searchCreative({
