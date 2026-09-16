@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AssistantForm } from "@/components/assistant/assistant-form";
+import { IdeaFlow } from "@/components/create/idea-flow";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -31,7 +32,7 @@ export function CreateHub({ initialTab = "campaign" }: { initialTab?: CreateTab 
       <PageHeader
         kicker="AI 創作"
         title="多模態工作台"
-        description="文案、圖片、理解、活動宣傳都在這裡。前台不顯示 Agent 管理器。"
+        description="從一句話開始：找素材、給三個方向、再產出 IG 文案與多模態內容。前台不顯示 Agent。"
       />
       <div className="mt-6 flex flex-wrap gap-2">
         {(
@@ -49,7 +50,17 @@ export function CreateHub({ initialTab = "campaign" }: { initialTab?: CreateTab 
         ))}
       </div>
       <div className="mt-6 rounded-3xl bg-surface p-4 shadow-[var(--shadow-border)] sm:p-6">
-        {tab === "campaign" ? <AssistantForm variant="page" projectId={lastProjectId} /> : null}
+        {tab === "campaign" ? (
+          <div className="space-y-8">
+            <IdeaFlow />
+            <details className="rounded-2xl bg-bg px-4 py-3">
+              <summary className="cursor-pointer text-sm text-muted">需要填完整活動欄位再生成</summary>
+              <div className="mt-4">
+                <AssistantForm variant="page" projectId={lastProjectId} />
+              </div>
+            </details>
+          </div>
+        ) : null}
         {tab === "copy" ? <CopyStudio /> : null}
         {tab === "image" ? <ImageStudio /> : null}
         {tab === "vision" ? <VisionStudio onAction={(id) => {

@@ -111,7 +111,7 @@ export function InstagramCenter() {
                 <Button asChild>
                   <Link
                     to="/create"
-                    search={{ tab: "copy" }}
+                    search={{ tab: "campaign" }}
                     onClick={() => window.sessionStorage.setItem("zen-idea", active.caption)}
                   >
                     AI 分析並做新的

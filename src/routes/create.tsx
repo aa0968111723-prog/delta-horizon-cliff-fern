@@ -5,7 +5,7 @@ function parseTab(value: unknown): CreateTab {
   if (value === "copy" || value === "image" || value === "vision" || value === "convert" || value === "campaign") {
     return value;
   }
-  return "image";
+  return "campaign";
 }
 
 export const Route = createFileRoute("/create")({

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
+import { parseIdea } from "@/lib/club/idea";
 import { MEMORY_ITEMS, searchMemory, type MemoryItem } from "@/lib/club/memory";
 import { ConnectorType, GoogleDriveTools } from "@/lib/app-data/types";
 import { classifyCallToolError } from "@/lib/app-data/errors";
@@ -42,7 +43,9 @@ export const searchCreative = createServerFn({ method: "POST" })
     loginUrl?: string;
     driveDetail: string;
   }> => {
-    const local = searchMemory(data.query);
+    const parsed = parseIdea(data.query);
+    const query = parsed.searchQuery || data.query;
+    const local = searchMemory(query);
     const { getRequest } = await import("@tanstack/react-start/server");
     const { readBlobFromCookie } = await import("@/lib/connections/vault.server");
     const { fetchCanvaDesigns, fetchInstagramMedia } = await import("@/lib/connections/live");
@@ -59,7 +62,7 @@ export const searchCreative = createServerFn({ method: "POST" })
       const result = await Promise.race([
         callTool(
           GoogleDriveTools.search,
-          { query: data.query || "淡江 禪學社" },
+          { query: query || "淡江 禪學社" },
           { connectorType: ConnectorType.GoogleDrive },
         ),
         new Promise<never>((_, reject) => {
@@ -81,7 +84,7 @@ export const searchCreative = createServerFn({ method: "POST" })
       driveDetail = "預覽環境可能還讀不到 Google Drive，社團記憶仍可搜。";
     }
 
-    const q = data.query.trim().toLowerCase();
+    const q = query.trim().toLowerCase();
     const matchLive = (item: SearchHit) => {
       if (!q) return true;
       const blobText = [item.title, item.subtitle, item.notes, item.caption, ...item.tags].join(" ").toLowerCase();

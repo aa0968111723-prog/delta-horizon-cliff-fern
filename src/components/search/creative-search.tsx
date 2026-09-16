@@ -104,7 +104,7 @@ export function CreativeSearch() {
                       }}
                       asChild
                     >
-                      <Link to="/create" search={{ tab: "copy" }}>
+                      <Link to="/create" search={{ tab: "campaign" }}>
                         加入創作
                       </Link>
                     </Button>
