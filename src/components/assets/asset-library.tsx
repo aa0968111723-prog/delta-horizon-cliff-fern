@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { AssetCard } from "@/components/assets/asset-card";
 import { AssetDetailSheet } from "@/components/assets/asset-detail";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
-import { EmptyState, ErrorState } from "@/components/shared/empty-state";
+import { EmptyState, ErrorState, LoadingState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { StorageNotice } from "@/components/shared/storage-notice";
 import { ArtboardView } from "@/components/studio/artboard-view";
@@ -51,6 +51,7 @@ type FilterId = "all" | AssetCategory | "favorite";
 
 export function AssetLibrary() {
   const navigate = useNavigate();
+  const hydrated = useStudio((s) => s.hydrated);
   const assets = useStudio((s) => s.assets);
   const brands = useStudio((s) => s.brands);
   const projects = useStudio((s) => s.projects);
@@ -180,8 +181,12 @@ export function AssetLibrary() {
   const active = assets.find((a) => a.id === activeId) ?? null;
   const showTemplates = filter === "all" || filter === "template";
 
+  if (!hydrated) {
+    return <LoadingState label="讀取素材庫…" />;
+  }
+
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10" data-testid="assets-ready">
       <PageHeader
         kicker="創作素材"
         title="AI Creative Library"

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,14 @@ export function AssetDetailSheet({
 
   function patch<K extends keyof AssetMeta>(key: K, value: AssetMeta[K]) {
     updateAsset(current.id, { [key]: value });
+  }
+
+  function goCreate(idea: string) {
+    onOpenChange(false);
+    void navigate({
+      to: "/create",
+      search: { mode: "from-image", idea, asset: current.id },
+    });
   }
 
   async function analyze() {
@@ -122,6 +130,51 @@ export function AssetDetailSheet({
             ) : null}
           </div>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            data-testid="asset-into-create"
+            onClick={() =>
+              goCreate(`延續「${current.name}」的風格，做新的活動，不要複製舊作品。`)
+            }
+          >
+            加入創作
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              goCreate(`根據「${current.name}」生成相似視覺，延續風格不要複製。`)
+            }
+          >
+            生成相似視覺
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              goCreate(`根據「${current.name}」寫 IG 文案。先讓淡江學生覺得這在講自己。`)
+            }
+          >
+            生成文案
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => goCreate(`延伸「${current.name}」做成 Story、Carousel、Reels Cover。`)}
+          >
+            延伸生成
+          </Button>
+          <Button variant="secondary" disabled={busy} onClick={() => void analyze()}>
+            {busy ? "分析中…" : "AI 分析／標籤"}
+          </Button>
+          <Button onClick={place} disabled={!lastProjectId} variant="secondary">
+            放到目前畫布
+          </Button>
+        </div>
+        {notes?.length ? (
+          <ul className="list-disc pl-4 text-sm text-muted">
+            {notes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        ) : null}
         <div>
           <Label className="mb-1.5 block">名稱</Label>
           <Input value={asset.name} onChange={(e) => patch("name", e.target.value)} />
@@ -179,69 +232,7 @@ export function AssetDetailSheet({
           />
         </div>
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
-        {notes?.length ? (
-          <ul className="list-disc pl-4 text-sm text-muted">
-            {notes.map((note) => (
-              <li key={note}>{note}</li>
-            ))}
-          </ul>
-        ) : null}
         <div className="flex flex-wrap gap-2 pb-4">
-          <Button onClick={place} disabled={!lastProjectId}>
-            放到目前畫布
-          </Button>
-          <Button variant="secondary" disabled={busy} onClick={() => void analyze()}>
-            {busy ? "分析中…" : "AI 分析／標籤"}
-          </Button>
-          <Button variant="secondary" asChild>
-            <Link
-              to="/create"
-              search={{
-                mode: "from-image",
-                idea: `延續「${asset.name}」的風格，做新的活動，不要複製舊作品。`,
-                asset: asset.id,
-              }}
-              data-testid="asset-into-create"
-            >
-              加入創作
-            </Link>
-          </Button>
-          <Button variant="secondary" asChild>
-            <Link
-              to="/create"
-              search={{
-                mode: "from-image",
-                idea: `根據「${asset.name}」生成相似視覺，延續風格不要複製。`,
-                asset: asset.id,
-              }}
-            >
-              生成相似視覺
-            </Link>
-          </Button>
-          <Button variant="secondary" asChild>
-            <Link
-              to="/create"
-              search={{
-                mode: "from-image",
-                idea: `根據「${asset.name}」寫 IG 文案。先讓淡江學生覺得這在講自己。`,
-                asset: asset.id,
-              }}
-            >
-              生成文案
-            </Link>
-          </Button>
-          <Button variant="secondary" asChild>
-            <Link
-              to="/create"
-              search={{
-                mode: "from-image",
-                idea: `延伸「${asset.name}」做成 Story、Carousel、Reels Cover。`,
-                asset: asset.id,
-              }}
-            >
-              延伸生成
-            </Link>
-          </Button>
           <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}
           </Button>
