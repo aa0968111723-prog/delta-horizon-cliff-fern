@@ -31,7 +31,7 @@ export function IgPeek({
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">點畫面左右切換，或關閉回到個人頁。</DialogDescription>
-        <div className={cn("relative w-full pt-12", width === "story" ? "max-w-[18rem]" : "max-w-sm")}>
+        <div className={cn("relative h-fit w-full self-center pt-12", width === "story" ? "max-w-[18rem]" : "max-w-sm")}>
           <DialogClose
             data-testid="ig-peek-close"
             className="absolute top-0 right-0 z-10 flex size-11 items-center justify-center rounded-full bg-surface text-fg shadow-[var(--shadow-border)]"

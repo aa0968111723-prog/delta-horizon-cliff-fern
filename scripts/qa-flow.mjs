@@ -825,6 +825,7 @@ try {
     };
   });
   record("精選限動是直式", Boolean(peekPortrait.ok), peekPortrait.detail);
+  await page.waitForTimeout(400);
   await page.screenshot({ path: `${prefix}-ig-highlight-viewer.png` });
   await page.getByTestId("ig-peek-close").evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
@@ -856,6 +857,7 @@ try {
     };
   });
   record("格子貼文看得到畫面", Boolean(peekFeed.ok), peekFeed.detail);
+  await page.waitForTimeout(400);
   await page.screenshot({ path: `${prefix}-ig-post-viewer.png` });
   await page.getByTestId("ig-peek-close").evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
