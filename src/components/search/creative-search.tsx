@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { searchCreative } from "@/lib/search/creative";
+import { folderSearchInput } from "@/lib/connections/presets";
 import { sourceLabel } from "@/stores/creative-store";
 import { useCreative } from "@/stores/creative-store";
 import { useUi } from "@/stores/ui-store";
@@ -17,6 +18,7 @@ export function CreativeSearch() {
   const setSearchOpen = useUi((s) => s.setSearchOpen);
   const lastSearch = useCreative((s) => s.lastSearch);
   const setLastSearch = useCreative((s) => s.setLastSearch);
+  const folder = useCreative((s) => s.folder);
   const [q, setQ] = useState(lastSearch);
   const [busy, setBusy] = useState(false);
   const [found, setFound] = useState(0);
@@ -27,7 +29,7 @@ export function CreativeSearch() {
   async function run(query: string) {
     setBusy(true);
     try {
-      const result = await searchCreative({ data: { query } });
+      const result = await searchCreative({ data: folderSearchInput(query, folder) });
       setGroups(result.groups);
       setFound(result.found);
       setDetail(result.driveDetail);

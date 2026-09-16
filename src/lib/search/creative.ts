@@ -4,12 +4,19 @@ import { parseIdea } from "@/lib/club/idea";
 import { MEMORY_ITEMS, searchMemory, type MemoryItem } from "@/lib/club/memory";
 import { ConnectorType, GoogleDriveTools } from "@/lib/app-data/types";
 import { classifyCallToolError } from "@/lib/app-data/errors";
+import { driveSearchQuery } from "@/lib/connections/presets";
 
-export type SearchHit = MemoryItem & { live?: boolean };
+export type SearchHit = MemoryItem & { live?: boolean; mimeType?: string };
 
 function parseInput(input: unknown) {
   const inner = input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input;
-  return z.object({ query: z.string().max(120) }).parse(inner);
+  return z
+    .object({
+      query: z.string().max(120),
+      folderName: z.string().max(80).optional(),
+      folderId: z.string().max(80).optional(),
+    })
+    .parse(inner);
 }
 
 function asDriveHits(data: unknown): SearchHit[] {
@@ -19,14 +26,15 @@ function asDriveHits(data: unknown): SearchHit[] {
     const item = row as { id?: string; name?: string; mimeType?: string; modifiedTime?: string };
     return {
       id: item.id || `drive_${index}`,
-      source: "drive",
+      source: "drive" as const,
       title: item.name || "未命名檔案",
-      subtitle: "Google Drive",
+      subtitle: item.mimeType?.includes("folder") ? `Google Drive / ${item.name || "資料夾"}` : "Google Drive",
       tags: ["drive"],
-      kind: "asset",
+      kind: "asset" as const,
       date: (item.modifiedTime || "").slice(0, 10),
       thumb: "/seed/campus.svg",
       notes: item.mimeType || "Drive 檔案",
+      mimeType: item.mimeType,
       live: true,
     };
   });
@@ -45,6 +53,7 @@ export const searchCreative = createServerFn({ method: "POST" })
   }> => {
     const parsed = parseIdea(data.query);
     const query = parsed.searchQuery || data.query;
+    const driveQuery = driveSearchQuery(query || "淡江 禪學社", data.folderName);
     const local = searchMemory(query);
     const { getRequest } = await import("@tanstack/react-start/server");
     const { readBlobFromCookie } = await import("@/lib/connections/vault.server");
@@ -59,23 +68,39 @@ export const searchCreative = createServerFn({ method: "POST" })
 
     try {
       const { callTool } = await import("@/lib/app-data/client.server");
-      const result = await Promise.race([
-        callTool(
-          GoogleDriveTools.search,
-          { query: query || "淡江 禪學社" },
-          { connectorType: ConnectorType.GoogleDrive },
-        ),
-        new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("drive-timeout")), 4000);
-        }),
-      ]);
+      const listed = data.folderId
+        ? await Promise.race([
+            callTool(
+              GoogleDriveTools.listFolder,
+              { folder_id: data.folderId, folderId: data.folderId, id: data.folderId },
+              { connectorType: ConnectorType.GoogleDrive },
+            ),
+            new Promise<never>((_, reject) => {
+              setTimeout(() => reject(new Error("drive-timeout")), 4000);
+            }),
+          ]).catch(() => null)
+        : null;
+      const result = listed?.ok
+        ? listed
+        : await Promise.race([
+            callTool(
+              GoogleDriveTools.search,
+              { query: driveQuery, q: driveQuery },
+              { connectorType: ConnectorType.GoogleDrive },
+            ),
+            new Promise<never>((_, reject) => {
+              setTimeout(() => reject(new Error("drive-timeout")), 4000);
+            }),
+          ]);
       if (result.loginRequired) {
         loginRequired = true;
         loginUrl = result.loginUrl;
         driveDetail = "需要透過官方 Google 連接才能讀取 Drive。";
       } else if (result.ok) {
         drive = asDriveHits(result.data);
-        driveDetail = drive.length ? `找到 ${drive.length} 個 Drive 檔案` : "Drive 已連線，這次沒有符合的檔。";
+        driveDetail = drive.length
+          ? `找到 ${drive.length} 個 Drive 檔案${data.folderName ? ` · ${data.folderName}` : ""}`
+          : "Drive 已連線，這次沒有符合的檔。";
       } else {
         const classified = classifyCallToolError(result);
         driveDetail = classified?.message || result.errorMessage || "Drive 暫時無法搜尋。";

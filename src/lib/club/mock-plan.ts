@@ -2,6 +2,7 @@ import { buildCampaignRhythm } from "./schedule.ts";
 import { CLUB, DEFAULT_HASHTAGS } from "./identity.ts";
 import { studentContext } from "./season.ts";
 import { MEMORY_ITEMS } from "./memory.ts";
+import { quotedHookFromLessons } from "./insights.ts";
 import type { BriefInput } from "../ai/schema.ts";
 import type { CampaignPlan, CarouselPagePlan, TemplateId } from "../studio/types.ts";
 
@@ -20,8 +21,10 @@ export function buildZenMockPlan(data: BriefInput): CampaignPlan {
     .split(/[／/]/)
     .map((item) => item.trim())
     .find((item) => item.includes("？"));
+  const learnedHook = quotedHookFromLessons(data.igLessons || "");
   const hook =
     sloganHook ||
+    (learnedHook.includes("？") ? learnedHook : "") ||
     (ctx.phase === "finals"
       ? "最近是不是連休息都覺得有罪惡感？"
       : ctx.phase === "orientation"
@@ -75,7 +78,11 @@ export function buildZenMockPlan(data: BriefInput): CampaignPlan {
     ],
     checklist: ["第一句不是公文", "時間地點有出現", "不太宗教", "不太像 AI 金句", "CTA 清楚"],
     altText: `${name}宣傳畫面，第一句是「${hook}」，標示${when}、${where}。`,
-    qaNotes: ["避免佛光與說教", `現在是${ctx.phaseLabel}，語氣要對上學生這週。`],
+    qaNotes: [
+      "避免佛光與說教",
+      `現在是${ctx.phaseLabel}，語氣要對上學生這週。`,
+      ...(data.igLessons ? [`成效回饋：${data.igLessons.split("\n")[0]}`] : []),
+    ],
     generatedAt: Date.now(),
     source: "mock",
     directions: [

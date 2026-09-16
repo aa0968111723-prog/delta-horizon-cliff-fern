@@ -59,6 +59,7 @@ export type IgMemoryPost = {
 
 export type FolderPref = {
   driveFolder: string;
+  driveFolderId: string;
 };
 
 type CreativeState = {
@@ -79,6 +80,7 @@ type CreativeState = {
   setScheduleStatus: (id: string, status: ContentStatus) => void;
   duplicateSchedule: (id: string) => void;
   setFolder: (patch: Partial<FolderPref>) => void;
+  ingestIg: (posts: IgMemoryPost[]) => void;
   setLastSearch: (q: string) => void;
 };
 
@@ -173,7 +175,7 @@ export const useCreative = create<CreativeState>()(
       campaigns: [seedCampaign()],
       schedule: seedSchedule(seedCampaign()),
       igPosts: seedIg(),
-      folder: { driveFolder: "淡江禪學社主要資料夾" },
+      folder: { driveFolder: "淡江禪學社主要資料夾", driveFolderId: "" },
       lastSearch: "",
       setHydrated: (hydrated) => set({ hydrated }),
       upsertCampaign: (input) => {
@@ -282,7 +284,27 @@ export const useCreative = create<CreativeState>()(
           sourceLabel: "複製",
         });
       },
-      setFolder: (patch) => set((s) => ({ folder: { ...s.folder, ...patch } })),
+      setFolder: (patch) =>
+        set((s) => ({
+          folder: {
+            driveFolder: patch.driveFolder ?? s.folder?.driveFolder ?? "",
+            driveFolderId: patch.driveFolderId ?? s.folder?.driveFolderId ?? "",
+          },
+        })),
+      ingestIg: (posts) =>
+        set((s) => {
+          const byId = new Map(s.igPosts.map((post) => [post.id, post]));
+          for (const post of posts) {
+            const prev = byId.get(post.id);
+            byId.set(post.id, {
+              ...prev,
+              ...post,
+              metrics: post.metrics ?? prev?.metrics,
+              analysis: post.analysis ?? prev?.analysis,
+            });
+          }
+          return { igPosts: [...byId.values()].sort((a, b) => b.takenAt - a.takenAt) };
+        }),
       setLastSearch: (lastSearch) => set({ lastSearch }),
     }),
     {
@@ -296,6 +318,17 @@ export const useCreative = create<CreativeState>()(
         folder: s.folder,
         lastSearch: s.lastSearch,
       }),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<CreativeState>;
+        return {
+          ...current,
+          ...p,
+          folder: {
+            driveFolder: p.folder?.driveFolder || current.folder.driveFolder,
+            driveFolderId: p.folder?.driveFolderId || "",
+          },
+        };
+      },
     },
   ),
 );

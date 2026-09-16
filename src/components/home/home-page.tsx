@@ -12,6 +12,7 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { generateCampaignPlan } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
 import { FEATURED_EVENT } from "@/lib/club/memory";
+import { lessonPrompt } from "@/lib/club/insights";
 import { QUICK_STARTS } from "@/lib/club/quick-starts";
 import { buildCampaignRhythm } from "@/lib/club/schedule";
 import { formatDaysUntil, studentContext } from "@/lib/club/season";
@@ -64,7 +65,9 @@ export function HomePage() {
         style: "學生生活感，不要宗教",
         deliverables: { post: true, story: true, carousel: true, reels: true },
       };
-      const result = await generateCampaignPlan({ data: toBriefInput(brief, brand) });
+      const result = await generateCampaignPlan({
+        data: toBriefInput(brief, brand, { igLessons: lessonPrompt(igPosts) }),
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;

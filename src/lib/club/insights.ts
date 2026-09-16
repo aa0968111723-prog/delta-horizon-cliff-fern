@@ -23,6 +23,26 @@ function firstLine(caption: string) {
   return caption.split("\n")[0]?.trim() || caption.slice(0, 24);
 }
 
+export function formatLessons(lessons: IgLessons) {
+  return [
+    `Hook：${lessons.hook}`,
+    `圖片：${lessons.visual}`,
+    `活動文案：${lessons.activity}`,
+    `Carousel：${lessons.carousel}`,
+    `Story：${lessons.story}`,
+  ].join("\n");
+}
+
+export function lessonPrompt(posts: IgLessonPost[]) {
+  return formatLessons(lessonsFromIg(posts)).slice(0, 800);
+}
+
+export function quotedHookFromLessons(text: string) {
+  const match = text.match(/「([^」]{6,40})」/);
+  const hook = match?.[1]?.trim() ?? "";
+  return hook.includes("？") || hook.length >= 8 ? hook : "";
+}
+
 /** Turn IG metrics into next-generation advice, not a dashboard. */
 export function lessonsFromIg(posts: IgLessonPost[]): IgLessons {
   const scored = posts.filter((post) => post.metrics).sort((a, b) => score(b) - score(a));

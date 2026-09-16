@@ -15,6 +15,7 @@ import { pagesOf } from "@/lib/studio/layers";
 
 export function InstagramCenter() {
   const posts = useCreative((s) => s.igPosts);
+  const ingestIg = useCreative((s) => s.ingestIg);
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
   const [active, setActive] = useState<IgMemoryPost | null>(null);
@@ -32,23 +33,24 @@ export function InstagramCenter() {
 
   useEffect(() => {
     void listConnectedMedia().then((result) => {
-      setLive(
-        result.instagram.map((item) => ({
-          id: item.id,
-          mediaType: item.kind === "carousel" ? "carousel" : item.kind === "reels" ? "reels" : "image",
-          caption: item.caption || item.title,
-          takenAt: item.date ? Date.parse(item.date) : Date.now(),
-          thumb: item.thumb,
-          permalink: item.notes.startsWith("http") ? item.notes : undefined,
-          metricsSource: "live" as const,
-          analysis: item.notes,
-        })),
-      );
+      const mapped: IgMemoryPost[] = result.instagram.map((item) => ({
+        id: item.id,
+        mediaType: item.kind === "carousel" ? "carousel" : item.kind === "reels" ? "reels" : "image",
+        caption: item.caption || item.title,
+        takenAt: item.date ? Date.parse(item.date) : Date.now(),
+        thumb: item.thumb,
+        permalink: item.notes.startsWith("http") ? item.notes : undefined,
+        metrics: item.metrics,
+        metricsSource: "live" as const,
+        analysis: item.notes,
+      }));
+      setLive(mapped);
+      if (mapped.length) ingestIg(mapped);
     });
-  }, []);
+  }, [ingestIg]);
 
   const grid = live.length ? live : posts;
-  const lessons = lessonsFromIg(grid);
+  const lessons = lessonsFromIg(posts);
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">

@@ -10,6 +10,7 @@ import { toBriefInput } from "@/lib/ai/payload";
 import { generateCopyPack } from "@/lib/copy/generate";
 import { generateImageDirections } from "@/lib/image/studio";
 import { emptyBrief } from "@/lib/studio/brief";
+import { lessonPrompt } from "@/lib/club/insights";
 import { buildCampaignRhythm } from "@/lib/club/schedule";
 import { CONTENT_KIND_META } from "@/lib/studio/status";
 import { useCreative } from "@/stores/creative-store";
@@ -71,6 +72,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
   const createProject = useStudio((s) => s.createProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const attachProject = useCreative((s) => s.attachProject);
+  const igPosts = useCreative((s) => s.igPosts);
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   if (!campaign) {
@@ -101,7 +103,9 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
         notes: `${current.oneLiner} 痛點：${current.studentPain}`,
         deliverables: { post: true, story: true, carousel: true, reels: true },
       };
-      const result = await generateCampaignPlan({ data: toBriefInput(brief, brand) });
+      const result = await generateCampaignPlan({
+        data: toBriefInput(brief, brand, { igLessons: lessonPrompt(igPosts) }),
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -205,6 +209,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                             eventName: current.name,
                             schedule: `${current.date} ${current.time}`,
                             location: current.location,
+                            igLessons: lessonPrompt(igPosts),
                           },
                         });
                         if (!result.ok) {
@@ -241,6 +246,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                             eventName: current.name,
                             schedule: `${current.date} ${current.time}`,
                             location: current.location,
+                            igLessons: lessonPrompt(igPosts),
                           },
                         });
                         if (!result.ok) {

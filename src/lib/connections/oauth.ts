@@ -11,7 +11,7 @@ import {
   decryptState,
   type OAuthBlob,
 } from "./vault.server";
-import { fetchCanvaDesigns, fetchInstagramMedia, probeDrive } from "./live";
+import { fetchCanvaDesigns, fetchInstagramMedia, probeDrive, createCanvaDesign, searchDriveFolders } from "./live";
 
 type PkceState = { verifier: string; provider: "canva" | "instagram"; at: number };
 
@@ -88,7 +88,7 @@ export const startOAuth = createServerFn({ method: "POST" })
       url.searchParams.set("response_type", "code");
       url.searchParams.set("client_id", process.env.CANVA_CLIENT_ID ?? "");
       url.searchParams.set("redirect_uri", `${origin}/oauth/canva`);
-      url.searchParams.set("scope", "design:meta:read design:content:read");
+      url.searchParams.set("scope", "design:meta:read design:content:read design:content:write");
       url.searchParams.set("state", state);
       url.searchParams.set("code_challenge", challenge);
       url.searchParams.set("code_challenge_method", "S256");
@@ -187,3 +187,29 @@ export const listConnectedMedia = createServerFn({ method: "POST" }).handler(asy
     new Promise<typeof empty>((resolve) => setTimeout(() => resolve(empty), 4000)),
   ]);
 });
+
+export const listClubFolders = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    z
+      .object({ name: z.string().max(80).optional() })
+      .parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input),
+  )
+  .handler(async ({ data }) => {
+    const folders = await searchDriveFolders(data.name || "淡江禪學社");
+    return { folders };
+  });
+
+export const createCanvaFromPlan = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    z
+      .object({
+        title: z.string().min(1).max(80),
+        kind: z.string().max(40).optional(),
+      })
+      .parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input),
+  )
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const blob = await readBlobFromCookie(req?.headers.get("cookie") ?? null);
+    return createCanvaDesign(blob, { title: data.title, kind: data.kind || "ig-post" });
+  });

@@ -88,6 +88,23 @@ test("zen mock does not use a slogan as the hook unless it is a question", () =>
   assert.ok(plan.hook.includes("？"));
 });
 
+test("zen mock prefers a proven IG hook from lessons", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "茶會",
+    brandName: "淡江大學禪學社",
+    handle: "@tku.zen",
+    audience: "淡江大學學生",
+    slogans: "人到了就好。",
+    igLessons: "Hook：比較有效的 Hook 像是「最近是不是連休息都覺得有罪惡感？」。",
+    wantCarousel: true,
+    wantStory: true,
+    wantReels: true,
+  });
+  assert.equal(plan.hook, "最近是不是連休息都覺得有罪惡感？");
+  assert.match(plan.qaNotes.join(), /成效回饋/);
+});
+
 test("buildMockPlan strips forbidden words", () => {
   const plan = buildMockPlan({
     ...base,

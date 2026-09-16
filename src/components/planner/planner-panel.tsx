@@ -6,14 +6,17 @@ import { PlanResult } from "@/components/assistant/plan-result";
 import { Button } from "@/components/ui/button";
 import { describeAdapter, generateCampaignPlan, getCampaignAiStatus, type AiStatus } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
+import { lessonPrompt } from "@/lib/club/insights";
 import { migrateBrief } from "@/lib/studio/brief";
 import type { BrandKit, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
+import { useCreative } from "@/stores/creative-store";
 
 export function PlannerPanel({ project, brand }: { project: Project; brand: BrandKit }) {
   const updateProject = useStudio((s) => s.updateProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
+  const igPosts = useCreative((s) => s.igPosts);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<AiStatus | null>(null);
@@ -48,7 +51,10 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
     try {
       const connected = status?.available ?? false;
       const result = await generateCampaignPlan({
-        data: toBriefInput(brief, brand, { forceMock: forceMock || !connected }),
+        data: toBriefInput(brief, brand, {
+          forceMock: forceMock || !connected,
+          igLessons: lessonPrompt(igPosts),
+        }),
       });
       if (!result.ok) {
         setError(result.error);

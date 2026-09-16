@@ -154,8 +154,10 @@ CTA：${data.preferredCtas || "來坐一下"}
 產出：${deliverables || "單張貼文"}
 補充：${data.notes || "無"}
 學生情境：${ctx.phaseLabel}。${ctx.calendarNote} ${ctx.weatherNote}
+過去 IG 成效（用來改善這次，不是報表）：
+${data.igLessons || "還沒有足夠成效。先用學生生活問句。"}
 
-Hook 必須像在講學生自己，例如「最近是不是連休息都覺得有罪惡感？」不要「淡江大學禪學社誠摯邀請您」。
+Hook 必須像在講學生自己，例如「最近是不是連休息都覺得有罪惡感？」不要「淡江大學禪學社誠摯邀請您」。優先延續過去比較有停留的 Hook 口吻。
 ${studentReviewInstruction()}
 
 JSON 還要包含：

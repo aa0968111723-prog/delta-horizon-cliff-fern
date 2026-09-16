@@ -14,6 +14,8 @@ import { createGeneratedAsset } from "@/lib/studio/assets";
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { useStudio } from "@/stores/studio-store";
+import { useCreative } from "@/stores/creative-store";
+import { lessonPrompt } from "@/lib/club/insights";
 import type { ContentKind, CreativeDirection } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 
@@ -77,6 +79,7 @@ function CopyStudio() {
   const projects = useStudio((s) => s.projects);
   const setCopy = useStudio((s) => s.setCopy);
   const lastProjectId = useStudio((s) => s.lastProjectId);
+  const igPosts = useCreative((s) => s.igPosts);
   const [idea, setIdea] = useState("最近是不是很久沒有好好坐下來？");
   const [intent, setIntent] = useState("情緒共鳴");
   const [tone, setTone] = useState("學生版");
@@ -94,7 +97,7 @@ function CopyStudio() {
   async function run() {
     setBusy(true);
     try {
-      const result = await generateCopyPack({ data: { idea, intent, tone } });
+      const result = await generateCopyPack({ data: { idea, intent, tone, igLessons: lessonPrompt(igPosts) } });
       if (!result.ok) {
         toast.error(result.error);
         return;

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { maybeConnectorLogin } from "@/lib/app-data/login";
 import { searchCreative } from "@/lib/search/creative";
-import { disconnectOAuth, getConnectionStatus, listConnectedMedia, startOAuth } from "@/lib/connections/oauth";
+import { disconnectOAuth, getConnectionStatus, listClubFolders, listConnectedMedia, startOAuth } from "@/lib/connections/oauth";
+import { folderSearchInput } from "@/lib/connections/presets";
 import { useCreative } from "@/stores/creative-store";
 
 type Status = Awaited<ReturnType<typeof getConnectionStatus>>;
@@ -15,6 +16,7 @@ type Status = Awaited<ReturnType<typeof getConnectionStatus>>;
 export function ConnectionCenter() {
   const [status, setStatus] = useState<Status | null>(null);
   const [live, setLive] = useState<Awaited<ReturnType<typeof listConnectedMedia>> | null>(null);
+  const [folders, setFolders] = useState<{ id: string; title: string }[]>([]);
   const folder = useCreative((s) => s.folder);
   const setFolder = useCreative((s) => s.setFolder);
 
@@ -23,6 +25,12 @@ export function ConnectionCenter() {
     setStatus(next);
     const media = await listConnectedMedia();
     setLive(media);
+    if (next.drive.connected) {
+      const listed = await listClubFolders({ data: { name: useCreative.getState().folder.driveFolder || "淡江禪學社" } });
+      setFolders(listed.folders);
+    } else {
+      setFolders([]);
+    }
   }
 
   useEffect(() => {
@@ -34,7 +42,9 @@ export function ConnectionCenter() {
       maybeConnectorLogin({ loginRequired: true, loginUrl: status.drive.loginUrl });
       return;
     }
-    const result = await searchCreative({ data: { query: folder.driveFolder || "淡江禪學社" } });
+    const result = await searchCreative({
+      data: folderSearchInput(folder.driveFolder || "淡江禪學社", folder),
+    });
     if (result.loginRequired) {
       maybeConnectorLogin(result);
       return;
@@ -97,10 +107,35 @@ export function ConnectionCenter() {
               </div>
             </div>
             {card.id === "drive" ? (
-              <label className="mt-4 block text-sm">
-                淡江禪學社主要資料夾
-                <Input className="mt-1" value={folder.driveFolder} onChange={(e) => setFolder({ driveFolder: e.target.value })} />
-              </label>
+              <div className="mt-4 space-y-2">
+                <label className="block text-sm">
+                  淡江禪學社主要資料夾
+                  <Input
+                    className="mt-1"
+                    data-testid="drive-folder-input"
+                    value={folder.driveFolder}
+                    onChange={(e) => setFolder({ driveFolder: e.target.value, driveFolderId: "" })}
+                  />
+                </label>
+                {folders.length ? (
+                  <div className="flex flex-wrap gap-2">
+                    {folders.map((item) => (
+                      <Button
+                        key={item.id}
+                        size="sm"
+                        type="button"
+                        data-testid="drive-folder-chip"
+                        variant={folder.driveFolderId === item.id ? "default" : "secondary"}
+                        onClick={() => setFolder({ driveFolder: item.title, driveFolderId: item.id })}
+                      >
+                        {item.title}
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted">連接後可從官方 Drive 選主要資料夾。現在會用資料夾名稱一起搜。</p>
+                )}
+              </div>
             ) : null}
           </article>
         ))}

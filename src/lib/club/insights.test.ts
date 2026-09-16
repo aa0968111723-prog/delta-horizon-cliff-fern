@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lessonsFromIg } from "./insights.ts";
+import { lessonsFromIg, formatLessons, quotedHookFromLessons, lessonPrompt } from "./insights.ts";
 
 test("empty metrics become honest next-step advice, not a dashboard", () => {
   const lessons = lessonsFromIg([]);
@@ -25,4 +25,19 @@ test("stronger saves and comments shape the next hook advice", () => {
   assert.match(lessons.hook, /來的人比想像中多/);
   assert.match(lessons.carousel, /Carousel/);
   assert.match(lessons.activity, /來了以後|時間地點/);
+});
+
+test("formatLessons and quotedHookFromLessons feed the next generate", () => {
+  const posts = [
+    {
+      mediaType: "image",
+      caption: "最近是不是連休息都覺得有罪惡感？\n下週茶會。",
+      metrics: { reach: 1800, likes: 90, comments: 12, saves: 40 },
+    },
+  ];
+  const lessons = lessonsFromIg(posts);
+  const text = formatLessons(lessons);
+  assert.match(text, /Hook：/);
+  assert.equal(quotedHookFromLessons(text), "最近是不是連休息都覺得有罪惡感？");
+  assert.match(lessonPrompt(posts), /Hook：/);
 });

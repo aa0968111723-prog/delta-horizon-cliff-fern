@@ -17,3 +17,11 @@ test("copy pack opens with a student hook not a formal invite", () => {
   assert.ok(pack.studentReview.revisions.length >= 1);
   assert.equal(pack.variants.length, 6);
 });
+
+test("copy pack can learn a hook from IG lessons when the idea has no question", () => {
+  const pack = buildCopyPack("下週茶會", "學生版", {
+    eventName: "茶會",
+    igLessons: "Hook：比較有效的 Hook 像是「最近是不是連休息都覺得有罪惡感？」。",
+  });
+  assert.equal(pack.hook, "最近是不是連休息都覺得有罪惡感？");
+});

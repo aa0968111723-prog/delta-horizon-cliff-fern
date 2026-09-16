@@ -16,6 +16,7 @@ const InputSchema = z.object({
   schedule: z.string().max(80).optional(),
   location: z.string().max(80).optional(),
   tone: z.string().max(20).optional(),
+  igLessons: z.string().max(800).optional(),
   forceMock: z.boolean().optional(),
 });
 
@@ -36,6 +37,7 @@ export const generateCopyPack = createServerFn({ method: "POST" })
           role: "user",
           content: `寫 IG 文案。意圖：${data.intent}。想法：${data.idea}。活動：${data.eventName || "無"} ${data.schedule || ""} ${data.location || ""}。
 指定語氣：${tone}。可切換：${COPY_TONES.join("、")}。
+過去 IG 成效：${data.igLessons || "尚無足夠資料，用學生生活問句。"}
 回 JSON：tone,hook,body,cta,hashtags[],variants[{tone,hook,body,cta}] 六種語氣,studentReview。
 ${studentReviewInstruction()}
 第一句不要「${CLUB.name}誠摯邀請您」。自然、偶爾口語。`,

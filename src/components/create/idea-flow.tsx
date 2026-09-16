@@ -7,7 +7,10 @@ import { generateCampaignPlan } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
 import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, notesFromHits, summarizeFound } from "@/lib/club/compose";
 import { parseIdea } from "@/lib/club/idea";
+import { lessonPrompt } from "@/lib/club/insights";
 import { CONVERT_TARGETS, convertPlan } from "@/lib/convert/pack";
+import { createCanvaFromPlan } from "@/lib/connections/oauth";
+import { folderSearchInput } from "@/lib/connections/presets";
 import { generateStudioImage } from "@/lib/image/studio";
 import { createGeneratedAsset } from "@/lib/studio/assets";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
@@ -34,6 +37,8 @@ export function IdeaFlow() {
   const setDirections = useCreative((s) => s.setDirections);
   const attachProject = useCreative((s) => s.attachProject);
   const setLastSearch = useCreative((s) => s.setLastSearch);
+  const folder = useCreative((s) => s.folder);
+  const igPosts = useCreative((s) => s.igPosts);
 
   const [idea, setIdea] = useState("下週有一場茶會");
   const [phase, setPhase] = useState<Phase>("idea");
@@ -74,12 +79,14 @@ export function IdeaFlow() {
     setStatus("正在找歷屆素材與品牌記憶…");
     try {
       setLastSearch(parsed.searchQuery);
-      const search = await searchCreative({ data: { query: parsed.searchQuery } });
+      const search = await searchCreative({ data: folderSearchInput(parsed.searchQuery, folder) });
       const foundHits = flattenHits(search.groups);
       setHits(foundHits);
       setStatus(`找到 ${search.found} 個相關素材。根據過去內容生成 3 個方向…`);
       const brief = briefFromIdea(parsed, notesFromHits(parsed, foundHits));
-      const result = await generateCampaignPlan({ data: toBriefInput(brief, brand) });
+      const result = await generateCampaignPlan({
+        data: toBriefInput(brief, brand, { igLessons: lessonPrompt(igPosts) }),
+      });
       if (!result.ok) {
         toast.error(result.error);
         setPhase("idea");
@@ -175,6 +182,27 @@ export function IdeaFlow() {
     }
   }
 
+  async function sendToCanva() {
+    if (!plan) return;
+    setBusy(true);
+    try {
+      const caption = plan.captions[0]?.text ?? plan.hook;
+      await navigator.clipboard.writeText(caption).catch(() => undefined);
+      const result = await createCanvaFromPlan({
+        data: { title: `${plan.campaignName} · ${parseIdea(idea).eventName}`.slice(0, 80), kind: packKind },
+      });
+      if (result.ok) {
+        window.open(result.editUrl, "_blank", "noopener,noreferrer");
+        toast.success("已在 Canva 開新設計，文案已複製");
+        return;
+      }
+      window.open("https://www.canva.com", "_blank", "noopener,noreferrer");
+      toast.message(result.needsConnect ? "還沒連接 Canva。文案已複製，可先貼上再連接。" : `${result.error} 文案已複製。`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <label className="block text-sm">
@@ -201,6 +229,10 @@ export function IdeaFlow() {
       {phase !== "idea" || hits.length ? (
         <ul className="flex flex-wrap gap-2" data-testid="idea-flow-sources">
           <li className="rounded-full bg-bg px-3 py-1 text-xs text-muted">Brand Memory / 龜龜與三色光</li>
+          {folder.driveFolder ? (
+            <li className="rounded-full bg-bg px-3 py-1 text-xs text-muted">Google Drive / {folder.driveFolder}</li>
+          ) : null}
+          <li className="rounded-full bg-bg px-3 py-1 text-xs text-muted">Instagram / 過去表現</li>
           {hits.slice(0, 8).map((item) => (
             <li key={item.id} className="rounded-full bg-bg px-3 py-1 text-xs text-muted">
               {sourceLabel(item.source)} / {item.title}
@@ -309,11 +341,9 @@ export function IdeaFlow() {
             ) : null}
             <Button
               variant="secondary"
-              onClick={async () => {
-                await navigator.clipboard.writeText(plan.captions[0]?.text ?? plan.hook);
-                window.open("https://www.canva.com", "_blank", "noopener,noreferrer");
-                toast.success("文案已複製，可在 Canva 繼續編");
-              }}
+              data-testid="idea-canva"
+              disabled={busy}
+              onClick={() => void sendToCanva()}
             >
               送進 Canva 微調
             </Button>

@@ -29,8 +29,17 @@ export type CopyPack = {
   source: "live" | "mock";
 };
 
-export function buildCopyPack(idea: string, tone: CopyTone, extra?: { eventName?: string; schedule?: string; location?: string }): CopyPack {
-  const hook = idea.includes("？") ? idea.split("\n")[0] : "最近是不是很久沒有好好坐下來？";
+export function buildCopyPack(
+  idea: string,
+  tone: CopyTone,
+  extra?: { eventName?: string; schedule?: string; location?: string; igLessons?: string },
+): CopyPack {
+  const learned = extra?.igLessons?.match(/「([^」]{6,40})」/)?.[1]?.trim() ?? "";
+  const hook = idea.includes("？")
+    ? idea.split("\n")[0]
+    : learned.includes("？")
+      ? learned
+      : "最近是不是很久沒有好好坐下來？";
   const when = extra?.schedule || "";
   const where = extra?.location || "淡江校園";
   const eventName = extra?.eventName || "";
