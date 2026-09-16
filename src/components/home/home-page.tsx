@@ -1,111 +1,356 @@
-import { Link } from "@tanstack/react-router";
-import { FolderKanban, Images, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
-import { NewProjectDialog } from "@/components/dashboard/new-project-dialog";
-import { EmptyState } from "@/components/shared/empty-state";
-import { PageHeader, SectionHeader } from "@/components/shared/page-header";
-import { ProjectCard } from "@/components/shared/project-card";
-import { ArtboardView } from "@/components/studio/artboard-view";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  ArrowRight,
+  CalendarDays,
+  Images,
+  Instagram,
+  Lightbulb,
+  Sparkles,
+  Tent,
+} from "lucide-react";
+import { useMemo } from "react";
+import { QuickStartGrid } from "@/components/create/quick-start";
+import { EmptyState } from "@/components/shared/empty-state";
+import { SectionHeader } from "@/components/shared/page-header";
+import { ProjectCard } from "@/components/shared/project-card";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { categoryLabel } from "@/lib/studio/assets";
-import { formatById } from "@/lib/studio/formats";
-import { previewTemplate, TEMPLATE_STARTERS } from "@/lib/studio/templates";
+import { countdownLabel, formatCampaignDate, nextCampaign, sortByUpcoming } from "@/lib/studio/campaign";
+import { contentKindLabel } from "@/lib/studio/status";
+import type { Campaign, CampaignWave } from "@/lib/studio/types";
+import { cn } from "@/lib/utils";
+import { APP_TAGLINE, CLUB_NAME, eventKindLabel } from "@/lib/zen/club";
+import { semesterPhaseAt, tamsuiContextAt } from "@/lib/zen/semester";
+import { HOOK_PATTERNS } from "@/lib/zen/voice";
 import { useStudio } from "@/stores/studio-store";
-import { useNavigate } from "@tanstack/react-router";
+
+/** 今天最該做的那一篇：從最近活動的宣傳節奏裡挑出還沒做的那一波。 */
+function pickTodaysWave(campaign: Campaign | null): CampaignWave | null {
+  if (!campaign) return null;
+  const pending = campaign.waves.filter((w) => !w.contentId);
+  if (!pending.length) return null;
+  const days = campaign.date
+    ? Math.round((Date.parse(`${campaign.date}T00:00:00`) - Date.now()) / 86_400_000)
+    : null;
+  if (days == null) return pending[0];
+  const due = pending.filter((w) => w.offsetDays >= -days - 1);
+  return due[0] ?? pending[0];
+}
 
 export function HomePage() {
   const navigate = useNavigate();
   const projects = useStudio((s) => s.projects);
+  const campaigns = useStudio((s) => s.campaigns);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
   const duplicateProject = useStudio((s) => s.duplicateProject);
-  const deleteProject = useStudio((s) => s.deleteProject);
-  const createFromTemplate = useStudio((s) => s.createFromTemplate);
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const createProject = useStudio((s) => s.createProject);
 
-  const filtered = useMemo(() => {
-    const n = q.trim().toLowerCase();
-    const list = n
-      ? projects.filter((p) => p.name.toLowerCase().includes(n) || (brands.find((b) => b.id === p.brandId)?.name ?? "").toLowerCase().includes(n))
-      : projects;
-    return [...list].sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [projects, brands, q]);
+  const phase = semesterPhaseAt();
+  const tamsui = tamsuiContextAt();
+  const upcoming = useMemo(() => sortByUpcoming(campaigns).slice(0, 3), [campaigns]);
+  const focus = useMemo(() => nextCampaign(campaigns), [campaigns]);
+  const todaysWave = useMemo(() => pickTodaysWave(focus), [focus]);
 
-  const drafts = filtered.filter((p) => p.status === "draft");
-  const recent = filtered.slice(0, 8);
+  const recent = useMemo(
+    () => [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6),
+    [projects],
+  );
+  const scheduled = useMemo(
+    () =>
+      projects
+        .filter((p) => p.scheduledAt)
+        .sort((a, b) => (a.scheduledAt ?? 0) - (b.scheduledAt ?? 0))
+        .slice(0, 4),
+    [projects],
+  );
+  const published = useMemo(
+    () => projects.filter((p) => p.status === "published").slice(0, 4),
+    [projects],
+  );
+
+  const assetIds = useMemo(() => assets.map((a) => a.id), [assets]);
+  const urls = useAssetUrls(assetIds);
   const brand = brands[0];
 
-  const assetIds = useMemo(() => {
-    const ids: string[] = [];
-    for (const p of filtered) {
-      const board = p.artboards[p.activeFormatId];
-      if (!board) continue;
-      for (const l of board.layers) {
-        if (l.type === "image") ids.push(l.assetId);
-        if (l.type === "logo" && l.assetId) ids.push(l.assetId);
-      }
-    }
-    for (const b of brands) if (b.logoAssetId) ids.push(b.logoAssetId);
-    for (const a of assets) ids.push(a.id);
-    return ids;
-  }, [filtered, brands, assets]);
-  const urls = useAssetUrls(assetIds);
-
-  function startTemplate(id: (typeof TEMPLATE_STARTERS)[number]["id"]) {
-    if (!brand) return;
-    const project = createFromTemplate({ templateId: id, brandId: brand.id });
-    void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+  function createFromWave() {
+    if (!brand || !focus || !todaysWave) return;
+    const project = createProject({
+      name: todaysWave.title || focus.name,
+      brandId: brand.id,
+      formatId: "feed-portrait",
+      contentKind: todaysWave.kind,
+      campaignId: focus.id,
+      status: "making",
+      brief: {
+        product: focus.name,
+        eventName: focus.name,
+        schedule: `${focus.date} ${focus.time}`.trim(),
+        location: focus.location,
+        offer: focus.oneLiner,
+        audience: focus.audienceIds.join("、"),
+        goal: "awareness",
+        features: focus.intro,
+        style: "安靜、具體、不說教",
+        notes: todaysWave.note,
+        deliverables: { post: true, story: false, carousel: todaysWave.kind === "carousel", reels: false },
+      },
+      sources: [{ kind: "local", label: `活動 / ${focus.name}`, detail: todaysWave.stage }],
+    });
+    void navigate({ to: "/create", search: { contentId: project.id, kind: todaysWave.kind } });
   }
+
+  const suggestion =
+    todaysWave?.hook ||
+    focus?.painPoint ||
+    HOOK_PATTERNS[0].example;
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
-      <PageHeader
-        kicker="Instagram 網宣工作台"
-        title="構幀"
-        description="最近作品、草稿、模板與品牌資產都在這裡。手機用底部導覽，電腦可開左右面板編輯。"
-        actions={
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="size-4" />
-            新建專案
-          </Button>
-        }
-      />
+      <header className="min-w-0">
+        <p className="text-xs tracking-[0.18em] text-muted uppercase">{APP_TAGLINE}</p>
+        <h1 className="mt-1 font-display text-3xl tracking-tight text-balance md:text-4xl">
+          今天可以創作什麼？
+        </h1>
+        <p className="mt-2 max-w-xl text-sm text-muted">
+          現在是{phase.label}。{phase.mood}
+          <span className="block text-subtle">
+            淡水{tamsui.season}：{tamsui.weather}
+          </span>
+        </p>
+      </header>
 
-      <div className="mt-6 flex items-center gap-3">
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="搜尋作品或品牌"
-          className="max-w-sm"
-        />
-        <p className="text-xs text-subtle tabular-nums">{filtered.length} 件</p>
-      </div>
+      {/* 第一屏：今天推薦創作 */}
+      <section className="mt-6">
+        <div className="glass relative overflow-hidden rounded-3xl p-5 md:p-7">
+          <span className="three-lights absolute inset-x-0 top-0 h-1" aria-hidden />
+          {focus ? (
+            <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="rounded-full bg-surface-2 px-2.5 py-1 font-medium">
+                    {formatCampaignDate(focus)} {focus.name}
+                  </span>
+                  <span className="rounded-full bg-[color-mix(in_oklab,var(--color-warm)_22%,transparent)] px-2.5 py-1 font-medium">
+                    {countdownLabel(focus)}
+                  </span>
+                  <span className="text-muted">{eventKindLabel(focus.kind)}</span>
+                </div>
 
+                <p className="mt-4 text-xs tracking-[0.14em] text-muted uppercase">AI 建議這篇</p>
+                <p className="mt-1 font-display text-2xl leading-snug text-balance md:text-3xl">
+                  「{suggestion}」
+                </p>
+                {todaysWave ? (
+                  <p className="mt-3 text-sm text-muted">
+                    {todaysWave.stage}·{contentKindLabel(todaysWave.kind)}
+                    {todaysWave.note ? ` — ${todaysWave.note}` : ""}
+                  </p>
+                ) : (
+                  <p className="mt-3 text-sm text-muted">
+                    這場活動的宣傳節奏都已經有對應內容了。可以往下看今日靈感。
+                  </p>
+                )}
+
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <Button onClick={createFromWave} disabled={!todaysWave}>
+                    <Sparkles className="size-4" />
+                    AI 幫我創作
+                  </Button>
+                  <Button asChild variant="secondary">
+                    <Link to="/campaigns/$campaignId" params={{ campaignId: focus.id }}>
+                      看整場宣傳
+                      <ArrowRight className="size-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="min-w-0 rounded-2xl bg-surface-2/60 p-4">
+                <p className="text-xs font-medium tracking-wide text-muted">這場活動的節奏</p>
+                <ol className="mt-3 space-y-2">
+                  {focus.waves.slice(0, 5).map((wave) => (
+                    <li key={wave.id} className="flex items-start gap-2 text-xs">
+                      <span
+                        className={cn(
+                          "mt-1 size-1.5 shrink-0 rounded-full",
+                          wave.contentId ? "bg-[var(--color-clear)]" : "bg-border-strong",
+                        )}
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">
+                          {wave.offsetDays === 0
+                            ? "當天"
+                            : `${wave.offsetDays < 0 ? "前" : "後"} ${Math.abs(wave.offsetDays)} 天`}
+                          ·{wave.stage}
+                        </span>
+                        <span className="block truncate text-muted">{wave.title}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              icon={Tent}
+              title="還沒有排定的活動"
+              description="先建立一場活動，AI 就能幫你排出完整宣傳節奏。也可以直接從一句想法開始寫一篇。"
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button asChild>
+                    <Link to="/campaigns" search={{ new: "1" }}>
+                      建立活動
+                    </Link>
+                  </Button>
+                  <Button asChild variant="secondary">
+                    <Link to="/create" search={{ from: "idea" }}>
+                      從一句想法開始
+                    </Link>
+                  </Button>
+                </div>
+              }
+            />
+          )}
+        </div>
+      </section>
+
+      {/* 快速開始 */}
       <section className="mt-8">
-        <SectionHeader title="最近作品" hint="依最後編輯排列" />
+        <SectionHeader title="快速開始" hint="每一個入口都會帶著品牌記憶與學生情境" />
+        <QuickStartGrid />
+      </section>
+
+      {/* 今日靈感 */}
+      <section className="mt-10">
+        <SectionHeader
+          title="今日靈感"
+          hint={`${phase.label}適合的角度`}
+          action={
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/create" search={{ from: "idea" }}>
+                更多靈感
+              </Link>
+            </Button>
+          }
+        />
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {HOOK_PATTERNS.slice(0, 3).map((pattern) => (
+            <li key={pattern.label}>
+              <Link
+                to="/create"
+                search={{ from: "idea", seed: pattern.example }}
+                className="flex h-full flex-col gap-2 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-lift)]"
+              >
+                <span className="flex items-center gap-2 text-xs text-muted">
+                  <Lightbulb className="size-3.5" />
+                  {pattern.label}
+                </span>
+                <span className="font-display text-lg leading-snug">「{pattern.example}」</span>
+                <span className="text-xs text-subtle">{pattern.why}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* 近期活動 */}
+      {upcoming.length > 0 ? (
+        <section className="mt-10">
+          <SectionHeader
+            title="近期活動"
+            hint="依接近程度排序"
+            action={
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/campaigns">全部活動</Link>
+              </Button>
+            }
+          />
+          <ul className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
+            {upcoming.map((campaign) => (
+              <li key={campaign.id} className="min-w-[15rem] sm:min-w-0">
+                <Link
+                  to="/campaigns/$campaignId"
+                  params={{ campaignId: campaign.id }}
+                  className="flex h-full flex-col gap-2 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-lift)]"
+                >
+                  <span className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-medium">{formatCampaignDate(campaign)}</span>
+                    <span className="text-muted">{countdownLabel(campaign)}</span>
+                  </span>
+                  <span className="font-display text-lg">{campaign.name || "未命名活動"}</span>
+                  <span className="line-clamp-2 text-xs text-muted">{campaign.oneLiner}</span>
+                  <span className="mt-auto text-xs text-subtle">
+                    {campaign.waves.filter((w) => w.contentId).length}/{campaign.waves.length} 篇已建立
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* 已排程內容 */}
+      <section className="mt-10">
+        <SectionHeader
+          title="已排程內容"
+          hint="到時間就發"
+          action={
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/calendar">看日曆</Link>
+            </Button>
+          }
+        />
+        {scheduled.length === 0 ? (
+          <p className="rounded-2xl bg-surface px-4 py-8 text-center text-sm text-muted shadow-[var(--shadow-border)]">
+            還沒有排程。做完一篇後在日曆上排時間。
+          </p>
+        ) : (
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {scheduled.map((project) => (
+              <li key={project.id}>
+                <Link
+                  to="/studio/$projectId"
+                  params={{ projectId: project.id }}
+                  className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-lift)]"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-2">
+                    <CalendarDays className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{project.name}</span>
+                    <span className="block truncate text-xs text-muted">
+                      {new Date(project.scheduledAt ?? 0).toLocaleString("zh-TW", {
+                        month: "numeric",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      ·{contentKindLabel(project.contentKind)}
+                    </span>
+                  </span>
+                  <StatusBadge status={project.status} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* 最近 AI 生成 */}
+      <section className="mt-10">
+        <SectionHeader title="最近做的內容" hint="依最後編輯排列" />
         {recent.length === 0 ? (
           <EmptyState
-            icon={FolderKanban}
-            title="還沒有作品"
-            description="從模板開始，或新建一則網宣。"
+            icon={Sparkles}
+            title="還沒有內容"
+            description="從一句想法開始，AI 會幫你寫第一版。"
             action={
-              <Button onClick={() => setOpen(true)}>
-                <Plus className="size-4" />
-                新建專案
+              <Button asChild>
+                <Link to="/create" search={{ from: "idea" }}>
+                  開始創作
+                </Link>
               </Button>
             }
           />
@@ -118,7 +363,6 @@ export function HomePage() {
                   brand={brands.find((b) => b.id === project.brandId)}
                   urls={urls}
                   onDuplicate={() => duplicateProject(project.id)}
-                  onDelete={() => setPendingDelete(project.id)}
                 />
               </li>
             ))}
@@ -126,71 +370,56 @@ export function HomePage() {
         )}
       </section>
 
-      <section className="mt-10">
-        <SectionHeader title="草稿" hint="尚未完成企劃或輸出" />
-        {drafts.length === 0 ? (
-          <p className="rounded-2xl bg-surface px-4 py-8 text-center text-sm text-muted shadow-[var(--shadow-border)]">
-            沒有草稿。完成企劃後會標成可輸出。
-          </p>
-        ) : (
-          <ul className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-3">
-            {drafts.map((project) => (
-              <li key={project.id} className="min-w-[16rem] sm:min-w-0">
-                <ProjectCard
-                  project={project}
-                  brand={brands.find((b) => b.id === project.brandId)}
-                  urls={urls}
-                  compact
-                  onDuplicate={() => duplicateProject(project.id)}
-                  onDelete={() => setPendingDelete(project.id)}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="mt-10">
-        <SectionHeader title="模板" hint="套用品牌色與字體，立刻進編輯器" />
-        <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {TEMPLATE_STARTERS.map((tpl) => {
-            const preview = brand ? previewTemplate(tpl, brand, assets.find((a) => a.kind === "image")?.id) : null;
-            const format = formatById(tpl.formatId);
-            return (
-              <li key={tpl.id}>
-                <button
-                  type="button"
-                  onClick={() => startTemplate(tpl.id)}
-                  className="w-full rounded-2xl bg-surface p-3 text-left shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-border-hover)]"
-                >
-                  <div className="flex h-36 items-center justify-center overflow-hidden rounded-lg bg-bg">
-                    {preview && brand ? (
-                      <ArtboardView
-                        artboard={preview}
-                        brand={brand}
-                        urls={urls}
-                        width={Math.min(120, (120 * format.width) / format.height)}
-                      />
-                    ) : (
-                      <span className="text-xs text-muted">預覽</span>
-                    )}
-                  </div>
-                  <p className="mt-3 truncate text-sm font-medium">{tpl.name}</p>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-muted">{tpl.description}</p>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
+      {/* 過去表現不錯的內容 */}
       <section className="mt-10">
         <SectionHeader
-          title="品牌資產"
-          hint="Logo、商品圖與場景"
+          title="過去表現不錯的內容"
+          hint="串接 IG 後會用真實成效排序"
           action={
             <Button asChild variant="ghost" size="sm">
-              <Link to="/assets">全部素材</Link>
+              <Link to="/instagram">IG 中心</Link>
+            </Button>
+          }
+        />
+        {published.length === 0 ? (
+          <div className="rounded-2xl bg-surface px-4 py-8 text-center shadow-[var(--shadow-border)]">
+            <Instagram className="mx-auto size-5 text-subtle" />
+            <p className="mt-2 text-sm text-muted">還沒有標記為已發布的內容。</p>
+            <p className="mt-1 text-xs text-subtle">
+              連接 {CLUB_NAME} 的 Instagram 後，這裡會顯示互動最好的貼文，AI 也會用它來調整下一篇。
+            </p>
+          </div>
+        ) : (
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {published.map((project) => (
+              <li key={project.id}>
+                <Link
+                  to="/studio/$projectId"
+                  params={{ projectId: project.id }}
+                  className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{project.name}</span>
+                    <span className="block truncate text-xs text-muted">
+                      {contentKindLabel(project.contentKind)}
+                    </span>
+                  </span>
+                  <StatusBadge status={project.status} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* 最近素材 */}
+      <section className="mt-10">
+        <SectionHeader
+          title="最近素材"
+          hint="Logo、龜龜、校園與淡水"
+          action={
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/assets">素材庫</Link>
             </Button>
           }
         />
@@ -198,7 +427,7 @@ export function HomePage() {
           <EmptyState
             icon={Images}
             title="還沒有素材"
-            description="上傳 Logo 與商品圖，之後排版會直接取用。"
+            description="上傳活動照片與 Logo，排版時會直接取用。"
             action={
               <Button asChild variant="secondary">
                 <Link to="/assets">前往素材庫</Link>
@@ -210,7 +439,7 @@ export function HomePage() {
             {assets.slice(0, 12).map((asset) => (
               <li key={asset.id} className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
                 <Link to="/assets" className="block">
-                  <div className="aspect-square bg-bg">
+                  <div className="aspect-square bg-surface-2">
                     {urls[asset.id] ? (
                       <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" />
                     ) : (
@@ -218,34 +447,12 @@ export function HomePage() {
                     )}
                   </div>
                   <p className="truncate px-2 py-1.5 text-xs">{asset.name}</p>
-                  <p className="truncate px-2 pb-1.5 text-xs text-subtle">{categoryLabel(asset.category)}</p>
                 </Link>
               </li>
             ))}
           </ul>
         )}
       </section>
-
-      <NewProjectDialog open={open} onOpenChange={setOpen} />
-      <AlertDialog open={Boolean(pendingDelete)} onOpenChange={() => setPendingDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>刪除這個專案？</AlertDialogTitle>
-            <AlertDialogDescription>此動作無法復原。素材庫與品牌規範會保留。</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (pendingDelete) deleteProject(pendingDelete);
-                setPendingDelete(null);
-              }}
-            >
-              刪除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </main>
   );
 }

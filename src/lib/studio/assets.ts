@@ -100,6 +100,9 @@ export function createGeneratedAsset(input: {
   width: number;
   height: number;
   category?: AssetCategory;
+  tags?: string[];
+  licenseNotes?: string;
+  licenseOwner?: string;
 }): AssetMeta {
   const now = Date.now();
   return migrateAsset({
@@ -110,12 +113,12 @@ export function createGeneratedAsset(input: {
     mime: input.mime,
     width: input.width,
     height: input.height,
-    tags: ["生成", "QR"],
+    tags: input.tags ?? ["生成"],
     createdAt: now,
     updatedAt: now,
     source: "generated",
-    licenseNotes: "由構幀依報名網址在本機產生，僅供畫面使用。",
-    licenseOwner: "本機產生",
+    licenseNotes: input.licenseNotes ?? "在本機產生，僅供畫面使用。",
+    licenseOwner: input.licenseOwner ?? "本機產生",
   });
 }
 

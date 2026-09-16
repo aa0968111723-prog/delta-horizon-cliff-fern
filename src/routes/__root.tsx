@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "構幀";
+const APP_NAME = "禪光工作室 · 淡江大學禪學社";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -15,8 +15,8 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: APP_NAME },
-      { name: "description", content: "Instagram 專業網宣製作工作站" },
-      { name: "theme-color", content: "#F3F0EA" },
+      { name: "description", content: "淡江大學禪學社的 AI 創作中控台：一個人也能完成 IG 網宣的企劃、文案、圖片與排程。" },
+      { name: "theme-color", content: "#F7F5F0" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },

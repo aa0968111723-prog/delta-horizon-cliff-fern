@@ -7,6 +7,7 @@ import { ArtboardView } from "@/components/studio/artboard-view";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { formatById } from "@/lib/studio/formats";
+import { contentKindLabel } from "@/lib/studio/status";
 import type { BrandKit, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 
@@ -59,7 +60,7 @@ export function ProjectCard({
             {project.name}
           </Link>
           <p className="mt-0.5 text-xs text-muted">
-            {brand?.name ?? "未指定品牌"} · {format.short} ·{" "}
+            {contentKindLabel(project.contentKind)} · {format.short} ·{" "}
             {formatDate(project.updatedAt, "M/d HH:mm", { locale: zhTW })}
           </p>
         </div>

@@ -8,8 +8,8 @@ const SHADOW = { enabled: false, x: 0, y: 12, blur: 28, color: "rgba(26,24,20,0.
 
 const brand: BrandKit = {
   id: "b",
-  name: "日食",
-  handle: "@nisshoku.coffee",
+  name: "禪學社",
+  handle: "@tku.zen",
   website: "",
   voice: "",
   doSay: "",

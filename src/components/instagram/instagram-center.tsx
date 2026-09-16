@@ -1,0 +1,315 @@
+import { Link } from "@tanstack/react-router";
+import { Grid3x3, Instagram, Link2, Loader2, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { PageHeader, SectionHeader } from "@/components/shared/page-header";
+import { ArtboardView } from "@/components/studio/artboard-view";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useAssetUrls } from "@/hooks/use-asset-urls";
+import { getConnections } from "@/lib/connections/status";
+import type { ConnectionStatus } from "@/lib/connections/providers";
+import { buildIgDna } from "@/lib/studio/ig-dna";
+import { contentKindLabel } from "@/lib/studio/status";
+import { cn } from "@/lib/utils";
+import { CLUB_HANDLE, CLUB_INTRO_SHORT, CLUB_NAME } from "@/lib/zen/club";
+import { useStudio } from "@/stores/studio-store";
+
+type Tab = "grid" | "history" | "dna" | "insights";
+
+/**
+ * Instagram Center。IG 是這個產品的主要輸出平台，不是外掛功能。
+ *
+ * 現在可以做的：把自己做好的內容用 IG Grid 的方式預覽、從內容抽出 IG DNA。
+ * 需要連接才有的：過去貼文、真實成效。那些區塊會誠實說還沒連。
+ */
+export function InstagramCenter() {
+  const projects = useStudio((s) => s.projects);
+  const brands = useStudio((s) => s.brands);
+  const assets = useStudio((s) => s.assets);
+  const urls = useAssetUrls(assets.map((a) => a.id));
+  const [tab, setTab] = useState<Tab>("grid");
+  const [connection, setConnection] = useState<ConnectionStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    void getConnections()
+      .then((list) => {
+        if (!alive) return;
+        setConnection(list.find((item) => item.id === "instagram") ?? null);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const brand = brands[0];
+  const feed = useMemo(
+    () =>
+      [...projects]
+        .filter((p) => p.status !== "idea")
+        .sort((a, b) => (b.publishedAt ?? b.scheduledAt ?? b.updatedAt) - (a.publishedAt ?? a.scheduledAt ?? a.updatedAt)),
+    [projects],
+  );
+  const dna = useMemo(() => buildIgDna(projects, brand), [projects, brand]);
+  const connected = connection?.state === "connected";
+
+  return (
+    <main className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-10">
+      <PageHeader
+        kicker="Instagram"
+        title="IG 中心"
+        description={`${CLUB_NAME} ${CLUB_HANDLE}。這裡看版面長相、過去內容與帳號自己的語氣習慣。`}
+        actions={
+          connected ? (
+            <Badge variant="success">已連接</Badge>
+          ) : (
+            <Button asChild variant="secondary">
+              <Link to="/connections" search={{ focus: "instagram" }}>
+                <Link2 className="size-4" />
+                連接 Instagram
+              </Link>
+            </Button>
+          )
+        }
+      />
+
+      {/* 帳號卡 */}
+      <section className="mt-6 flex items-center gap-4 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <span className="three-lights flex size-16 shrink-0 items-center justify-center rounded-full">
+          <Instagram className="size-6 text-accent-fg" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-medium">{CLUB_HANDLE}</p>
+          <p className="mt-0.5 text-xs text-muted">{CLUB_INTRO_SHORT}</p>
+          <p className="mt-1 text-xs text-subtle">
+            {feed.length} 則內容 · {projects.filter((p) => p.status === "published").length} 則已發布
+          </p>
+        </div>
+      </section>
+
+      <div className="mt-6 flex flex-wrap gap-1.5">
+        {(
+          [
+            { id: "grid" as const, label: "版面預覽" },
+            { id: "history" as const, label: "過去 IG" },
+            { id: "dna" as const, label: "IG DNA" },
+            { id: "insights" as const, label: "成效" },
+          ]
+        ).map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setTab(item.id)}
+            className={cn(
+              "min-h-9 rounded-full px-3 text-xs transition-colors",
+              tab === item.id ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted hover:text-fg",
+            )}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "grid" ? (
+        <section className="mt-6">
+          <SectionHeader title="版面預覽" hint="像 IG 一樣看整體是不是一致" />
+          {feed.length === 0 ? (
+            <EmptyBlock
+              text="還沒有可以放上版面的內容。做完一篇之後就會出現在這裡。"
+              action={
+                <Button asChild size="sm">
+                  <Link to="/create" search={{ from: "idea" }}>
+                    <Sparkles className="size-4" />
+                    寫一篇
+                  </Link>
+                </Button>
+              }
+            />
+          ) : (
+            <ul className="grid grid-cols-3 gap-1">
+              {feed.map((project) => {
+                const board = project.artboards[project.activeFormatId];
+                return (
+                  <li key={project.id} className="relative aspect-square overflow-hidden bg-surface-2">
+                    <Link
+                      to="/studio/$projectId"
+                      params={{ projectId: project.id }}
+                      className="flex size-full items-center justify-center"
+                    >
+                      {board && brand ? (
+                        <ArtboardView artboard={board} brand={brand} urls={urls} width={140} />
+                      ) : (
+                        <span className="text-xs text-muted">{project.name}</span>
+                      )}
+                    </Link>
+                    <span className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-fg/55 px-1.5 py-1 text-[0.6rem] text-accent-fg">
+                      {contentKindLabel(project.contentKind)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      ) : null}
+
+      {tab === "history" ? (
+        <section className="mt-6">
+          <SectionHeader title="過去 IG" hint="連接後會用真正的 Grid 顯示，點進去可以看 Caption、日期與成效" />
+          {loading ? (
+            <p className="flex items-center gap-2 text-sm text-muted">
+              <Loader2 className="size-4 animate-spin" />
+              正在確認連接狀態…
+            </p>
+          ) : connected ? (
+            <EmptyBlock text="已連接，但還沒同步過。到連接頁按一次「同步」就會把過去貼文帶進來。" />
+          ) : (
+            <EmptyBlock
+              text={`還沒連接 Instagram，所以這裡沒有真實貼文。連接之後 AI 才能讀 ${CLUB_NAME} 過去的 Caption、輪播、Reels 與互動，並用它調整下一篇。`}
+              action={
+                <Button asChild size="sm">
+                  <Link to="/connections" search={{ focus: "instagram" }}>
+                    <Link2 className="size-4" />
+                    連接 Instagram
+                  </Link>
+                </Button>
+              }
+            />
+          )}
+        </section>
+      ) : null}
+
+      {tab === "dna" ? (
+        <section className="mt-6 space-y-4">
+          <SectionHeader
+            title="IG DNA"
+            hint={`從 ${dna.sampleCount} 則自己的內容抽出來的習慣。生成新內容時會優先參考這些。`}
+          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Card title="Caption 長度">
+              <p className="text-sm text-muted">
+                平均 {dna.captionLength.avg} 字（{dna.captionLength.min}–{dna.captionLength.max}）
+              </p>
+            </Card>
+            <Card title="常用配色">
+              <ul className="flex flex-wrap gap-1.5">
+                {dna.colors.map((hex) => (
+                  <li key={hex} className="flex items-center gap-1.5 text-xs text-muted">
+                    <span
+                      className="size-4 rounded-full shadow-[var(--shadow-border)]"
+                      style={{ backgroundColor: hex }}
+                    />
+                    {hex}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+            <Card title="常用 Hashtag">
+              {dna.topHashtags.length ? (
+                <ul className="flex flex-wrap gap-1.5 text-xs">
+                  {dna.topHashtags.map((row) => (
+                    <li key={row.tag} className="rounded-full bg-surface-2 px-2 py-0.5 text-muted">
+                      {row.tag} · {row.count}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-subtle">還沒有資料。</p>
+              )}
+            </Card>
+            <Card title="常用 CTA">
+              {dna.topCtas.length ? (
+                <ul className="space-y-1 text-xs text-muted">
+                  {dna.topCtas.map((row) => (
+                    <li key={row.cta}>
+                      {row.cta} · {row.count} 次
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-subtle">還沒有資料。</p>
+              )}
+            </Card>
+            <Card title="內容型態分布">
+              <ul className="space-y-1 text-xs text-muted">
+                {dna.kinds.map((row) => (
+                  <li key={row.kind}>
+                    {contentKindLabel(row.kind as never)} · {row.count}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+            <Card title="開場習慣">
+              {dna.hookStarts.length ? (
+                <ul className="space-y-1 text-xs text-muted">
+                  {dna.hookStarts.map((hook) => (
+                    <li key={hook} className="line-clamp-1">
+                      「{hook}」
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-subtle">還沒有資料。</p>
+              )}
+            </Card>
+          </div>
+          {!connected ? (
+            <p className="text-xs text-subtle">
+              連接 Instagram 後，這裡會再加上真實貼文的視覺風格、圖片類型與學生互動偏好。
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {tab === "insights" ? (
+        <section className="mt-6">
+          <SectionHeader title="成效" hint="不只看數字，是回答「哪一種 Hook 有效」" />
+          {connected ? (
+            <EmptyBlock text="已連接，同步之後這裡會分析觸及、互動、收藏與分享，並整理成下一次生成的依據。" />
+          ) : (
+            <EmptyBlock
+              text="還沒連接 Instagram，所以沒有真實成效可以分析。這裡不會放假數據。"
+              action={
+                <Button asChild size="sm">
+                  <Link to="/connections" search={{ focus: "instagram" }}>
+                    <Link2 className="size-4" />
+                    連接 Instagram
+                  </Link>
+                </Button>
+              }
+            />
+          )}
+          <ul className="mt-4 space-y-1 text-xs text-muted">
+            <li>· 哪種 Hook 讓學生停下來？</li>
+            <li>· 哪種圖片停留比較久？</li>
+            <li>· 輪播哪種結構看到最後一頁？</li>
+            <li>· 限動哪種互動比較多？</li>
+          </ul>
+        </section>
+      ) : null}
+    </main>
+  );
+}
+
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+      <p className="text-sm font-medium">{title}</p>
+      <div className="mt-2">{children}</div>
+    </div>
+  );
+}
+
+function EmptyBlock({ text, action }: { text: string; action?: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl bg-surface p-6 text-center shadow-[var(--shadow-border)]">
+      <Grid3x3 className="mx-auto size-5 text-subtle" />
+      <p className="mx-auto mt-2 max-w-md text-sm text-muted">{text}</p>
+      {action ? <div className="mt-3 flex justify-center">{action}</div> : null}
+    </div>
+  );
+}

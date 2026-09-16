@@ -170,7 +170,7 @@ const ImageGenSchema = z.object({
 });
 
 export type ImageGenResult =
-  | { ok: true; url: string; revisedPrompt?: string }
+  | { ok: true; dataUrl: string; revisedPrompt?: string }
   | { ok: false; error: string };
 
 const RATIO_HINT: Record<string, string> = {
@@ -208,18 +208,36 @@ export const generateImage = createServerFn({ method: "POST" })
           model: "grok-imagine-image-quality",
           prompt,
           n: 1,
-          response_format: "url",
+          response_format: "b64_json",
         }),
       });
       if (!res.ok) {
         return { ok: false, error: `圖片生成失敗（${res.status}）。稍後再試一次。` };
       }
       const body = (await res.json()) as {
-        data?: { url?: string; revised_prompt?: string }[];
+        data?: { b64_json?: string; url?: string; revised_prompt?: string }[];
       };
-      const url = body.data?.[0]?.url;
-      if (!url) return { ok: false, error: "圖片生成沒有回傳結果。" };
-      return { ok: true, url, revisedPrompt: body.data?.[0]?.revised_prompt };
+      const first = body.data?.[0];
+      // b64 直接轉 data URL，才能存進素材庫並在畫布上使用。
+      if (first?.b64_json) {
+        return {
+          ok: true,
+          dataUrl: `data:image/png;base64,${first.b64_json}`,
+          revisedPrompt: first.revised_prompt,
+        };
+      }
+      if (first?.url) {
+        const fetched = await fetch(first.url);
+        if (!fetched.ok) return { ok: false, error: "圖片下載失敗。" };
+        const buffer = Buffer.from(await fetched.arrayBuffer());
+        const mime = fetched.headers.get("content-type") ?? "image/png";
+        return {
+          ok: true,
+          dataUrl: `data:${mime};base64,${buffer.toString("base64")}`,
+          revisedPrompt: first.revised_prompt,
+        };
+      }
+      return { ok: false, error: "圖片生成沒有回傳結果。" };
     } catch {
       return { ok: false, error: "無法連上圖片生成服務。" };
     }
