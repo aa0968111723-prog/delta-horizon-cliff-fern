@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildLocalCopyDraft } from "./copy-local.ts";
+import { buildLocalCopyDraft, buildLocalReels, imageCueFromTexts } from "./copy-local.ts";
 import type { CopyBriefLocal } from "./copy-local.ts";
 
 function brief(partial: Partial<CopyBriefLocal> = {}): CopyBriefLocal {
@@ -34,4 +34,19 @@ test("imageCue becomes the hook instead of a generic pain-point line", () => {
 test("without imageCue the student hook stays the rest line", () => {
   const draft = buildLocalCopyDraft(brief(), "student");
   assert.match(draft.hook, /好好休息|說真的/);
+});
+
+test("imageCueFromTexts prefers caption then the first summary sentence", () => {
+  assert.equal(imageCueFromTexts("走上坡的時候，你通常在想什麼？", "傍晚的淡水河。"), "走上坡的時候，你通常在想什麼？");
+  assert.equal(imageCueFromTexts("", "傍晚的淡水河。窗邊很安靜。"), "傍晚的淡水河");
+});
+
+test("imageCue Reels hook and first beat use the photo as cover", () => {
+  const cue = "走上坡的時候，你通常在想什麼？";
+  const reels = buildLocalReels(brief({ imageCue: cue, tone: "student" }));
+  assert.equal(reels.hook, cue);
+  assert.match(reels.cover, /這張照片|9:16 封面/);
+  assert.match(reels.beats[0]!.visual, /這張照片|定格/);
+  assert.equal(reels.beats[0]!.asset, "這張封面照片");
+  assert.doesNotMatch(reels.hook, /說真的，最近你有好好休息嗎/);
 });

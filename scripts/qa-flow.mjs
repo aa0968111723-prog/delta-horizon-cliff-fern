@@ -406,6 +406,32 @@ try {
   record("做成限動畫布格式", storyFormat === "story", `格式是 ${storyFormat ?? "沒有格式"}`);
   await page.screenshot({ path: `${prefix}-from-image.png` });
 
+  // 8c. 從一張圖片做成 Reels：腳本 + 9:16 封面
+  await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });
+  await page.waitForSelector('button[aria-label="分析 淡水河傍晚"]', { timeout: 15000 });
+  await tap(page.getByRole("button", { name: "分析 淡水河傍晚" }));
+  await page.waitForSelector("text=本機規則", { timeout: 20000 });
+  await expectText("做成 Reels 會寫腳本", "做成 Reels 封面會同時寫一支 20 秒腳本");
+  await tap(
+    page
+      .locator("section")
+      .filter({ hasText: "圖片理解" })
+      .getByTestId("make-kind-reels"),
+  );
+  await page.waitForURL(/\/studio\//, { timeout: 25000 });
+  await page.waitForLoadState("networkidle");
+  await page.waitForSelector('[data-testid="reels-timeline"]', { timeout: 15000 });
+  await expectText("做成 Reels 腳本", "複製整支腳本");
+  await expectText("做成 Reels 本機草稿", "本機草稿");
+  await expectText("做成 Reels hook 走上坡", "走上坡");
+  await expectText("做成 Reels 已排成比例", "已排成 Story 9:16");
+  await page.waitForSelector('[data-testid="artboard"]', { timeout: 15000 });
+  const reelsRatio = await page.getByTestId("artboard").first().getAttribute("data-ratio");
+  record("做成 Reels 畫布比例", reelsRatio === "9:16", `畫布是 ${reelsRatio ?? "沒有比例"}`);
+  const reelsFormat = await page.getByTestId("artboard").first().getAttribute("data-format");
+  record("做成 Reels 畫布格式", reelsFormat === "reels-cover", `格式是 ${reelsFormat ?? "沒有格式"}`);
+  await page.screenshot({ path: `${prefix}-from-image-reels.png` });
+
   await page.goto(`${base}/instagram`, { waitUntil: "networkidle" });
   await expectText("IG 個人頁", "追蹤者");
   await expectText("IG 網格切換", "網格");

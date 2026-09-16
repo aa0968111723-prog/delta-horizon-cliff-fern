@@ -239,21 +239,29 @@ export function buildLocalStudentReview(text: string, brief: CopyBriefLocal): St
   };
 }
 
-/** 本機 Reels 腳本草稿。 */
+/** 從圖片理解抽出第一句，給文案／Reels Hook 用。 */
+export function imageCueFromTexts(caption: string, summary = ""): string {
+  return (caption.trim() || summary.split(/[。\n]/)[0] || "").replace(/\s+/g, " ").trim().slice(0, 40);
+}
+
+/** 本機 Reels 腳本草稿。有畫面線索時，開頭用這張圖當封面定格。 */
 export function buildLocalReels(brief: CopyBriefLocal): ReelsScript {
   const hook = pickHook(brief);
   const where = whenWhere(brief) || "社課現場";
+  const fromPhoto = Boolean(brief.imageCue?.trim());
   return {
     hook,
-    cover: `紙白底＋一句「${hook}」，右下角三色光標誌。`,
+    cover: fromPhoto
+      ? `這張照片當 9:16 封面，疊一句「${hook}」，右下角三色光。`
+      : `紙白底＋一句「${hook}」，右下角三色光標誌。`,
     beats: [
       {
         range: "0–3 秒",
-        visual: "手機螢幕滿版的訊息通知，快速滑動",
+        visual: fromPhoto ? "這張照片滿版定格，再慢慢拉開" : "手機螢幕滿版的訊息通知，快速滑動",
         caption: hook,
         voice: "（不用旁白，只有環境音）",
         transition: "畫面突然安靜、亮度降低",
-        asset: "手機畫面錄影或宿舍書桌",
+        asset: fromPhoto ? "這張封面照片" : "手機畫面錄影或宿舍書桌",
       },
       {
         range: "3–7 秒",

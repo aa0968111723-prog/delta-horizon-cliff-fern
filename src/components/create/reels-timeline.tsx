@@ -120,7 +120,7 @@ export function ReelsTimeline({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="reels-timeline">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-display text-lg leading-snug">{reels.hook}</p>

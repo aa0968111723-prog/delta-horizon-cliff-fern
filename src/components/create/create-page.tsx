@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DirectionSourceNote, RegenerateButton, VisualDirectionCard } from "@/components/create/visual-directions";
-import { COPY_TONES, COPY_TOPICS, type CopyTopic } from "@/lib/ai/copy-local";
+import { COPY_TONES, COPY_TOPICS, imageCueFromTexts, type CopyTopic } from "@/lib/ai/copy-local";
 import { generateIgCopy, getZenAiStatus, reviewAsStudent, generateReelsScript } from "@/lib/ai/copy-ai";
 import { generateVisualDirections, type VisualDirection } from "@/lib/ai/image-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
@@ -647,11 +647,47 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       if (kindUsesPagedLayout(payload.kind)) {
         layoutFromKind(project.id, payload.kind);
       }
+      if (payload.kind === "reels") {
+        const cue = imageCueFromTexts(payload.caption, payload.summary);
+        try {
+          const res = await generateReelsScript({
+            data: {
+              eventName: eventName.trim() || campaign?.name || name,
+              schedule: schedule.trim() || (campaign ? `${campaign.date} ${campaign.time}`.trim() : ""),
+              location: location.trim() || campaign?.location || "",
+              detail: [payload.summary, payload.caption].filter(Boolean).join("\n"),
+              painPoint: painPoint.trim() || campaign?.painPoint || "",
+              cta: campaign?.cta ?? "",
+              audienceIds,
+              brandMemoryText: memoryText,
+              igDnaText: igDnaText || undefined,
+              insightsText: insightsText || undefined,
+              imageCue: cue || undefined,
+            },
+          });
+          setReels(project.id, { ...res.reels, coverAssetId: assetId });
+          addSources(project.id, [
+            {
+              kind: res.adapter === "live" ? "generated" : "local",
+              label: res.adapter === "live" ? "AI Reels 腳本" : "本機草稿 Reels 腳本",
+              detail: res.reels.hook,
+            },
+          ]);
+          if (!res.ok) toast.warning(res.error);
+        } catch {
+          toast.warning("腳本這次沒寫成，封面還是可以用。");
+        }
+      }
       applyVisualToPack(project.id, assetId);
+      const kindLabel = contentKindLabel(payload.kind);
       toast.success(
-        framedNote
-          ? `已做成${contentKindLabel(payload.kind)}，${framedNote}`
-          : `已做成${contentKindLabel(payload.kind)}`,
+        payload.kind === "reels"
+          ? framedNote
+            ? `已做成 Reels，腳本與 ${ratioLabel} 封面都排好了`
+            : "已做成 Reels，腳本已寫好"
+          : framedNote
+            ? `已做成${kindLabel}，${framedNote}`
+            : `已做成${kindLabel}`,
       );
       void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
     } catch {
@@ -665,7 +701,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     caption: string;
     assetId: string | null;
   }) {
-    const cue = (payload.caption || payload.summary.split(/[。\n]/)[0] || "從這張圖開始").trim().slice(0, 40);
+    const cue = imageCueFromTexts(payload.caption, payload.summary) || "從這張圖開始";
     if (payload.caption) setIdea(payload.caption);
     else if (payload.summary) setIdea(payload.summary);
     else setIdea("從這張圖開始");
@@ -724,6 +760,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           painPoint: painPoint.trim() || campaign?.painPoint || "",
           cta: draft?.cta ?? campaign?.cta ?? "",
           audienceIds,
+          imageCue: imageCopyCue.trim() || undefined,
           brandMemoryText: memoryText,
           igDnaText: igDnaText || undefined,
           insightsText: insightsText || undefined,

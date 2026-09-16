@@ -285,6 +285,7 @@ const ReelsSchema = z.object({
   brandMemoryText: z.string().max(2500).optional(),
   igDnaText: z.string().max(1500).optional(),
   insightsText: z.string().max(1200).optional(),
+  imageCue: z.string().max(80).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -324,6 +325,7 @@ export const generateReelsScript = createServerFn({ method: "POST" })
       cta: data.cta,
       audienceIds: data.audienceIds,
       signupUrl: "",
+      imageCue: data.imageCue,
     };
     const fallback = buildLocalReels(brief);
     if (data.forceLocal || !aiAvailable()) {
@@ -337,13 +339,17 @@ export const generateReelsScript = createServerFn({ method: "POST" })
       data.eventName ? `活動：${data.eventName}｜${data.schedule}｜${data.location}` : "",
       data.detail ? `內容：${data.detail}` : "",
       data.painPoint ? `痛點：${data.painPoint}` : "",
+      data.imageCue
+        ? `封面要用這張圖。Hook 接畫面線索，不要寫成與圖無關的套話：${data.imageCue}`
+        : "",
       "",
       "輸出 JSON：{hook, cover, beats:[{range,visual,caption,voice,transition,asset}]}",
       "beats 固定五段：0–3 秒、3–7 秒、7–12 秒、12–17 秒、17–20 秒。",
       "0–3 秒要能讓人停下來，不要出現社團名稱。",
+      data.imageCue ? "0–3 秒用這張封面照片定格，再拉開。" : "",
       "visual 要能用手機在淡江校園拍到；asset 寫需要什麼素材。",
       "caption 是畫面上的字幕，短。voice 是旁白，沒有就寫「（無旁白）」。",
-      "cover 描述封面畫面。",
+      "cover 描述封面畫面。有圖時 cover 要寫用這張照片當 9:16 封面。",
     ]
       .filter(Boolean)
       .join("\n");
