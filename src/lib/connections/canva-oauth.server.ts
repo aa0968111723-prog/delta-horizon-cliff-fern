@@ -1,7 +1,8 @@
 import type { CallToolResult } from "@/lib/app-data";
 import { normalizeCanvaDesigns } from "./canva-normalize.ts";
+import { buildCanvaAuthorizeUrl, CANVA_SCOPES } from "./oauth-urls.ts";
+import { canvaStatusFromConfig } from "./provider-status.ts";
 import type { ConnectorResult, ExternalMemoryItem, OfficialProviderStatus } from "./types.ts";
-import { EMPTY_CAPABILITIES } from "./types.ts";
 import { genericError, oauthNeededError, safeConnectorError, unavailableError } from "./safe-result.ts";
 import type { OAuthTokenSet } from "./oauth-cookies.server.ts";
 
@@ -9,21 +10,13 @@ export const CANVA_TOKEN_COOKIE = "zen_canva_token";
 export const CANVA_PKCE_COOKIE = "zen_canva_pkce";
 export const CANVA_TOKEN_SALT = "zen-canva-token";
 export const CANVA_PKCE_SALT = "zen-canva-pkce";
-export const CANVA_SCOPES = "design:meta:read design:content:read";
+export { CANVA_SCOPES };
 export const CANVA_MCP_LIST_TOOLS = ["canva_list_designs", "list_designs", "search_designs", "list-designs", "canva_search"];
 
 let rememberedMcpTool: string | null = null;
 
 export function canvaUnavailableStatus(reason = "Canva 尚未在此環境提供"): OfficialProviderStatus {
-  return {
-    provider: "canva",
-    available: false,
-    mode: "none",
-    connected: false,
-    reason,
-    scopes: [],
-    capabilities: EMPTY_CAPABILITIES,
-  };
+  return { ...canvaStatusFromConfig({ oauthReady: false, connected: false }), reason };
 }
 
 export async function readCanvaEnv() {
@@ -43,33 +36,14 @@ export async function canvaRedirectUri() {
 
 export async function currentCanvaStatus(): Promise<OfficialProviderStatus> {
   const { catalogId, oauth, secret } = await readCanvaEnv();
-  if (catalogId) {
-    return {
-      provider: "canva",
-      available: true,
-      mode: "mcp",
-      connected: false,
-      reason: "透過 Grok MCP 連接 Canva。授權完成後才會讀取真實設計。",
-      scopes: [],
-      capabilities: { ...EMPTY_CAPABILITIES, list: true, search: true },
-    };
-  }
-  if (oauth && secret) {
-    const cookies = await import("./oauth-cookies.server.ts");
-    const token = cookies.readTokenSet(CANVA_TOKEN_COOKIE, secret, CANVA_TOKEN_SALT);
-    return {
-      provider: "canva",
-      available: true,
-      mode: "oauth",
-      connected: Boolean(token),
-      reason: token
-        ? "已用官方 Canva Connect OAuth 連接。只保存設計 metadata，憑證不會進前端。"
-        : "可用官方 Canva Connect OAuth 連接。不會要求貼 Token。",
-      scopes: token?.scope.split(/\s+/).filter(Boolean) ?? [],
-      capabilities: { ...EMPTY_CAPABILITIES, list: true, search: true },
-    };
-  }
-  return canvaUnavailableStatus();
+  const cookies = await import("./oauth-cookies.server.ts");
+  const token = oauth && secret ? cookies.readTokenSet(CANVA_TOKEN_COOKIE, secret, CANVA_TOKEN_SALT) : null;
+  return canvaStatusFromConfig({
+    catalogId,
+    oauthReady: Boolean(oauth && secret),
+    connected: Boolean(token),
+    scopes: token?.scope.split(/\s+/).filter(Boolean) ?? [],
+  });
 }
 
 async function callCanvaMcp(toolName: string, args: Record<string, unknown>): Promise<CallToolResult> {
@@ -235,16 +209,18 @@ export async function startCanvaOAuthUrl(): Promise<ConnectorResult<{ url: strin
   const { createPkce } = await import("./secret-box.ts");
   const cookies = await import("./oauth-cookies.server.ts");
   const pkce = createPkce();
-  cookies.writePkce(CANVA_PKCE_COOKIE, { verifier: pkce.verifier, state: pkce.state, createdAt: Date.now() }, secret, CANVA_PKCE_SALT);
-  const url = new URL("https://www.canva.com/api/oauth/authorize");
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("client_id", oauth.clientId);
-  url.searchParams.set("redirect_uri", redirectUri);
-  url.searchParams.set("scope", CANVA_SCOPES);
-  url.searchParams.set("code_challenge", pkce.challenge);
-  url.searchParams.set("code_challenge_method", "S256");
-  url.searchParams.set("state", pkce.state);
-  return { ok: true, data: { url: url.toString() } };
+  cookies.writePkce(CANVA_PKCE_COOKIE, { verifier: pkce.verifier, state: pkce.state, createdAt: Date.now(), scopes: CANVA_SCOPES }, secret, CANVA_PKCE_SALT);
+  return {
+    ok: true,
+    data: {
+      url: buildCanvaAuthorizeUrl({
+        clientId: oauth.clientId,
+        redirectUri,
+        challenge: pkce.challenge,
+        state: pkce.state,
+      }),
+    },
+  };
 }
 
 export async function revokeCanvaSession() {

@@ -136,7 +136,17 @@ function list(values: string[] | undefined, fallback: string) {
   return values?.length ? values.join("、") : fallback;
 }
 
-export function buildBrandMemoryPrompt(brand: BrandKit) {
+export function styleReferencePrompt(
+  references: { provider: string; collection: string; title: string; notes: string }[] | undefined,
+) {
+  if (!references?.length) return "";
+  return `風格參考：${references.slice(0, 6).map((item) => `${item.provider}／${item.collection}「${item.title}」${item.notes}`).join("；")}`;
+}
+
+export function buildBrandMemoryPrompt(
+  brand: BrandKit,
+  styleReferences?: { provider: string; collection: string; title: string; notes: string }[],
+) {
   const memory = brand.memory;
   return [
     memory?.mission ? `使命：${memory.mission}` : "",
@@ -146,6 +156,7 @@ export function buildBrandMemoryPrompt(brand: BrandKit) {
     `內容支柱：${list(memory?.contentPillars, "活動、生活共鳴、社員故事與禪生活")}`,
     `辨識元素：${list(memory?.signatureElements, "三色光、龜龜與真實活動照片")}`,
     `已學到：${list(memory?.learnedPatterns, "先說學生生活，再介紹活動")}`,
+    styleReferencePrompt(styleReferences),
   ].filter(Boolean).join("\n");
 }
 

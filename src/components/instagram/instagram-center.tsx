@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getInstagramInsightsStatus, getInstagramStatus, listInstagramMedia } from "@/lib/connections/instagram";
+import { getInstagramInsightsStatus, getInstagramStatus, listInstagramMedia, startInstagramConnect } from "@/lib/connections/instagram";
+import { openExternalUrl } from "@/components/connections/connection-status";
+import { redirectToLoginIfRequired } from "@/lib/app-data";
 import type { ConnectorUiState, InstagramInsightsSnapshot } from "@/lib/connections/types";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useStudio } from "@/stores/studio-store";
@@ -22,12 +24,14 @@ export function InstagramCenter() {
   const [status, setStatus] = useState<ConnectorUiState>("idle");
   const [insightsNote, setInsightsNote] = useState("官方 Insights 尚未授權。這裡不會顯示模擬數據。");
   const [insights, setInsights] = useState<InstagramInsightsSnapshot | null>(null);
+  const [canRequestInsights, setCanRequestInsights] = useState(false);
   const [tab, setTab] = useState("memory");
   const [query, setQuery] = useState("");
 
   useEffect(() => {
     void (async () => {
       const availability = await getInstagramStatus();
+      setCanRequestInsights(availability.available && availability.mode === "oauth" && availability.connected && !availability.capabilities.insights);
       if (!availability.available) {
         setStatus("unavailable");
         return;
@@ -173,6 +177,33 @@ export function InstagramCenter() {
               <Badge variant="default">未來狀態</Badge>
               <h2 className="mt-3 font-display text-2xl">不會顯示模擬成效</h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-muted">{insightsNote}</p>
+              {canRequestInsights ? (
+                <Button
+                  className="mt-5"
+                  onClick={() => void (async () => {
+                    const result = await startInstagramConnect({ data: { insights: true } });
+                    if (!result.ok) {
+                      if (result.loginRequired && result.loginUrl) {
+                        redirectToLoginIfRequired({
+                          ok: false,
+                          data: null,
+                          loginRequired: true,
+                          loginUrl: result.loginUrl,
+                        });
+                      }
+                      toast.error(result.message);
+                      return;
+                    }
+                    openExternalUrl(result.data.url);
+                  })()}
+                >
+                  向 Instagram 請求 Insights 權限
+                </Button>
+              ) : status !== "connected" ? (
+                <Button className="mt-5" asChild>
+                  <Link to="/connections">去連接 Instagram</Link>
+                </Button>
+              ) : null}
             </div>
           )}
         </TabsContent>

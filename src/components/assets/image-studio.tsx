@@ -18,6 +18,7 @@ import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { uid } from "@/lib/studio/ids";
 import type { AssetMeta } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
+import { useConnectionStore } from "@/stores/connection-store";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
@@ -48,6 +49,7 @@ const DIRECTIONS = [
 export function ImageStudio() {
   const addAsset = useStudio((state) => state.addAsset);
   const brand = useStudio((state) => state.brands[0]);
+  const styleReferences = useConnectionStore((state) => state.styleReferences);
   const stylePrompt = useUi((state) => state.stylePrompt);
   const setStylePrompt = useUi((state) => state.setStylePrompt);
   const [idea, setIdea] = useState("下週晚上的茶會，讓剛開學很忙的淡江學生下課後喘口氣");
@@ -92,7 +94,7 @@ export function ImageStudio() {
           idea: stylePrompt ? `${idea}\n參考來源：${stylePrompt.provider}／${stylePrompt.collection}` : idea,
           direction: direction.detail,
           aspectRatio,
-          brandMemory: brand ? buildBrandMemoryPrompt(brand) : undefined,
+          brandMemory: brand ? buildBrandMemoryPrompt(brand, styleReferences) : undefined,
         },
       });
       if (!result.ok) {

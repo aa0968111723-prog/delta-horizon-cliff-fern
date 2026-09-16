@@ -1,7 +1,14 @@
 import type { CallToolResult } from "@/lib/app-data";
 import { normalizeInstagramMedia, normalizeInstagramProfile } from "./instagram-normalize.ts";
+import {
+  buildInstagramAuthorizeUrl,
+  IG_BASIC_SCOPE,
+  IG_INSIGHTS_SCOPE,
+  instagramScopeParam,
+  parseInstagramTokenPayload,
+} from "./oauth-urls.ts";
+import { instagramStatusFromConfig } from "./provider-status.ts";
 import type { ConnectorResult, ExternalMemoryItem, OfficialProviderStatus } from "./types.ts";
-import { EMPTY_CAPABILITIES } from "./types.ts";
 import { genericError, oauthNeededError, safeConnectorError, unavailableError } from "./safe-result.ts";
 import type { OAuthTokenSet } from "./oauth-cookies.server.ts";
 
@@ -9,22 +16,14 @@ export const IG_TOKEN_COOKIE = "zen_ig_token";
 export const IG_PKCE_COOKIE = "zen_ig_pkce";
 export const IG_TOKEN_SALT = "zen-ig-token";
 export const IG_PKCE_SALT = "zen-ig-pkce";
-export const IG_SCOPES = "instagram_business_basic";
-export const IG_INSIGHTS_SCOPE = "instagram_business_manage_insights";
+export const IG_SCOPES = IG_BASIC_SCOPE;
+export { IG_INSIGHTS_SCOPE };
 export const IG_MCP_LIST_TOOLS = ["instagram_list_media", "list_media", "list_posts", "instagram_media"];
 
 let rememberedMcpTool: string | null = null;
 
 export function instagramUnavailableStatus(reason = "Instagram 尚未在此環境提供"): OfficialProviderStatus {
-  return {
-    provider: "instagram",
-    available: false,
-    mode: "none",
-    connected: false,
-    reason,
-    scopes: [],
-    capabilities: EMPTY_CAPABILITIES,
-  };
+  return { ...instagramStatusFromConfig({ oauthReady: false, connected: false }), reason };
 }
 
 export async function readInstagramEnv() {
@@ -45,39 +44,14 @@ export async function instagramRedirectUri() {
 
 export async function currentInstagramStatus(): Promise<OfficialProviderStatus> {
   const { catalogId, oauth, secret } = await readInstagramEnv();
-  if (catalogId) {
-    return {
-      provider: "instagram",
-      available: true,
-      mode: "mcp",
-      connected: false,
-      reason: "透過 Grok MCP 連接 Instagram。授權完成後才會讀取真實貼文。",
-      scopes: [],
-      capabilities: { ...EMPTY_CAPABILITIES, list: true, search: true },
-    };
-  }
-  if (oauth && secret) {
-    const cookies = await import("./oauth-cookies.server.ts");
-    const token = cookies.readTokenSet(IG_TOKEN_COOKIE, secret, IG_TOKEN_SALT);
-    const scopes = token?.scope.split(/\s+/).filter(Boolean) ?? [];
-    return {
-      provider: "instagram",
-      available: true,
-      mode: "oauth",
-      connected: Boolean(token),
-      reason: token
-        ? "已用官方 Instagram API OAuth 連接。只保存貼文 metadata，憑證不會進前端。"
-        : "可用官方 Instagram Login 連接。不會要求貼 Token。",
-      scopes,
-      capabilities: {
-        ...EMPTY_CAPABILITIES,
-        list: true,
-        search: true,
-        insights: scopes.includes(IG_INSIGHTS_SCOPE),
-      },
-    };
-  }
-  return instagramUnavailableStatus();
+  const cookies = await import("./oauth-cookies.server.ts");
+  const token = oauth && secret ? cookies.readTokenSet(IG_TOKEN_COOKIE, secret, IG_TOKEN_SALT) : null;
+  return instagramStatusFromConfig({
+    catalogId,
+    oauthReady: Boolean(oauth && secret),
+    connected: Boolean(token),
+    scopes: token?.scope.split(/[,\s]+/).filter(Boolean) ?? [],
+  });
 }
 
 async function callInstagramMcp(toolName: string, args: Record<string, unknown>): Promise<CallToolResult> {
@@ -123,17 +97,14 @@ export async function instagramTokenRequest(body: URLSearchParams, path: string)
     body,
   });
   const json = await response.json() as {
-    access_token?: string;
-    refresh_token?: string;
-    expires_in?: number;
-    token_type?: string;
     error?: { message?: string };
     error_message?: string;
   };
-  if (!response.ok || !json.access_token) {
+  const parsed = parseInstagramTokenPayload(json);
+  if (!response.ok || !parsed) {
     throw new Error(json.error?.message || json.error_message || "Instagram 授權失敗");
   }
-  return json;
+  return parsed;
 }
 
 async function persistInstagramToken(token: OAuthTokenSet) {
@@ -179,16 +150,20 @@ async function exchangeInstagramCode(code: string) {
   const longLived = await fetch(`https://graph.instagram.com/access_token?${new URLSearchParams({
     grant_type: "ig_exchange_token",
     client_secret: oauth.clientSecret,
-    access_token: shortLived.access_token ?? "",
+    access_token: shortLived.accessToken,
   })}`);
-  const longJson = await longLived.json() as { access_token?: string; expires_in?: number };
-  const accessToken = longJson.access_token || shortLived.access_token;
+  const longJson = await longLived.json() as unknown;
+  const longParsed = parseInstagramTokenPayload(longJson);
+  const accessToken = longParsed?.accessToken || shortLived.accessToken;
   if (!accessToken) throw new Error("Instagram 授權失敗");
+  const scopes = (longParsed?.scopes.length ? longParsed.scopes : shortLived.scopes).join(" ")
+    || pkce?.scopes
+    || instagramScopeParam(false);
   return {
     accessToken,
     refreshToken: "",
-    expiresAt: Date.now() + Math.max(60, (longJson.expires_in ?? 60 * 60 * 24 * 50) - 60) * 1000,
-    scope: IG_SCOPES,
+    expiresAt: Date.now() + Math.max(60, ((longParsed?.expiresIn || shortLived.expiresIn) || 60 * 60 * 24 * 50) - 60) * 1000,
+    scope: scopes,
   } satisfies OAuthTokenSet;
 }
 
@@ -249,7 +224,7 @@ export async function completeInstagramOAuth(code: string, state: string) {
   return { ok: true as const };
 }
 
-export async function startInstagramOAuthUrl(): Promise<ConnectorResult<{ url: string }>> {
+export async function startInstagramOAuthUrl(options?: { includeInsights?: boolean }): Promise<ConnectorResult<{ url: string }>> {
   const { oauth, secret } = await readInstagramEnv();
   const redirectUri = await instagramRedirectUri();
   if (!oauth || !secret || !redirectUri) {
@@ -258,16 +233,25 @@ export async function startInstagramOAuthUrl(): Promise<ConnectorResult<{ url: s
   const { createPkce } = await import("./secret-box.ts");
   const cookies = await import("./oauth-cookies.server.ts");
   const pkce = createPkce();
-  cookies.writePkce(IG_PKCE_COOKIE, { verifier: pkce.verifier, state: pkce.state, createdAt: Date.now() }, secret, IG_PKCE_SALT);
-  const url = new URL("https://www.instagram.com/oauth/authorize");
-  url.searchParams.set("client_id", oauth.clientId);
-  url.searchParams.set("redirect_uri", redirectUri);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", IG_SCOPES);
-  url.searchParams.set("state", pkce.state);
-  url.searchParams.set("code_challenge", pkce.challenge);
-  url.searchParams.set("code_challenge_method", "S256");
-  return { ok: true, data: { url: url.toString() } };
+  const scopes = instagramScopeParam(Boolean(options?.includeInsights));
+  cookies.writePkce(
+    IG_PKCE_COOKIE,
+    { verifier: pkce.verifier, state: pkce.state, createdAt: Date.now(), scopes },
+    secret,
+    IG_PKCE_SALT,
+  );
+  return {
+    ok: true,
+    data: {
+      url: buildInstagramAuthorizeUrl({
+        clientId: oauth.clientId,
+        redirectUri,
+        challenge: pkce.challenge,
+        state: pkce.state,
+        includeInsights: Boolean(options?.includeInsights),
+      }),
+    },
+  };
 }
 
 export async function revokeInstagramSession() {
@@ -281,8 +265,22 @@ export async function readInstagramInsights(): Promise<ConnectorResult<import(".
   if (!status.available) {
     return unavailableError("Instagram 尚未在此環境提供", "沒有官方 OAuth 或 MCP catalog，不會顯示模擬成效。");
   }
-  if (status.mode === "oauth" && !status.connected) {
+  if (status.mode === "mcp") {
+    return unavailableError(
+      "這個 MCP 連接不含官方 Insights",
+      "目前只會同步貼文 metadata。專業帳號的成效數字需要官方 insights 授權，這裡不會用模擬數據填空。",
+    );
+  }
+  if (!status.connected) {
     return oauthNeededError("請先連接 Instagram", "授權完成後，若帳號真的有 Insights 權限才會讀取官方數據。");
+  }
+  if (!status.capabilities.insights) {
+    return {
+      ok: false,
+      kind: "unavailable",
+      message: "官方 Insights 尚未授權",
+      detail: "需要專業 IG 帳號並授予 instagram_business_manage_insights。這裡不會用模擬數據填空。",
+    };
   }
   const response = await authorizedInstagramFetch("/me/insights?metric=views,reach,profile_views,total_interactions&period=day");
   if (!response) {

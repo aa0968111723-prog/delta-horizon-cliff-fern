@@ -17,6 +17,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
   const brand = useStudio((state) => state.brands.find((item) => item.id === project?.brandId));
   const patchPlan = useStudio((state) => state.patchPlan);
   const instagramItems = useConnectionStore((state) => state.instagramItems);
+  const styleReferences = useConnectionStore((state) => state.styleReferences);
   const memoryHashtags = hashtagsFromInstagramMemory(instagramItems);
   const [busy, setBusy] = useState(false);
   const [activeTone, setActiveTone] = useState<CopyTone>("學生版");
@@ -41,7 +42,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
           cta: project.plan.cta,
           registrationUrl,
           brandVoice: brand.voice,
-          brandMemory: `${buildBrandMemoryPrompt(brand)}${memoryHashtags.length ? `\nIG 內容記憶 hashtags：${memoryHashtags.join(" ")}` : ""}`,
+          brandMemory: `${buildBrandMemoryPrompt(brand, styleReferences)}${memoryHashtags.length ? `\nIG 內容記憶 hashtags：${memoryHashtags.join(" ")}` : ""}`,
           hashtags: [...new Set([...(project.plan.hashtags ?? []), ...memoryHashtags])].slice(0, 20),
           forceMock: false,
         },

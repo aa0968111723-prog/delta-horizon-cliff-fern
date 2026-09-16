@@ -20,22 +20,28 @@ export const getInstagramStatus = createServerFn({ method: "POST" }).handler(asy
   }
 });
 
-export const startInstagramConnect = createServerFn({ method: "POST" }).handler(async (): Promise<ConnectorResult<{ url: string }>> => {
-  const { currentInstagramStatus, listInstagramViaMcp, startInstagramOAuthUrl } = await import("./instagram-oauth.server.ts");
-  const status = await currentInstagramStatus();
-  if (!status.available) {
-    return unavailableError("Instagram 尚未在此環境提供", "沒有 MCP catalog，也沒有平台注入的 Instagram OAuth client。這裡不接受貼 Token。");
-  }
-  if (status.mode === "mcp") {
-    const probe = await listInstagramViaMcp();
-    if (!probe.ok && probe.loginRequired && probe.loginUrl) {
-      return { ok: true, data: { url: probe.loginUrl } };
-    }
-    if (!probe.ok) return probe;
-    return genericError("Instagram MCP 已可用，請直接同步");
-  }
-  return startInstagramOAuthUrl();
+const ConnectSchema = z.object({
+  insights: z.boolean().optional(),
 });
+
+export const startInstagramConnect = createServerFn({ method: "POST" })
+  .validator((input: unknown) => ConnectSchema.parse(unwrapServerInput(input) ?? {}))
+  .handler(async ({ data }): Promise<ConnectorResult<{ url: string }>> => {
+    const { currentInstagramStatus, listInstagramViaMcp, startInstagramOAuthUrl } = await import("./instagram-oauth.server.ts");
+    const status = await currentInstagramStatus();
+    if (!status.available) {
+      return unavailableError("Instagram 尚未在此環境提供", "沒有 MCP catalog，也沒有平台注入的 Instagram OAuth client。這裡不接受貼 Token。");
+    }
+    if (status.mode === "mcp") {
+      const probe = await listInstagramViaMcp();
+      if (!probe.ok && probe.loginRequired && probe.loginUrl) {
+        return { ok: true, data: { url: probe.loginUrl } };
+      }
+      if (!probe.ok) return probe;
+      return genericError("Instagram MCP 已可用，請直接同步");
+    }
+    return startInstagramOAuthUrl({ includeInsights: Boolean(data.insights) });
+  });
 
 export const listInstagramMedia = createServerFn({ method: "POST" })
   .validator((input: unknown) => SearchSchema.parse(unwrapServerInput(input) ?? {}))

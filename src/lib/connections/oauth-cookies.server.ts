@@ -12,6 +12,7 @@ export type PkceSession = {
   verifier: string;
   state: string;
   createdAt: number;
+  scopes?: string;
 };
 
 function cookieOptions(maxAge: number) {

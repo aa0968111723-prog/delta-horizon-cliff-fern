@@ -9,6 +9,7 @@ import { base64ImageToBlob, prepareImageForAi } from "@/lib/studio/ai-image-clie
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { uid } from "@/lib/studio/ids";
 import type { AssetMeta, ReelsBeat } from "@/lib/studio/types";
+import { useConnectionStore } from "@/stores/connection-store";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
@@ -16,6 +17,8 @@ export function ReelsStudio({ projectId }: { projectId?: string }) {
   const project = useStudio((state) => state.projects.find((item) => item.id === projectId) ?? state.projects[0]);
   const brand = useStudio((state) => state.brands.find((item) => item.id === project?.brandId) ?? state.brands[0]);
   const addAsset = useStudio((state) => state.addAsset);
+  const setActiveFormat = useStudio((state) => state.setActiveFormat);
+  const patchArtboard = useStudio((state) => state.patchArtboard);
   const setStylePrompt = useUi((state) => state.setStylePrompt);
   const beats = project?.plan?.copyPack?.reelsScript ?? [];
   const [busy, setBusy] = useState(false);
@@ -41,7 +44,7 @@ export function ReelsStudio({ projectId }: { projectId?: string }) {
           idea,
           direction: project.plan?.visualDirection || "淡江學生生活感，不要宗教符號",
           aspectRatio: "9:16",
-          brandMemory: brand ? buildBrandMemoryPrompt(brand) : undefined,
+          brandMemory: brand ? buildBrandMemoryPrompt(brand, useConnectionStore.getState().styleReferences) : undefined,
         },
       });
       if (!result.ok) {
@@ -78,7 +81,14 @@ export function ReelsStudio({ projectId }: { projectId?: string }) {
         },
       };
       addAsset(meta);
-      toast.success("Reels 封面已加入素材庫");
+      if (project) {
+        setActiveFormat(project.id, "reels-cover");
+        patchArtboard(project.id, (artboard) => ({
+          ...artboard,
+          background: { ...artboard.background, type: "image", assetId: id },
+        }));
+      }
+      toast.success("Reels 封面已加入素材庫，並放到 Studio 的 Reels 封面");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "封面生成失敗");
     } finally {

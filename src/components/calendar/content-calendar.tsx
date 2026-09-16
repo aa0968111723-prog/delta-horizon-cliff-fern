@@ -36,7 +36,7 @@ export function ContentCalendar() {
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
     function apply() {
-      if (media.matches) setView((current) => (current === "month" ? "agenda" : current));
+      if (media.matches) setView("agenda");
     }
     apply();
     media.addEventListener("change", apply);
@@ -108,7 +108,7 @@ export function ContentCalendar() {
             <ChevronRight className="size-4" />
           </Button>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="hidden flex-wrap gap-2 md:flex">
           {(["month", "week", "agenda"] as const).map((item) => (
             <button
               key={item}
@@ -134,8 +134,29 @@ export function ContentCalendar() {
         ))}
       </div>
 
+      <div className="mt-5 md:hidden">
+        <ol className="space-y-3">
+          {days.filter((day) => day.items.length).map((day) => (
+            <li key={`m-${day.date}`} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <p className="text-xs font-medium text-accent">{format(parseISO(day.date), "M月d日 EEEE", { locale: zhTW })}</p>
+              <ul className="mt-3 space-y-2">
+                {day.items.map((item) => (
+                  <AgendaRow
+                    key={item.id}
+                    item={item}
+                    campaignName={campaignNameOf(campaigns, item.campaignId)}
+                    onCreate={() => createFrom(item)}
+                    onMove={(next) => dropOnDay(next, item.id)}
+                  />
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ol>
+      </div>
+
       {view === "agenda" ? (
-        <ol className="mt-5 space-y-3">
+        <ol className="mt-5 hidden space-y-3 md:block">
           {days.filter((day) => day.items.length).map((day) => (
             <li key={day.date} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
               <p className="text-xs font-medium text-accent">{format(parseISO(day.date), "M月d日 EEEE", { locale: zhTW })}</p>
@@ -154,7 +175,7 @@ export function ContentCalendar() {
           ))}
         </ol>
       ) : (
-        <div className="mt-5 overflow-x-auto rounded-3xl bg-surface p-3 shadow-[var(--shadow-border)] md:p-4">
+        <div className="mt-5 hidden overflow-x-auto rounded-3xl bg-surface p-3 shadow-[var(--shadow-border)] md:block md:p-4">
           <div className="grid min-w-[36rem] grid-cols-7 gap-1">
             {WEEKDAYS.map((label) => (
               <p key={label} className="px-1 pb-2 text-center text-xs text-muted">{label}</p>

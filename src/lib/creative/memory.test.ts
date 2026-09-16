@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createEmptyBrand } from "../studio/brand.ts";
 import { migrateAsset } from "../studio/assets.ts";
-import { buildCreativeMemoryContext, creativeMemoryStats, searchCreativeMemory } from "./memory.ts";
+import { buildCreativeMemoryContext, creativeMemoryStats, searchCreativeMemory, styleReferencePrompt } from "./memory.ts";
 import type { Campaign, ContentItem } from "./types.ts";
 
 const brand = createEmptyBrand("淡江大學禪學社");
@@ -146,6 +146,13 @@ test("searchCreativeMemory includes Instagram content memory", () => {
   });
   assert.equal(results[0]?.provider, "Instagram");
   assert.equal(results[0]?.providerKind, "instagram");
+});
+
+test("style references are appended to Brand Memory prompts", () => {
+  assert.match(
+    styleReferencePrompt([{ provider: "Canva", collection: "浮游禪光", title: "主視覺", notes: "夜晚三色光" }]),
+    /Canva／浮游禪光/,
+  );
 });
 
 test("searchCreativeMemory includes synced external references with attribution", () => {

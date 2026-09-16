@@ -99,31 +99,54 @@ export const analyzeCanvaStyle = createServerFn({ method: "POST" })
     snippet: string;
     title: string;
     collection: string;
+    source: "vision" | "metadata";
     analysis: import("./types.ts").CanvaStyleAnalysis;
   }>> => {
     try {
-      const { readCanvaDesignThumbnail } = await import("./canva-oauth.server.ts");
+      const { listCanvaDesignRecords, readCanvaDesignThumbnail } = await import("./canva-oauth.server.ts");
+      const { styleAnalysisFromCanvaMetadata, styleSnippetFromAnalysis } = await import("./canva-style.ts");
+      const listed = await listCanvaDesignRecords();
+      const item = listed.ok ? listed.data.find((row) => row.id === data.designId) : undefined;
+      const metadata = styleAnalysisFromCanvaMetadata({
+        title: item?.title || data.designId,
+        collection: item?.collection,
+        snippet: item?.snippet,
+      });
       const thumb = await readCanvaDesignThumbnail(data.designId);
-      if (!thumb.ok) return thumb;
-      const { runVisionAnalysis } = await import("@/lib/ai/multimodal");
-      const vision = await runVisionAnalysis(thumb.data.dataUrl);
-      if (!vision.ok) return genericError(vision.error);
-      const { canvaProvenanceLabel } = await import("./types.ts");
-      const snippet = `${canvaProvenanceLabel(thumb.data.collection)}｜${vision.analysis.summary}`;
-      return {
-        ok: true,
-        data: {
-          snippet,
-          title: thumb.data.title,
-          collection: thumb.data.collection,
-          analysis: {
+      if (thumb.ok) {
+        const { runVisionAnalysis } = await import("@/lib/ai/multimodal");
+        const vision = await runVisionAnalysis(thumb.data.dataUrl);
+        if (vision.ok) {
+          const analysis = {
             summary: vision.analysis.summary,
             colors: vision.analysis.colors,
             composition: vision.analysis.composition,
             studentFit: vision.analysis.studentFit,
             recommendations: vision.analysis.recommendations,
             suggestedTags: vision.analysis.suggestedTags,
-          },
+          };
+          return {
+            ok: true,
+            data: {
+              snippet: styleSnippetFromAnalysis(thumb.data.collection, analysis),
+              title: thumb.data.title,
+              collection: thumb.data.collection,
+              source: "vision",
+              analysis,
+            },
+          };
+        }
+      } else if (!item && !listed.ok) {
+        return thumb;
+      }
+      return {
+        ok: true,
+        data: {
+          snippet: styleSnippetFromAnalysis(item?.collection || metadata.suggestedTags[0] || "Canva 設計", metadata),
+          title: item?.title || data.designId,
+          collection: item?.collection || metadata.suggestedTags[0] || "Canva 設計",
+          source: "metadata",
+          analysis: metadata,
         },
       };
     } catch (error) {

@@ -32,6 +32,7 @@ export function CanvaCard() {
   const [lastResult, setLastResult] = useState<ListResult | null>(null);
   const [visibleItems, setVisibleItems] = useState<ExternalMemoryItem[]>(savedItems);
   const [query, setQuery] = useState("");
+  const [collection, setCollection] = useState("all");
   const [busy, setBusy] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
 
@@ -155,7 +156,7 @@ export function CanvaCard() {
         notes: result.data.analysis.summary,
         provider: canvaProvenanceLabel(result.data.collection),
       });
-      toast.success("風格分析已加入 Creative Brain");
+      toast.success(result.data.source === "vision" ? "風格分析已加入 Creative Brain" : "已用 Canva metadata 寫入風格摘要（此環境沒有像素分析）");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "風格分析失敗");
     } finally {
@@ -177,6 +178,10 @@ export function CanvaCard() {
 
   const connected = status === "connected";
   const unavailable = status === "unavailable" || provider?.available === false;
+  const collections = [...new Set(visibleItems.map((item) => item.collection).filter(Boolean))] as string[];
+  const shownItems = collection === "all"
+    ? visibleItems
+    : visibleItems.filter((item) => item.collection === collection);
 
   return (
     <section className="mt-6 overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-border)]">
@@ -281,9 +286,37 @@ export function CanvaCard() {
             可以開啟 Canva、加入 AI 風格參考，或複製 brief 去貼。Design Autofill 需要 Canva Enterprise，目前未開通，不會假裝一鍵套版。
           </p>
 
-          {visibleItems.length ? (
+          {collections.length > 1 ? (
+            <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
+              <button
+                type="button"
+                onClick={() => setCollection("all")}
+                className={cn(
+                  "min-h-10 shrink-0 rounded-full px-3 text-xs",
+                  collection === "all" ? "bg-accent text-accent-fg" : "bg-bg text-muted",
+                )}
+              >
+                全部系列
+              </button>
+              {collections.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => setCollection(name)}
+                  className={cn(
+                    "min-h-10 shrink-0 rounded-full px-3 text-xs",
+                    collection === name ? "bg-accent text-accent-fg" : "bg-bg text-muted",
+                  )}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {shownItems.length ? (
             <ul className="mt-3 grid gap-2 md:grid-cols-2">
-              {visibleItems.map((item) => (
+              {shownItems.map((item) => (
                 <li key={item.id} className="rounded-2xl bg-bg p-3">
                   <div className="flex items-start gap-3">
                     {item.thumbnailUrl ? (

@@ -2,6 +2,7 @@ import { Star, Trash2, Upload } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
+import { StyleMemoryPanel } from "@/components/brand/style-memory";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { StorageNotice } from "@/components/shared/storage-notice";
@@ -263,6 +264,7 @@ export function BrandEditor() {
           placeholder="例如：先說學生生活，再介紹活動"
           onChange={(learnedPatterns) => patch("memory", { ...memory, learnedPatterns, updatedAt: Date.now() })}
         />
+        <StyleMemoryPanel />
       </section>
 
       <section id="brand-logo" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">

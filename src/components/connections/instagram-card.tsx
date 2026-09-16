@@ -70,7 +70,7 @@ export function InstagramCard() {
   async function connect() {
     setBusy(true);
     try {
-      const result = await startInstagramConnect();
+      const result = await startInstagramConnect({ data: {} });
       if (!result.ok) {
         acceptError(result);
         if (result.loginRequired && result.loginUrl) {

@@ -1,9 +1,13 @@
 import { BrainCircuit, Search, Sparkles } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { emptySearchHint, GLOBAL_SEARCH_FILTERS, searchGlobalCreative, type GlobalSearchFilter } from "@/lib/creative/global-search";
+import { searchConnectedSources } from "@/lib/connections/live-search";
+import type { ExternalMemoryItem } from "@/lib/connections/types";
 import { creativeMemoryStats } from "@/lib/creative/memory";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
@@ -22,8 +26,13 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
     () => allExternalItems({ driveItems, canvaItems, instagramItems }),
     [driveItems, canvaItems, instagramItems],
   );
+  const rememberDriveItems = useConnectionStore((state) => state.rememberDriveItems);
+  const rememberCanvaItems = useConnectionStore((state) => state.rememberCanvaItems);
+  const syncInstagramItems = useConnectionStore((state) => state.syncInstagramItems);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<GlobalSearchFilter>("all");
+  const [liveBusy, setLiveBusy] = useState(false);
+  const [liveNotes, setLiveNotes] = useState<string[]>([]);
   const stats = useMemo(
     () => creativeMemoryStats({ assets, campaigns, contentItems, externalItems }),
     [assets, campaigns, contentItems, externalItems],
@@ -32,6 +41,32 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
     () => searchGlobalCreative(query, { assets, campaigns, contentItems, externalItems }, filter),
     [query, assets, campaigns, contentItems, externalItems, filter],
   );
+
+  async function searchLive() {
+    const needle = query.trim();
+    if (!needle) return;
+    setLiveBusy(true);
+    try {
+      const bundle = await searchConnectedSources({ data: { query: needle } });
+      const notes: string[] = [];
+      absorb(bundle.drive, rememberDriveItems, notes, "Google Drive");
+      absorb(bundle.canva, rememberCanvaItems, notes, "Canva");
+      absorb(bundle.instagram, (items) => {
+        const previous = useConnectionStore.getState().instagramItems;
+        const merged = new Map(previous.map((item) => [item.id, item]));
+        for (const item of items) merged.set(item.id, item);
+        syncInstagramItems([...merged.values()]);
+      }, notes, "Instagram");
+      setLiveNotes(notes);
+      if ([bundle.drive, bundle.canva, bundle.instagram].some((item) => item.ok)) {
+        toast.success("已把已連接來源的真實結果併入 Creative Brain");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "連線來源搜尋失敗");
+    } finally {
+      setLiveBusy(false);
+    }
+  }
 
   return (
     <section className={cn("rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)] md:p-6", !compact && "mt-6")}>
@@ -59,9 +94,19 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") void searchLive();
+          }}
           className="h-12 pl-10"
           placeholder="找以前茶會 Canva、浮游禪光、期中、龜龜、Drive 企劃"
         />
+      </div>
+
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-muted">本機索引會即時過濾。已連接來源只在你按下搜尋時才會問官方 API。</p>
+        <Button size="sm" className="min-h-11" disabled={!query.trim() || liveBusy} onClick={() => void searchLive()}>
+          {liveBusy ? "搜尋連接中…" : "同時搜尋已連接來源"}
+        </Button>
       </div>
 
       <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -123,8 +168,27 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
           目前記得 {stats.sources} 種素材來源、{stats.reusableContent} 則可重用完成內容、{stats.externalItems} 筆外部索引。
         </p>
       )}
+      {liveNotes.length ? (
+        <ul className="mt-3 space-y-1 text-xs leading-5 text-muted">
+          {liveNotes.map((note) => <li key={note}>{note}</li>)}
+        </ul>
+      ) : null}
     </section>
   );
+}
+
+function absorb(
+  result: { ok: true; data: ExternalMemoryItem[] } | { ok: false; message: string },
+  remember: (items: ExternalMemoryItem[]) => void,
+  notes: string[],
+  label: string,
+) {
+  if (result.ok) {
+    remember(result.data);
+    notes.push(`${label}：找到 ${result.data.length} 筆真實結果`);
+    return;
+  }
+  notes.push(`${label}：${result.message}`);
 }
 
 function Stat({ value, label }: { value: number; label: string }) {
