@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { SEED_MEMORY } from "./memory.ts";
 import { creativeSearch, expandCreativeQuery, groupSearchHits, knowledgeFromHits, searchCreativeKnowledge, searchTerms } from "./search.ts";
-import { applyPackToWaves, contentKindForWave, copyKindForWave, dueScheduleItems, emptyCampaign, fillKeptWaveRows, mergeSuiteIntoSchedule, nextWaveAngle, nextWaveVisual, packWithDirection, preferSuiteSchedule, projectForKeptWave, rhythmHint, scheduleItemsFromCampaign, schedulePreviewAssetId, spreadSchedule, suggestWaves, suiteCoversWave, upcomingScheduleItems, waveOffsets } from "./schedule.ts";
+import { applyPackToWaves, contentKindForWave, copyKindForWave, dueScheduleItems, emptyCampaign, fillKeptWaveRows, mergeSuiteIntoSchedule, nextWaveAngle, nextWaveVisual, packWithDirection, preferSuiteSchedule, projectForKeptWave, rhythmHint, scheduleItemForPreview, scheduleItemsFromCampaign, schedulePreviewAssetId, spreadSchedule, suggestWaves, suiteCoversWave, upcomingScheduleItems, waveOffsets } from "./schedule.ts";
 import { canvaDraftNotes, canvaDraftTitle, canvaPresetForAspect, canvaPresetForKind } from "./canva-draft.ts";
 import { convertFromPlan, CONVERT_TARGETS, aspectForTarget, briefFlagsForTarget, captionForTarget, contentKindForFormat, convertTargetForFormat } from "./convert.ts";
 import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
@@ -820,6 +820,47 @@ test("dueScheduleItems are unpublished IG slots whose time has passed", () => {
     0,
   );
   assert.equal(allDue.length, 2);
+});
+
+test("scheduleItemForPreview binds the format on screen, not the first unpublished slot", () => {
+  const now = Date.parse("2026-09-16T20:00:00+08:00");
+  const row = (id: string, extra: Partial<ScheduleItem>): ScheduleItem => ({
+    id,
+    title: id,
+    contentKind: "ig-post",
+    status: "scheduled",
+    scheduledAt: now,
+    publishedAt: null,
+    projectId: null,
+    campaignId: "camp_floating_light",
+    captionPreview: id,
+    ...extra,
+  });
+  const items = [
+    row("sch_post", { contentKind: "ig-post", projectId: "proj_post" }),
+    row("sch_car", { contentKind: "carousel", projectId: "proj_car", sequence: { kind: "carousel", labels: ["1"], assetIds: ["a"], projectId: "proj_car" } }),
+    row("sch_story", { contentKind: "story", projectId: "proj_story" }),
+  ];
+  const car = scheduleItemForPreview({
+    items,
+    previewScheduleId: "sch_post",
+    contentKind: "carousel",
+    projectId: "proj_car",
+    sequenceProjectId: "proj_car",
+  });
+  assert.equal(car?.id, "sch_car");
+  const story = scheduleItemForPreview({
+    items,
+    previewScheduleId: "sch_car",
+    contentKind: "story",
+  });
+  assert.equal(story?.id, "sch_story");
+  const after = scheduleItemForPreview({
+    items: items.map((item) => (item.id === "sch_car" ? { ...item, status: "published" } : item)),
+    previewScheduleId: "sch_car",
+    contentKind: "carousel",
+  });
+  assert.equal(after, undefined);
 });
 
 test("canva draft title includes hook and stays short", () => {

@@ -395,6 +395,28 @@ export function upcomingScheduleItems(items: ScheduleItem[], now = Date.now(), l
     .slice(0, limit);
 }
 
+export function scheduleItemForPreview(input: {
+  items: ScheduleItem[];
+  previewScheduleId?: string | null;
+  contentKind?: ContentKind | null;
+  projectId?: string | null;
+  sequenceProjectId?: string | null;
+}): ScheduleItem | undefined {
+  const live = input.items.filter((item) => item.status !== "published");
+  const kind = input.contentKind;
+  if (input.previewScheduleId) {
+    const exact = live.find((item) => item.id === input.previewScheduleId);
+    if (exact && (!kind || exact.contentKind === kind)) return exact;
+  }
+  const pool = kind ? live.filter((item) => item.contentKind === kind) : live.filter((item) => !isWaveScheduleItem(item));
+  return (
+    pool.find((item) => input.projectId && item.projectId === input.projectId) ??
+    pool.find((item) => input.sequenceProjectId && item.sequence?.projectId === input.sequenceProjectId) ??
+    pool.find((item) => !isWaveScheduleItem(item)) ??
+    pool[0]
+  );
+}
+
 export function emptyCampaign(partial?: Partial<ClubCampaign>): ClubCampaign {
   const now = Date.now();
   return {

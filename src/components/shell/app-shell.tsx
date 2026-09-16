@@ -54,7 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   return (
-    <div className="hero-wash flex min-h-dvh text-fg">
+    <div className="hero-wash flex min-h-dvh min-w-0 overflow-x-hidden text-fg">
       <aside className="sticky top-0 hidden h-dvh w-[4.75rem] shrink-0 flex-col border-r border-border/80 bg-surface/80 backdrop-blur-md lg:flex">
         <Link to="/" className="flex h-14 items-center justify-center font-display text-lg tracking-tight" aria-label={`${APP_NAME}首頁`}>
           光
@@ -90,8 +90,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 pb-nav">{children}</div>
+      <div className="flex min-h-dvh min-w-0 flex-1 flex-col overflow-x-hidden">
+        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden pb-nav">{children}</div>
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
           <div className="grid grid-cols-5">
             <Tab to="/" label="首頁" icon={Sparkles} active={current === "home"} />

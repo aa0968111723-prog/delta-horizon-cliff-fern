@@ -152,7 +152,8 @@ export async function applyFormatSuite(input: {
       lastSequence: preferred ?? state.lastSequence,
       sequences: nextSequences,
       igView: firstAssetId ? "preview" : state.igView,
-      previewScheduleId: pending[0]?.id ?? state.previewScheduleId,
+      previewScheduleId:
+        pending.find((item) => item.contentKind === "carousel")?.id ?? pending[0]?.id ?? state.previewScheduleId,
       ...(firstFormatId ? { igFormat: preferred ? "feed-portrait" : firstFormatId } : {}),
       schedule: filled?.items ?? slotted,
       campaigns: campaignId

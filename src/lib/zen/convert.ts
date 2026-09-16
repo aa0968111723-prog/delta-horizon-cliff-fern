@@ -141,6 +141,26 @@ export function contentKindForFormat(formatId: FormatId): ContentKind {
   return convertTargetById(convertTargetForFormat(formatId)).contentKind;
 }
 
+export function contentKindForSequenceKind(kind: string): ContentKind {
+  if (kind === "post") return "ig-post";
+  if (kind === "carousel") return "carousel";
+  if (kind === "story") return "story";
+  if (kind === "reels") return "reels";
+  if (kind === "threads") return "threads";
+  if (kind === "line") return "line";
+  return "ig-post";
+}
+
+export function previewContentKind(formatId: FormatId, sequences: { kind: string }[] = []): ContentKind {
+  if (formatId === "story") return "story";
+  if (formatId === "reels-cover") return "reels";
+  if (formatId === "threads") return "threads";
+  if (formatId === "line") return "line";
+  if (formatId === "feed-square") return "ig-post";
+  if (formatId === "feed-portrait" && sequences.some((row) => row.kind === "carousel")) return "carousel";
+  return contentKindForFormat(formatId);
+}
+
 export function formatIdForContentKind(kind: ContentKind): FormatId {
   if (kind === "story") return "story";
   if (kind === "reels") return "reels-cover";

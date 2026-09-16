@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildMockPlan } from "../ai/mock.ts";
-import { convertFromPlan, captionForTarget, formatIdForContentKind, formatScript, formatScriptClipboard, sequenceBeats } from "./convert.ts";
+import { convertFromPlan, captionForTarget, formatIdForContentKind, formatScript, formatScriptClipboard, previewContentKind, sequenceBeats } from "./convert.ts";
 
 const converted = convertFromPlan(
   buildMockPlan({
@@ -78,4 +78,11 @@ test("post caption does not repeat the hook", () => {
   assert.ok(caption.startsWith(hook));
   const rest = caption.slice(hook.length);
   assert.equal(rest.split(hook).length, 1);
+});
+
+test("previewContentKind uses carousel for 4:5 after a suite, square for the single post", () => {
+  assert.equal(previewContentKind("feed-portrait", [{ kind: "carousel" }]), "carousel");
+  assert.equal(previewContentKind("feed-square", [{ kind: "carousel" }, { kind: "post" }]), "ig-post");
+  assert.equal(previewContentKind("story", [{ kind: "carousel" }]), "story");
+  assert.equal(previewContentKind("feed-portrait", []), "ig-post");
 });

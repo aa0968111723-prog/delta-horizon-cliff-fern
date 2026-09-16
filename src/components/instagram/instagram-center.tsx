@@ -31,8 +31,8 @@ import { hitFromIgPost } from "@/lib/zen/from-hit";
 import { dnaPromptIdea, igDnaBlock, learnFromPosts, nextCreateHint, recentPostedNotes } from "@/lib/zen/insights";
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
-import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatIdForContentKind, formatScript } from "@/lib/zen/convert";
-import { isWaveScheduleItem, schedulePreviewAssetId, placeScheduleItems, dueScheduleItems } from "@/lib/zen/schedule";
+import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatIdForContentKind, formatScript, previewContentKind } from "@/lib/zen/convert";
+import { isWaveScheduleItem, schedulePreviewAssetId, placeScheduleItems, dueScheduleItems, scheduleItemForPreview } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -54,9 +54,11 @@ export function InstagramCenter() {
   const sequences = useCreative((s) => s.sequences);
   const lastPack = useCreative((s) => s.lastPack);
   const previewScheduleId = useCreative((s) => s.previewScheduleId);
+  const setPreviewSchedule = useCreative((s) => s.setPreviewSchedule);
   const setIgFormat = useCreative((s) => s.setIgFormat);
   const setIgPreview = useCreative((s) => s.setIgPreview);
   const patchCampaign = useCreative((s) => s.patchCampaign);
+  const patchSchedule = useCreative((s) => s.patchSchedule);
   const addIgPost = useCreative((s) => s.addIgPost);
   const setConnection = useCreative((s) => s.setConnection);
   const igStatus = useCreative((s) => s.connections.find((c) => c.id === "instagram")?.status);
@@ -124,27 +126,39 @@ export function InstagramCenter() {
     if (previewFormat === "line") {
       return sequences.find((row) => row.kind === "line") ?? (lastSequence?.kind === "line" ? lastSequence : null);
     }
+    if (previewFormat === "feed-square") {
+      return sequences.find((row) => row.kind === "post") ?? (lastSequence?.kind === "post" ? lastSequence : null);
+    }
     return (
       sequences.find((row) => row.kind === "carousel") ??
       sequences.find((row) => row.kind === "post") ??
       lastSequence
     );
   }, [previewFormat, sequences, lastSequence]);
+  const previewKind = useMemo(
+    () => previewContentKind(previewFormat, sequences),
+    [previewFormat, sequences],
+  );
+  const previewSlot = useMemo(
+    () =>
+      scheduleItemForPreview({
+        items: schedule,
+        previewScheduleId,
+        contentKind: previewKind,
+        projectId: filmstrip?.projectId ?? lastProjectId,
+        sequenceProjectId: filmstrip?.projectId,
+      }),
+    [schedule, previewScheduleId, previewKind, filmstrip?.projectId, lastProjectId],
+  );
   const previewProject =
+    (previewSlot?.projectId ? projects.find((p) => p.id === previewSlot.projectId) : undefined) ??
     (filmstrip ? projects.find((p) => p.id === filmstrip.projectId) : undefined) ??
     projects.find((p) => p.id === lastProjectId) ??
     projects.find((p) => p.activeFormatId === previewFormat) ??
     projects.find((p) => pagesOf(p, previewFormat).length) ??
     projects[0];
   const previewPages = previewProject ? pagesOf(previewProject, previewFormat) : [];
-  const alreadyOnCalendar = schedule.some(
-    (item) =>
-      item.status !== "published" &&
-      !isWaveScheduleItem(item) &&
-      (item.id === previewScheduleId ||
-        (previewProject?.id != null && item.projectId === previewProject.id) ||
-        (filmstrip?.projectId != null && item.sequence?.projectId === filmstrip.projectId)),
-  );
+  const alreadyOnCalendar = Boolean(previewSlot);
   const previewScript = useMemo(() => {
     if (!lastPack) return null;
     return formatScript(convertFromPlan(lastPack.plan), previewFormat, previewProject?.contentKind);
@@ -183,6 +197,45 @@ export function InstagramCenter() {
     }
     if (previewProject) setCaption(previewProject.copy.caption || previewProject.copy.headline);
   }, [previewScheduleId, schedule, previewProject?.id, previewProject?.copy.caption, previewProject?.copy.headline]);
+
+  useEffect(() => {
+    if (!previewSlot?.id || previewSlot.id === previewScheduleId) return;
+    if (!lastPack && !previewScheduleId) return;
+    setPreviewSchedule(previewSlot.id);
+  }, [previewSlot?.id, previewScheduleId, lastPack, setPreviewSchedule]);
+
+  function bindPreviewFormat(id: FormatId) {
+    setPreviewFormat(id);
+    setIgFormat(id);
+    const kind = previewContentKind(id, sequences);
+    const seqKind = kind === "ig-post" ? "post" : kind;
+    const match =
+      sequences.find((row) => row.kind === seqKind) ??
+      (id === "feed-portrait" ? sequences.find((row) => row.kind === "carousel") : undefined);
+    const slot = scheduleItemForPreview({
+      items: schedule,
+      previewScheduleId,
+      contentKind: kind,
+      projectId: match?.projectId ?? lastProjectId,
+      sequenceProjectId: match?.projectId,
+    });
+    if (slot) setPreviewSchedule(slot.id);
+    const projectId = slot?.projectId ?? match?.projectId ?? previewProject?.id;
+    if (match) {
+      useCreative.getState().setLastSequence(match);
+      setIgPreview(match.assetIds[0] ?? null, id);
+      setLastProjectId(match.projectId);
+      setSlide(match.projectId, 0);
+    } else if (slot) {
+      const assetId = schedulePreviewAssetId(slot, campaigns);
+      if (slot.projectId) setLastProjectId(slot.projectId);
+      setIgPreview(assetId, id);
+    }
+    if (projectId) {
+      ensureArtboard(projectId, id);
+      setActiveFormat(projectId, id);
+    }
+  }
 
   async function analyze() {
     if (!post) return;
@@ -362,14 +415,14 @@ export function InstagramCenter() {
         ? campaigns.find((row) => row.name === lastPack.campaignName || lastPack.campaignName.includes(row.name))?.id ??
           null
         : null;
-    const existing = schedule.find(
-      (item) =>
-        item.status !== "published" &&
-        (item.projectId === previewProject?.id || item.sequence?.projectId === lastSequence?.projectId),
-    );
+    const existing = previewSlot;
     if (existing) {
+      if (caption.trim() && caption !== existing.captionPreview) {
+        patchSchedule(existing.id, { captionPreview: caption });
+      }
       markPublished(existing.id);
-      toast.success("已寫進過去 IG，下次生成會參考這則");
+      const hint = nextCreateHint(useCreative.getState().igPosts);
+      toast.success(`已寫進過去 IG。${hint.line}`);
       setTab("grid");
       setIgView("grid");
       return;
@@ -388,7 +441,8 @@ export function InstagramCenter() {
       sequence: lastSequence,
     });
     markPublished(id);
-    toast.success("已寫進過去 IG");
+    const hint = nextCreateHint(useCreative.getState().igPosts);
+    toast.success(`已寫進過去 IG。${hint.line}`);
     setTab("grid");
     setIgView("grid");
   }
@@ -448,7 +502,7 @@ export function InstagramCenter() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full min-w-0 max-w-5xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
       <PageHeader
         kicker="Instagram Center"
         title="過去 IG"
@@ -640,8 +694,8 @@ export function InstagramCenter() {
       ) : null}
 
       {tab === "preview" ? (
-        <section className="mt-6">
-          <div className="flex flex-wrap gap-2">
+        <section className="mt-6 min-w-0 overflow-x-hidden">
+          <div className="flex min-w-0 flex-wrap gap-2">
             {PREVIEW_FORMATS.map((id) => {
               const meta = FORMATS.find((f) => f.id === id);
               return (
@@ -649,29 +703,7 @@ export function InstagramCenter() {
                   key={id}
                   size="sm"
                   variant={previewFormat === id ? "default" : "secondary"}
-                  onClick={() => {
-                    setPreviewFormat(id);
-                    setIgFormat(id);
-                    const match =
-                      id === "story"
-                        ? sequences.find((row) => row.kind === "story")
-                        : id === "reels-cover"
-                          ? sequences.find((row) => row.kind === "reels")
-                          : id === "feed-portrait" || id === "feed-square"
-                            ? sequences.find((row) => row.kind === "carousel")
-                            : undefined;
-                    const projectId = match?.projectId ?? previewProject?.id;
-                    if (match) {
-                      useCreative.getState().setLastSequence(match);
-                      setIgPreview(match.assetIds[0] ?? null, id);
-                      setLastProjectId(match.projectId);
-                      setSlide(match.projectId, 0);
-                    }
-                    if (projectId) {
-                      ensureArtboard(projectId, id);
-                      setActiveFormat(projectId, id);
-                    }
-                  }}
+                  onClick={() => bindPreviewFormat(id)}
                 >
                   {meta?.name ?? id}
                 </Button>
@@ -679,7 +711,7 @@ export function InstagramCenter() {
             })}
           </div>
           <div className="mt-4 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-            <div className="min-w-0 rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-artboard)]">
+            <div className="min-w-0 overflow-hidden rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-artboard)]">
               {previewPages[previewProject?.slideIndex ?? 0] && brand ? (
                 <ArtboardView
                   artboard={previewPages[previewProject?.slideIndex ?? 0]!}
@@ -693,7 +725,7 @@ export function InstagramCenter() {
                 <p className="py-16 text-center text-xs text-muted">還沒有這個尺寸的預覽，先去創作一則。</p>
               )}
               {filmstrip && filmstrip.assetIds.length > 1 ? (
-                <div className="mt-3 hidden max-w-full overflow-x-auto overscroll-x-contain lg:block">
+                <div className="mt-3 hidden w-full min-w-0 overflow-x-auto overscroll-x-contain lg:block">
                   <SuiteFilmstrip
                     filmstrip={filmstrip}
                     urls={urls}
@@ -707,10 +739,10 @@ export function InstagramCenter() {
                 </div>
               ) : null}
             </div>
-            <div className="order-first space-y-3 lg:order-none">
+            <div className="order-first min-w-0 space-y-3 lg:order-none">
               {lastPack && lastVisualAssetId ? (
-                <div className="rounded-2xl bg-bg p-3" data-testid="preview-after-suite">
-                  <div className="flex gap-3">
+                <div className="min-w-0 overflow-hidden rounded-2xl bg-bg p-3" data-testid="preview-after-suite">
+                  <div className="flex min-w-0 gap-3">
                     {previewImageSrc ? (
                       <img
                         src={previewImageSrc}
@@ -724,10 +756,16 @@ export function InstagramCenter() {
                       <p className="mt-1 text-xs text-muted">
                         這張就是目前畫面。需要時送到 Canva，或直接發到 IG。
                       </p>
+                      {previewSlot ? (
+                        <p className="mt-1 text-xs text-muted" data-testid="preview-slot-kind">
+                          這則會發成{CONTENT_KIND_LABEL[previewSlot.contentKind]}
+                          {previewSlot.status === "published" ? " · 已發布" : ""}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   {filmstrip && filmstrip.assetIds.length > 1 ? (
-                    <div className="mt-3 max-w-full overflow-x-auto overscroll-x-contain lg:hidden">
+                    <div className="mt-3 w-full min-w-0 overflow-x-auto overscroll-x-contain lg:hidden">
                       <SuiteFilmstrip
                         filmstrip={filmstrip}
                         urls={urls}
@@ -747,9 +785,9 @@ export function InstagramCenter() {
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 rows={4}
-                className="md:min-h-40"
+                className="min-w-0 md:min-h-40"
               />
-              <p className="text-xs text-muted">{IG_DNA.hashtags.join(" ")}</p>
+              <p className="break-words text-xs text-muted">{IG_DNA.hashtags.join(" ")}</p>
               <Button size="sm" onClick={saveCaption} disabled={!previewProject}>
                 更新文案
               </Button>
@@ -864,7 +902,7 @@ function SuiteFilmstrip({
   onPick: (id: string, index: number) => void;
 }) {
   return (
-    <div className="flex w-max gap-2 pb-1">
+    <div className="flex w-max max-w-none gap-2 pb-1">
       {filmstrip.assetIds.map((id, index) => {
         const seedSrc = assets.find((asset) => asset.id === id)?.seedSrc;
         const src = resolveAssetSrc(id, urls, seedSrc);
