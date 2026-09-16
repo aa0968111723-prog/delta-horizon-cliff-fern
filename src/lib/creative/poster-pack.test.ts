@@ -29,3 +29,19 @@ test("choosing 朋友感 keeps that hook so Canva and calendar do not snap back 
   assert.match(pack.copyVariants[0]?.body ?? "", /朋友/);
   assert.match(pack.plan.scheduleNotes ?? "", /單篇/);
 });
+
+test("next-week poster copies name 茶會 and the night", () => {
+  const directions = mockDirections("茶會");
+  const pack = posterPackFromDirection({
+    query: "下週有一場茶會",
+    direction: directions[0]!,
+    directions,
+    eventName: "茶會",
+    when: "9/23 19:30",
+    where: "淡江校園",
+  });
+  const student = pack.copyVariants.find((item) => item.tone === "student")?.body ?? "";
+  assert.match(student, /茶會/);
+  assert.match(student, /9\/23/);
+  assert.equal(student.includes("近期晚上"), false);
+});

@@ -65,6 +65,7 @@ test("next-week tea captions name the night, not a vague evening", () => {
   const plan = buildZenMockPlan(data, mockDirections("茶會"));
   assert.equal(plan.campaignName, "茶會");
   assert.match(plan.captions[0]?.text ?? "", /9\/23/);
+  assert.match(plan.captions[2]?.text ?? "", /茶會/);
   assert.equal((plan.captions[0]?.text ?? "").includes("近期晚上"), false);
   assert.equal(plan.studentSim?.knowsWhenWhere, true);
   assert.match(plan.subhead, /9\/23/);

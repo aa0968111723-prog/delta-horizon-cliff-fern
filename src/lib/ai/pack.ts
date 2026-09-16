@@ -100,7 +100,7 @@ function variantsFromPlan(plan: CampaignPlan) {
       short: `${hook}\n${when}`,
       normal: plan.captions[0]?.text ?? hook,
       emotional: `有時候我們需要的不是答案，只是一個安靜的晚上。\n${plan.campaignName}。${when}`,
-      student: `課表有了，人還在趕路。\n${hook}\n${when}，帶一個朋友來就好。`,
+      student: `課表有了，人還在趕路。\n${hook}\n${plan.campaignName}。${when}，帶一個朋友來就好。`,
       life: `捷運上滑完手機，回到宿舍更累。\n${plan.campaignName}只是讓你坐下。\n${when}`,
       humor: `不是要你頓悟。真的只是喝茶。\n${when}`,
     };
