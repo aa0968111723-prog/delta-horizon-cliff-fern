@@ -50,6 +50,16 @@ const inspOverlap = await page.evaluate(() => {
   return "ok";
 });
 if (inspOverlap !== "ok") issues.push(`390 今日靈感被 FAB 擋住: ${inspOverlap}`);
+const inspSection = await page.evaluate(() => {
+  const fab = document.querySelector('[data-testid="mobile-create-fab"]');
+  const section = document.querySelector('[data-testid="home-inspiration"]');
+  if (!fab || !section) return "missing";
+  const a = fab.getBoundingClientRect();
+  const b = section.getBoundingClientRect();
+  const hit = !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+  return hit ? "section-under-fab" : "ok";
+});
+if (inspSection !== "ok") issues.push(`390 今日靈感區塊被 FAB 擋住: ${inspSection}`);
 await page.screenshot({ path: "/workspace/screenshots/idea-home-390.png" });
 
 if (errors.length) issues.push(`pageerror ${errors.join(" | ")}`);

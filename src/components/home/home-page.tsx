@@ -87,7 +87,7 @@ export function HomePage() {
 
       {upcoming ? (
         <section
-          className="relative mt-8 overflow-hidden rounded-[1.75rem] bg-accent text-accent-fg shadow-[var(--shadow-lift)]"
+          className="relative mt-8 overflow-hidden rounded-[1.75rem] bg-accent text-accent-fg shadow-[var(--shadow-lift)] max-sm:min-h-[calc(100svh-12.5rem)]"
           data-testid="home-recommend"
         >
           <div className="pointer-events-none absolute -right-10 -top-16 size-48 rounded-full bg-amber/50 blur-2xl" />
@@ -108,15 +108,8 @@ export function HomePage() {
                 </span>
               </p>
               <p className="mt-2 text-sm text-accent-fg/75">IG Carousel · 讓淡江學生覺得這跟自己有關</p>
-              {upcoming.imageAssetId && urls[upcoming.imageAssetId] ? (
-                <img
-                  src={urls[upcoming.imageAssetId]}
-                  alt=""
-                  className="mt-4 size-16 rounded-2xl object-cover sm:hidden"
-                />
-              ) : null}
               <Button
-                className="mt-6 min-h-11 bg-surface text-fg hover:bg-surface-2"
+                className="mt-4 min-h-11 bg-surface text-fg hover:bg-surface-2 sm:mt-6"
                 onClick={() => {
                   void navigate({
                     to: "/create",
@@ -151,7 +144,7 @@ export function HomePage() {
         </section>
       ) : null}
 
-      <section className="mt-10" data-testid="home-inspiration">
+      <section className="mt-6 sm:mt-10" data-testid="home-inspiration">
         <SectionHeader
           title="今日靈感"
           hint={`${academicBeatLabel(beat)} · 研究構圖與 Hook，不要抄別人`}
@@ -161,7 +154,21 @@ export function HomePage() {
             </Link>
           }
         />
-        <ul className="flex gap-3 overflow-x-auto pb-3">
+        <ul className="flex gap-2 overflow-x-auto pb-2 sm:hidden">
+          {inspiration.map((card) => (
+            <li key={card.id} className="shrink-0">
+              <Button
+                className="min-h-11 rounded-full"
+                size="sm"
+                variant="secondary"
+                onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: ideaFromInspiration(card) } })}
+              >
+                {card.title}
+              </Button>
+            </li>
+          ))}
+        </ul>
+        <ul className="hidden gap-3 overflow-x-auto pb-3 sm:flex">
           {inspiration.map((card) => (
             <li key={card.id} className="min-w-[15.5rem] snap-start rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
               <p className="text-sm font-medium">{card.title}</p>
