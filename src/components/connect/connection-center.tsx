@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
@@ -24,26 +24,11 @@ export function ConnectionCenter() {
   const upsertIgMemory = useStudio((s) => s.upsertIgMemory);
   const [server, setServer] = useState<Awaited<ReturnType<typeof getConnectionStatus>> | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const autoSynced = useRef<string | null>(null);
 
   useEffect(() => {
     getConnectionStatus().then(setServer).catch(() => setServer(null));
-  }, []);
-
-  useEffect(() => {
-    for (const provider of ["drive", "canva", "instagram"] as const) {
-      getConnectedProfile({ data: { provider } })
-        .then((profile) => {
-          if (profile.connected) {
-            setConnection(provider, {
-              status: "connected",
-              accountLabel: profile.accountLabel,
-              lastSyncAt: Date.now(),
-            });
-          }
-        })
-        .catch(() => undefined);
-    }
-  }, [search.ok, setConnection]);
+  }, [search.ok, search.revoked]);
 
   async function sync(provider: "drive" | "canva" | "instagram") {
     setBusy(provider);
@@ -72,12 +57,38 @@ export function ConnectionCenter() {
     }
   }
 
+  useEffect(() => {
+    for (const provider of ["drive", "canva", "instagram"] as const) {
+      getConnectedProfile({ data: { provider } })
+        .then((profile) => {
+          if (profile.connected) {
+            setConnection(provider, {
+              status: "connected",
+              accountLabel: profile.accountLabel,
+              lastSyncAt: Date.now(),
+            });
+          }
+        })
+        .catch(() => undefined);
+    }
+  }, [search.ok, setConnection]);
+
+  useEffect(() => {
+    const ok = search.ok;
+    if (ok !== "drive" && ok !== "canva" && ok !== "instagram") return;
+    if (autoSynced.current === ok) return;
+    autoSynced.current = ok;
+    void sync(ok);
+    // First landing after official OAuth should fill Creative Memory without a second tap.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.ok]);
+
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-6 md:px-8 md:py-10">
+    <main data-testid="connect-ready" className="mx-auto w-full max-w-2xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
         kicker="連接"
         title="Drive · Canva · Instagram"
-        description="官方 OAuth。Token 只存在伺服器 Cookie，不會進畫面或 GitHub。"
+        description="官方 OAuth。Token 只存在伺服器 Cookie，不會進畫面或 GitHub。連接完成後會自動把素材與過去 IG 收進創作記憶。"
         actions={<BrandSubnav current="connect" />}
       />
       {search.error ? <p className="mt-4 text-sm text-danger">連接沒有完成（{search.error}）。可能還沒設定官方應用程式。</p> : null}

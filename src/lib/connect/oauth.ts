@@ -14,6 +14,7 @@ export type TokenBundle = {
   accountLabel: string;
   folderId?: string;
   folderName?: string;
+  igUserId?: string;
 };
 
 function secretKey() {
@@ -84,7 +85,14 @@ export const getConnectionStatus = createServerFn({ method: "POST" }).handler(as
 });
 
 export const getConnectedProfile = createServerFn({ method: "POST" })
-  .validator((input: unknown) => z.object({ provider: z.enum(["drive", "canva", "instagram"]) }).parse(input))
+  .validator((input: unknown) => {
+    const schema = z.object({ provider: z.enum(["drive", "canva", "instagram"]) });
+    if (input && typeof input === "object" && "data" in input) {
+      const inner = (input as { data: unknown }).data;
+      if (inner && typeof inner === "object" && "provider" in inner) return schema.parse(inner);
+    }
+    return schema.parse(input);
+  })
   .handler(async ({ data }) => {
     const request = getRequest();
     const cookie = request?.headers.get("cookie") ?? "";
@@ -101,3 +109,7 @@ export const getConnectedProfile = createServerFn({ method: "POST" })
   });
 
 export { cookieName };
+
+export function stateCookieName(provider: ProviderId) {
+  return `zen_oauth_state_${provider}`;
+}

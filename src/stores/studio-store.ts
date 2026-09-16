@@ -132,7 +132,19 @@ type StudioState = {
   updateCampaign: (id: string, patch: Partial<ClubCampaign> | ((c: ClubCampaign) => ClubCampaign)) => void;
   deleteCampaign: (id: string) => void;
   upsertSchedule: (item: ScheduleItem) => void;
-  publishSchedule: (id: string, extra?: { permalink?: string; mediaUrl?: string; igMediaId?: string }) => void;
+  publishSchedule: (
+    id: string,
+    extra?: {
+      permalink?: string;
+      mediaUrl?: string;
+      igMediaId?: string;
+      saves?: number;
+      reach?: number;
+      impressions?: number;
+      shares?: number;
+      plays?: number;
+    },
+  ) => void;
   moveSchedule: (id: string, scheduledAt: number) => void;
   removeSchedule: (id: string) => void;
   setContentStatus: (projectId: string, status: ContentStatus, scheduledAt?: number | null) => void;
@@ -584,11 +596,13 @@ export const useStudio = create<StudioState>()(
               {
                 ...memory,
                 feel: prev?.feel,
-                saves: prev?.saves ?? memory.saves,
+                saves: extra?.saves ?? prev?.saves ?? memory.saves,
                 likes: prev?.likes ?? memory.likes,
                 comments: prev?.comments ?? memory.comments,
-                shares: prev?.shares ?? memory.shares,
-                reach: prev?.reach ?? memory.reach,
+                impressions: extra?.impressions ?? prev?.impressions ?? memory.impressions,
+                reach: extra?.reach ?? prev?.reach ?? memory.reach,
+                shares: extra?.shares ?? prev?.shares ?? memory.shares,
+                plays: extra?.plays ?? prev?.plays ?? memory.plays,
                 analysis: prev?.analysis ?? memory.analysis,
               },
               ...s.igMemory.filter((row) => row.id !== memory.id && row.id !== `local:${id}`),

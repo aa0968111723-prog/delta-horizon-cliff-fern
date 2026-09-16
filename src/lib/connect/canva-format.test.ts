@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canvaBrief, canvaNameBase64, canvaSize, mapAutofillData } from "./canva-format.ts";
+import { canvaBrief, canvaNameBase64, canvaSize, mapAutofillData, parseCanvaDisplayName } from "./canva-format.ts";
 
 test("canvaSize uses IG custom pixels instead of invalid presets", () => {
   assert.deepEqual(canvaSize("story"), { width: 1080, height: 1920 });
@@ -45,4 +45,9 @@ test("mapAutofillData maps hook body cta and image fields", () => {
 test("canvaNameBase64 stays short enough for Canva headers", () => {
   const encoded = canvaNameBase64("淡江禪學社茶會主視覺");
   assert.equal(Buffer.from(encoded, "base64").toString("utf8"), "淡江禪學社茶會主視覺");
+});
+
+test("parseCanvaDisplayName reads team user without tokens", () => {
+  assert.equal(parseCanvaDisplayName({ team_user: { display_name: "禪學社" } }), "禪學社");
+  assert.equal(parseCanvaDisplayName({}), undefined);
 });

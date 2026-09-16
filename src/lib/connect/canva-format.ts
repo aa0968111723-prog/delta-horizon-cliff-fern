@@ -73,3 +73,13 @@ export function mapAutofillData(
   }
   return out;
 }
+
+export function parseCanvaDisplayName(json: unknown): string | undefined {
+  const row = json as {
+    team_user?: { display_name?: string };
+    profile?: { display_name?: string };
+    display_name?: string;
+  };
+  const name = row.team_user?.display_name || row.profile?.display_name || row.display_name;
+  return name?.trim() || undefined;
+}

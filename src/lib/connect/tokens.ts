@@ -1,6 +1,7 @@
 import { setCookie } from "@tanstack/react-start/server";
 import { getRequest } from "@tanstack/react-start/server";
 import { cookieName, decryptBundle, encryptBundle, type ProviderId, type TokenBundle } from "./oauth";
+import { requestProto } from "./origin";
 
 export { driveQueryEscape } from "./escape";
 
@@ -18,8 +19,9 @@ export async function readBundle(provider: ProviderId): Promise<TokenBundle | nu
 }
 
 function secureFromRequest(request: Request | undefined) {
+  if (!request) return true;
   try {
-    return request ? new URL(request.url).protocol === "https:" : true;
+    return requestProto(request) === "https";
   } catch {
     return true;
   }

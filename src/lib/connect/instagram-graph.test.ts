@@ -11,6 +11,14 @@ import {
   parsePermalink,
   mediaInsightsUrl,
   parseIgInsights,
+  containerStatusUrl,
+  parseContainerStatus,
+  carouselItemParams,
+  carouselAlbumParams,
+  longLivedTokenUrl,
+  containerPhase,
+  waitUntilContainerReady,
+  shouldPublishCarousel,
 } from "./instagram-graph.ts";
 
 test("Graph URLs and public image check stay official and non-local", () => {
@@ -48,4 +56,49 @@ test("parseIgUser reads professional account without tokens in payload", () => {
     }),
     { saved: 21, reach: 420 },
   );
+  assert.equal(containerStatusUrl("cont_1"), "https://graph.facebook.com/v21.0/cont_1?fields=status_code");
+  assert.equal(parseContainerStatus({ status_code: "FINISHED" }), "FINISHED");
+  assert.deepEqual(carouselItemParams("https://cdn.example.com/a.jpg"), {
+    image_url: "https://cdn.example.com/a.jpg",
+    is_carousel_item: "true",
+  });
+  const album = carouselAlbumParams(["c1", "c2"], "最近是不是很久沒有好好坐下來？");
+  assert.equal(album.media_type, "CAROUSEL");
+  assert.equal(album.children, "c1,c2");
+  assert.doesNotMatch(JSON.stringify(album), /access_token/);
+  const longLived = longLivedTokenUrl({ clientId: "app", clientSecret: "sec", token: "short" });
+  assert.match(longLived, /grant_type=fb_exchange_token/);
+  assert.match(longLived, /graph\.facebook.com/);
+  assert.equal(containerPhase("FINISHED"), "ready");
+  assert.equal(containerPhase("IN_PROGRESS"), "wait");
+  assert.equal(containerPhase("ERROR"), "error");
+  assert.equal(shouldPublishCarousel("carousel", 6), true);
+});
+
+test("waitUntilContainerReady publishes only after FINISHED", async () => {
+  let n = 0;
+  const result = await waitUntilContainerReady({
+    containerId: "cont_1",
+    token: "tok",
+    attempts: 4,
+    delayMs: 1,
+    sleep: async () => undefined,
+    fetchJson: async (url) => {
+      n += 1;
+      assert.match(url, /fields=status_code/);
+      assert.match(url, /graph\.facebook.com/);
+      return { status_code: n >= 2 ? "FINISHED" : "IN_PROGRESS" };
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(n, 2);
+  const failed = await waitUntilContainerReady({
+    containerId: "cont_bad",
+    token: "tok",
+    attempts: 2,
+    delayMs: 1,
+    sleep: async () => undefined,
+    fetchJson: async () => ({ status_code: "ERROR" }),
+  });
+  assert.equal(failed.ok, false);
 });

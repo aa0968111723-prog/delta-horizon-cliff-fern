@@ -68,3 +68,69 @@ export function parseIgInsights(json: unknown): Record<string, number> {
   }
   return out;
 }
+
+export function containerStatusUrl(containerId: string) {
+  return `${IG_GRAPH}/${containerId}?fields=status_code`;
+}
+
+export function parseContainerStatus(json: unknown): string | null {
+  const code = (json as { status_code?: string }).status_code;
+  return code || null;
+}
+
+export function carouselItemParams(imageUrl: string) {
+  return { image_url: imageUrl, is_carousel_item: "true" };
+}
+
+export function carouselAlbumParams(childIds: string[], caption: string) {
+  return {
+    media_type: "CAROUSEL",
+    children: childIds.slice(0, 10).join(","),
+    caption: caption.slice(0, 2200),
+  };
+}
+
+export function longLivedTokenUrl(opts: { clientId: string; clientSecret: string; token: string }) {
+  const url = new URL(`${IG_GRAPH}/oauth/access_token`);
+  url.searchParams.set("grant_type", "fb_exchange_token");
+  url.searchParams.set("client_id", opts.clientId);
+  url.searchParams.set("client_secret", opts.clientSecret);
+  url.searchParams.set("fb_exchange_token", opts.token);
+  return url.toString();
+}
+
+export function containerPhase(status: string | null): "ready" | "error" | "wait" {
+  const code = (status ?? "").toUpperCase();
+  if (code === "FINISHED") return "ready";
+  if (code === "ERROR" || code === "EXPIRED" || code === "FAILED") return "error";
+  return "wait";
+}
+
+export function shouldPublishCarousel(kind: string, pageCount: number) {
+  return kind === "carousel" && pageCount >= 2;
+}
+
+export async function waitUntilContainerReady(opts: {
+  containerId: string;
+  token: string;
+  fetchJson: (url: string) => Promise<unknown>;
+  sleep?: (ms: number) => Promise<void>;
+  attempts?: number;
+  delayMs?: number;
+}): Promise<{ ok: true; status: string } | { ok: false; status: string | null }> {
+  const attempts = opts.attempts ?? 15;
+  const delayMs = opts.delayMs ?? 2000;
+  const sleep = opts.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
+  let last: string | null = null;
+  for (let i = 0; i < attempts; i++) {
+    const url = new URL(containerStatusUrl(opts.containerId));
+    url.searchParams.set("access_token", opts.token);
+    const json = await opts.fetchJson(url.toString());
+    last = parseContainerStatus(json);
+    const phase = containerPhase(last);
+    if (phase === "ready") return { ok: true, status: last || "FINISHED" };
+    if (phase === "error") return { ok: false, status: last };
+    await sleep(delayMs);
+  }
+  return { ok: false, status: last };
+}
