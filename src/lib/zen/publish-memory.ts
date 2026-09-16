@@ -1,5 +1,5 @@
 import { schedulePreviewAssetId } from "./schedule.ts";
-import type { ClubCampaign, IgMemoryPost, MemoryItem, ScheduleItem } from "./types.ts";
+import { CONTENT_KIND_LABEL, type ClubCampaign, type IgMemoryPost, type MemoryItem, type ScheduleItem } from "./types.ts";
 
 export function mediaTypeForKind(kind: ScheduleItem["contentKind"]): IgMemoryPost["mediaType"] {
   if (kind === "carousel") return "carousel";
@@ -19,9 +19,10 @@ export function publishedToMemory(input: {
     "asset_tamsui";
   const hook = (input.item.captionPreview.split("\n")[0] || input.item.title).slice(0, 40);
   const postedAt = input.item.publishedAt ?? now;
+  const kind = input.item.contentKind;
   const post: IgMemoryPost = {
     id: `ig_studio_${input.item.id}`,
-    mediaType: mediaTypeForKind(input.item.contentKind),
+    mediaType: mediaTypeForKind(kind),
     caption: input.item.captionPreview || input.item.title,
     postedAt,
     assetId,
@@ -30,7 +31,8 @@ export function publishedToMemory(input: {
     saves: 0,
     reach: 0,
     hook,
-    analysis: "剛從禪光發布，還沒有官方 Insights。下一則改生活、互動或社員故事，不要連續招生。",
+    contentKind: kind,
+    analysis: `剛從禪光發布（${CONTENT_KIND_LABEL[kind]}），還沒有官方 Insights。下一則改生活、互動或社員故事，不要連續招生。`,
   };
   const memory: MemoryItem = {
     id: `mem_ig_${input.item.id}`,

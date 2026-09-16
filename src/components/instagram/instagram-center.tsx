@@ -9,6 +9,7 @@ import { applyFormatSequence } from "@/components/create/apply-sequence";
 import { createFromHit } from "@/components/create/from-hit";
 import { openCanvaDraft } from "@/components/create/open-canva";
 import { openScheduledPreview } from "@/components/create/open-preview";
+import { DueSlotActions, DueSlotCard } from "@/components/instagram/due-slot";
 import { FormatScriptPanel } from "@/components/instagram/format-script";
 import { IgPostSheet } from "@/components/instagram/post-sheet";
 import { PublishIgButton } from "@/components/instagram/publish-button";
@@ -31,7 +32,7 @@ import { dnaPromptIdea, igDnaBlock, learnFromPosts, recentPostedNotes } from "@/
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
 import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatIdForContentKind, formatScript } from "@/lib/zen/convert";
-import { isWaveScheduleItem, schedulePreviewAssetId, placeScheduleItems } from "@/lib/zen/schedule";
+import { isWaveScheduleItem, schedulePreviewAssetId, placeScheduleItems, dueScheduleItems } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -71,26 +72,30 @@ export function InstagramCenter() {
   const ensureArtboard = useStudio((s) => s.ensureArtboard);
   const setActiveFormat = useStudio((s) => s.setActiveFormat);
   const setSlide = useStudio((s) => s.setSlide);
+  const due = useMemo(() => dueScheduleItems(schedule, Date.now(), 6), [schedule]);
+  const dueIds = useMemo(() => new Set(due.map((item) => item.id)), [due]);
   const upcoming = useMemo(
     () =>
       [...schedule]
         .filter((item) => item.status !== "published")
+        .filter((item) => !dueIds.has(item.id))
         .filter((item) => ["ig-post", "carousel", "story", "reels", "threads"].includes(item.contentKind))
         .filter((item) => !isWaveScheduleItem(item))
         .sort((a, b) => a.scheduledAt - b.scheduledAt),
-    [schedule],
+    [schedule, dueIds],
   );
   const previewIds = useMemo(() => {
     const ids = [
       ...assets.map((a) => a.id),
       ...igPosts.map((p) => p.assetId),
+      ...due.map((item) => schedulePreviewAssetId(item, campaigns)).filter((id): id is string => Boolean(id)),
       ...upcoming.map((item) => schedulePreviewAssetId(item, campaigns)).filter((id): id is string => Boolean(id)),
       ...(lastVisualAssetId ? [lastVisualAssetId] : []),
       ...(lastSequence?.assetIds ?? []),
       ...sequences.flatMap((row) => row.assetIds),
     ];
     return [...new Set(ids)];
-  }, [assets, igPosts, upcoming, campaigns, lastVisualAssetId, lastSequence, sequences]);
+  }, [assets, igPosts, due, upcoming, campaigns, lastVisualAssetId, lastSequence, sequences]);
   const urls = useAssetUrls(previewIds);
   const [tab, setTab] = useState<Tab>(igView);
   const [active, setActive] = useState<string | null>(null);
@@ -545,6 +550,28 @@ export function InstagramCenter() {
                 );
               })}
             </div>
+            {due.length > 0 ? (
+              <section className="mt-6" data-testid="ig-due">
+                <p className="text-sm font-medium">現在可以發</p>
+                <ul className="mt-2 space-y-3">
+                  {due.map((item) => {
+                    const assetId = schedulePreviewAssetId(item, campaigns);
+                    return (
+                      <DueSlotCard
+                        key={item.id}
+                        item={item}
+                        imageSrc={resolveAssetSrc(
+                          assetId,
+                          urls,
+                          assets.find((asset) => asset.id === assetId)?.seedSrc ??
+                            SEED_ASSETS.find((asset) => asset.id === assetId)?.seedSrc,
+                        )}
+                      />
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : null}
             {upcoming.length > 0 ? (
               <div className="mt-6">
                 <p className="text-sm font-medium">即將發布</p>
@@ -753,6 +780,26 @@ export function InstagramCenter() {
             </Button>
           </div>
           <ul className="mt-3 space-y-2">
+            {due.map((item) => {
+              const assetId = schedulePreviewAssetId(item, campaigns);
+              return (
+                <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+                  <p className="text-xs text-muted">
+                    {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })} · {CONTENT_KIND_LABEL[item.contentKind]} ·
+                    現在可以發
+                  </p>
+                  <p className="text-sm">{item.title}</p>
+                  <DueSlotActions
+                    item={item}
+                    imageSrc={resolveAssetSrc(
+                      assetId,
+                      urls,
+                      assets.find((asset) => asset.id === assetId)?.seedSrc,
+                    )}
+                  />
+                </li>
+              );
+            })}
             {upcoming.map((item) => (
               <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
                 <p className="text-xs text-muted">
@@ -767,6 +814,10 @@ export function InstagramCenter() {
                       urls,
                       assets.find((asset) => asset.id === schedulePreviewAssetId(item, campaigns))?.seedSrc,
                     )}
+                    onPublished={() => {
+                      markPublished(item.id);
+                      toast.success("已寫進過去 IG，下次生成會參考這則");
+                    }}
                   />
                 </div>
               </li>

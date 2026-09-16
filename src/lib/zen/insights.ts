@@ -65,15 +65,28 @@ export function learnFromPosts(posts: IgMemoryPost[] = SEED_IG_POSTS) {
   };
 }
 
+const AD_KINDS = new Set(["carousel", "knowledge", "countdown", "recap", "poster"]);
+
+export function isCampaignAdPost(post: IgMemoryPost) {
+  if (post.contentKind && AD_KINDS.has(post.contentKind)) return true;
+  if (post.mediaType === "carousel") return true;
+  return /招生|本週社課|誠摯|活動名|預告 ·|主視覺/.test(`${post.hook ?? ""}\n${post.caption}`);
+}
+
 export function recentPostedNotes(posts: IgMemoryPost[], now = Date.now()) {
   const ranked = [...posts].sort((a, b) => b.postedAt - a.postedAt).slice(0, 6);
   if (!ranked.length) return "最近還沒發新內容。";
   const line = `最近發過：${ranked.map((post) => `${post.hook || post.caption.split("\n")[0]}（${post.mediaType}）`).join("／")}`;
   const fresh = ranked.filter((post) => now - post.postedAt < 21 * 86_400_000);
   const look = fresh.length ? fresh : ranked.slice(0, 3);
-  const promos = look.filter(
-    (post) => post.mediaType === "carousel" || /招生|本週社課|誠摯|活動名/.test(`${post.hook}\n${post.caption}`),
-  );
+  const promos = look.filter(isCampaignAdPost);
+  const latestStudio = ranked.find((post) => post.id.startsWith("ig_studio_"));
+  if (latestStudio && now - latestStudio.postedAt < 21 * 86_400_000) {
+    if (isCampaignAdPost(latestStudio)) {
+      return `${line}。剛發過活動向，下一則改生活或互動。`;
+    }
+    return `${line}。剛發過生活向，下一則可以接活動內容或倒數。`;
+  }
   if ((fresh.length >= 2 && promos.length >= 2) || (fresh.length === 0 && promos.length >= 2)) {
     return `${line}。已經連續活動向，下一則改生活或互動。`;
   }
@@ -95,9 +108,10 @@ export function whyPostWorked(post: IgMemoryPost) {
 export function nextCreateHint(posts: IgMemoryPost[] = SEED_IG_POSTS, now = Date.now()) {
   const learned = learnFromPosts(posts);
   const recent = recentPostedNotes(posts, now);
-  const stacked = recent.includes("連續活動向");
+  const stacked = /連續活動向|剛發過活動向/.test(recent);
   let form = "問句 Hook 的生活向內容";
   if (stacked) form = "生活或互動，不要再發活動海報";
+  else if (recent.includes("剛發過生活向")) form = "活動內容或倒數，把時間地點講清楚";
   else if (learned.carouselSaveRate > 0 && learned.carouselSaveRate >= learned.imageSaveRate) {
     form = "Carousel，封面是句子不是海報";
   } else if (learned.reelsSaveRate > 0 && learned.reelsSaveRate >= learned.imageSaveRate) {

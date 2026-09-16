@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dnaPromptIdea, igDnaBlock, learnFromPosts, nextCreateHint, scorePost, whyPostWorked } from "./insights.ts";
+import { dnaPromptIdea, igDnaBlock, learnFromPosts, nextCreateHint, recentPostedNotes, scorePost, whyPostWorked } from "./insights.ts";
 import { SEED_IG_POSTS } from "./memory.ts";
 import { systemPrompt } from "./voice.ts";
 
@@ -56,4 +56,51 @@ test("nextCreateHint answers what to make next from own IG", () => {
   assert.match(igDnaBlock(SEED_IG_POSTS), /下一則建議/);
   const top = learnFromPosts(SEED_IG_POSTS).winning[0]!;
   assert.match(whyPostWorked(top), /問句 Hook|生活語氣|Reels|Carousel/);
+});
+
+test("nextCreateHint switches off promo after a studio-published knowledge post", async () => {
+  const { publishedToMemory } = await import("./publish-memory.ts");
+  const now = Date.parse("2026-09-16T21:00:00+08:00");
+  const { post } = publishedToMemory({
+    now,
+    campaigns: [],
+    item: {
+      id: "wave_tea_tease",
+      title: "預告 · 開學茶會",
+      contentKind: "knowledge",
+      status: "published",
+      scheduledAt: now - 86_400_000,
+      publishedAt: now,
+      projectId: null,
+      campaignId: "camp_tea",
+      captionPreview: "來坐一下，不用先懂禪。",
+    },
+  });
+  assert.equal(post.contentKind, "knowledge");
+  assert.match(recentPostedNotes([post, ...SEED_IG_POSTS], now), /剛發過活動向/);
+  const hint = nextCreateHint([post, ...SEED_IG_POSTS], now);
+  assert.match(hint.line, /生活或互動/);
+  assert.doesNotMatch(hint.line, /Carousel/);
+});
+
+test("nextCreateHint asks for event info after a studio-published life post", async () => {
+  const { publishedToMemory } = await import("./publish-memory.ts");
+  const now = Date.parse("2026-09-16T21:00:00+08:00");
+  const { post } = publishedToMemory({
+    now,
+    campaigns: [],
+    item: {
+      id: "wave_tea_emotion",
+      title: "先被看見 · 開學茶會",
+      contentKind: "member-story",
+      status: "published",
+      scheduledAt: now - 3_600_000,
+      publishedAt: now,
+      projectId: null,
+      campaignId: "camp_tea",
+      captionPreview: "大學生活很自由，但你最近真的有比較快樂嗎？",
+    },
+  });
+  const hint = nextCreateHint([post, ...SEED_IG_POSTS], now);
+  assert.match(hint.line, /活動內容或倒數/);
 });

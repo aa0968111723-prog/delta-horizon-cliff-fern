@@ -96,6 +96,7 @@ export type IgMemoryPost = {
   hook?: string;
   analysis?: string;
   mediaUrl?: string;
+  contentKind?: ContentKind;
 };
 
 export type MemoryItem = {

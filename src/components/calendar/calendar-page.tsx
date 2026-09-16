@@ -5,6 +5,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { PublishIgButton } from "@/components/instagram/publish-button";
 import { openScheduledPreview } from "@/components/create/open-preview";
+import { DueSlotActions } from "@/components/instagram/due-slot";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -295,18 +296,16 @@ export function CalendarPage() {
                   <p className="text-xs text-muted">{item.sequence.assetIds.length} 張畫面</p>
                 ) : null}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {item.projectId || item.sequence ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        openScheduledPreview(item);
-                        void navigate({ to: "/instagram" });
-                      }}
-                    >
-                      看畫面
-                    </Button>
-                  ) : null}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      openScheduledPreview(item);
+                      void navigate({ to: "/instagram" });
+                    }}
+                  >
+                    看畫面
+                  </Button>
                   <Button size="sm" variant="secondary" onClick={() => duplicateSchedule(item.id)}>
                     複製
                   </Button>
@@ -322,30 +321,43 @@ export function CalendarPage() {
                     改這則
                   </Button>
                   {item.status !== "published" ? (
-                    <>
-                      <PublishIgButton
-                        caption={item.captionPreview}
+                    isDueScheduleItem(item) ? (
+                      <DueSlotActions
+                        item={item}
+                        showPreview={false}
                         imageSrc={resolveAssetSrc(
                           schedulePreviewAssetId(item, campaigns),
                           urls,
                           assets.find((asset) => asset.id === schedulePreviewAssetId(item, campaigns))?.seedSrc,
                         )}
-                        onPublished={() => {
-                          markPublished(item.id);
-                          toast.success("已寫進過去 IG，下次生成會參考這則");
-                        }}
                       />
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          markPublished(item.id);
-                          toast.success("已寫進過去 IG，沒有審核流程");
-                        }}
-                      >
-                        標記已發布
-                      </Button>
-                    </>
+                    ) : (
+                      <>
+                        <PublishIgButton
+                          caption={item.captionPreview}
+                          imageSrc={resolveAssetSrc(
+                            schedulePreviewAssetId(item, campaigns),
+                            urls,
+                            assets.find((asset) => asset.id === schedulePreviewAssetId(item, campaigns))?.seedSrc,
+                          )}
+                          onPublished={() => {
+                            markPublished(item.id);
+                            toast.success("已寫進過去 IG，下次生成會參考這則");
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          data-testid="due-remember"
+                          onClick={() => {
+                            markPublished(item.id);
+                            toast.success("已寫進過去 IG，下次生成會參考這則");
+                          }}
+                        >
+                          寫進過去 IG
+                        </Button>
+                      </>
+                    )
                   ) : (
                     <p className="text-xs text-muted">已發布</p>
                   )}

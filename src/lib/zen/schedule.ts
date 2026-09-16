@@ -383,10 +383,9 @@ export function isDueScheduleItem(item: ScheduleItem, now = Date.now()) {
 }
 
 export function dueScheduleItems(items: ScheduleItem[], now = Date.now(), limit = 3): ScheduleItem[] {
-  return items
-    .filter((item) => isDueScheduleItem(item, now))
-    .sort((a, b) => a.scheduledAt - b.scheduledAt)
-    .slice(0, limit);
+  const rows = items.filter((item) => isDueScheduleItem(item, now)).sort((a, b) => a.scheduledAt - b.scheduledAt);
+  if (limit <= 0) return rows;
+  return rows.slice(0, limit);
 }
 
 export function upcomingScheduleItems(items: ScheduleItem[], now = Date.now(), limit = 4): ScheduleItem[] {

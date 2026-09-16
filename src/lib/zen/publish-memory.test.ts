@@ -48,8 +48,9 @@ test("publishedToMemory writes IG history without fake insights", () => {
   assert.equal(post.assetId, "asset_p1");
   assert.equal(post.reach, 0);
   assert.equal(post.saves, 0);
+  assert.equal(post.contentKind, "carousel");
   assert.match(post.hook ?? "", /連休息/);
-  assert.match(post.analysis ?? "", /Insights/);
+  assert.match(post.analysis ?? "", /Carousel/);
   assert.equal(memory.source, "instagram");
   assert.equal(memory.thumbAssetId, "asset_p1");
 });

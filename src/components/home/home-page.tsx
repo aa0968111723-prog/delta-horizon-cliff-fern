@@ -1,4 +1,3 @@
-import { toast } from "sonner";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { format as formatDate } from "date-fns";
 import { zhTW } from "date-fns/locale";
@@ -7,10 +6,9 @@ import { useEffect, useMemo, useState } from "react";
 import { CreateLaunchSheet } from "@/components/create/create-sheet";
 import { applyPickedDirection } from "@/components/create/apply-picked";
 import { createFromHit } from "@/components/create/from-hit";
-import { openScheduledPreview } from "@/components/create/open-preview";
 import { runIdeaPack } from "@/components/create/run-idea";
 import { PackResult } from "@/components/create/pack-result";
-import { PublishIgButton } from "@/components/instagram/publish-button";
+import { DueSlotCard } from "@/components/instagram/due-slot";
 import { NewProjectDialog } from "@/components/dashboard/new-project-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SearchHitCard } from "@/components/search/hit-card";
@@ -43,7 +41,6 @@ export function HomePage() {
   const memory = useCreative((s) => s.memory);
   const lastPack = useCreative((s) => s.lastPack);
   const setCreateIntent = useCreative((s) => s.setCreateIntent);
-  const markPublished = useCreative((s) => s.markPublished);
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -56,6 +53,7 @@ export function HomePage() {
   const remain = featured ? daysUntil(featured.date) : null;
   const learned = useMemo(() => learnFromPosts(igPosts), [igPosts]);
   const createHint = useMemo(() => nextCreateHint(igPosts), [igPosts]);
+  const justLearned = igPosts.find((post) => post.id.startsWith("ig_studio_"));
   const wantsCreate = isCreateQuery(q);
 
   const urls = useAssetUrls(useMemo(() => assets.map((a) => a.id), [assets]));
@@ -92,7 +90,8 @@ export function HomePage() {
     return () => window.clearTimeout(timer);
   }, [q]);
   const upcoming = useMemo(() => upcomingScheduleItems(schedule), [schedule]);
-  const due = useMemo(() => dueScheduleItems(schedule), [schedule]);
+  const dueAll = useMemo(() => dueScheduleItems(schedule, Date.now(), 0), [schedule]);
+  const due = useMemo(() => dueAll.slice(0, 3), [dueAll]);
   const recentGen = [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
 
   async function createFromFeatured() {
@@ -159,8 +158,13 @@ export function HomePage() {
               <p className="mt-3 max-w-md text-sm text-muted" data-testid="next-create-hint">
                 AI 建議：{createHint.line}
               </p>
-              {due.length ? (
-                <p className="mt-2 text-sm text-dusk">有 {due.length} 則到時間了，可以直接發。</p>
+              {justLearned ? (
+                <p className="mt-2 text-sm text-dusk" data-testid="home-learned">
+                  剛寫進過去 IG：{justLearned.hook}。下次生成會避開連續招生。
+                </p>
+              ) : null}
+              {dueAll.length ? (
+                <p className="mt-2 text-sm text-dusk">有 {dueAll.length} 則到時間了，可以直接發。</p>
               ) : null}
             </div>
             <Button size="lg" disabled={busy} onClick={() => void createFromFeatured()}>
@@ -168,6 +172,33 @@ export function HomePage() {
               {busy ? "正在想…" : "AI 幫我創作"}
             </Button>
           </div>
+        </section>
+      ) : null}
+
+      {due.length ? (
+        <section className="mt-8" data-testid="home-due">
+          <div className="mb-3 flex items-end justify-between">
+            <h2 className="text-sm font-medium">現在可以發</h2>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/calendar">打開排程</Link>
+            </Button>
+          </div>
+          <ul className="space-y-3">
+            {due.map((item) => {
+              const assetId = schedulePreviewAssetId(item, campaigns);
+              return (
+                <DueSlotCard
+                  key={item.id}
+                  item={item}
+                  imageSrc={resolveAssetSrc(
+                    assetId,
+                    urls,
+                    assets.find((asset) => asset.id === assetId)?.seedSrc,
+                  )}
+                />
+              );
+            })}
+          </ul>
         </section>
       ) : null}
 
@@ -269,68 +300,6 @@ export function HomePage() {
             }}
             onSuiteDone={() => navigate({ to: "/instagram" })}
           />
-        </section>
-      ) : null}
-
-      {due.length ? (
-        <section className="mt-8" data-testid="home-due">
-          <div className="mb-3 flex items-end justify-between">
-            <h2 className="text-sm font-medium">現在可以發</h2>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/calendar">打開排程</Link>
-            </Button>
-          </div>
-          <ul className="space-y-3">
-            {due.map((item) => {
-              const assetId = schedulePreviewAssetId(item, campaigns);
-              const imageSrc = resolveAssetSrc(
-                assetId,
-                urls,
-                assets.find((asset) => asset.id === assetId)?.seedSrc,
-              );
-              return (
-                <li key={item.id} className="rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-border)]">
-                  <p className="text-xs text-muted">
-                    {formatDate(item.scheduledAt, "M/d HH:mm", { locale: zhTW })} · {CONTENT_KIND_LABEL[item.contentKind]}
-                  </p>
-                  <p className="mt-1 text-sm font-medium">{item.title}</p>
-                  {item.captionPreview ? (
-                    <p className="mt-1 line-clamp-2 text-sm text-muted">{item.captionPreview}</p>
-                  ) : null}
-                  <div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    <PublishIgButton
-                      caption={item.captionPreview || item.title}
-                      imageSrc={imageSrc}
-                      onPublished={() => {
-                        markPublished(item.id);
-                        toast.success("已寫進過去 IG，下次生成會參考這則");
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        openScheduledPreview(item);
-                        void navigate({ to: "/instagram" });
-                      }}
-                    >
-                      看畫面
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        markPublished(item.id);
-                        toast.success("已寫進過去 IG，下次生成會參考這則");
-                      }}
-                    >
-                      寫進過去 IG
-                    </Button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
         </section>
       ) : null}
 

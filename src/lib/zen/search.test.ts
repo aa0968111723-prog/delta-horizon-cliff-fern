@@ -814,6 +814,12 @@ test("dueScheduleItems are unpublished IG slots whose time has passed", () => {
     upcoming.map((item) => item.id),
     ["later"],
   );
+  const allDue = dueScheduleItems(
+    [row("past", {}), row("story", { contentKind: "story", scheduledAt: now - 2000 }), row("later", { scheduledAt: now + 60_000 })],
+    now,
+    0,
+  );
+  assert.equal(allDue.length, 2);
 });
 
 test("canva draft title includes hook and stays short", () => {
