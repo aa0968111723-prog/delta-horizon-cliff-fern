@@ -21,8 +21,9 @@ import { countdownLabel, formatCampaignDate, nextCampaign, sortByUpcoming } from
 import { localTodayIdeas } from "@/lib/studio/ideas";
 import { assetPreviewFitClass } from "@/lib/studio/assets";
 import { contentKindLabel } from "@/lib/studio/status";
+import { upcomingScheduledPacks, publishedPacks, recentPacks } from "@/lib/studio/today-post";
 import { waveCreateSearch, waveProjectFields } from "@/lib/studio/wave-draft";
-import type { Campaign, CampaignWave } from "@/lib/studio/types";
+import type { Campaign, CampaignWave, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { APP_TAGLINE, CLUB_NAME, eventKindLabel } from "@/lib/zen/club";
 import { semesterPhaseAt, tamsuiContextAt } from "@/lib/zen/semester";
@@ -41,6 +42,11 @@ function pickTodaysWave(campaign: Campaign | null): CampaignWave | null {
   return due[0] ?? pending[0];
 }
 
+function packLine(members: Project[]): string {
+  if (members.length < 2) return contentKindLabel(members[0]!.contentKind);
+  return `全套 · ${members.map((item) => contentKindLabel(item.contentKind)).join(" · ")}`;
+}
+
 export function HomePage() {
   const navigate = useNavigate();
   const projects = useStudio((s) => s.projects);
@@ -57,22 +63,9 @@ export function HomePage() {
   const focus = useMemo(() => nextCampaign(campaigns), [campaigns]);
   const todaysWave = useMemo(() => pickTodaysWave(focus), [focus]);
 
-  const recent = useMemo(
-    () => [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6),
-    [projects],
-  );
-  const scheduled = useMemo(
-    () =>
-      projects
-        .filter((p) => p.scheduledAt)
-        .sort((a, b) => (a.scheduledAt ?? 0) - (b.scheduledAt ?? 0))
-        .slice(0, 4),
-    [projects],
-  );
-  const published = useMemo(
-    () => projects.filter((p) => p.status === "published").slice(0, 4),
-    [projects],
-  );
+  const recent = useMemo(() => recentPacks(projects), [projects]);
+  const scheduled = useMemo(() => upcomingScheduledPacks(projects), [projects]);
+  const published = useMemo(() => publishedPacks(projects), [projects]);
 
   const assetIds = useMemo(() => assets.map((a) => a.id), [assets]);
   const urls = useAssetUrls(assetIds);
@@ -254,7 +247,7 @@ export function HomePage() {
       <section className="mt-10">
         <SectionHeader
           title="已排程內容"
-          hint="到時間就發"
+          hint="同一套併一列。今天要發的在上面，這裡是之後幾晚。"
           action={
             <Button asChild variant="ghost" size="sm">
               <Link to="/calendar">看日曆</Link>
@@ -263,33 +256,33 @@ export function HomePage() {
         />
         {scheduled.length === 0 ? (
           <p className="rounded-2xl bg-surface px-4 py-8 text-center text-sm text-muted shadow-[var(--shadow-border)]">
-            還沒有排程。做完一篇後在日曆上排時間。
+            還沒有排到後面的晚上。做完一篇後在日曆上排時間。
           </p>
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2">
-            {scheduled.map((project) => (
-              <li key={project.id}>
+            {scheduled.map((pack) => (
+              <li key={pack.rootId}>
                 <Link
                   to="/studio/$projectId"
-                  params={{ projectId: project.id }}
+                  params={{ projectId: pack.primary.id }}
                   className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-lift)]"
                 >
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-2">
                     <CalendarDays className="size-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{project.name}</span>
+                    <span className="block truncate text-sm font-medium">{pack.primary.name}</span>
                     <span className="block truncate text-xs text-muted">
-                      {new Date(project.scheduledAt ?? 0).toLocaleString("zh-TW", {
+                      {new Date(pack.primary.scheduledAt ?? 0).toLocaleString("zh-TW", {
                         month: "numeric",
                         day: "numeric",
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
-                      ·{contentKindLabel(project.contentKind)}
+                      ·{packLine(pack.members)}
                     </span>
                   </span>
-                  <StatusBadge status={project.status} />
+                  <StatusBadge status={pack.primary.status} />
                 </Link>
               </li>
             ))}
@@ -315,14 +308,17 @@ export function HomePage() {
           />
         ) : (
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {recent.map((project) => (
-              <li key={project.id}>
+            {recent.map((pack) => (
+              <li key={pack.rootId}>
                 <ProjectCard
-                  project={project}
-                  brand={brands.find((b) => b.id === project.brandId)}
+                  project={pack.primary}
+                  brand={brands.find((b) => b.id === pack.primary.brandId)}
                   urls={urls}
-                  onDuplicate={() => duplicateProject(project.id)}
+                  onDuplicate={() => duplicateProject(pack.primary.id)}
                 />
+                {pack.members.length > 1 ? (
+                  <p className="mt-1.5 truncate px-1 text-xs text-muted">{packLine(pack.members)}</p>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -351,20 +347,18 @@ export function HomePage() {
           </div>
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2">
-            {published.map((project) => (
-              <li key={project.id}>
+            {published.map((pack) => (
+              <li key={pack.rootId}>
                 <Link
                   to="/studio/$projectId"
-                  params={{ projectId: project.id }}
+                  params={{ projectId: pack.primary.id }}
                   className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{project.name}</span>
-                    <span className="block truncate text-xs text-muted">
-                      {contentKindLabel(project.contentKind)}
-                    </span>
+                    <span className="block truncate text-sm font-medium">{pack.primary.name}</span>
+                    <span className="block truncate text-xs text-muted">{packLine(pack.members)}</span>
                   </span>
-                  <StatusBadge status={project.status} />
+                  <StatusBadge status={pack.primary.status} />
                 </Link>
               </li>
             ))}

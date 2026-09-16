@@ -27,8 +27,13 @@ export function packFlowActions(members: Array<Pick<Project, "status">>): FlowAc
   if (members.some((item) => item.status === "idea" || item.status === "making")) {
     actions.push({ id: "done", label: "這套完成了", hint: "全套都可以發了。" });
   }
-  if (members.some((item) => item.status !== "published")) {
-    actions.push({ id: "scheduled", label: "排這套到日曆", hint: "同一天晚上，之後可拖去改期。" });
+  const open = members.filter((item) => item.status !== "published");
+  if (open.length) {
+    if (open.some((item) => item.status !== "scheduled")) {
+      actions.push({ id: "scheduled", label: "排這套到日曆", hint: "同一天晚上，之後可拖去改期。" });
+    } else {
+      actions.push({ id: "unschedule", label: "這套從日曆拿下來", hint: "改回完成，還可以再改期。" });
+    }
     actions.push({ id: "published", label: "這套都發出去了", hint: "IG、Threads、LINE 都貼完再點。" });
   }
   return actions;

@@ -68,6 +68,58 @@ export function readyPostLabel(reason: ReadyPostReason): string {
   return reason === "today" ? "今天要發" : "可以發了";
 }
 
+export type ProjectPack = {
+  rootId: string;
+  primary: Project;
+  members: Project[];
+  pack: Project[];
+};
+
+/** 從挑出的內容裡，同一則做成的全套只留一組。 */
+export function groupPickedByPack(projects: Project[], picked: Project[], limit: number): ProjectPack[] {
+  const seen = new Set<string>();
+  const packs: ProjectPack[] = [];
+  for (const project of picked) {
+    const rootId = packRootId(project);
+    if (seen.has(rootId)) continue;
+    seen.add(rootId);
+    const pack = convertPackOf(projects, rootId);
+    const pickedIds = new Set(picked.filter((item) => packRootId(item) === rootId).map((item) => item.id));
+    const members = (pack.length ? pack : [project]).filter((item) => pickedIds.has(item.id));
+    packs.push({
+      rootId,
+      primary: members[0] ?? project,
+      members: members.length ? members : [project],
+      pack: pack.length ? pack : [project],
+    });
+    if (packs.length >= limit) break;
+  }
+  return packs;
+}
+
+/** 排在今天之後的內容。首頁「已排程」用這個，今天要發的留給上面那塊。 */
+export function upcomingScheduledPacks(projects: Project[], now = Date.now(), limit = 4): ProjectPack[] {
+  const end = startOfLocalDay(now) + 36 * 60 * 60 * 1000;
+  const picked = projects
+    .filter((project) => project.status === "scheduled" && project.scheduledAt != null && project.scheduledAt >= end)
+    .sort((a, b) => (a.scheduledAt ?? 0) - (b.scheduledAt ?? 0));
+  return groupPickedByPack(projects, picked, limit);
+}
+
+/** 最近編輯，同一套只出現一張卡。 */
+export function recentPacks(projects: Project[], limit = 6): ProjectPack[] {
+  const picked = [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
+  return groupPickedByPack(projects, picked, limit);
+}
+
+/** 已發布的內容，同一套併一列。 */
+export function publishedPacks(projects: Project[], limit = 4): ProjectPack[] {
+  const picked = projects
+    .filter((project) => project.status === "published")
+    .sort((a, b) => (b.publishedAt ?? b.updatedAt) - (a.publishedAt ?? a.updatedAt));
+  return groupPickedByPack(projects, picked, limit);
+}
+
 /** 完成了但還沒排進日曆。排程頁「完成了、還沒排」用這個。 */
 export function unscheduledDone(projects: Project[]): Project[] {
   return projects

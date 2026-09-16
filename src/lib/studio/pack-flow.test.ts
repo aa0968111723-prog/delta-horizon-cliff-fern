@@ -15,6 +15,17 @@ test("packFlowActions for an all-done pack skips 這套完成了", () => {
   );
 });
 
+test("packFlowActions for an all-scheduled pack offers unschedule, not 排這套", () => {
+  assert.deepEqual(
+    packFlowActions([{ status: "scheduled" }, { status: "scheduled" }]).map((item) => item.id),
+    ["unschedule", "published"],
+  );
+  assert.equal(
+    packFlowActions([{ status: "scheduled" }, { status: "scheduled" }])[0]?.label,
+    "這套從日曆拿下來",
+  );
+});
+
 test("packFlowActions for an all-published pack offers unpublish", () => {
   const actions = packFlowActions([{ status: "published" }, { status: "published" }]);
   assert.equal(actions[0]?.id, "unpublish");

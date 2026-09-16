@@ -48,6 +48,7 @@ export function PackFlowBar({
     else if (action === "scheduled") toast.success(`全套已排到 ${formatWhen(at)}，可在日曆改期。`);
     else if (action === "published") toast.success("全套標成已發布。之後生成會把這些當成過去內容。");
     else if (action === "unpublish") toast.success("全套改回還沒發。");
+    else if (action === "unschedule") toast.success("全套從日曆拿下來了。");
   }
 
   return (
@@ -62,7 +63,7 @@ export function PackFlowBar({
         >
           {action.id === "published" ? (
             <Send className="size-4" aria-hidden />
-          ) : action.id === "scheduled" ? (
+          ) : action.id === "scheduled" || action.id === "unschedule" ? (
             <CalendarDays className="size-4" aria-hidden />
           ) : (
             <Check className="size-4" aria-hidden />

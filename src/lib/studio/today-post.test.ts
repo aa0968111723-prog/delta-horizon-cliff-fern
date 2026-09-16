@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readyPacks, readyPostLabel, readyToPost, unscheduledDone, unscheduledDonePacks } from "./today-post.ts";
+import { upcomingScheduledPacks, publishedPacks, recentPacks, readyPacks, readyPostLabel, readyToPost, unscheduledDone, unscheduledDonePacks } from "./today-post.ts";
 import type { Brief, CopyDeck, Project } from "./types.ts";
 
 function brief(): Brief {
@@ -151,3 +151,65 @@ test("unscheduledDonePacks collapses a convert pack into one waiting row", () =>
   assert.equal(packs[0]?.waiting.length, 2);
   assert.equal(packs[1]?.primary.id, "other");
 });
+
+test("upcomingScheduledPacks groups a future convert pack and skips tonight", () => {
+  const now = Date.parse("2026-09-16T10:00:00");
+  const origin = project({
+    id: "origin",
+    status: "scheduled",
+    scheduledAt: Date.parse("2026-09-19T19:00:00"),
+    contentKind: "ig-post",
+  });
+  const line = project({
+    id: "line",
+    status: "scheduled",
+    scheduledAt: Date.parse("2026-09-19T19:00:00"),
+    contentKind: "line",
+    convertedFromId: "origin",
+  });
+  const tonight = project({
+    id: "tonight",
+    status: "scheduled",
+    scheduledAt: Date.parse("2026-09-16T19:00:00"),
+  });
+  const packs = upcomingScheduledPacks([origin, line, tonight], now);
+  assert.equal(packs.length, 1);
+  assert.equal(packs[0]?.rootId, "origin");
+  assert.equal(packs[0]?.members.length, 2);
+});
+
+test("recentPacks collapses convert siblings into one card", () => {
+  const origin = project({ id: "origin", contentKind: "ig-post", updatedAt: 3 });
+  const line = project({
+    id: "line",
+    contentKind: "line",
+    convertedFromId: "origin",
+    updatedAt: 4,
+  });
+  const other = project({ id: "other", updatedAt: 2 });
+  const packs = recentPacks([origin, line, other]);
+  assert.equal(packs.length, 2);
+  assert.equal(packs[0]?.rootId, "origin");
+  assert.equal(packs[0]?.members.length, 2);
+  assert.equal(packs[1]?.primary.id, "other");
+});
+
+test("publishedPacks groups published convert siblings", () => {
+  const origin = project({
+    id: "origin",
+    status: "published",
+    publishedAt: 3,
+    contentKind: "ig-post",
+  });
+  const line = project({
+    id: "line",
+    status: "published",
+    publishedAt: 4,
+    contentKind: "line",
+    convertedFromId: "origin",
+  });
+  const packs = publishedPacks([origin, line]);
+  assert.equal(packs.length, 1);
+  assert.equal(packs[0]?.members.length, 2);
+});
+
