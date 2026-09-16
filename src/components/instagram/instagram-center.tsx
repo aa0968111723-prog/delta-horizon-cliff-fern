@@ -5,6 +5,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { applyVisualDirection } from "@/components/create/apply-visual";
 import { applyFormatSequence } from "@/components/create/apply-sequence";
+import { openScheduledPreview } from "@/components/create/open-preview";
 import { FormatScriptPanel } from "@/components/instagram/format-script";
 import { PublishIgButton } from "@/components/instagram/publish-button";
 import { PageHeader } from "@/components/shared/page-header";
@@ -23,7 +24,7 @@ import { uid } from "@/lib/studio/ids";
 import { dnaPromptIdea, igDnaBlock, learnFromPosts } from "@/lib/zen/insights";
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
-import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatScript } from "@/lib/zen/convert";
+import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatIdForContentKind, formatScript } from "@/lib/zen/convert";
 import { schedulePreviewAssetId } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
@@ -43,6 +44,7 @@ export function InstagramCenter() {
   const setIgView = useCreative((s) => s.setIgView);
   const lastVisualAssetId = useCreative((s) => s.lastVisualAssetId);
   const lastSequence = useCreative((s) => s.lastSequence);
+  const sequences = useCreative((s) => s.sequences);
   const lastPack = useCreative((s) => s.lastPack);
   const setIgFormat = useCreative((s) => s.setIgFormat);
   const setIgPreview = useCreative((s) => s.setIgPreview);
@@ -53,6 +55,7 @@ export function InstagramCenter() {
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
   const projects = useStudio((s) => s.projects);
   const lastProjectId = useStudio((s) => s.lastProjectId);
+  const setLastProjectId = useStudio((s) => s.setLastProjectId);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
   const addAsset = useStudio((s) => s.addAsset);
@@ -74,9 +77,10 @@ export function InstagramCenter() {
       ...upcoming.map((item) => schedulePreviewAssetId(item, campaigns)).filter((id): id is string => Boolean(id)),
       ...(lastVisualAssetId ? [lastVisualAssetId] : []),
       ...(lastSequence?.assetIds ?? []),
+      ...sequences.flatMap((row) => row.assetIds),
     ];
     return [...new Set(ids)];
-  }, [assets, igPosts, upcoming, campaigns, lastVisualAssetId, lastSequence]);
+  }, [assets, igPosts, upcoming, campaigns, lastVisualAssetId, lastSequence, sequences]);
   const urls = useAssetUrls(previewIds);
   const [tab, setTab] = useState<Tab>(igView);
   const [active, setActive] = useState(igPosts[0]?.id ?? null);
@@ -89,7 +93,27 @@ export function InstagramCenter() {
   const post = igPosts.find((p) => p.id === active);
   const brand = brands[0];
   const learned = useMemo(() => learnFromPosts(igPosts), [igPosts]);
+  const filmstrip = useMemo(() => {
+    if (previewFormat === "story") {
+      return sequences.find((row) => row.kind === "story") ?? (lastSequence?.kind === "story" ? lastSequence : null);
+    }
+    if (previewFormat === "reels-cover") {
+      return sequences.find((row) => row.kind === "reels") ?? (lastSequence?.kind === "reels" ? lastSequence : null);
+    }
+    if (previewFormat === "threads") {
+      return sequences.find((row) => row.kind === "threads") ?? (lastSequence?.kind === "threads" ? lastSequence : null);
+    }
+    if (previewFormat === "line") {
+      return sequences.find((row) => row.kind === "line") ?? (lastSequence?.kind === "line" ? lastSequence : null);
+    }
+    return (
+      sequences.find((row) => row.kind === "carousel") ??
+      sequences.find((row) => row.kind === "post") ??
+      lastSequence
+    );
+  }, [previewFormat, sequences, lastSequence]);
   const previewProject =
+    (filmstrip ? projects.find((p) => p.id === filmstrip.projectId) : undefined) ??
     projects.find((p) => p.id === lastProjectId) ??
     projects.find((p) => p.activeFormatId === previewFormat) ??
     projects.find((p) => pagesOf(p, previewFormat).length) ??
@@ -240,9 +264,10 @@ export function InstagramCenter() {
       status: "scheduled",
       scheduledAt: tonightAt(0),
       publishedAt: null,
-      projectId: previewProject?.id ?? null,
+      projectId: previewProject?.id ?? lastSequence?.projectId ?? null,
       campaignId,
       captionPreview: previewScript && previewScript.kind !== "post" ? previewScript.rows.map((row) => `${row.kicker} ${row.title}`).join("\n") : caption,
+      sequence: lastSequence && lastSequence.kind === (previewScript?.kind ?? "") ? lastSequence : undefined,
     });
     if (campaignId && lastVisualAssetId) {
       const campaign = campaigns.find((row) => row.id === campaignId);
@@ -405,8 +430,9 @@ export function InstagramCenter() {
                         key={item.id}
                         type="button"
                         onClick={() => {
+                          openScheduledPreview(item);
                           setTab("preview");
-                          setIgView("preview");
+                          setPreviewFormat(formatIdForContentKind(item.contentKind));
                         }}
                         className="relative aspect-square overflow-hidden bg-surface"
                       >
@@ -469,9 +495,24 @@ export function InstagramCenter() {
                   onClick={() => {
                     setPreviewFormat(id);
                     setIgFormat(id);
-                    if (previewProject) {
-                      ensureArtboard(previewProject.id, id);
-                      setActiveFormat(previewProject.id, id);
+                    const match =
+                      id === "story"
+                        ? sequences.find((row) => row.kind === "story")
+                        : id === "reels-cover"
+                          ? sequences.find((row) => row.kind === "reels")
+                          : id === "feed-portrait" || id === "feed-square"
+                            ? sequences.find((row) => row.kind === "carousel")
+                            : undefined;
+                    const projectId = match?.projectId ?? previewProject?.id;
+                    if (match) {
+                      useCreative.getState().setLastSequence(match);
+                      setIgPreview(match.assetIds[0] ?? null, id);
+                      setLastProjectId(match.projectId);
+                      setSlide(match.projectId, 0);
+                    }
+                    if (projectId) {
+                      ensureArtboard(projectId, id);
+                      setActiveFormat(projectId, id);
                     }
                   }}
                 >
@@ -494,10 +535,10 @@ export function InstagramCenter() {
               ) : (
                 <p className="py-16 text-center text-xs text-muted">還沒有這個尺寸的預覽，先去創作一則。</p>
               )}
-              {lastSequence && lastSequence.assetIds.length > 1 ? (
+              {filmstrip && filmstrip.assetIds.length > 1 ? (
                 <div className="mt-3 max-w-full overflow-x-auto overscroll-x-contain">
                   <div className="flex w-max gap-2 pb-1">
-                    {lastSequence.assetIds.map((id, index) => {
+                    {filmstrip.assetIds.map((id, index) => {
                       const seedSrc = assets.find((a) => a.id === id)?.seedSrc;
                       const src = resolveAssetSrc(id, urls, seedSrc);
                       return (
@@ -506,7 +547,7 @@ export function InstagramCenter() {
                           type="button"
                           onClick={() => {
                             setIgPreview(id, previewFormat);
-                            if (lastSequence.projectId) setSlide(lastSequence.projectId, index);
+                            if (filmstrip.projectId) setSlide(filmstrip.projectId, index);
                           }}
                           className={cn(
                             "h-20 w-16 shrink-0 overflow-hidden rounded-xl bg-bg",
@@ -517,7 +558,7 @@ export function InstagramCenter() {
                             <img src={src} alt="" className="size-full object-cover" />
                           ) : (
                             <span className="flex size-full items-center justify-center px-1 text-xs text-muted">
-                              {lastSequence.labels[index] ?? index + 1}
+                              {filmstrip.labels[index] ?? index + 1}
                             </span>
                           )}
                         </button>

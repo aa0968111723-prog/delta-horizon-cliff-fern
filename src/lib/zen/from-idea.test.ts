@@ -101,7 +101,7 @@ test("convertStaggerDays keeps formats off the same night", () => {
   assert.equal(new Set(["post", "story", "threads", "carousel", "line", "reels"].map(convertStaggerDays)).size, 6);
 });
 
-test("formatSuitePlan reuses post for carousel and threads for LINE", () => {
+test("formatSuitePlan sequences carousel, story, and reels instead of reusing the post", () => {
   const plan = buildMockPlan({
     eventName: "茶會",
     schedule: "2026-09-23 19:30",
@@ -157,9 +157,13 @@ test("formatSuitePlan reuses post for carousel and threads for LINE", () => {
   });
   assert.equal(suite.length, 6);
   assert.equal(new Set(suite.map((step) => step.days)).size, 6);
-  assert.equal(suite.find((step) => step.id === "carousel")?.reuseFrom, "post");
+  assert.equal(suite.find((step) => step.id === "carousel")?.mode, "sequence");
+  assert.equal(suite.find((step) => step.id === "story")?.mode, "sequence");
+  assert.equal(suite.find((step) => step.id === "reels")?.mode, "sequence");
+  assert.equal(suite.find((step) => step.id === "carousel")?.reuseFrom, null);
   assert.equal(suite.find((step) => step.id === "line")?.reuseFrom, "threads");
-  assert.equal(suite.filter((step) => step.generate).length, 4);
+  assert.equal(suite.filter((step) => step.mode === "generate").length, 2);
+  assert.equal(suite.filter((step) => step.mode === "sequence").length, 3);
   assert.ok(suite.every((step) => step.caption.length > 0));
 });
 

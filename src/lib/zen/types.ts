@@ -60,6 +60,13 @@ export type ClubCampaign = {
   updatedAt: number;
 };
 
+export type VisualSequence = {
+  kind: string;
+  labels: string[];
+  assetIds: string[];
+  projectId: string;
+};
+
 export type ScheduleItem = {
   id: string;
   title: string;
@@ -70,13 +77,7 @@ export type ScheduleItem = {
   projectId: string | null;
   campaignId: string | null;
   captionPreview: string;
-};
-
-export type VisualSequence = {
-  kind: string;
-  labels: string[];
-  assetIds: string[];
-  projectId: string;
+  sequence?: VisualSequence | null;
 };
 
 export type IgMemoryPost = {

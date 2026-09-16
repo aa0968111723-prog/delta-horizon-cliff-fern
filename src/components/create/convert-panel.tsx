@@ -71,6 +71,7 @@ export function ConvertPanel({
   function toCalendar(id: ConvertTargetId) {
     const target = CONVERT_TARGETS.find((row) => row.id === id)!;
     const visualId = useCreative.getState().lastVisualAssetId;
+    const live = useCreative.getState().lastSequence;
     upsertSchedule({
       id: uid("sch"),
       title: `${pack.copy.hook} · ${target.label}`,
@@ -78,9 +79,10 @@ export function ConvertPanel({
       status: "scheduled",
       scheduledAt: tonightAt(convertStaggerDays(id)),
       publishedAt: null,
-      projectId: null,
+      projectId: live?.kind === id ? live.projectId : null,
       campaignId: campaignId ?? null,
       captionPreview: captionForTarget(converted, id),
+      sequence: live?.kind === id ? live : undefined,
     });
     if (campaignId && visualId) {
       const campaign = useCreative.getState().campaigns.find((row) => row.id === campaignId);

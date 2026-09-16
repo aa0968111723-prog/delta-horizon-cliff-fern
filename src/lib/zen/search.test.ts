@@ -408,6 +408,17 @@ test("schedulePreviewAssetId uses campaign cover and related thumbs", () => {
     "asset_story",
   );
   assert.equal(schedulePreviewAssetId({ campaignId: null, contentKind: "ig-post" }, [camp]), null);
+  assert.equal(
+    schedulePreviewAssetId(
+      {
+        campaignId: camp.id,
+        contentKind: "carousel",
+        sequence: { assetIds: ["asset_p1", "asset_p2"] },
+      },
+      [camp],
+    ),
+    "asset_p1",
+  );
 });
 
 test("applyStudentRewrite swaps the first sentence", () => {

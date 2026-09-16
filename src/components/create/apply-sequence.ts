@@ -6,12 +6,19 @@ import {
   type ConvertTargetId,
 } from "@/lib/zen/convert";
 import { pagesOf } from "@/lib/studio/layers";
-import type { CreativePack } from "@/lib/zen/types";
+import type { CreativePack, VisualSequence } from "@/lib/zen/types";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
 export type ApplySequenceResult =
-  | { ok: true; assetIds: string[]; labels: string[]; projectId: string; formatId: ReturnType<typeof convertTargetById>["formatId"] }
+  | {
+      ok: true;
+      assetIds: string[];
+      labels: string[];
+      projectId: string;
+      formatId: ReturnType<typeof convertTargetById>["formatId"];
+      sequence: VisualSequence;
+    }
   | { ok: false; error: string };
 
 export async function applyFormatSequence(input: {
@@ -19,6 +26,9 @@ export async function applyFormatSequence(input: {
   kind: ConvertTargetId;
   campaignId?: string | null;
   directionId?: string;
+  preview?: boolean;
+  persist?: boolean;
+  touchCampaign?: boolean;
 }): Promise<ApplySequenceResult> {
   const target = convertTargetById(input.kind);
   const beats = sequenceBeats(convertFromPlan(input.pack.plan), target.formatId, target.contentKind);
@@ -30,6 +40,8 @@ export async function applyFormatSequence(input: {
   const labels: string[] = [];
   let projectId = "";
   let formatId = target.formatId;
+  const persist = input.persist !== false;
+  const preview = input.preview !== false;
 
   for (const [index, beat] of beats.entries()) {
     if (index > 0 && projectId) {
@@ -50,7 +62,7 @@ export async function applyFormatSequence(input: {
       subhead: beat.kicker,
       projectId: projectId || undefined,
       preview: false,
-      touchCampaign: index === 0,
+      touchCampaign: persist && input.touchCampaign !== false && index === 0,
     });
     if (!result.ok) return result;
     projectId = result.projectId;
@@ -59,25 +71,28 @@ export async function applyFormatSequence(input: {
     labels.push(beat.kicker);
   }
 
-  useCreative.setState((state) => {
+  const sequence: VisualSequence = { kind: input.kind, labels, assetIds, projectId };
+
+  if (persist) {
     const campaignId =
       input.campaignId ??
-      state.campaigns.find(
+      useCreative.getState().campaigns.find(
         (campaign) =>
           campaign.name === input.pack.campaignName || input.pack.campaignName.includes(campaign.name),
       )?.id ??
       null;
-    return {
-      lastSequence: { kind: input.kind, labels, assetIds, projectId },
+    useCreative.getState().setLastSequence(sequence);
+    useCreative.setState((state) => ({
       lastVisualAssetId: assetIds[0] ?? state.lastVisualAssetId,
-      igView: "preview",
+      igView: preview ? "preview" : state.igView,
       igFormat: formatId,
       campaigns: campaignId
         ? state.campaigns.map((campaign) =>
             campaign.id === campaignId
               ? {
                   ...campaign,
-                  coverAssetId: input.kind === "carousel" ? (assetIds[0] ?? campaign.coverAssetId) : campaign.coverAssetId,
+                  coverAssetId:
+                    input.kind === "carousel" ? (assetIds[0] ?? campaign.coverAssetId) : campaign.coverAssetId,
                   relatedAssetIds: [...new Set([...assetIds, ...campaign.relatedAssetIds])].slice(0, 8),
                   projectIds: campaign.projectIds.includes(projectId)
                     ? campaign.projectIds
@@ -87,14 +102,14 @@ export async function applyFormatSequence(input: {
               : campaign,
           )
         : state.campaigns,
-    };
-  });
-
-  const live = useCreative.getState().lastSequence;
-  if (!live || live.assetIds.length !== assetIds.length) {
-    return { ok: false, error: "分鏡畫面沒寫進去，請再試一次。" };
+    }));
+    const live = useCreative.getState().lastSequence;
+    if (!live || live.assetIds.length !== assetIds.length) {
+      return { ok: false, error: "分鏡畫面沒寫進去，請再試一次。" };
+    }
   }
 
   useStudio.getState().setSlide(projectId, 0);
-  return { ok: true, assetIds, labels, projectId, formatId };
+  if (preview) useStudio.getState().setLastProjectId(projectId);
+  return { ok: true, assetIds, labels, projectId, formatId, sequence };
 }

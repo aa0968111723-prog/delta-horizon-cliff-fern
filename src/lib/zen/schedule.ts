@@ -191,9 +191,11 @@ export function scheduleItemsFromCampaign(
 }
 
 export function schedulePreviewAssetId(
-  item: { campaignId: string | null; contentKind: string },
+  item: { campaignId: string | null; contentKind: string; sequence?: { assetIds: string[] } | null },
   campaigns: ClubCampaign[],
 ): string | null {
+  const fromSequence = item.sequence?.assetIds[0];
+  if (fromSequence) return fromSequence;
   if (!item.campaignId) return null;
   const campaign = campaigns.find((row) => row.id === item.campaignId);
   if (!campaign) return null;

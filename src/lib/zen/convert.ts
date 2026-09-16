@@ -141,6 +141,14 @@ export function contentKindForFormat(formatId: FormatId): ContentKind {
   return convertTargetById(convertTargetForFormat(formatId)).contentKind;
 }
 
+export function formatIdForContentKind(kind: ContentKind): FormatId {
+  if (kind === "story") return "story";
+  if (kind === "reels") return "reels-cover";
+  if (kind === "threads") return "threads";
+  if (kind === "line") return "line";
+  return "feed-portrait";
+}
+
 export type FormatScriptRow = {
   id: string;
   kicker: string;

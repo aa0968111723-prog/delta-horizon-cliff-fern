@@ -1,8 +1,10 @@
 import { addDays, addWeeks, format, startOfMonth, startOfWeek, addMonths, isSameDay, isSameMonth } from "date-fns";
-import { zhTW } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
+import { zhTW } from "date-fns/locale";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { PublishIgButton } from "@/components/instagram/publish-button";
+import { openScheduledPreview } from "@/components/create/open-preview";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -40,6 +42,7 @@ function toLocalInput(ts: number) {
 }
 
 export function CalendarPage() {
+  const navigate = useNavigate();
   const schedule = useCreative((s) => s.schedule);
   const igPosts = useCreative((s) => s.igPosts);
   const moveSchedule = useCreative((s) => s.moveSchedule);
@@ -243,7 +246,22 @@ export function CalendarPage() {
                   {format(item.scheduledAt, "M/d（EE）HH:mm", { locale: zhTW })} · {CONTENT_KIND_LABEL[item.contentKind]}
                 </p>
                 <p className="text-sm font-medium">{item.title}</p>
+                {item.sequence && item.sequence.assetIds.length > 1 ? (
+                  <p className="text-xs text-muted">{item.sequence.assetIds.length} 張畫面</p>
+                ) : null}
                 <div className="mt-2 flex flex-wrap gap-2">
+                  {item.projectId || item.sequence ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        openScheduledPreview(item);
+                        void navigate({ to: "/instagram" });
+                      }}
+                    >
+                      看畫面
+                    </Button>
+                  ) : null}
                   <Button size="sm" variant="secondary" onClick={() => duplicateSchedule(item.id)}>
                     複製
                   </Button>

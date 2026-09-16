@@ -78,14 +78,14 @@ export function PackResult({
         ))}
       </div>
       <div className="mt-4 rounded-2xl bg-bg p-4">
-        <p className="text-xs text-muted">一篇做成六種格式，錯開幾晚再發</p>
+        <p className="text-xs text-muted">一篇做成六種格式，Carousel 五頁、Story 與 Reels 分鏡，錯開幾晚再發</p>
         <p className="mt-1 text-sm">Post · Story · Carousel · Reels · Threads · LINE</p>
         <Button
           className="mt-3 min-h-11 w-full"
           data-testid="format-suite"
           disabled={locked}
           onClick={() => {
-            toast.message("正在做成 Post、Story、Carousel、Reels、Threads、LINE…");
+            toast.message("正在做成 Post、5 頁 Carousel、Story、Reels 分鏡、Threads、LINE…");
             setSuiteBusy(true);
             void applyFormatSuite({
               pack,
@@ -97,7 +97,7 @@ export function PackResult({
                   toast.error(result.error);
                   return;
                 }
-                toast.success(`已做成 ${result.count} 種格式並排進日曆`);
+                toast.success(`已做成 ${result.count} 種格式（${result.pages} 張分鏡）並排進日曆`);
                 return onSuiteDone?.(result);
               })
               .catch((err) => {

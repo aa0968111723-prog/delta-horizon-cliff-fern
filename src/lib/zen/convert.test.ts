@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildMockPlan } from "../ai/mock.ts";
-import { convertFromPlan, formatScript, formatScriptClipboard, sequenceBeats } from "./convert.ts";
+import { convertFromPlan, formatIdForContentKind, formatScript, formatScriptClipboard, sequenceBeats } from "./convert.ts";
 
 const converted = convertFromPlan(
   buildMockPlan({
@@ -63,4 +63,11 @@ test("carousel sequence is five pages, story is at least three frames", () => {
   assert.ok(story.length <= 5);
   const reels = sequenceBeats(converted, "reels-cover");
   assert.equal(reels.length, 5);
+});
+
+test("formatIdForContentKind maps story and reels to 9:16 boards", () => {
+  assert.equal(formatIdForContentKind("story"), "story");
+  assert.equal(formatIdForContentKind("reels"), "reels-cover");
+  assert.equal(formatIdForContentKind("carousel"), "feed-portrait");
+  assert.equal(formatIdForContentKind("threads"), "threads");
 });

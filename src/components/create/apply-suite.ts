@@ -1,12 +1,21 @@
+import { applyFormatSequence } from "@/components/create/apply-sequence";
 import { applyVisualDirection } from "@/components/create/apply-visual";
 import { uid } from "@/lib/studio/ids";
 import { tonightAt } from "@/lib/zen/convert";
 import { formatSuitePlan } from "@/lib/zen/from-idea";
-import type { CreativePack, ScheduleItem } from "@/lib/zen/types";
+import type { CreativePack, ScheduleItem, VisualSequence } from "@/lib/zen/types";
 import { useCreative } from "@/stores/creative-store";
+import { useStudio } from "@/stores/studio-store";
 
 export type ApplySuiteResult =
-  | { ok: true; count: number; scheduled: number; firstAssetId: string; titles: string[] }
+  | {
+      ok: true;
+      count: number;
+      scheduled: number;
+      firstAssetId: string;
+      titles: string[];
+      pages: number;
+    }
   | { ok: false; error: string };
 
 export async function applyFormatSuite(input: {
@@ -25,10 +34,48 @@ export async function applyFormatSuite(input: {
   const generatedIds: Partial<Record<(typeof steps)[number]["id"], string>> = {};
   const assetIds: string[] = [];
   const pending: ScheduleItem[] = [];
+  const remembered: VisualSequence[] = [];
   let firstAssetId = "";
   let firstFormatId = steps[0]?.formatId;
+  let preferred: VisualSequence | null = null;
+  let pages = 0;
 
   for (const step of steps) {
+    if (step.mode === "sequence") {
+      const result = await applyFormatSequence({
+        pack: input.pack,
+        kind: step.id,
+        campaignId,
+        directionId: input.directionId,
+        preview: false,
+        persist: false,
+        touchCampaign: false,
+      });
+      if (!result.ok) return result;
+      generatedIds[step.id] = result.assetIds[0];
+      if (!firstAssetId) {
+        firstAssetId = result.assetIds[0] ?? "";
+        firstFormatId = result.formatId;
+      }
+      assetIds.push(...result.assetIds);
+      remembered.push(result.sequence);
+      pages += result.assetIds.length;
+      if (step.id === "carousel" || !preferred) preferred = result.sequence;
+      pending.push({
+        id: uid("sch"),
+        title: `${step.label} · ${input.pack.campaignName}`,
+        contentKind: step.contentKind,
+        status: "scheduled",
+        scheduledAt: tonightAt(step.days),
+        publishedAt: null,
+        projectId: result.projectId,
+        campaignId,
+        captionPreview: step.caption,
+        sequence: result.sequence,
+      });
+      continue;
+    }
+
     const reuseFrom = step.reuseFrom ? generatedIds[step.reuseFrom] : undefined;
     const result = await applyVisualDirection({
       pack: input.pack,
@@ -38,7 +85,9 @@ export async function applyFormatSuite(input: {
       convertTarget: step.id,
       contentKind: step.contentKind,
       caption: step.caption,
-      reuseAssetId: step.generate ? undefined : reuseFrom,
+      reuseAssetId: step.mode === "reuse" ? reuseFrom : undefined,
+      preview: false,
+      touchCampaign: false,
     });
     if (!result.ok) return result;
     generatedIds[step.id] = result.assetId;
@@ -60,29 +109,53 @@ export async function applyFormatSuite(input: {
     });
   }
 
-  useCreative.setState((state) => ({
-    lastVisualAssetId: firstAssetId || state.lastVisualAssetId,
-    igView: firstAssetId ? "preview" : state.igView,
-    ...(firstFormatId ? { igFormat: firstFormatId } : {}),
-    schedule: [...pending, ...state.schedule.filter((row) => !pending.some((item) => item.id === row.id))],
-    campaigns: campaignId
-      ? state.campaigns.map((campaign) =>
-          campaign.id === campaignId
-            ? {
-                ...campaign,
-                coverAssetId: generatedIds.post ?? campaign.coverAssetId,
-                relatedAssetIds: [...new Set([...assetIds, ...campaign.relatedAssetIds])].slice(0, 8),
-                updatedAt: Date.now(),
-              }
-            : campaign,
-        )
-      : state.campaigns,
-  }));
+  if (preferred) {
+    useStudio.getState().setLastProjectId(preferred.projectId);
+    useStudio.getState().setSlide(preferred.projectId, 0);
+    useCreative.getState().setLastSequence(preferred);
+  }
+
+  useCreative.setState((state) => {
+    const nextSequences = [...remembered, ...state.sequences.filter((row) => !remembered.some((item) => item.kind === row.kind))].slice(
+      0,
+      8,
+    );
+    return {
+      lastVisualAssetId: preferred?.assetIds[0] ?? firstAssetId ?? state.lastVisualAssetId,
+      lastSequence: preferred ?? state.lastSequence,
+      sequences: nextSequences,
+      igView: firstAssetId ? "preview" : state.igView,
+      ...(firstFormatId ? { igFormat: preferred ? "feed-portrait" : firstFormatId } : {}),
+      schedule: [...pending, ...state.schedule.filter((row) => !pending.some((item) => item.id === row.id))],
+      campaigns: campaignId
+        ? state.campaigns.map((campaign) =>
+            campaign.id === campaignId
+              ? {
+                  ...campaign,
+                  coverAssetId: generatedIds.carousel ?? generatedIds.post ?? campaign.coverAssetId,
+                  relatedAssetIds: [...new Set([...assetIds, ...campaign.relatedAssetIds])].slice(0, 8),
+                  projectIds: [
+                    ...new Set([
+                      ...campaign.projectIds,
+                      ...pending.map((item) => item.projectId).filter((id): id is string => Boolean(id)),
+                    ]),
+                  ],
+                  updatedAt: Date.now(),
+                }
+              : campaign,
+          )
+        : state.campaigns,
+    };
+  });
 
   const liveIds = new Set(useCreative.getState().schedule.map((item) => item.id));
   const missing = pending.filter((item) => !liveIds.has(item.id));
   if (missing.length) {
     return { ok: false, error: `日曆沒寫進去：${missing.map((item) => item.title).join("、")}` };
+  }
+  const liveSequence = useCreative.getState().lastSequence;
+  if (preferred && (!liveSequence || liveSequence.assetIds.length < 2)) {
+    return { ok: false, error: "分鏡畫面沒寫進去，請再試一次。" };
   }
 
   return {
@@ -91,5 +164,6 @@ export async function applyFormatSuite(input: {
     scheduled: pending.length,
     firstAssetId,
     titles: pending.map((item) => item.title),
+    pages,
   };
 }

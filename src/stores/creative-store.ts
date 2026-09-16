@@ -83,6 +83,7 @@ type CreativeState = {
   lastPack: CreativePack | null;
   lastVisualAssetId: string | null;
   lastSequence: VisualSequence | null;
+  sequences: VisualSequence[];
   igView: IgView;
   igFormat: FormatId;
   searchQuery: string;
@@ -127,6 +128,7 @@ export const useCreative = create<CreativeState>()(
       lastPack: null,
       lastVisualAssetId: null,
       lastSequence: null,
+      sequences: [],
       igView: "grid",
       igFormat: "feed-portrait",
       searchQuery: "",
@@ -154,7 +156,13 @@ export const useCreative = create<CreativeState>()(
       },
       setDriveFolderQuery: (driveFolderQuery) => set({ driveFolderQuery }),
       setLastPack: (lastPack) => set({ lastPack }),
-      setLastSequence: (lastSequence) => set({ lastSequence }),
+      setLastSequence: (lastSequence) =>
+        set((s) => ({
+          lastSequence,
+          sequences: lastSequence
+            ? [lastSequence, ...s.sequences.filter((row) => row.kind !== lastSequence.kind)].slice(0, 8)
+            : s.sequences,
+        })),
       setIgView: (igView) => set({ igView }),
       setIgFormat: (igFormat) => set({ igFormat }),
       setIgPreview: (assetId, formatId) =>
@@ -173,11 +181,12 @@ export const useCreative = create<CreativeState>()(
           const schedule = [...extra, ...s.schedule.filter((item) => item.campaignId !== campaign.id)];
           return { campaigns, schedule };
         }),
-      patchCampaign: (id, patch) => {
-        const current = get().campaigns.find((c) => c.id === id);
-        if (!current) return;
-        get().upsertCampaign({ ...current, ...patch, updatedAt: Date.now() });
-      },
+      patchCampaign: (id, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((campaign) =>
+            campaign.id === id ? { ...campaign, ...patch, updatedAt: Date.now() } : campaign,
+          ),
+        })),
       removeCampaign: (id) =>
         set((s) => ({
           campaigns: s.campaigns.filter((c) => c.id !== id),
@@ -255,7 +264,7 @@ export const useCreative = create<CreativeState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 4,
+      version: 5,
       migrate: (persisted) => {
         const row = (persisted ?? {}) as {
           campaigns: ClubCampaign[];
@@ -265,6 +274,8 @@ export const useCreative = create<CreativeState>()(
           connections: ConnectionState[];
           lastPack: CreativePack | null;
           lastVisualAssetId?: string | null;
+          lastSequence?: VisualSequence | null;
+          sequences?: VisualSequence[];
           igView?: IgView;
           igFormat?: FormatId;
           driveFolderQuery?: string;
@@ -278,6 +289,12 @@ export const useCreative = create<CreativeState>()(
           row.igFormat === "feed-square"
             ? row.igFormat
             : "feed-portrait";
+        const lastSequence = row.lastSequence ?? null;
+        const sequences = row.sequences?.length
+          ? row.sequences
+          : lastSequence
+            ? [lastSequence]
+            : [];
         return {
           campaigns: row.campaigns,
           schedule: row.schedule,
@@ -286,6 +303,8 @@ export const useCreative = create<CreativeState>()(
           connections: row.connections,
           lastPack: row.lastPack ?? null,
           lastVisualAssetId: row.lastVisualAssetId ?? null,
+          lastSequence,
+          sequences,
           igView,
           igFormat,
           driveFolderQuery: row.driveFolderQuery || "淡江禪學社",
@@ -299,6 +318,8 @@ export const useCreative = create<CreativeState>()(
         connections: s.connections,
         lastPack: s.lastPack,
         lastVisualAssetId: s.lastVisualAssetId,
+        lastSequence: s.lastSequence,
+        sequences: s.sequences,
         igView: s.igView,
         igFormat: s.igFormat,
         driveFolderQuery: s.driveFolderQuery,

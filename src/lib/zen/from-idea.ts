@@ -117,17 +117,27 @@ export function convertStaggerDays(id: string) {
   return 0;
 }
 
+export type SuiteMode = "generate" | "sequence" | "reuse";
+
 export function formatSuitePlan(pack: CreativePack) {
   const converted = convertFromPlan(pack.plan);
-  return CONVERT_TARGETS.map((target) => ({
-    id: target.id,
-    label: target.label,
-    formatId: target.formatId,
-    contentKind: target.contentKind,
-    days: convertStaggerDays(target.id),
-    caption: captionForTarget(converted, target.id),
-    generate: target.id === "post" || target.id === "story" || target.id === "reels" || target.id === "threads",
-    reuseFrom:
-      target.id === "carousel" ? ("post" as const) : target.id === "line" ? ("threads" as const) : null,
-  }));
+  return CONVERT_TARGETS.map((target) => {
+    const mode: SuiteMode =
+      target.id === "carousel" || target.id === "story" || target.id === "reels"
+        ? "sequence"
+        : target.id === "line"
+          ? "reuse"
+          : "generate";
+    return {
+      id: target.id,
+      label: target.label,
+      formatId: target.formatId,
+      contentKind: target.contentKind,
+      days: convertStaggerDays(target.id),
+      caption: captionForTarget(converted, target.id),
+      mode,
+      generate: mode === "generate",
+      reuseFrom: target.id === "line" ? ("threads" as const) : null,
+    };
+  });
 }
