@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { canvasToBlob, collectArtboardAssetIds, downloadBlob, renderArtboardToCanvas } from "@/lib/studio/export-png";
+import { buildExportCopyPack } from "@/lib/studio/export-copy";
 import { formatById } from "@/lib/studio/formats";
 import { getAssetBlob } from "@/lib/studio/assets-idb";
 import { uid } from "@/lib/studio/ids";
@@ -167,6 +168,17 @@ export function ExportPanel({
         }}
       >
         複製貼文文案
+      </Button>
+      <Button
+        variant="secondary"
+        className="w-full min-h-11"
+        onClick={() => {
+          const text = buildExportCopyPack(project);
+          downloadBlob(new Blob([text], { type: "text/plain;charset=utf-8" }), `${project.name.replace(/[\\/:*?"<>|]/g, "").slice(0, 40) || "export"}-copy.txt`);
+          toast.success("已下載文案包。這不是重新下載舊圖，也不是發文。");
+        }}
+      >
+        下載文案包
       </Button>
       {project.copy.altText ? (
         <p className="text-xs text-muted">Alt：{project.copy.altText}</p>

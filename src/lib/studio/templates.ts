@@ -79,7 +79,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
       eyebrow: "SEASON OFFER",
       headline: "本週限定",
       subhead: "把優惠與期限寫在同一視線。",
-      body: "到店或線上兌換方式。",
+      body: "報名或到場方式寫這裡。",
       cta: "立即查看",
       handle: "",
       caption: "",

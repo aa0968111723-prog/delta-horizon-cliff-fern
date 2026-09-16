@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   agendaDays,
   campaignNameOf,
+  calendarSurface,
   isoDay,
   monthGrid,
   movePlannedAt,
@@ -32,11 +33,13 @@ export function ContentCalendar() {
   const [anchor, setAnchor] = useState(() => startOfToday());
   const [view, setView] = useState<CalendarView>("month");
   const [mobileView, setMobileView] = useState<Extract<CalendarView, "agenda" | "week">>("agenda");
+  const [narrow, setNarrow] = useState(false);
   const [campaignId, setCampaignId] = useState(campaigns[0]?.id ?? "all");
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
     function apply() {
+      setNarrow(media.matches);
       if (media.matches) setView("agenda");
     }
     apply();
@@ -44,15 +47,17 @@ export function ContentCalendar() {
     return () => media.removeEventListener("change", apply);
   }, []);
 
+  const activeView = calendarSurface(narrow, view, mobileView);
+
   const filtered = useMemo(
     () => contentItems.filter((item) => campaignId === "all" || item.campaignId === campaignId),
     [campaignId, contentItems],
   );
   const days = useMemo(() => {
-    if (view === "week") return weekGrid(anchor, filtered);
-    if (view === "agenda") return agendaDays(filtered, anchor);
+    if (activeView === "week") return weekGrid(anchor, filtered);
+    if (activeView === "agenda") return agendaDays(filtered, anchor);
     return monthGrid(anchor, filtered);
-  }, [anchor, filtered, view]);
+  }, [anchor, filtered, activeView]);
 
   function dropOnDay(day: string, contentId: string) {
     const item = contentItems.find((row) => row.id === contentId);
@@ -73,7 +78,7 @@ export function ContentCalendar() {
       features: [campaign.oneLiner, campaign.description].filter(Boolean).join("；"),
       notes: `這一波內容：${item.title}。角度：${item.angle}`,
       deliverables: contentTypeDeliverables(item.type),
-    });
+    }, item.id);
   }
 
   return (
@@ -99,13 +104,13 @@ export function ContentCalendar() {
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => setAnchor((date) => shift(view, date, -1))} aria-label="上一段">
+          <Button variant="ghost" size="icon" onClick={() => setAnchor((date) => shift(activeView, date, -1))} aria-label="上一段">
             <ChevronLeft className="size-4" />
           </Button>
           <p className="min-w-36 text-center font-display text-xl">
-            {format(anchor, view === "week" ? "M月d日" : "yyyy年M月", { locale: zhTW })}
+            {format(anchor, activeView === "week" ? "M月d日" : "yyyy年M月", { locale: zhTW })}
           </p>
-          <Button variant="ghost" size="icon" onClick={() => setAnchor((date) => shift(view, date, 1))} aria-label="下一段">
+          <Button variant="ghost" size="icon" onClick={() => setAnchor((date) => shift(activeView, date, 1))} aria-label="下一段">
             <ChevronRight className="size-4" />
           </Button>
         </div>
@@ -151,9 +156,9 @@ export function ContentCalendar() {
       </div>
 
       <div className="mt-5 md:hidden">
-        {mobileView === "week" ? (
+        {activeView === "week" ? (
           <ol className="space-y-3">
-            {weekGrid(anchor, filtered).map((day) => (
+            {days.map((day) => (
               <li key={`mw-${day.date}`} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
                 <p className="text-xs font-medium text-accent">{format(parseISO(day.date), "M月d日 EEEE", { locale: zhTW })}</p>
                 {day.items.length ? (
@@ -200,7 +205,7 @@ export function ContentCalendar() {
         )}
       </div>
 
-      {view === "agenda" ? (
+      {activeView === "agenda" && !narrow ? (
         <ol className="mt-5 hidden space-y-3 md:block">
           {days.filter((day) => day.items.length).map((day) => (
             <li key={day.date} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">

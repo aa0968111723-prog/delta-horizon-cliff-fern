@@ -162,12 +162,17 @@ export function searchCreativeMemory(
     if (!brand?.memory) return [] as CreativeMemoryResult[];
     const rows: { title: string; subtitle: string }[] = [
       { title: brand.memory.mission, subtitle: "Brand Memory・使命" },
+      { title: brand.voice, subtitle: "Brand Memory・語氣" },
+      ...brand.slogans.map((item) => ({ title: item, subtitle: "Brand Memory・標語" })),
       ...brand.memory.audienceSegments.map((item) => ({ title: item, subtitle: "Brand Memory・核心學生" })),
       ...brand.memory.campusContexts.map((item) => ({ title: item, subtitle: "Brand Memory・校園情境" })),
       ...brand.memory.seasonalMoments.map((item) => ({ title: item, subtitle: "Brand Memory・時機" })),
       ...brand.memory.contentPillars.map((item) => ({ title: item, subtitle: "Brand Memory・內容支柱" })),
       ...brand.memory.signatureElements.map((item) => ({ title: item, subtitle: "Brand Memory・辨識元素" })),
       ...brand.memory.learnedPatterns.map((item) => ({ title: item, subtitle: "Brand Memory・已學到" })),
+      { title: brand.imageStyle?.mood, subtitle: "Brand Memory・畫面情緒" },
+      { title: brand.imageStyle?.do, subtitle: "Brand Memory・畫面該有" },
+      { title: brand.imageStyle?.dont, subtitle: "Brand Memory・畫面不要" },
     ];
     return rows.flatMap((row, index) => {
       const found = matches(`${row.title} ${row.subtitle} Brand Memory`, needles);

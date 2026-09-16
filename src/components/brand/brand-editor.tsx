@@ -1,5 +1,5 @@
 import { Star, Trash2, Upload } from "lucide-react";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { StyleMemoryPanel } from "@/components/brand/style-memory";
@@ -71,14 +71,21 @@ export function BrandEditor() {
   const urls = useAssetUrls(logoIds);
   const memory = brand?.memory ?? emptyBrandMemory();
 
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "");
+    if (SECTIONS.some((item) => item.id === hash)) {
+      setSection(hash as (typeof SECTIONS)[number]["id"]);
+    }
+  }, []);
+
   if (!brand) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-16">
         <EmptyState
           icon={SwatchBook}
-          title="尚無品牌"
-          description="建立品牌規範後，排版與 AI 企劃都會跟著走。"
-          action={<Button onClick={() => setActiveId(createBrand("新品牌").id)}>建立品牌</Button>}
+          title="尚無 Brand Memory"
+          description="建立淡江大學禪學社的識別後，AI 創作與畫布都會跟著走。這裡不是多品牌後台。"
+          action={<Button onClick={() => setActiveId(createBrand("淡江大學禪學社").id)}>建立禪學社品牌</Button>}
         />
       </main>
     );
@@ -187,10 +194,11 @@ export function BrandEditor() {
           <Button
             key={item.id}
             size="sm"
+            className="min-h-11 shrink-0"
             variant={section === item.id ? "default" : "secondary"}
             onClick={() => {
               setSection(item.id);
-              document.getElementById(`brand-${item.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              history.replaceState(null, "", `#${item.id}`);
             }}
           >
             {item.label}
@@ -198,7 +206,11 @@ export function BrandEditor() {
         ))}
       </div>
 
-      <section id="brand-identity" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section
+        id="brand-identity"
+        hidden={section !== "identity"}
+        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
+      >
         <h2 className="text-sm font-medium">品牌識別</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="品牌名稱">
@@ -216,7 +228,11 @@ export function BrandEditor() {
         </Field>
       </section>
 
-      <section id="brand-memory" className="space-y-4 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section
+        id="brand-memory"
+        hidden={section !== "memory"}
+        className="space-y-4 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
+      >
         <div>
           <h2 className="text-sm font-medium">Creative Brain 記得什麼</h2>
           <p className="mt-1 text-xs leading-5 text-muted">
@@ -298,7 +314,11 @@ export function BrandEditor() {
         <StyleMemoryPanel />
       </section>
 
-      <section id="brand-logo" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section
+        id="brand-logo"
+        hidden={section !== "logo"}
+        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
+      >
         <div className="flex items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-medium">Logo 與版本</h2>
@@ -398,7 +418,11 @@ export function BrandEditor() {
         )}
       </section>
 
-      <section id="brand-colors" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section
+        id="brand-colors"
+        hidden={section !== "colors"}
+        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
+      >
         <h2 className="text-sm font-medium">色彩</h2>
         <p className="text-xs text-muted">主色、輔助色與背景色會進自動排版；強調色用於 CTA 與線條。</p>
         <ul className="space-y-3">
@@ -468,7 +492,11 @@ export function BrandEditor() {
         </Button>
       </section>
 
-      <section id="brand-fonts" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section
+        id="brand-fonts"
+        hidden={section !== "fonts"}
+        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
+      >
         <h2 className="text-sm font-medium">字體</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="標題字體">
@@ -510,20 +538,24 @@ export function BrandEditor() {
         </div>
       </section>
 
-      <section id="brand-copy" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section
+        id="brand-copy"
+        hidden={section !== "copy"}
+        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
+      >
         <h2 className="text-sm font-medium">固定標語與常用 CTA</h2>
         <ChipList
           label="固定標語"
           hint="主標語會出現在品牌預覽，AI 企劃會參考。"
           values={brand.slogans}
-          placeholder="例如：這個月只烘一個產地。"
+          placeholder="例如：在忙亂裡，留一點空間給自己。"
           onChange={(slogans) => patch("slogans", slogans)}
         />
         <ChipList
           label="常用 CTA"
           hint="第一則會作為新專案預設按鈕文案。"
           values={brand.ctas}
-          placeholder="例如：查看風味"
+          placeholder="例如：看看活動"
           onChange={(ctas) => {
             patch("ctas", ctas);
             patch("boilerplate", { ...brand.boilerplate, cta: ctas[0] || brand.boilerplate.cta });
@@ -533,7 +565,7 @@ export function BrandEditor() {
           <Textarea
             value={brand.boilerplate.captionClose}
             onChange={(e) => patch("boilerplate", { ...brand.boilerplate, captionClose: e.target.value })}
-            placeholder="例如：歡迎到店，或私訊詢問。"
+            placeholder="例如：如果你也想喘口氣，可以找朋友一起來。"
           />
         </Field>
         <Field label="固定標籤（逗號分隔）">
@@ -559,14 +591,18 @@ export function BrandEditor() {
         </Field>
       </section>
 
-      <section id="brand-style" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section
+        id="brand-style"
+        hidden={section !== "style"}
+        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
+      >
         <h2 className="text-sm font-medium">圖片風格</h2>
         <p className="text-xs text-muted">給攝影師與 AI 企劃看的視覺方向，不會自動套濾鏡。</p>
         <Field label="畫面情緒">
           <Input
             value={brand.imageStyle.mood}
             onChange={(e) => patch("imageStyle", { ...brand.imageStyle, mood: e.target.value })}
-            placeholder="沉靜、暖光、留白"
+            placeholder="沉靜、暖光、有空氣感"
           />
         </Field>
         <Field label="光線">
@@ -580,14 +616,14 @@ export function BrandEditor() {
           <Input
             value={brand.imageStyle.paletteHint}
             onChange={(e) => patch("imageStyle", { ...brand.imageStyle, paletteHint: e.target.value })}
-            placeholder="亞麻、深焙、赤陶"
+            placeholder="霧白、淡水深綠、禪光金"
           />
         </Field>
         <Field label="構圖">
           <Input
             value={brand.imageStyle.composition}
             onChange={(e) => patch("imageStyle", { ...brand.imageStyle, composition: e.target.value })}
-            placeholder="商品置中或上半，下半留白給標題"
+            placeholder="人物或校園情境保留呼吸感，標題區清楚"
           />
         </Field>
         <Field label="應該拍／用">
@@ -604,7 +640,11 @@ export function BrandEditor() {
         </Field>
       </section>
 
-      <section id="brand-rules" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <section
+        id="brand-rules"
+        hidden={section !== "rules"}
+        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
+      >
         <h2 className="text-sm font-medium">品牌禁用規則</h2>
         <Field label="可以說">
           <Input value={brand.doSay} onChange={(e) => patch("doSay", e.target.value)} />
@@ -636,8 +676,8 @@ export function BrandEditor() {
           </div>
         ) : null}
         <ToggleRow
-          label="禁止競品標誌"
-          hint="畫布與素材不得出現其他品牌 Logo。"
+          label="禁止其他品牌標誌"
+          hint="畫布與素材不要出現其他社團或品牌 Logo。"
           checked={brand.rules.noCompetitorMarks}
           onChange={(noCompetitorMarks) => patch("rules", { ...brand.rules, noCompetitorMarks })}
         />
@@ -657,7 +697,7 @@ export function BrandEditor() {
           <Textarea
             value={brand.rules.notes}
             onChange={(e) => patch("rules", { ...brand.rules, notes: e.target.value })}
-            placeholder="例如：Logo 不壓在杯緣；價格不進主畫面。"
+            placeholder="例如：Logo 不壓過人物臉部；時間地點不可藏起來。"
           />
         </Field>
       </section>
@@ -751,19 +791,15 @@ function ChipList({
       {values.length === 0 ? (
         <p className="mt-2 text-xs text-muted">尚未新增。</p>
       ) : (
-        <ul className="mt-2 space-y-2">
+        <ul className="mt-2 flex flex-wrap gap-2">
           {values.map((item, index) => (
-            <li key={`${item}-${index}`} className="flex items-center gap-2 rounded-lg bg-bg px-3 py-2">
-              {index === 0 ? <Star className="size-3.5 text-warn" /> : <span className="size-3.5" />}
-              <Input
-                className="h-9"
-                value={item}
-                onChange={(e) => onChange(values.map((v, i) => (i === index ? e.target.value : v)))}
-              />
+            <li key={`${item}-${index}`} className="flex min-h-11 max-w-full items-center gap-1 rounded-full bg-bg pl-3 pr-1">
+              {index === 0 ? <Star className="size-3.5 shrink-0 text-warn" /> : null}
+              <span className="max-w-64 truncate text-sm leading-5">{item}</span>
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="移除"
+                aria-label={`移除 ${item}`}
                 onClick={() => onChange(values.filter((_, i) => i !== index))}
               >
                 <Trash2 className="size-4" />

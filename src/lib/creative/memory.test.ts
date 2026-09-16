@@ -155,6 +155,17 @@ test("style references are appended to Brand Memory prompts", () => {
   );
 });
 
+test("searchCreativeMemory finds campus context like 淡水雨天 in Brand Memory", () => {
+  const results = searchCreativeMemory("淡水雨天", {
+    assets: [],
+    campaigns: [],
+    contentItems: [],
+    brand,
+  });
+  assert.equal(results.some((item) => item.kind === "memory" && item.title === "淡水雨天"), true);
+  assert.equal(results[0]?.provider, "Brand Memory");
+});
+
 test("searchCreativeMemory includes Brand Memory lessons and Copy Pack hooks", () => {
   const results = searchCreativeMemory("先寫學生生活 坐下來 三色光", {
     assets: [],

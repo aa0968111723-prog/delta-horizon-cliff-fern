@@ -21,6 +21,7 @@ import { emptyBrief, formatsFromBrief, migrateBrief } from "@/lib/studio/brief";
 import { FORMATS } from "@/lib/studio/formats";
 import type { Brief, FormatId, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
@@ -38,7 +39,10 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
   const setLastProjectId = useStudio((s) => s.setLastProjectId);
   const setAssistantOpen = useUi((s) => s.setAssistantOpen);
   const creativePreset = useUi((s) => s.creativePreset);
+  const contentLinkId = useUi((s) => s.contentLinkId);
   const clearCreativePreset = useUi((s) => s.clearCreativePreset);
+  const clearContentLink = useUi((s) => s.clearContentLink);
+  const linkProject = useCreative((s) => s.linkProject);
 
   const existing = projectId ? projects.find((p) => p.id === projectId) : undefined;
   const [targetId, setTargetId] = useState<string>(existing?.id ?? "new");
@@ -146,6 +150,10 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
         project = current;
       }
       applyCampaignPlan(project.id, result.plan, nextBrief);
+      if (contentLinkId) {
+        linkProject(contentLinkId, project.id);
+        clearContentLink();
+      }
       setLastProjectId(project.id);
       setDoneId(project.id);
       setTargetId(project.id);

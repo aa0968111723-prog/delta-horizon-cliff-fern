@@ -43,7 +43,7 @@ function studentHook(name: string, features: string) {
 export function buildMockPlan(data: BriefInput): CampaignPlan {
   const name = data.eventName.trim();
   const when = data.schedule.trim() || "近期檔期";
-  const where = data.location.trim() || "到店";
+  const where = data.location.trim() || "淡江大學校園";
   const audience = data.audience.trim();
   const features = data.features.trim() || data.product.trim() || name;
   const style = data.style.trim() || data.voice || "沉靜、具體";

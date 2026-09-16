@@ -105,7 +105,7 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
       return;
     }
     if (result.kind === "memory") {
-      void navigate({ to: "/brand" });
+      void navigate({ to: "/brand", hash: "memory" });
       return;
     }
     if (result.providerKind === "instagram") {

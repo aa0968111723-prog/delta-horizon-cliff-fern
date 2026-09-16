@@ -90,3 +90,11 @@ export function daysUntilLabel(dateIso: string, from = new Date()) {
   if (days === 0) return "就是今天";
   return `還有 ${days} 天`;
 }
+
+export function calendarSurface(
+  narrow: boolean,
+  desktop: CalendarView,
+  mobile: Extract<CalendarView, "agenda" | "week">,
+): CalendarView {
+  return narrow ? mobile : desktop;
+}

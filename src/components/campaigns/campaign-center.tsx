@@ -88,7 +88,7 @@ export function CampaignCenter() {
     if (!campaign) return;
     setContentStatus(item.id, "creating");
     if (item.projectId) setProjectStatus(item.projectId, "creating");
-    startCreative(campaignBrief(campaign, item));
+    startCreative(campaignBrief(campaign, item), item.id);
   }
 
   if (!campaign) {
