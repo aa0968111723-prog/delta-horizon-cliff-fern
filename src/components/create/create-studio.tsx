@@ -129,6 +129,7 @@ export function CreateStudio() {
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
   const [busy, setBusy] = useState(false);
+  const sendingCanva = useRef(false);
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [plan, setPlan] = useState<CampaignPlan | null>(null);
   const [packs, setPacks] = useState<CopyPack[]>([]);
@@ -951,7 +952,8 @@ export function CreateStudio() {
   }
 
   async function sendToCanva() {
-    if (!plan) return;
+    if (!plan || sendingCanva.current) return;
+    sendingCanva.current = true;
     setBusy(true);
     try {
       let imageBase64 = lastImage?.base64;
@@ -1008,6 +1010,7 @@ export function CreateStudio() {
       }
       toast.success(result.note);
     } finally {
+      sendingCanva.current = false;
       setBusy(false);
     }
   }
@@ -1140,15 +1143,16 @@ export function CreateStudio() {
           body: item.kind === "carousel" ? item.body : cleaned.body,
         });
       }
+      setBusy(false);
+      toast.success("已用這個方向做出整套：主視覺、文案、Carousel、限動、Reels、Threads、LINE、月曆");
+      requestAnimationFrame(() => {
+        document.querySelector('[data-testid="kit-ready"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
       await saveKitStills(next, {
         eventName: eventName || next.campaignName,
         campaignId: created.id,
         projectId: project?.id ?? null,
       }).catch(() => undefined);
-      toast.success("已用這個方向做出整套：主視覺、文案、Carousel、限動、Reels、Threads、LINE、月曆");
-      requestAnimationFrame(() => {
-        document.querySelector('[data-testid="kit-ready"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
     } finally {
       setBusy(false);
     }
@@ -1539,10 +1543,10 @@ export function CreateStudio() {
                 </p>
               ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button size="sm" disabled={busy} data-testid="send-to-canva" onClick={() => void sendToCanva()}>
+                <Button size="sm" data-testid="send-to-canva" onClick={() => void sendToCanva()}>
                   送進 Canva
                 </Button>
-                <Button size="sm" variant="secondary" disabled={busy} data-testid="pull-from-canva" onClick={() => void pullFromCanva()}>
+                <Button size="sm" variant="secondary" data-testid="pull-from-canva" onClick={() => void pullFromCanva()}>
                   拉回主視覺
                 </Button>
                 <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/ig" })}>
@@ -1561,7 +1565,7 @@ export function CreateStudio() {
                 >
                   看月曆
                 </Button>
-                <Button size="sm" disabled={busy} data-testid="publish-hero" onClick={() => void publishHero()}>
+                <Button size="sm" data-testid="publish-hero" onClick={() => void publishHero()}>
                   發布主視覺
                 </Button>
               </div>
