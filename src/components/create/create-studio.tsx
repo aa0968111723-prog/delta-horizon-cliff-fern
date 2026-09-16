@@ -24,6 +24,7 @@ import { publicImageUrl } from "@/lib/connect/ig-publish";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { varyImagePrompt, type ImageVaryKind } from "@/lib/creative/image-vary";
 import { inferCampaignType, inferEventDate, isoFromMs, scheduledAtFor } from "@/lib/creative/schedule";
+import { alignPackToDirection } from "@/lib/creative/pack-align";
 import { annotateWavesFromPack, captionForPackKind, coverForKind, PACK_SCHEDULE_KINDS, remainingPackKinds, topicForPackKind, usesStoryCover } from "@/lib/creative/pack-schedule";
 import { gatherStatusLine, searchCreative, selectSourcesForPack } from "@/lib/creative/search";
 import type { SearchHit } from "@/lib/creative/types";
@@ -162,6 +163,7 @@ export function CreateStudio({
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [reelsCoverSrc, setReelsCoverSrc] = useState<string | null>(null);
   const lastAsset = useRef<{ feed?: string; story?: string }>({});
+  const imageDirId = useRef<string | null>(null);
   const [visionKit, setVisionKit] = useState<{
     story: StoryFrame[];
     reels: ReelsBeat[];
@@ -240,26 +242,36 @@ export function CreateStudio({
         toast.error(result.error);
         return;
       }
-      const when = campaign ? `${campaign.date} ${campaign.time}` : result.pack.plan.subhead;
+      const aligned = alignPackToDirection(
+        { ...result.pack, sourceSummary: note, copyVariants: result.pack.copyVariants },
+        dirId,
+        directions.length === 3 ? directions : undefined,
+      );
+      const when = campaign ? `${campaign.date} ${campaign.time}` : aligned.plan.subhead;
       const where = campaign?.location;
-      const revised = reviseCopiesForStudent(result.pack.copyVariants, result.pack.plan.studentSim, when, where);
+      const revised = reviseCopiesForStudent(aligned.copyVariants, aligned.plan.studentSim, when, where);
       const nextPack = {
-        ...result.pack,
+        ...aligned,
         sourceSummary: note,
         copyVariants: revised.copies,
       };
+      const keptId =
+        dirId && nextPack.directions.some((item) => item.id === dirId)
+          ? dirId
+          : (nextPack.directions[0]?.id ?? null);
       setPack(nextPack);
-      setDirId(nextPack.directions[0]?.id ?? null);
+      setDirId(keptId);
       setCopies(revised.copies);
       setSimApplied(revised.applied);
       let heroSrc = imageSrc;
-      const heroPrompt = nextPack.directions[0]?.imagePrompt;
-      if (heroPrompt && !opts?.skipHero) {
-        heroSrc = (await runImage(heroPrompt, aspect, { silent: true, keepBusy: true })) ?? heroSrc;
+      const chosen = nextPack.directions.find((item) => item.id === keptId) ?? nextPack.directions[0];
+      const keepHero = Boolean(opts?.skipHero) || (Boolean(imageSrc) && imageDirId.current === keptId);
+      if (chosen?.imagePrompt && !keepHero) {
+        heroSrc = (await runImage(chosen.imagePrompt, aspect, { silent: true, keepBusy: true, directionId: keptId })) ?? heroSrc;
       }
       writeLastSession({
         pack: nextPack,
-        dirId: nextPack.directions[0]?.id ?? null,
+        dirId: keptId,
         copies: revised.copies,
         tone: "student",
         imageSrc: persistableImageSrc(heroSrc),
@@ -269,7 +281,7 @@ export function CreateStudio({
         aspect,
         savedAt: Date.now(),
       });
-      toast.success(heroPrompt && !opts?.skipHero ? "完整宣傳與主視覺好了" : "完整宣傳好了");
+      toast.success(chosen?.imagePrompt && !keepHero ? "完整宣傳與主視覺好了" : "完整宣傳好了");
       const campId = resolvedCampaignId;
       if (campId) {
         const live = useCreative.getState();
@@ -430,7 +442,7 @@ export function CreateStudio({
   async function runImage(
     prompt: string,
     ratio: (typeof ASPECTS)[number]["id"] = aspect,
-    opts?: { silent?: boolean; keepBusy?: boolean; asCover?: boolean },
+    opts?: { silent?: boolean; keepBusy?: boolean; asCover?: boolean; directionId?: string | null },
   ) {
     const gen = ++paintGen.current;
     const coverOnly = Boolean(opts?.asCover);
@@ -463,6 +475,7 @@ export function CreateStudio({
       }
       if (!coverOnly) {
         setImageSrc(result.src);
+        imageDirId.current = opts?.directionId ?? dirId;
         if (ratio !== "9:16") lastAsset.current.feed = id;
       }
       if (result.src.startsWith("https:")) {
@@ -1054,8 +1067,12 @@ export function CreateStudio({
         placeholder="例如：下週有一場茶會"
       />
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button onClick={() => void runPack()} disabled={busy} className="min-h-11 rounded-full">
-          {busy ? "生成中…" : "AI 生成完整宣傳"}
+        <Button onClick={() => void runPack({ skipHero: Boolean(imageSrc) && imageDirId.current === dirId })} disabled={busy} className="min-h-11 rounded-full">
+          {busy
+            ? "生成中…"
+            : dirId && shownDirections.length && !pack
+              ? `用「${activeDir?.name ?? "這個方向"}」做完整宣傳`
+              : "AI 生成完整宣傳"}
         </Button>
         <Button variant="secondary" className="min-h-11 rounded-full" disabled={busy} onClick={() => void runCopy()}>
           只寫文案
@@ -1165,17 +1182,24 @@ export function CreateStudio({
           onPick={(dir) => {
             setDirId(dir.id);
             if (pack && dir.id !== dirId && dir.imagePrompt) {
-              void runImage(dir.imagePrompt, aspect, { silent: true });
+              void runImage(dir.imagePrompt, aspect, { silent: true, directionId: dir.id });
             }
           }}
           onAspect={setAspect}
           onGenerate={() => {
-            if (activeDir?.imagePrompt) void runImage(activeDir.imagePrompt);
+            if (activeDir?.imagePrompt) void runImage(activeDir.imagePrompt, aspect, { directionId: activeDir.id });
           }}
           onVary={(kind) => {
-            if (activeDir?.imagePrompt) void runImage(varyImagePrompt(activeDir.imagePrompt, kind));
+            if (activeDir?.imagePrompt) {
+              void runImage(varyImagePrompt(activeDir.imagePrompt, kind), aspect, { directionId: activeDir.id });
+            }
           }}
           onRefresh={() => void runDirections()}
+          onMakePack={
+            pack
+              ? undefined
+              : () => void runPack({ skipHero: Boolean(imageSrc) && imageDirId.current === (activeDir?.id ?? dirId) })
+          }
         />
       ) : null}
 
@@ -1480,6 +1504,7 @@ function VisualDirectionBoard({
   onGenerate,
   onVary,
   onRefresh,
+  onMakePack,
 }: {
   directions: CreativeDirection[];
   dirId: string | null;
@@ -1492,6 +1517,7 @@ function VisualDirectionBoard({
   onGenerate: () => void;
   onVary: (kind: ImageVaryKind) => void;
   onRefresh: () => void;
+  onMakePack?: () => void;
 }) {
   return (
     <section className="mt-6" data-visual-directions="">
@@ -1568,6 +1594,11 @@ function VisualDirectionBoard({
               重新生成方向
             </Button>
           </div>
+          {onMakePack ? (
+            <Button className="mt-4 min-h-11 rounded-full" disabled={busy} onClick={onMakePack}>
+              用這個方向做完整宣傳
+            </Button>
+          ) : null}
         </div>
       ) : null}
     </section>
