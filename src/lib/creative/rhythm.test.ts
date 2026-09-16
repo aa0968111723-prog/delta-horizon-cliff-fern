@@ -42,7 +42,7 @@ test("short campaign rhythm stays useful without inventing a two-week runway", (
     campaign("2026-09-20"),
     new Date("2026-09-16T00:00:00+08:00"),
   );
-  assert.deepEqual(items.map((item) => item.type), ["Carousel", "倒數", "Story", "活動回顧"]);
+  assert.deepEqual(items.map((item) => item.type), ["IG Post", "Carousel", "倒數", "Story", "活動回顧"]);
 });
 
 test("content types map to existing Studio deliverables", () => {
