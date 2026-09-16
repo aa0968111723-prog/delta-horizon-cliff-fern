@@ -63,6 +63,10 @@ export function memoryPostFromPublish(input: {
   };
 }
 
+export function styleBriefFromPublish(pack: Pick<LastPack, "hook" | "eventName" | "kind">) {
+  return `剛發布 · ${pack.kind} · ${pack.eventName}。Hook：${pack.hook}`.slice(0, 180);
+}
+
 export function publishNeedsVideo(kind: ContentKind, videoUrl?: string) {
   return kind === "reels" && !httpsVideoUrl(videoUrl);
 }

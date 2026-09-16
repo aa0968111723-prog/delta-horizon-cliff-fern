@@ -18,6 +18,7 @@ import { lessonPrompt } from "@/lib/club/insights";
 import { convertedScheduleUpserts } from "@/lib/club/schedule";
 import { generateReelsClip } from "@/lib/club/reels-video";
 import { runPackPublish } from "@/lib/club/run-publish";
+import { styleBriefFromPublish } from "@/lib/club/publish";
 import { CONVERT_TARGETS, allConvertedPacks, convertPlan, reelsVideoPrompt } from "@/lib/convert/pack";
 import { folderSearchInput } from "@/lib/connections/presets";
 import { generateStudioImage } from "@/lib/image/studio";
@@ -67,6 +68,7 @@ export function IdeaFlow({
   const igPosts = useCreative((s) => s.igPosts);
   const lastPackState = useCreative((s) => s.lastPack);
   const rememberStyle = useCreative((s) => s.rememberStyle);
+  const setFocusIgId = useCreative((s) => s.setFocusIgId);
 
   const [idea, setIdea] = useState(seedIdea || "下週有一場茶會");
   const [phase, setPhase] = useState<Phase>("idea");
@@ -377,6 +379,8 @@ export function IdeaFlow({
     try {
       const result = await runPackPublish(current, previewSrc);
       ingestIg([result.post]);
+      rememberStyle(styleBriefFromPublish(current));
+      setFocusIgId(result.post.id);
       const existing = useCreative.getState().schedule.find(
         (row) => row.campaignId === campaignId && row.contentKind === packKind && row.status !== "published",
       );
@@ -774,14 +778,33 @@ export function IdeaFlow({
             <p className="text-sm font-medium">這篇會出現在 IG Grid</p>
             <ul className="grid grid-cols-3 gap-1 overflow-hidden rounded-2xl" data-testid="idea-ig-grid">
               <li className="relative">
-                <IgThumb src={previewSrc} caption={plan.hook} />
-                <span className="absolute left-1 top-1 rounded-full bg-accent px-2 py-0.5 text-[10px] text-accent-fg">
-                  草稿
-                </span>
+                <button
+                  type="button"
+                  className="block w-full"
+                  data-testid="idea-ig-draft"
+                  onClick={() => {
+                    setFocusIgId(lastPackState ? `draft_${lastPackState.projectId}` : "draft");
+                    void navigate({ to: "/instagram" });
+                  }}
+                >
+                  <IgThumb src={previewSrc} />
+                  <span className="absolute left-1 top-1 rounded-full bg-accent px-2 py-0.5 text-[10px] text-accent-fg">
+                    草稿
+                  </span>
+                </button>
               </li>
               {igPosts.slice(0, 5).map((post) => (
                 <li key={post.id}>
-                  <IgThumb src={post.thumb} caption={post.caption} />
+                  <button
+                    type="button"
+                    className="block w-full"
+                    onClick={() => {
+                      setFocusIgId(post.id);
+                      void navigate({ to: "/instagram" });
+                    }}
+                  >
+                    <IgThumb src={post.thumb} caption={post.caption} />
+                  </button>
                 </li>
               ))}
             </ul>
@@ -822,7 +845,7 @@ export function IdeaFlow({
             <Button data-testid="idea-publish" disabled={busy} onClick={() => void publishNow()}>
               發布到 IG
             </Button>
-            <Button variant="secondary" onClick={() => void navigate({ to: "/instagram" })}>
+            <Button variant="secondary" data-testid="idea-ig-preview" onClick={() => void navigate({ to: "/instagram" })}>
               看 IG Preview
             </Button>
             {projectId ? (

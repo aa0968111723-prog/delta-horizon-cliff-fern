@@ -1,7 +1,7 @@
 import { addDays, format, startOfMonth, startOfWeek, isSameDay, isSameMonth } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,8 @@ import { writeHandoff } from "@/lib/create/handoff";
 import { CONTENT_KIND_META, CONTENT_STATUS_META } from "@/lib/studio/status";
 import { publishableScheduleRows, scheduleChipLabel } from "@/lib/club/schedule";
 import { publishScheduleRow } from "@/lib/club/run-schedule-publish";
-import { packAssetIds } from "@/lib/club/last-pack";
+import { packAssetIds, withPackKind } from "@/lib/club/last-pack";
+import { styleBriefFromPublish } from "@/lib/club/publish";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { toast } from "sonner";
 import type { ContentKind } from "@/lib/studio/types";
@@ -37,7 +38,11 @@ function ScheduleActions({
   const setScheduleStatus = useCreative((s) => s.setScheduleStatus);
   const ingestIg = useCreative((s) => s.ingestIg);
   const lastPack = useCreative((s) => s.lastPack);
+  const setLastPack = useCreative((s) => s.setLastPack);
+  const rememberStyle = useCreative((s) => s.rememberStyle);
+  const setFocusIgId = useCreative((s) => s.setFocusIgId);
   const updateProject = useStudio((s) => s.updateProject);
+  const navigate = useNavigate();
   const size = compact ? "sm" : "sm";
 
   function markPublished() {
@@ -55,11 +60,15 @@ function ScheduleActions({
     try {
       const result = await publishScheduleRow({ row, lastPack, assetUrls: urls });
       ingestIg([result.post]);
+      const packed = lastPack ? withPackKind(lastPack, row.contentKind) : null;
+      if (packed) rememberStyle(styleBriefFromPublish(packed));
+      setFocusIgId(result.post.id);
       setScheduleStatus(row.id, "published");
       if (row.projectId) {
         updateProject(row.projectId, { contentStatus: "published", publishedAt: Date.now() });
       }
       toast.success(result.message);
+      void navigate({ to: "/instagram" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "發布失敗");
     }
@@ -69,6 +78,20 @@ function ScheduleActions({
     <div className="flex flex-wrap gap-2" data-testid="calendar-item-actions">
       <Button size={size} data-testid="calendar-publish" onClick={() => void publishToIg()}>
         發布到 IG
+      </Button>
+      <Button
+        size={size}
+        variant="secondary"
+        data-testid="calendar-ig-preview"
+        onClick={() => {
+          if (lastPack) {
+            setLastPack(withPackKind(lastPack, row.contentKind));
+            setFocusIgId(`draft_${lastPack.projectId}`);
+          }
+          void navigate({ to: "/instagram" });
+        }}
+      >
+        看 IG Preview
       </Button>
       <Button size={size} variant="secondary" onClick={() => duplicateSchedule(row.id)}>
         複製

@@ -74,6 +74,7 @@ type CreativeState = {
   lastSearch: string;
   lastPack: LastPack | null;
   styleMemory: string[];
+  focusIgId: string | null;
   setHydrated: (v: boolean) => void;
   upsertCampaign: (input: Partial<ClubCampaign> & Pick<ClubCampaign, "name">) => ClubCampaign;
   removeCampaign: (id: string) => void;
@@ -89,6 +90,7 @@ type CreativeState = {
   setLastSearch: (q: string) => void;
   setLastPack: (pack: LastPack | null) => void;
   rememberStyle: (brief: string) => void;
+  setFocusIgId: (id: string | null) => void;
 };
 
 function uniqueById<T extends { id: string }>(items: T[] | undefined, fallback: T[] = []) {
@@ -186,6 +188,7 @@ export const useCreative = create<CreativeState>()(
       lastSearch: "",
       lastPack: null,
       styleMemory: [],
+      focusIgId: null,
       setHydrated: (hydrated) => set({ hydrated }),
       upsertCampaign: (input) => {
         const existing = input.id ? get().campaigns.find((c) => c.id === input.id) : undefined;
@@ -318,6 +321,7 @@ export const useCreative = create<CreativeState>()(
         }),
       setLastSearch: (lastSearch) => set({ lastSearch }),
       setLastPack: (lastPack) => set({ lastPack: persistablePack(lastPack) }),
+      setFocusIgId: (focusIgId) => set({ focusIgId }),
       rememberStyle: (brief) => {
         const next = brief.replace(/\s+/g, " ").trim().slice(0, 180);
         if (!next) return;
@@ -356,6 +360,7 @@ export const useCreative = create<CreativeState>()(
           },
           lastSearch: p.lastSearch || current.lastSearch,
           styleMemory: uniqueStrings(p.styleMemory, current.styleMemory),
+          focusIgId: current.focusIgId ?? null,
           lastPack: p.lastPack
             ? {
                 ...(current.lastPack ?? {

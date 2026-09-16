@@ -67,3 +67,24 @@ test("analysisFromLive writes Content Memory, not a permalink", () => {
     "剛發布 · ig-post · 茶會。Hook：坐一下",
   );
 });
+
+test("nextCreateIdeaFromLessons prefers a just-published hook over a high-save recap", () => {
+  const idea = nextCreateIdeaFromLessons(
+    [
+      {
+        mediaType: "carousel",
+        caption: "來的人比想像中多。\n可以。",
+        metrics: { reach: 2400, likes: 150, comments: 20, saves: 70 },
+      },
+      {
+        mediaType: "image",
+        caption: "我不會禪也可以嗎？\n下週茶會。",
+        analysis: "剛發布 · ig-post · 茶會。Hook：我不會禪也可以嗎？",
+      },
+    ],
+    "茶會",
+  );
+  assert.match(idea, /我不會禪也可以嗎/);
+  assert.match(idea, /茶會/);
+  assert.doesNotMatch(idea, /來的人比想像中多/);
+});

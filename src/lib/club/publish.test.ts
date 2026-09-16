@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { graphImageUrl, memoryPostFromPublish, publicPublishUrl, publishCaption, publishNeedsVideo } from "./publish.ts";
+import { graphImageUrl, memoryPostFromPublish, publicPublishUrl, publishCaption, publishNeedsVideo, styleBriefFromPublish } from "./publish.ts";
 import { lastPackFromPlan } from "./last-pack.ts";
 import { lessonsFromIg, nextCreateIdeaFromLessons } from "./insights.ts";
 
@@ -61,4 +61,5 @@ test("published packs enter IG memory so the next generate can learn the hook", 
   const lessons = lessonsFromIg([post]);
   assert.match(lessons.hook, /連休息都覺得有罪惡感/);
   assert.match(nextCreateIdeaFromLessons([post], "茶會"), /連休息都覺得有罪惡感/);
+  assert.match(styleBriefFromPublish(pack), /連休息都覺得有罪惡感/);
 });

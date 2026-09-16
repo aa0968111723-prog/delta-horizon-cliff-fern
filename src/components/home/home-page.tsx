@@ -14,6 +14,7 @@ import { lastPackPreviewSrc, packAssetIds } from "@/lib/club/last-pack";
 import { lessonsFromIg, nextCreateIdeaFromLessons } from "@/lib/club/insights";
 import { FEATURED_EVENT, featuredCampaignIdea, featuredHookFor, pickFeaturedCampaign } from "@/lib/club/memory";
 import { publishScheduleRow } from "@/lib/club/run-schedule-publish";
+import { styleBriefFromPublish } from "@/lib/club/publish";
 import { publishableScheduleRows } from "@/lib/club/schedule";
 import { handoffFromQuickStart, QUICK_STARTS } from "@/lib/club/quick-starts";
 import { formatDaysUntil, studentContext } from "@/lib/club/season";
@@ -37,6 +38,7 @@ export function HomePage() {
   const igPosts = useCreative((s) => s.igPosts);
   const lastPack = useCreative((s) => s.lastPack);
   const ingestIg = useCreative((s) => s.ingestIg);
+  const rememberStyle = useCreative((s) => s.rememberStyle);
   const setScheduleStatus = useCreative((s) => s.setScheduleStatus);
   const updateProject = useStudio((s) => s.updateProject);
   const setCreateOpen = useUi((s) => s.setCreateOpen);
@@ -60,6 +62,7 @@ export function HomePage() {
     try {
       const result = await publishScheduleRow({ row, lastPack, assetUrls: urls });
       ingestIg([result.post]);
+      if (lastPack) rememberStyle(styleBriefFromPublish(lastPack));
       setScheduleStatus(row.id, "published");
       if (row.projectId) {
         updateProject(row.projectId, { contentStatus: "published", publishedAt: Date.now() });

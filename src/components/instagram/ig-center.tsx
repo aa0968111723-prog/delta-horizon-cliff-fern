@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { FormatPreview } from "@/components/create/format-preview";
@@ -9,20 +9,25 @@ import { IgThumb } from "@/components/create/ig-thumb";
 import { IG_DNA } from "@/lib/club/memory";
 import { lastPackPreviewSrc, packAssetIds, withPackKind } from "@/lib/club/last-pack";
 import { CONVERT_TARGETS } from "@/lib/convert/pack";
-import { analysisFromLive, lessonsFromIg } from "@/lib/club/insights";
+import { analysisFromLive, lessonsFromIg, nextCreateIdeaFromLessons } from "@/lib/club/insights";
 import { writeHandoff } from "@/lib/create/handoff";
 import { runPackPublish } from "@/lib/club/run-publish";
+import { styleBriefFromPublish } from "@/lib/club/publish";
 import { toast } from "sonner";
 import { listConnectedMedia } from "@/lib/connections/oauth";
 import { useCreative, type IgMemoryPost } from "@/stores/creative-store";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 
 export function InstagramCenter() {
+  const navigate = useNavigate();
   const posts = useCreative((s) => s.igPosts);
   const ingestIg = useCreative((s) => s.ingestIg);
   const lastPack = useCreative((s) => s.lastPack);
   const setLastPack = useCreative((s) => s.setLastPack);
   const setScheduleStatus = useCreative((s) => s.setScheduleStatus);
+  const rememberStyle = useCreative((s) => s.rememberStyle);
+  const focusIgId = useCreative((s) => s.focusIgId);
+  const setFocusIgId = useCreative((s) => s.setFocusIgId);
   const schedule = useCreative((s) => s.schedule);
   const [active, setActive] = useState<IgMemoryPost | null>(null);
   const [live, setLive] = useState<IgMemoryPost[]>([]);
@@ -36,6 +41,8 @@ export function InstagramCenter() {
     try {
       const result = await runPackPublish(lastPack, lastPackPreviewSrc(lastPack, urls));
       ingestIg([result.post]);
+      rememberStyle(styleBriefFromPublish(lastPack));
+      setFocusIgId(result.post.id);
       const row = schedule.find((item) => item.campaignId === lastPack.campaignId && item.contentKind === lastPack.kind && item.status !== "published");
       if (row) setScheduleStatus(row.id, "published");
       toast.success(result.message);
@@ -71,6 +78,7 @@ export function InstagramCenter() {
 
   const grid = live.length ? live : posts;
   const lessons = lessonsFromIg(posts);
+  const learned = posts.some((post) => (post.analysis || "").includes("剛發布"));
   const draftPost: IgMemoryPost | null = lastPack
     ? {
         id: `draft_${lastPack.projectId}`,
@@ -82,6 +90,26 @@ export function InstagramCenter() {
         analysis: `草稿 · ${lastPack.eventName}。Hook：${lastPack.hook}`,
       }
     : null;
+
+  useEffect(() => {
+    if (!focusIgId) return;
+    const draftId = lastPack ? `draft_${lastPack.projectId}` : "";
+    if (lastPack && (focusIgId === draftId || focusIgId === "draft")) {
+      setActive({
+        id: draftId,
+        mediaType: lastPack.kind === "carousel" ? "carousel" : lastPack.kind === "reels" ? "reels" : "image",
+        caption: lastPack.caption,
+        takenAt: lastPack.updatedAt,
+        thumb: draftThumb,
+        metricsSource: "memory",
+        analysis: `草稿 · ${lastPack.eventName}。Hook：${lastPack.hook}`,
+      });
+    } else {
+      const post = posts.find((item) => item.id === focusIgId) || live.find((item) => item.id === focusIgId);
+      if (post) setActive(post);
+    }
+    setFocusIgId(null);
+  }, [focusIgId, lastPack, draftThumb, posts, live, setFocusIgId]);
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
@@ -186,14 +214,23 @@ export function InstagramCenter() {
               ) : null}
               <p className="mt-3 text-sm">{active.analysis}</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button asChild>
-                  <Link
-                    to="/create"
-                    search={{ tab: "campaign" }}
-                    onClick={() => writeHandoff({ idea: active.caption, tab: "campaign", sourceLabel: `Instagram / ${active.takenAt}` })}
-                  >
-                    AI 分析並做新的
-                  </Link>
+                <Button
+                  data-testid="ig-analyze"
+                  onClick={() => {
+                    writeHandoff({
+                      idea: nextCreateIdeaFromLessons(
+                        [active],
+                        lastPack?.eventName,
+                      ),
+                      tab: "campaign",
+                      autoRun: true,
+                      sourceLabel: `Instagram / ${format(active.takenAt, "yyyy-MM-dd")}`,
+                      imageSrc: active.thumb,
+                    });
+                    void navigate({ to: "/create", search: { tab: "campaign" } });
+                  }}
+                >
+                  AI 分析並做新的
                 </Button>
               </div>
             </div>
@@ -204,6 +241,11 @@ export function InstagramCenter() {
       <section className="mt-10 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
         <h2 className="font-display text-xl">下一次可以怎麼寫</h2>
         <p className="mt-1 text-xs text-muted">用過去表現改善生成，不是報表牆。</p>
+        {learned ? (
+          <p className="mt-3 text-sm text-accent" data-testid="ig-learned">
+            已記住這次第一句。下次生成會先參考，不會改回社團全名。
+          </p>
+        ) : null}
         <ul className="mt-4 space-y-3 text-sm">
           <li>Hook：{lessons.hook}</li>
           <li>圖片：{lessons.visual}</li>
