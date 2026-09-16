@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyAssetToArtboard, coverImagePrompt, hookKind, shotListText } from "./reels-cover.ts";
+import { applyAssetToArtboard, coverImagePrompt, hookKind, reelsScriptText, shotListText } from "./reels-cover.ts";
 import type { Artboard, ReelsScript } from "./types.ts";
 
 const reels: ReelsScript = {
@@ -33,6 +33,13 @@ test("shot list includes cover and numbered shots", () => {
   assert.match(text, /封面：宿舍窗邊/);
   assert.match(text, /1\. 0–3 秒/);
   assert.match(text, /字幕：停一下/);
+});
+
+test("reels script text is pasteable beats", () => {
+  const text = reelsScriptText(reels);
+  assert.match(text, /Hook：最近是不是連休息都覺得有罪惡感？/);
+  assert.match(text, /畫面：窗邊夜燈/);
+  assert.match(text, /旁白：（無旁白）/);
 });
 
 test("hookKind groups openings the way IG insights will use them", () => {

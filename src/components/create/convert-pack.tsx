@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PostPackBar } from "@/components/create/post-pack";
 import { PublishPreview } from "@/components/create/publish-preview";
+import { DownloadPackButton, PackExportHint } from "@/components/export/download-pack";
 import { SectionHeader } from "@/components/shared/page-header";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,13 @@ export function ConvertPack({
     <section id="convert-pack" className="mt-8 space-y-4">
       <SectionHeader
         title="這次做成的全套"
-        hint="同一則內容的貼文、輪播、限動、Threads、LINE、Reels。複製文案就能貼。"
+        hint="同一則內容的貼文、輪播、限動、Threads、LINE、Reels。一次下載圖，文案會複製並存成檔。"
+        action={
+          <div className="flex flex-col items-end gap-1">
+            <DownloadPackButton projectId={members[0]!.id} size="sm" />
+            <PackExportHint projectId={members[0]!.id} className="max-w-56 text-right" />
+          </div>
+        }
       />
       <ul className="grid gap-4 lg:grid-cols-2">
         {members.map((project) => {

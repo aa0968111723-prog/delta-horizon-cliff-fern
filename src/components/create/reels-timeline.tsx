@@ -4,19 +4,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { generateImage } from "@/lib/ai/image-ai";
 import { saveGeneratedImage } from "@/lib/studio/generated-image";
-import { coverImagePrompt, shotListText } from "@/lib/studio/reels-cover";
+import { coverImagePrompt, reelsScriptText, shotListText } from "@/lib/studio/reels-cover";
 import type { ReelsScript } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
 
-export function reelsScriptText(reels: ReelsScript): string {
-  const beats = reels.beats
-    .map(
-      (beat) =>
-        `${beat.range}\n畫面：${beat.visual}\n字幕：${beat.caption}\n旁白：${beat.voice}\n轉場：${beat.transition}\n素材：${beat.asset}`,
-    )
-    .join("\n\n");
-  return [`Hook：${reels.hook}`, `封面：${reels.cover}`, beats].join("\n\n");
-}
+export { reelsScriptText };
 
 export function ReelsTimeline({
   reels,

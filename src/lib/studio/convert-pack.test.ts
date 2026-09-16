@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { CONVERT_TARGETS } from "./convert-copy.ts";
-import { convertPackOf, missingConvertTargets, packRootId } from "./convert-pack.ts";
+import { convertPackOf, kindHasDownloadablePages, missingConvertTargets, packRootId } from "./convert-pack.ts";
 import type { ContentKind, Project } from "./types.ts";
 
 function row(
@@ -46,4 +46,11 @@ test("missingConvertTargets skips kinds already in the pack", () => {
     missing,
     CONVERT_TARGETS.map((item) => item.id).filter((id) => id !== "ig-post" && id !== "line"),
   );
+});
+
+test("Threads is the only convert target without downloadable pages", () => {
+  assert.equal(kindHasDownloadablePages("threads"), false);
+  for (const target of CONVERT_TARGETS.filter((item) => item.id !== "threads")) {
+    assert.equal(kindHasDownloadablePages(target.id), true, target.id);
+  }
 });

@@ -160,7 +160,15 @@ try {
     "全套裡沒有輪播或限動",
   );
   await page.locator("#convert-pack").scrollIntoViewIfNeeded();
+  await expectText("全套下載", "下載全套");
+  await expectText("全套下載說明", "種畫面會下載圖");
   await page.screenshot({ path: `${prefix}-pack.png` });
+
+  await page.goto(`${base}/export`, { waitUntil: "networkidle" });
+  await page.waitForSelector("text=預覽與下載", { timeout: 15000 });
+  await expectText("輸出全套", "下載全套");
+  await expectText("輸出全套列表", "這次做成的全套");
+  await page.screenshot({ path: `${prefix}-export-pack.png` });
 
   // 7. 逐頁檢查
   for (const [name, path, needle] of [
@@ -327,7 +335,7 @@ try {
   // 9. 手機視窗檢查橫向溢出
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const mp = await mobile.newPage();
-  for (const path of ["/", "/create", "/campaigns", "/calendar", "/instagram", "/search", "/connections", "/brand", "/assets"]) {
+  for (const path of ["/", "/create", "/campaigns", "/calendar", "/instagram", "/search", "/connections", "/brand", "/assets", "/export"]) {
     await mp.goto(`${base}${path}`, { waitUntil: "networkidle" });
     const overflow = await mp.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,

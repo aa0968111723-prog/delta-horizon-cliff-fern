@@ -11,7 +11,8 @@ import { exportFilename } from "./export-name.ts";
 import { formatById } from "./formats.ts";
 import { uid } from "./ids.ts";
 import { pagesOf } from "./layers.ts";
-import type { Artboard, AssetMeta, BrandKit, ExportVersion, Project } from "./types.ts";
+import { packCaptionsBlob, packDownloadableMembers, packSkippedKinds, type PackMember } from "./pack-export.ts";
+import type { Artboard, AssetMeta, BrandKit, ContentKind, ExportVersion, Project } from "./types.ts";
 
 export { exportFilename };
 
@@ -102,4 +103,73 @@ export async function downloadProjectPages(input: DownloadPagesInput): Promise<{
     }
   }
   return { count: pages.length, filenames };
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+export type DownloadPackInput = {
+  members: Project[];
+  brand: BrandKit;
+  assets: AssetMeta[];
+  scale?: 1 | 2 | 3;
+  type?: "image/png" | "image/jpeg";
+  onRecord?: (projectId: string, version: ExportVersion) => void;
+};
+
+export type DownloadPackResult = {
+  pageCount: number;
+  visualCount: number;
+  skipped: ContentKind[];
+  failed: Array<{ id: string; kind: ContentKind; message: string }>;
+  captionsFilename: string;
+  captionsText: string;
+  filenames: string[];
+};
+
+/** 一次帶走全套畫面，再下一份文案檔。Threads 只寫進文案，不匯出圖。 */
+export async function downloadConvertPack(input: DownloadPackInput): Promise<DownloadPackResult> {
+  if (!input.members.length) throw new Error("還沒有全套可以下載。先做成其他型態。");
+  const visual = packDownloadableMembers(input.members as PackMember[]);
+  const skipped = packSkippedKinds(input.members as PackMember[]);
+  const captions = packCaptionsBlob(input.members);
+  const filenames: string[] = [];
+  const failed: DownloadPackResult["failed"] = [];
+
+  for (let i = 0; i < visual.length; i += 1) {
+    const project = visual[i] as Project;
+    try {
+      const result = await downloadProjectPages({
+        project,
+        brand: input.brand,
+        assets: input.assets,
+        scale: input.scale,
+        type: input.type,
+        onRecord: (version) => input.onRecord?.(project.id, version),
+      });
+      filenames.push(...result.filenames);
+    } catch (err) {
+      failed.push({
+        id: project.id,
+        kind: project.contentKind,
+        message: err instanceof Error ? err.message : "匯出失敗",
+      });
+    }
+    if (i < visual.length - 1) await wait(500);
+  }
+
+  if (visual.length) await wait(400);
+  downloadBlob(new Blob([captions.text], { type: "text/plain;charset=utf-8" }), captions.filename);
+  filenames.push(captions.filename);
+
+  return {
+    pageCount: filenames.length - 1,
+    visualCount: visual.length,
+    skipped,
+    failed,
+    captionsFilename: captions.filename,
+    captionsText: captions.text,
+    filenames,
+  };
 }

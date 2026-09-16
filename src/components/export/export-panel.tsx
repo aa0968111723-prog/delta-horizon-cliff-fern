@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { DownloadPackButton, PackExportHint } from "@/components/export/download-pack";
 import { canvasToBlob, collectArtboardAssetIds, downloadBlob, renderArtboardToCanvas } from "@/lib/studio/export-png";
 import { loadArtboardImages } from "@/lib/studio/export-download";
 import { exportFilename } from "@/lib/studio/export-name";
@@ -177,6 +178,8 @@ export function ExportPanel({
       ) : (
         <p className="text-xs text-subtle">還沒有無障礙說明。套用一版文案後會自動寫一句畫面描述。</p>
       )}
+      <DownloadPackButton projectId={project.id} className="w-full" variant="secondary" />
+      <PackExportHint projectId={project.id} />
     </div>
   );
 }

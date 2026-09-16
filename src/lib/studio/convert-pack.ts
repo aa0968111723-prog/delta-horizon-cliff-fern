@@ -37,3 +37,16 @@ export function missingConvertTargets(
   const have = new Set(convertPackOf(projects, project.id).map((item) => item.contentKind));
   return CONVERT_TARGETS.filter((item) => !have.has(item.id));
 }
+
+/** Threads 是純文字。下載全套時不匯出那張假方形圖，文案會寫進同一份文字檔。 */
+export function kindHasDownloadablePages(kind: ContentKind): boolean {
+  return kind !== "threads";
+}
+
+export function packVisualMembers<T extends Pick<Project, "contentKind">>(members: T[]): T[] {
+  return members.filter((item) => kindHasDownloadablePages(item.contentKind));
+}
+
+export function packTextOnlyMembers<T extends Pick<Project, "contentKind">>(members: T[]): T[] {
+  return members.filter((item) => !kindHasDownloadablePages(item.contentKind));
+}

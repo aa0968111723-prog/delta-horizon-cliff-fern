@@ -15,6 +15,17 @@ export function coverImagePrompt(reels: Pick<ReelsScript, "hook" | "cover" | "be
     .join(", ");
 }
 
+/** 整支腳本：複製到備忘錄就能拍。 */
+export function reelsScriptText(reels: ReelsScript): string {
+  const beats = reels.beats
+    .map(
+      (beat) =>
+        `${beat.range}\n畫面：${beat.visual}\n字幕：${beat.caption}\n旁白：${beat.voice}\n轉場：${beat.transition}\n素材：${beat.asset}`,
+    )
+    .join("\n\n");
+  return [`Hook：${reels.hook}`, `封面：${reels.cover}`, beats].join("\n\n");
+}
+
 /** 拍攝清單：一個人一支手機就能拍。 */
 export function shotListText(reels: ReelsScript): string {
   const shots = reels.beats
