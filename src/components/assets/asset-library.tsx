@@ -42,8 +42,9 @@ import {
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { previewTemplate, TEMPLATE_STARTERS } from "@/lib/studio/templates";
-import type { AssetCategory, AssetMeta, AssetSourceKind } from "@/lib/studio/types";
+import type { AssetCategory, AssetMeta, AssetSourceKind, RemoteFile } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
+import { remoteMatchesQuery } from "@/lib/zen/search";
 import { useStudio } from "@/stores/studio-store";
 
 type FilterId = "all" | AssetCategory | "favorite";
@@ -54,6 +55,7 @@ export function AssetLibrary() {
   const brands = useStudio((s) => s.brands);
   const projects = useStudio((s) => s.projects);
   const lastProjectId = useStudio((s) => s.lastProjectId);
+  const remoteFiles = useStudio((s) => s.remoteFiles);
   const addAsset = useStudio((s) => s.addAsset);
   const removeAsset = useStudio((s) => s.removeAsset);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
@@ -73,6 +75,13 @@ export function AssetLibrary() {
 
   const usedIds = useMemo(() => collectUsedAssetIds(projects, brands), [projects, brands]);
   const brand = brands[0];
+  const remotes = useMemo(() => {
+    return remoteFiles.filter((file) => {
+      if (q.trim() && !remoteMatchesQuery(file, q)) return false;
+      if (source !== "all" && file.provider !== source) return false;
+      return true;
+    });
+  }, [remoteFiles, q, source]);
 
   const filtered = useMemo(() => {
     return assets.filter((asset) => {
@@ -250,7 +259,12 @@ export function AssetLibrary() {
       ) : null}
 
       <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜尋名稱、標籤、授權、來源" className="max-w-sm" />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="找以前晚上的茶會照片、龜龜、浮游禪光…"
+          className="max-w-sm"
+        />
         <Select value={source} onValueChange={(v) => setSource(v as typeof source)}>
           <SelectTrigger className="md:w-40">
             <SelectValue placeholder="來源" />
@@ -337,6 +351,31 @@ export function AssetLibrary() {
           </ul>
         </section>
       ) : null}
+
+      {filter === "all" || source === "drive" || source === "canva" || source === "instagram"
+        ? remotes.length
+          ? (
+        <section className="mt-8">
+          <h2 className="mb-3 text-sm font-medium">連接中的素材</h2>
+          <p className="mb-3 text-xs text-muted">Google Drive、Canva、Instagram。點一下就能拿去創作。</p>
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {remotes.map((file) => (
+              <li key={file.id}>
+                <RemoteAssetRow
+                  file={file}
+                  onCreate={() => {
+                    const mode =
+                      file.provider === "canva" ? "from-canva" : file.provider === "instagram" ? "from-ig" : "from-drive";
+                    void navigate({ to: "/create", search: { mode, idea: file.name } });
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+            )
+          : null
+        : null}
 
       {filter === "template" ? null : filtered.length === 0 ? (
         <EmptyState
@@ -441,5 +480,31 @@ function FilterChip({
       {children}
       <span className="tabular-nums opacity-70">{count}</span>
     </button>
+  );
+}
+
+function RemoteAssetRow({ file, onCreate }: { file: RemoteFile; onCreate: () => void }) {
+  const label = file.provider === "canva" ? "Canva" : file.provider === "instagram" ? "Instagram" : "Google Drive";
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-surface px-3 py-3 shadow-[var(--shadow-border)]">
+      {file.thumbnail ? (
+        <img src={file.thumbnail} alt="" className="size-12 shrink-0 rounded-lg object-cover" />
+      ) : (
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-bg text-[10px] text-muted">
+          {label}
+        </span>
+      )}
+      <button type="button" onClick={onCreate} className="min-w-0 flex-1 text-left">
+        <p className="truncate text-sm">{file.name}</p>
+        <p className="truncate text-xs text-muted">
+          {label} · {file.summary}
+        </p>
+      </button>
+      {file.url ? (
+        <a href={file.url} target="_blank" rel="noreferrer" className="shrink-0 text-xs text-muted">
+          開原檔
+        </a>
+      ) : null}
+    </div>
   );
 }

@@ -133,7 +133,7 @@ export function CreateStudio() {
     if (!status || !brand || autoRan.current) return;
     if (mode === "from-image" && !search.idea) return;
     autoRan.current = true;
-    void runKit();
+    void runKit(undefined, true);
   }, [status, brand, mode]);
 
   async function gatherHits(query: string) {
@@ -191,7 +191,7 @@ export function CreateStudio() {
     }
   }
 
-  async function runKit(ideaOverride?: string) {
+  async function runKit(ideaOverride?: string, silent = false) {
     if (!brand) return;
     const workingIdea = ideaOverride ?? idea;
     const hits = await gatherHits(`${workingIdea} ${eventName}`);
@@ -224,7 +224,7 @@ export function CreateStudio() {
       setDirections(result.plan.directions ?? []);
       setReview(result.plan.studentReview ? ensureRewriteDiffers(result.plan.studentReview, result.plan.hook) : null);
       setPickedDirection(null);
-      toast.success(result.adapter === "mock" ? "本機宣傳草案" : "已生成完整宣傳");
+      if (!silent) toast.success(result.adapter === "mock" ? "本機宣傳草案" : "已生成完整宣傳");
     } finally {
       setBusy(false);
     }
@@ -269,7 +269,7 @@ export function CreateStudio() {
       const nextIdea = ideaFromVision(result.analysis, idea);
       setIdea(nextIdea);
       toast.success("已理解這張圖，接著生成文案與方向");
-      await runKit(nextIdea);
+      await runKit(nextIdea, true);
     } finally {
       setBusy(false);
     }

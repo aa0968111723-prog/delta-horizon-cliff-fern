@@ -132,6 +132,15 @@ export function CalendarPage() {
                         <p className="truncate">
                           {contentKindLabel(item.kind)} · {item.title}
                         </p>
+                        {view === "month" ? (
+                          <button
+                            type="button"
+                            className="mt-1 text-[10px] text-accent"
+                            onClick={() => setEditingId(item.id)}
+                          >
+                            編輯
+                          </button>
+                        ) : (
                         <div className="mt-1 flex flex-wrap gap-1">
                           <button type="button" className="text-[10px] text-muted" onClick={() => duplicate(item.id)}>
                             複製
@@ -154,6 +163,7 @@ export function CalendarPage() {
                             AI 延伸
                           </Link>
                         </div>
+                        )}
                       </div>
                     </li>
                   ))}
