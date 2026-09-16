@@ -33,8 +33,14 @@ export function ConvertBar({
       <p className="text-xs text-muted">一則貼文可以變成輪播、限動、Threads、LINE 圖或 Reels，原本那則不會被蓋掉。</p>
       <div className="flex flex-wrap gap-2">
         {CONVERT_TARGETS.filter((item) => item.id !== project.contentKind).map((item) => (
-          <Button key={item.id} size="sm" variant="secondary" onClick={() => run(item.id)}>
-            <Repeat2 className="size-4" />
+          <Button
+            key={item.id}
+            size="sm"
+            variant="secondary"
+            aria-label={`做成${item.label}`}
+            onClick={() => run(item.id)}
+          >
+            <Repeat2 className="size-4" aria-hidden />
             {item.label}
           </Button>
         ))}

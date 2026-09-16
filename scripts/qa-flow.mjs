@@ -84,7 +84,8 @@ try {
   await expectText("生成封面", "生成封面圖");
   await page.screenshot({ path: `${prefix}-reels.png` });
 
-  await page.locator("section").filter({ hasText: "做成其他型態" }).getByRole("button", { name: "輪播" }).click();
+  await page.getByText("做成其他型態").scrollIntoViewIfNeeded();
+  await page.locator("[aria-label^='做成']").first().click();
   await page.waitForTimeout(800);
   const afterConvert = await text();
   record("一鍵轉換輪播", afterConvert.includes("輪播") || afterConvert.includes("做成其他型態"), "轉換後畫面沒更新");
