@@ -1,5 +1,6 @@
 import { saveCarouselStills } from "@/lib/ai/carousel-persist";
 import { carouselPagesFromPlan, encodedCarouselIds } from "@/lib/ai/carousel-pages";
+import { isCampaignWaveTitle } from "@/lib/ai/story-frames";
 import type { CampaignPlan } from "@/lib/studio/types";
 import { AssetMedia } from "@/components/shared/asset-media";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,6 @@ export function CarouselBoard({
   );
 }
 
-function itemMatches(row: { campaignId: string | null; kind: string }, campaignId: string) {
-  return row.campaignId === campaignId && row.kind === "carousel";
+function itemMatches(row: { campaignId: string | null; kind: string; title?: string }, campaignId: string) {
+  return row.campaignId === campaignId && row.kind === "carousel" && !isCampaignWaveTitle(row.title);
 }

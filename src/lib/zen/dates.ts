@@ -135,3 +135,17 @@ export function preferredScheduleText(
   if (isArchivalEventIdea(idea) && existing.date <= formatIsoDate(now)) return next;
   return keep;
 }
+
+/** Host-UTC 19:00 was stored as 03:00 in 淡水. Shift once; 19:00 淡水 is a no-op. */
+export function shiftHostEveningToTaipei(ms: number): number {
+  if (!Number.isFinite(ms) || ms <= 0) return ms;
+  const hour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Taipei",
+      hour: "numeric",
+      hourCycle: "h23",
+    }).format(new Date(ms)),
+  );
+  if (hour > 5) return ms;
+  return ms - 8 * 3_600_000;
+}

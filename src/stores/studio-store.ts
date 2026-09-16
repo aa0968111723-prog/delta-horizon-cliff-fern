@@ -33,6 +33,7 @@ import {
 import { inferContentKind, kindFromFormat, legacyFromContent, statusFromLegacy } from "@/lib/studio/content";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { metricsFromFeel } from "@/lib/zen/feel";
+import { shiftHostEveningToTaipei } from "@/lib/zen/dates";
 import {
   DEFAULT_CONNECTIONS,
   SEED_ASSETS,
@@ -301,6 +302,7 @@ function migrateScheduleItem(raw: ScheduleItem): ScheduleItem {
     imageAssetId: raw.imageAssetId ?? seed?.imageAssetId,
     slideAssetIds: Array.isArray(raw.slideAssetIds) ? raw.slideAssetIds.filter(Boolean) : undefined,
     videoAssetId: raw.videoAssetId,
+    scheduledAt: shiftHostEveningToTaipei(raw.scheduledAt),
   };
 }
 
@@ -309,6 +311,7 @@ function migrateWave(raw: CampaignWave): CampaignWave {
     ...raw,
     imageAssetId: raw.imageAssetId ?? null,
     caption: raw.caption ?? "",
+    scheduledAt: raw.scheduledAt == null ? raw.scheduledAt : shiftHostEveningToTaipei(raw.scheduledAt),
   };
 }
 
@@ -1306,7 +1309,7 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 3,
+      version: 4,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,

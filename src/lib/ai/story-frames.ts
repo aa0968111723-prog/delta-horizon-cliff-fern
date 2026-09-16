@@ -55,6 +55,14 @@ export function isCampaignWaveTitle(title?: string) {
   return Boolean(title && /^(預熱|情緒共鳴|主視覺|活動介紹|參加理由|倒數|當日提醒|活動回顧)( ·|$)/.test(title));
 }
 
+/** Converted IG / Carousel / Reels rows are extra formats — they must not steal 主視覺. */
+export function convertedRowOfKind<T extends { kind: string; title?: string }>(
+  items: T[],
+  kind: string,
+): T | undefined {
+  return items.find((item) => item.kind === kind && !isCampaignWaveTitle(item.title));
+}
+
 export function isCountdownStillItem(item: { kind: string; title?: string }) {
   if (item.kind === "countdown") return true;
   return item.kind === "story" && isCampaignWaveTitle(item.title) && /^(倒數|當日提醒)/.test(item.title || "");

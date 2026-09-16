@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { attachStoryAssets, countdownStillLine, isCountdownStillItem, storyFrameLines, storyPosterInput, storyRowsForFrames } from "./story-frames.ts";
+import { attachStoryAssets, convertedRowOfKind, countdownStillLine, isCountdownStillItem, storyFrameLines, storyPosterInput, storyRowsForFrames } from "./story-frames.ts";
 import { directionPosterSvg } from "./poster.ts";
 
 test("tea-party stories are 3–5 student frames, first is the hook", () => {
@@ -82,4 +82,12 @@ test("countdown stills stay short and local, not a club invitation", () => {
   assert.equal(countdownStillLine({ kind: "countdown", title: "倒數 · 茶會" }), "明天晚上，淡水。");
   assert.equal(countdownStillLine({ kind: "story", title: "當日提醒 · 茶會" }), "今晚有位子。");
   assert.doesNotMatch(countdownStillLine({ kind: "countdown" }), /誠摯邀請|負責人/);
+});
+
+test("converted Carousel does not reuse the 主視覺 wave row", () => {
+  const hero = { id: "hero", kind: "carousel", title: "主視覺 · 茶會" };
+  const pack = { id: "pack", kind: "carousel", title: "Carousel · 茶會" };
+  assert.equal(convertedRowOfKind([hero], "carousel"), undefined);
+  assert.equal(convertedRowOfKind([hero, pack], "carousel")?.id, "pack");
+  assert.equal(convertedRowOfKind([{ id: "emo", kind: "ig-post", title: "情緒共鳴 · 茶會" }], "ig-post"), undefined);
 });

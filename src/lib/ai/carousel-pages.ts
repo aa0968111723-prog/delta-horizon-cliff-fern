@@ -1,5 +1,6 @@
 import type { PosterInput, PosterVariation } from "./poster.ts";
 import type { CarouselPagePlan, ScheduleItem } from "../studio/types.ts";
+import { isCampaignWaveTitle } from "./story-frames.ts";
 
 const PAGE_VARIATION: PosterVariation[] = ["composition", "mood", "background", "style", "text", "composition"];
 
@@ -158,19 +159,21 @@ export function encodedCarouselIds(item: { slideAssetIds?: string[] } | undefine
 }
 
 export function attachCarouselAssets<
-  T extends { kind: string; campaignId?: string | null; imageAssetId?: string; slideAssetIds?: string[] },
+  T extends { kind: string; campaignId?: string | null; title?: string; imageAssetId?: string; slideAssetIds?: string[] },
 >(items: T[], assetIds: string[], campaignId?: string | null): T[] {
   if (!campaignId || assetIds.length < 2) return items;
   return items.map((item) =>
-    item.kind === "carousel" && item.campaignId === campaignId
+    item.kind === "carousel" && item.campaignId === campaignId && !isCampaignWaveTitle(item.title)
       ? { ...item, imageAssetId: assetIds[0], slideAssetIds: assetIds }
       : item,
   );
 }
 
 export function carouselRowsForCampaign(
-  existing: Array<Pick<ScheduleItem, "id" | "kind" | "campaignId">>,
+  existing: Array<Pick<ScheduleItem, "id" | "kind" | "campaignId"> & { title?: string }>,
   campaignId: string,
 ) {
-  return existing.filter((item) => item.kind === "carousel" && item.campaignId === campaignId);
+  return existing.filter(
+    (item) => item.kind === "carousel" && item.campaignId === campaignId && !isCampaignWaveTitle(item.title),
+  );
 }

@@ -8,6 +8,7 @@ import {
   hasScheduleCue,
   isArchivalEventIdea,
   preferredScheduleText,
+  shiftHostEveningToTaipei,
   shouldReopenCampaign,
 } from "./dates.ts";
 
@@ -110,4 +111,12 @@ test("reopening 茶會 from an archival Drive file bumps a leftover today date t
     }),
     "2026/09/16 19:00",
   );
+});
+
+test("a leftover UTC 19:00 stamp becomes 19:00 in 淡水, once", () => {
+  const utcEvening = Date.parse("2026-09-17T19:00:00.000Z");
+  const shifted = shiftHostEveningToTaipei(utcEvening);
+  assert.equal(new Date(shifted).toISOString(), "2026-09-17T11:00:00.000Z");
+  assert.equal(shiftHostEveningToTaipei(shifted), shifted);
+  assert.equal(shiftHostEveningToTaipei(Date.parse("2026-09-23T11:00:00.000Z")), Date.parse("2026-09-23T11:00:00.000Z"));
 });

@@ -57,7 +57,7 @@ import { HeroVisual } from "@/components/create/hero-visual";
 import { ReelsBoard } from "@/components/create/reels-board";
 import { ShareBoard } from "@/components/create/share-board";
 import { StoryBoard } from "@/components/create/story-board";
-import { storyFrameLines, storyPosterInput, storyRowsForFrames } from "@/lib/ai/story-frames";
+import { storyFrameLines, storyPosterInput, storyRowsForFrames, convertedRowOfKind } from "@/lib/ai/story-frames";
 import { saveKitStills, saveIgPreviewStills } from "@/lib/ai/kit-stills";
 import { WaveList } from "@/components/create/wave-list";
 import { StudentReviewCard } from "@/components/create/student-review-card";
@@ -979,7 +979,7 @@ export function CreateStudio() {
         }
         continue;
       }
-      const prev = existing.find((item) => item.kind === pack.kind);
+      const prev = convertedRowOfKind(existing, pack.kind);
       const slideAssetIds = pack.kind === "carousel" ? prev?.slideAssetIds : undefined;
       upsertSchedule({
         id: prev?.id ?? uid("sch"),

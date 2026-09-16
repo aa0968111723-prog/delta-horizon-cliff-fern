@@ -81,16 +81,19 @@ test("studentCoverHeadline replaces an event-name cover", () => {
 });
 
 test("attachCarouselAssets writes stills onto that campaign's carousel rows", () => {
-  const rows: Array<{ kind: string; campaignId: string; imageAssetId?: string; slideAssetIds?: string[] }> = [
+  const rows: Array<{ kind: string; campaignId: string; title?: string; imageAssetId?: string; slideAssetIds?: string[] }> = [
     { kind: "story", campaignId: "c1", imageAssetId: "hero" },
-    { kind: "carousel", campaignId: "c1", imageAssetId: "hero" },
+    { kind: "carousel", campaignId: "c1", title: "主視覺 · 茶會", imageAssetId: "hero" },
+    { kind: "carousel", campaignId: "c1", title: "Carousel · 茶會", imageAssetId: "hero" },
     { kind: "carousel", campaignId: "c2" },
   ];
   const next = attachCarouselAssets(rows, ["p0", "p1", "p2"], "c1");
   assert.equal(next[0]?.imageAssetId, "hero");
-  assert.equal(next[1]?.imageAssetId, "p0");
-  assert.deepEqual(next[1]?.slideAssetIds, ["p0", "p1", "p2"]);
-  assert.equal(next[2]?.slideAssetIds, undefined);
+  assert.equal(next[1]?.imageAssetId, "hero");
+  assert.equal(next[1]?.slideAssetIds, undefined);
+  assert.equal(next[2]?.imageAssetId, "p0");
+  assert.deepEqual(next[2]?.slideAssetIds, ["p0", "p1", "p2"]);
+  assert.equal(next[3]?.slideAssetIds, undefined);
 });
 
 test("encodedCarouselIds ignores a lone hero still", () => {
