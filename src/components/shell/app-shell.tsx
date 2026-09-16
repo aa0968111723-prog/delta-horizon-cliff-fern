@@ -16,10 +16,10 @@ import { useUi } from "@/stores/ui-store";
 
 const NAV: { to: string; label: string; icon: LucideIcon; match: "home" | "assistant" | "studio" | "brand" | "export" }[] = [
   { to: "/", label: "首頁", icon: FolderKanban, match: "home" },
-  { to: "/assistant", label: "助手", icon: Sparkles, match: "assistant" },
-  { to: "/studio", label: "編輯", icon: PenTool, match: "studio" },
-  { to: "/brand", label: "品牌", icon: SwatchBook, match: "brand" },
-  { to: "/export", label: "輸出", icon: Download, match: "export" },
+  { to: "/assistant", label: "AI 創作", icon: Sparkles, match: "assistant" },
+  { to: "/studio", label: "畫布", icon: PenTool, match: "studio" },
+  { to: "/brand", label: "品牌記憶", icon: SwatchBook, match: "brand" },
+  { to: "/export", label: "排程輸出", icon: Download, match: "export" },
 ];
 
 function activeKey(pathname: string) {
@@ -51,10 +51,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="sticky top-0 hidden h-dvh w-[4.5rem] shrink-0 flex-col border-r border-border bg-surface lg:flex">
         <Link
           to="/"
-          className="flex h-14 items-center justify-center font-display text-lg tracking-tight"
-          aria-label="構幀首頁"
+          className="flex h-14 items-center justify-center font-display text-base font-bold tracking-tight text-primary"
+          aria-label="淡江禪學社首頁"
         >
-          構
+          禪
         </Link>
         <nav className="flex flex-1 flex-col gap-1 p-2">
           {NAV.map((item) => {
