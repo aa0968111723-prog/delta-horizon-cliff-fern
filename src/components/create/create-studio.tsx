@@ -699,7 +699,13 @@ export function CreateStudio({
   }
 
   function goIgPreview() {
-    const placed = applyToStudio(false, { stay: true, silent: true });
+    const placed = applyToStudio(false, {
+      stay: true,
+      silent: true,
+      ...(canvaStep === "returned"
+        ? { heroSource: "canva" as const, heroSrc: imageSrc, heroAssetId: canvaReturnAssetId }
+        : {}),
+    });
     const id = placed?.projectId ?? studioProjectId;
     if (!id) {
       toast.message("先生成一版，再去 IG 預覽");
@@ -1004,6 +1010,7 @@ export function CreateStudio({
         />
         <input
           ref={canvaFileRef}
+          data-canva-return="1"
           type="file"
           accept="image/*"
           className="hidden"

@@ -271,7 +271,7 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
           </p>
           <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed">{active.caption}</pre>
           {activeProject?.sourceRefs.some((ref) => ref.source === "canva") ? (
-            <p className="mt-2 text-xs text-muted">
+            <p className="mt-2 text-sm" data-canva-source="returned">
               來源：{activeProject.sourceRefs.find((ref) => ref.source === "canva")?.label ?? "Canva"}
             </p>
           ) : null}
@@ -419,6 +419,11 @@ function GridCell({
           )}
         >
           {slot.status === "scheduled" || slot.scheduledAt ? "即將" : "預覽"}
+        </span>
+      ) : null}
+      {project?.sourceRefs.some((ref) => ref.source === "canva") ? (
+        <span className="absolute top-1 left-1 rounded-full bg-surface px-1.5 py-0.5 text-[10px] shadow-[var(--shadow-border)]">
+          Canva
         </span>
       ) : null}
     </button>
