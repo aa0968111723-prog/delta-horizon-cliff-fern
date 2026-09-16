@@ -80,9 +80,7 @@ export function CalendarPage() {
         </Button>
       </div>
 
-      <div className="mt-6">
-        <DuePublishBar />
-      </div>
+      <DuePublishBar />
 
       {view === "agenda" ? (
         <ul className="mt-6 space-y-2">

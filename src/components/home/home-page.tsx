@@ -111,9 +111,7 @@ export function HomePage() {
         </div>
       ) : null}
 
-      <div className="mt-6">
-        <DuePublishBar />
-      </div>
+      <DuePublishBar />
 
       {featured ? (
         <section className="mt-8 overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-artboard)]">

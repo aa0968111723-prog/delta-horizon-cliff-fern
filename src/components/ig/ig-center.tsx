@@ -63,9 +63,7 @@ export function IgCenter() {
       <h1 className="mt-1 font-display text-3xl">貼文長得像自己的帳號</h1>
       <p className="mt-2 text-sm text-muted">Grid、Caption、歷史、DNA。連接官方 API 後會讀真實貼文；現在先用社團 Content Memory。</p>
 
-      <div className="mt-6">
-        <DuePublishBar compact />
-      </div>
+      <DuePublishBar compact />
 
       {queue.length ? (
         <section className="mt-8 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">

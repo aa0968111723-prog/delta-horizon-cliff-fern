@@ -16,7 +16,7 @@ export function DuePublishBar({ compact = false }: { compact?: boolean }) {
   if (!count) return null;
 
   return (
-    <section className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+    <section className="mt-6 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
       <p className="text-xs tracking-[0.16em] text-muted uppercase">到點發布</p>
       <p className="mt-2 font-display text-xl">
         {due.length ? `${due.length} 則已經到點` : `今天還有 ${today.length} 則排程`}
