@@ -193,7 +193,7 @@ export function HomePage() {
               {remain !== null ? (
                 <p className="mt-2 text-sm text-muted">{remain > 0 ? `還有 ${remain} 天` : remain === 0 ? "就是今天" : "已結束，可做回顧"}</p>
               ) : null}
-              <p className="mt-3 max-w-lg text-sm text-muted" data-testid="next-create-hint">
+              <p className="mt-3 max-w-md text-sm text-muted" data-testid="next-create-hint">
                 AI 建議：{createHint.line}
               </p>
             </div>
