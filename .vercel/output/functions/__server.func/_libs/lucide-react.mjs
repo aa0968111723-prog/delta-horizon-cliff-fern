@@ -339,6 +339,21 @@ var Circle = createLucideIcon("circle", [["circle", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var Clock3 = createLucideIcon("clock-3", [["circle", {
+	cx: "12",
+	cy: "12",
+	r: "10",
+	key: "1mglay"
+}], ["polyline", {
+	points: "12 6 12 12 16.5 12",
+	key: "1aq6pp"
+}]]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var Copy = createLucideIcon("copy", [["rect", {
 	width: "14",
 	height: "14",
@@ -745,6 +760,21 @@ var Lock = createLucideIcon("lock", [["rect", {
 }], ["path", {
 	d: "M7 11V7a5 5 0 0 1 10 0v4",
 	key: "fwvmzm"
+}]]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var MapPin = createLucideIcon("map-pin", [["path", {
+	d: "M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0",
+	key: "1r0f0z"
+}], ["circle", {
+	cx: "12",
+	cy: "10",
+	r: "3",
+	key: "ilqhr7"
 }]]);
 /**
 * @license lucide-react v0.510.0 - ISC
@@ -1193,4 +1223,4 @@ var X = createLucideIcon("x", [["path", {
 	key: "d8bk6v"
 }]]);
 //#endregion
-export { House as A, Circle as B, Lock as C, Layers as D, LayoutGrid as E, Film as F, Check as G, ChevronRight as H, Eye as I, BrainCircuit as J, Camera as K, EyeOff as L, HardDrive as M, Frame as N, Images as O, FolderKanban as P, Download as R, MessageCircleMore as S, LoaderCircle as T, ChevronLeft as U, ChevronUp as V, ChevronDown as W, AlignRight as X, AlignLeft as Y, AlignCenter as Z, Redo2 as _, Type as a, MousePointer2 as b, SwatchBook as c, Sparkles as d, Scan as f, RefreshCw as g, RotateCcw as h, Undo2 as i, History as j, Image as k, Star as l, Rows3 as m, WandSparkles as n, TriangleAlert as o, Save as p, CalendarDays as q, Upload as r, Trash2 as s, X as t, Square as u, Plus as v, LockOpen as w, Minus as x, PenTool as y, Copy as z };
+export { AlignCenter as $, Image as A, Copy as B, MapPin as C, LayoutGrid as D, LoaderCircle as E, FolderKanban as F, ChevronLeft as G, Circle as H, Film as I, Camera as J, ChevronDown as K, Eye as L, History as M, HardDrive as N, Layers as O, Frame as P, AlignRight as Q, EyeOff as R, MessageCircleMore as S, LockOpen as T, ChevronUp as U, Clock3 as V, ChevronRight as W, BrainCircuit as X, CalendarDays as Y, AlignLeft as Z, Redo2 as _, Type as a, MousePointer2 as b, SwatchBook as c, Sparkles as d, Scan as f, RefreshCw as g, RotateCcw as h, Undo2 as i, House as j, Images as k, Star as l, Rows3 as m, WandSparkles as n, TriangleAlert as o, Save as p, Check as q, Upload as r, Trash2 as s, X as t, Square as u, Plus as v, Lock as w, Minus as x, PenTool as y, Download as z };
