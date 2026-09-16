@@ -4,6 +4,7 @@ import { clubSystemPrompt } from "@/lib/club/identity";
 import { academicMoment } from "@/lib/club/season";
 import { extractJson, hasXai, xaiChat } from "./xai";
 import { parseFnInput } from "./parse";
+import { preferChinese } from "./zh";
 
 const VisionInput = z
   .object({
@@ -75,7 +76,16 @@ export const analyzeImage = createServerFn({ method: "POST" })
       if (!text) return { ok: true, report: fallback };
       try {
         const report = { ...fallback, ...(extractJson(text) as Partial<VisionReport>) };
-        return { ok: true, report };
+        return {
+          ok: true,
+          report: {
+            ...report,
+            scene: preferChinese(report.scene, fallback.scene),
+            studentFit: preferChinese(report.studentFit, fallback.studentFit),
+            imagePrompt: preferChinese(report.imagePrompt, fallback.imagePrompt),
+            next: report.next?.length ? report.next.map((item, index) => preferChinese(item, fallback.next[index] ?? item)) : fallback.next,
+          },
+        };
       } catch {
         return { ok: true, report: fallback };
       }

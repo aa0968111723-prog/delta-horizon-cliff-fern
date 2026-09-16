@@ -6,6 +6,7 @@ import type { CreativeDirection } from "@/lib/studio/types";
 import { mockDirections } from "./pack-mock";
 import { extractJson, hasXai, xaiChat, xaiImage } from "./xai";
 import { parseFnInput } from "./parse";
+import { preferChinese, withClubImageScene } from "./zh";
 
 const ImageInput = z.object({
   prompt: z.string().min(4).max(800),
@@ -19,7 +20,7 @@ export const generateStudioImage = createServerFn({ method: "POST" })
     async ({
       data,
     }): Promise<{ ok: true; src: string; prompt: string; adapter: "live" | "mock" } | { ok: false; error: string }> => {
-      const prompt = `${data.prompt}. Tamkang University Tamsui student life, airy, not religious temple, not monk robes, no dense sutra text, cinematic, IG composition.`;
+      const prompt = withClubImageScene(data.prompt);
       try {
         if (hasXai()) {
           const src = await xaiImage(prompt, data.aspect ?? "4:5");
@@ -79,7 +80,17 @@ ${data.notes ? `先讀這些：\n${data.notes}` : ""}
       );
       if (!text) return { ok: true as const, directions: mocked };
       const raw = extractJson(text) as { directions?: CreativeDirection[] };
-      if (raw.directions?.length === 3) return { ok: true as const, directions: raw.directions };
+      if (raw.directions?.length === 3) {
+        const directions = raw.directions.map((item, index) => ({
+          ...item,
+          name: preferChinese(item.name, mocked[index]?.name ?? item.name),
+          concept: preferChinese(item.concept, mocked[index]?.concept ?? item.concept),
+          imagePrompt: preferChinese(item.imagePrompt, mocked[index]?.imagePrompt ?? item.imagePrompt),
+          headline: preferChinese(item.headline, mocked[index]?.headline ?? item.headline),
+          subhead: preferChinese(item.subhead, mocked[index]?.subhead ?? item.subhead),
+        }));
+        return { ok: true as const, directions };
+      }
     } catch {
       /* mock */
     }

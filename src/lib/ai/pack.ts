@@ -6,7 +6,7 @@ import type { CampaignPlan, CopyTone, CreativeDirection, SourceRef } from "@/lib
 import { buildZenMockPlan, mockDirections, mockReels, mockStoryFrames, mockStudentSim } from "./pack-mock";
 import { extractJson, hasXai, xaiChat } from "./xai";
 import { parseFnInput } from "./parse";
-import { looksEnglish } from "./zh";
+import { looksEnglish, preferChinese } from "./zh";
 import type { BriefInput } from "./schema";
 
 export type CreativePack = {
@@ -189,6 +189,7 @@ studentSim{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,to
       try {
         const raw = extractJson(text) as CampaignPlan & { directions?: CreativeDirection[] };
         const fallback = buildZenMockPlan(brief, mockDirections(brief.eventName));
+        const mockDirs = fallback.directions ?? mockDirections(brief.eventName);
         const plan: CampaignPlan = {
           ...fallback,
           ...raw,
@@ -197,9 +198,16 @@ studentSim{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,to
           generatedAt: Date.now(),
           source: "live",
           sources,
-          directions: raw.directions?.length === 3 ? raw.directions : fallback.directions,
+          directions: (raw.directions?.length === 3 ? raw.directions : mockDirs).map((item, index) => ({
+            ...item,
+            name: preferChinese(item.name, mockDirs[index]?.name ?? item.name),
+            concept: preferChinese(item.concept, mockDirs[index]?.concept ?? item.concept),
+            imagePrompt: preferChinese(item.imagePrompt, mockDirs[index]?.imagePrompt ?? item.imagePrompt),
+            headline: preferChinese(item.headline, mockDirs[index]?.headline ?? item.headline),
+            subhead: preferChinese(item.subhead, mockDirs[index]?.subhead ?? item.subhead),
+          })),
         };
-        if (looksEnglish(`${plan.hook}\n${plan.body}\n${plan.directions?.map((d) => d.concept).join("\n") ?? ""}`)) {
+        if (looksEnglish(`${plan.hook}\n${plan.body}`)) {
           return { ok: true, pack: mockPack(data.query, brief, sources) };
         }
         return { ok: true, pack: buildPackFromPlan(data.query, plan, sources, "live") };
