@@ -15,7 +15,7 @@ export function DialogOverlay({
   return (
     <DialogPrimitive.Overlay
       className={cn(
-        "fixed inset-0 z-50 bg-fg/30 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        "fixed inset-0 z-[70] bg-fg/30 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         className,
       )}
       {...props}
@@ -25,15 +25,16 @@ export function DialogOverlay({
 
 export function DialogContent({
   className,
+  overlayClassName,
   children,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content>) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & { overlayClassName?: string }) {
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl bg-surface p-5 shadow-[var(--shadow-border)] outline-none",
+          "fixed top-1/2 left-1/2 z-[70] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl bg-surface p-5 shadow-[var(--shadow-border)] outline-none",
           "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
           className,
         )}
@@ -44,6 +45,30 @@ export function DialogContent({
           <X className="size-4" />
           <span className="sr-only">關閉</span>
         </DialogPrimitive.Close>
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  );
+}
+
+/** Full-viewport overlay without card chrome — IG 限動／貼文預覽用。 */
+export function DialogViewport({
+  className,
+  overlayClassName,
+  children,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Content> & { overlayClassName?: string }) {
+  return (
+    <DialogPortal>
+      <DialogOverlay className={cn("z-[80]", overlayClassName)} />
+      <DialogPrimitive.Content
+        className={cn(
+          "fixed inset-0 z-[80] flex items-end justify-center overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] outline-none sm:items-center",
+          "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          className,
+        )}
+        {...props}
+      >
+        {children}
       </DialogPrimitive.Content>
     </DialogPortal>
   );

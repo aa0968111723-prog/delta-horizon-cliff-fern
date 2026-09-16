@@ -38,7 +38,7 @@ function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: Campaig
     cta: parsed.cta || "晚上來坐一下",
     captions: parsed.captions.length
       ? parsed.captions
-      : [{ style: "學生版", text: parsed.hook || parsed.concept || headline }],
+      : [{ style: "敘事", text: parsed.hook || parsed.concept || headline }],
     hashtags: parsed.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)),
     storyBeats: parsed.storyBeats,
     carouselPages: parsed.carouselPages,
@@ -108,7 +108,7 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
 CTA：${data.preferredCtas || "晚上來坐一下"}
 圖片風格：${data.imageStyle || "夜間、生活、三色光、龜龜配角"}
 
-活動：${data.eventName}
+活動名稱：${data.eventName}
 時間：${data.schedule || "未填"}
 地點：${data.location || "淡江校園"}
 內容：${data.product || data.eventName}
@@ -145,7 +145,7 @@ hook 必須是生活問句，禁止「誠摯邀請」。headline 最多兩行，
   }
   const plan = planFromModel(text);
   if (!plan) {
-    return { ok: false, error: "AI 回傳無法解析。可再試一次，或改用本機草案。", adapter: "live" };
+    return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
   if (data.wantCarousel) {
     plan.carouselPages = completeCarouselPages(plan.carouselPages, plan);

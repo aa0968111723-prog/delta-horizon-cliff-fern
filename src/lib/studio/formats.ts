@@ -64,7 +64,7 @@ export const FORMATS: IgFormat[] = [
   },
   {
     id: "threads",
-    name: "Threads 圖",
+    name: "Threads",
     short: "Threads",
     ratio: "4:5",
     width: 1080,

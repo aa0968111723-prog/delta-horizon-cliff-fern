@@ -1,11 +1,13 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Images, Star, Upload } from "lucide-react";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AssetCard } from "@/components/assets/asset-card";
 import { AssetDetailSheet } from "@/components/assets/asset-detail";
+import { CreativeBrainPanel } from "@/components/assets/creative-brain-panel";
+import { ImageStudio } from "@/components/assets/image-studio";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
-import { EmptyState, ErrorState } from "@/components/shared/empty-state";
+import { EmptyState, ErrorState, LoadingState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { StorageNotice } from "@/components/shared/storage-notice";
 import { ArtboardView } from "@/components/studio/artboard-view";
@@ -42,18 +44,25 @@ import {
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { previewTemplate, TEMPLATE_STARTERS } from "@/lib/studio/templates";
-import type { AssetCategory, AssetMeta, AssetSourceKind } from "@/lib/studio/types";
+import type { AssetCategory, AssetMeta, AssetSourceKind, RemoteFile } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
+import { createSearchFromHit } from "@/lib/studio/create-search";
+import { gatherCreativeHits } from "@/lib/zen/gather-hits";
+import { remoteMatchesQuery, hitFromRemote } from "@/lib/zen/search";
 import { useStudio } from "@/stores/studio-store";
 
 type FilterId = "all" | AssetCategory | "favorite";
 
-export function AssetLibrary() {
+export function AssetLibrary({ initialAssetId, initialCategory }: { initialAssetId?: string; initialCategory?: string } = {}) {
   const navigate = useNavigate();
+  const hydrated = useStudio((s) => s.hydrated);
   const assets = useStudio((s) => s.assets);
   const brands = useStudio((s) => s.brands);
   const projects = useStudio((s) => s.projects);
+  const campaigns = useStudio((s) => s.campaigns);
+  const contents = useStudio((s) => s.contents);
   const lastProjectId = useStudio((s) => s.lastProjectId);
+  const remoteFiles = useStudio((s) => s.remoteFiles);
   const addAsset = useStudio((s) => s.addAsset);
   const removeAsset = useStudio((s) => s.removeAsset);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
@@ -61,22 +70,35 @@ export function AssetLibrary() {
   const createFromTemplate = useStudio((s) => s.createFromTemplate);
   const fileRef = useRef<HTMLInputElement>(null);
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<FilterId>("all");
+  const [filter, setFilter] = useState<FilterId>(
+    initialCategory && ASSET_CATEGORIES.some((c) => c.id === initialCategory) ? (initialCategory as FilterId) : "all",
+  );
   const [source, setSource] = useState<"all" | AssetSourceKind>("all");
   const [usageFilter, setUsageFilter] = useState<"all" | "in-use" | "used" | "unused">("all");
   const [uploadCategory, setUploadCategory] = useState<AssetCategory>("photo");
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(initialAssetId ?? null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [dropOver, setDropOver] = useState(false);
+  const [liveNote, setLiveNote] = useState("");
 
-  const usedIds = useMemo(() => collectUsedAssetIds(projects, brands), [projects, brands]);
+  const usedIds = useMemo(
+    () => collectUsedAssetIds(projects, brands, [...campaigns, ...contents]),
+    [projects, brands, campaigns, contents],
+  );
   const brand = brands[0];
+  const remotes = useMemo(() => {
+    return remoteFiles.filter((file) => {
+      if (q.trim() && !remoteMatchesQuery(file, q)) return false;
+      if (source !== "all" && file.provider !== source) return false;
+      return true;
+    });
+  }, [remoteFiles, q, source]);
 
   const filtered = useMemo(() => {
     return assets.filter((asset) => {
-      if (!matchesAssetQuery(asset, q)) return false;
+      if (!matchesAssetQuery(asset, q) && !(asset.insight?.summary ?? "").toLowerCase().includes(q.trim().toLowerCase())) return false;
       if (source !== "all" && asset.source !== source) return false;
       const usage = assetUsageStatus(asset, usedIds);
       if (usageFilter !== "all" && usage !== usageFilter) return false;
@@ -89,6 +111,19 @@ export function AssetLibrary() {
   }, [assets, q, filter, source, usageFilter, usedIds]);
 
   const urls = useAssetUrls(assets.map((a) => a.id));
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const query = q.trim();
+    if (query.length < 2) {
+      setLiveNote("");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void gatherCreativeHits(query).then(({ note }) => setLiveNote(note));
+    }, 420);
+    return () => window.clearTimeout(timer);
+  }, [q, hydrated]);
   const counts = useMemo(() => {
     const map: Record<string, number> = { all: assets.length, favorite: assets.filter((a) => a.favorite).length };
     for (const cat of ASSET_CATEGORIES) {
@@ -161,7 +196,7 @@ export function AssetLibrary() {
     }
     const ok = placeAsset(lastProjectId, asset.id);
     if (!ok) {
-      toast.error("無法放到畫布");
+      toast.error(asset.width === 0 ? "這是來源參考，沒有原圖像素，不能放到畫布。" : "無法放到畫布");
       return;
     }
     toast.success(`已放入「${asset.name}」`);
@@ -171,8 +206,12 @@ export function AssetLibrary() {
   const active = assets.find((a) => a.id === activeId) ?? null;
   const showTemplates = filter === "all" || filter === "template";
 
+  if (!hydrated) {
+    return <LoadingState label="讀取素材庫…" />;
+  }
+
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-nav md:px-8 md:py-10" data-testid="assets-ready">
       <PageHeader
         kicker="Creative Library"
         title="素材庫"
@@ -188,6 +227,8 @@ export function AssetLibrary() {
         }
       />
 
+      <ImageStudio />
+      <CreativeBrainPanel onOpenAsset={setActiveId} />
       <StorageNotice className="mt-4" />
 
       <input
@@ -218,7 +259,7 @@ export function AssetLibrary() {
           if (e.dataTransfer.files.length) void onFiles(e.dataTransfer.files);
         }}
       >
-        <p>把圖片拖到這裡。JPG / PNG / WebP / GIF / SVG，單檔上限 8 MB。</p>
+        <p>把圖片拖到這裡：活動照、歷屆海報、IG 截圖、社員照、校園與淡水照。JPG / PNG / WebP / GIF / SVG，單檔 8 MB。</p>
         <div className="mx-auto mt-3 flex max-w-xs items-center gap-2">
           <span className="text-xs">上傳分類</span>
           <Select value={uploadCategory} onValueChange={(v) => setUploadCategory(v as AssetCategory)}>
@@ -265,7 +306,7 @@ export function AssetLibrary() {
           </SelectContent>
         </Select>
         <Select value={usageFilter} onValueChange={(v) => setUsageFilter(v as typeof usageFilter)}>
-          <SelectTrigger className="md:w-40">
+          <SelectTrigger className="min-h-11 md:w-40">
             <SelectValue placeholder="使用狀態" />
           </SelectTrigger>
           <SelectContent>
@@ -277,8 +318,30 @@ export function AssetLibrary() {
         </Select>
         <p className="text-xs text-subtle tabular-nums">{filter === "template" ? TEMPLATE_STARTERS.length : filtered.length} 件</p>
       </div>
+      {liveNote || q.trim().length >= 2 ? (
+        <p className="mt-2 text-xs text-muted" data-testid="assets-found-note">
+          {q.trim().length >= 2 ? `找到 ${remotes.length + filtered.length} 個相關素材。` : ""}
+          {liveNote ? ` ${liveNote.replace(/[。.]+\s*$/, "")}。` : ""}
+        </p>
+      ) : null}
 
-      <div className="-mx-4 mt-4 flex gap-1 overflow-x-auto px-4 pb-1">
+      <div className="-mx-4 mt-4 flex gap-1 overflow-x-auto px-4 pb-1" data-testid="asset-source-chips">
+        <FilterChip active={source === "all"} onClick={() => setSource("all")} count={assets.length}>
+          全部來源
+        </FilterChip>
+        {ASSET_SOURCES.map((item) => (
+          <FilterChip
+            key={item.id}
+            active={source === item.id}
+            onClick={() => setSource(item.id)}
+            count={assets.filter((asset) => asset.source === item.id).length}
+          >
+            {item.label}
+          </FilterChip>
+        ))}
+      </div>
+
+      <div className="-mx-4 mt-2 flex gap-1 overflow-x-auto px-4 pb-1">
         <FilterChip active={filter === "all"} onClick={() => setFilter("all")} count={counts.all}>
           全部
         </FilterChip>
@@ -314,7 +377,7 @@ export function AssetLibrary() {
                       const project = createFromTemplate({ templateId: tpl.id, brandId: brand.id });
                       void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
                     }}
-                    className="w-full rounded-2xl bg-surface p-3 text-left shadow-[var(--shadow-border)]"
+                    className="w-full rounded-2xl surface-card p-3 text-left"
                   >
                     <div className="flex h-32 items-center justify-center overflow-hidden rounded-lg bg-bg">
                       {preview && brand ? (
@@ -337,6 +400,29 @@ export function AssetLibrary() {
           </ul>
         </section>
       ) : null}
+
+      {filter === "all" || source === "drive" || source === "canva" || source === "instagram"
+        ? remotes.length
+          ? (
+        <section className="mt-8" data-testid="assets-remotes">
+          <h2 className="mb-3 text-sm font-medium">連接中的素材</h2>
+          <p className="mb-3 text-xs text-muted">Google Drive、Canva、Instagram。點一下就能拿去創作。</p>
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {remotes.map((file) => (
+              <li key={file.id}>
+                <RemoteAssetRow
+                  file={file}
+                  onCreate={() => {
+                    void navigate({ to: "/create", search: createSearchFromHit(hitFromRemote(file)) });
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+            )
+          : null
+        : null}
 
       {filter === "template" ? null : filtered.length === 0 ? (
         <EmptyState
@@ -369,6 +455,7 @@ export function AssetLibrary() {
                 onFavorite={() => toggleFavorite(asset.id)}
                 onDelete={() => setPendingDelete(asset.id)}
                 onPlace={lastProjectId ? () => place(asset) : undefined}
+                onCreate={() => void navigate({ to: "/create", search: { from: "image", asset: asset.id } })}
               />
             </li>
           ))}
@@ -386,6 +473,7 @@ export function AssetLibrary() {
         onDelete={() => {
           if (active) setPendingDelete(active.id);
         }}
+        onCreated={(id) => setActiveId(id)}
       />
 
       <AlertDialog open={Boolean(pendingDelete)} onOpenChange={() => setPendingDelete(null)}>
@@ -434,12 +522,38 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs",
+        "flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs",
         active ? "bg-accent text-accent-fg" : "bg-surface text-muted shadow-[var(--shadow-border)]",
       )}
     >
       {children}
       <span className="tabular-nums opacity-70">{count}</span>
     </button>
+  );
+}
+
+function RemoteAssetRow({ file, onCreate }: { file: RemoteFile; onCreate: () => void }) {
+  const label = file.provider === "canva" ? "Canva" : file.provider === "instagram" ? "Instagram" : "Google Drive";
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-surface px-3 py-3 shadow-[var(--shadow-border)]">
+      {file.thumbnail ? (
+        <img src={file.thumbnail} alt="" className="size-12 shrink-0 rounded-lg object-cover" />
+      ) : (
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-bg text-[10px] text-muted">
+          {label}
+        </span>
+      )}
+      <button type="button" data-testid="asset-remote-into-create" onClick={onCreate} className="min-w-0 flex-1 text-left">
+        <p className="truncate text-sm">{file.name}</p>
+        <p className="truncate text-xs text-muted">
+          {label} · {file.summary}
+        </p>
+      </button>
+      {file.url ? (
+        <a href={file.url} target="_blank" rel="noreferrer" className="shrink-0 text-xs text-muted">
+          開原檔
+        </a>
+      ) : null}
+    </div>
   );
 }

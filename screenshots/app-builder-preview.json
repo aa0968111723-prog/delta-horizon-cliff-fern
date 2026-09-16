@@ -11,8 +11,12 @@
       "bodyTextHash": "a64fedb051df7398b2f014720300283823170f20e469637251a82217cacfd281",
       "bodyTextPrefix": "禪 首頁 排程 創作 素材 IG 畫布 連接 淡江大學禪學社 今天可以創作什麼？ 開學適應期 · 淡水還熱，午後常陣雨，傍晚河岸",
       "horizontalOverflow": false,
-      "consoleErrors": [],
-      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 504 (Outdated Optimize Dep)"
+      ],
+      "pageErrors": [
+        "Failed to fetch dynamically imported module: http://127.0.0.1:8080/node_modules/@tanstack/react-start/dist/plugin/default-entry/client.tsx"
+      ],
       "screenshot": "/workspace/screenshots/app-builder-preview.png"
     },
     "mobile": {

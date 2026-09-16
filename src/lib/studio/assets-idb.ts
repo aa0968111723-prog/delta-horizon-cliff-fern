@@ -1,6 +1,8 @@
+import { isDisplayableImageBlob, mimeForAssetSrc } from "./assets.ts";
+
 export { readFileAsImage } from "./asset-upload";
 
-const DB_NAME = "kouzhen-assets";
+const DB_NAME = "tamkang-zen-assets";
 const STORE = "blobs";
 const VERSION = 1;
 
@@ -56,20 +58,35 @@ export async function deleteAssetBlob(id: string): Promise<void> {
 }
 
 export async function hydrateSeedAsset(id: string, src: string): Promise<void> {
-  if (await hasAssetBlob(id)) return;
+  const existing = await getAssetBlob(id);
+  if (existing && isDisplayableImageBlob(existing) && (existing.type.startsWith("image/") || existing.type.includes("svg"))) {
+    return;
+  }
   const res = await fetch(src);
   if (!res.ok) throw new Error(`無法載入素材 ${src}`);
   const blob = await res.blob();
-  await putAssetBlob(id, blob);
+  const mime = mimeForAssetSrc(src, blob.type || "image/svg+xml");
+  const typed = blob.type === mime ? blob : new Blob([await blob.arrayBuffer()], { type: mime });
+  if (!isDisplayableImageBlob(typed)) throw new Error(`素材不是圖片 ${src}`);
+  await putAssetBlob(id, typed);
+  revokeAssetUrl(id);
 }
 
 const urlCache = new Map<string, string>();
 
-export async function objectUrlForAsset(id: string): Promise<string | null> {
+export async function objectUrlForAsset(id: string, seedSrc?: string): Promise<string | null> {
   const cached = urlCache.get(id);
   if (cached) return cached;
-  const blob = await getAssetBlob(id);
-  if (!blob) return null;
+  let blob = await getAssetBlob(id);
+  if (!blob && seedSrc) {
+    try {
+      await hydrateSeedAsset(id, seedSrc);
+      blob = await getAssetBlob(id);
+    } catch {
+      return seedSrc;
+    }
+  }
+  if (!blob) return seedSrc ?? null;
   const url = URL.createObjectURL(blob);
   urlCache.set(id, url);
   return url;

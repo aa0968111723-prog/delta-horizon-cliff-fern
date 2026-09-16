@@ -103,6 +103,12 @@ export function HomePage() {
     });
   }
 
+  const suggestion =
+    todaysWave?.hook ||
+    focus?.painPoint ||
+    localTodayIdeas()[0]?.hook ||
+    "第一次來，會經歷什麼？";
+
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
       <p className="text-xs tracking-[0.18em] text-muted uppercase">淡江大學禪學社</p>
@@ -407,4 +413,14 @@ export function HomePage() {
       </section>
     </main>
   );
+}
+
+function sourceLabel(source: string) {
+  if (source === "drive") return "Google Drive";
+  if (source === "canva") return "Canva";
+  if (source === "instagram") return "Instagram";
+  if (source === "generated") return "AI Generated";
+  if (source === "campaign") return "活動";
+  if (source === "brand") return "Brand";
+  return "素材";
 }

@@ -128,7 +128,6 @@ export interface FileRoutesByFullPath {
   '/studio': typeof StudioRouteWithChildren
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
-  '/campaigns/': typeof CampaignsIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/api/connect/$': typeof ApiConnectSplatRoute
 }
@@ -145,7 +144,6 @@ export interface FileRoutesByTo {
   '/inspire': typeof InspireRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
-  '/campaigns': typeof CampaignsIndexRoute
   '/studio': typeof StudioIndexRoute
   '/api/connect/$': typeof ApiConnectSplatRoute
 }
@@ -165,7 +163,6 @@ export interface FileRoutesById {
   '/studio': typeof StudioRouteWithChildren
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
-  '/campaigns/': typeof CampaignsIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/api/connect/$': typeof ApiConnectSplatRoute
 }
@@ -186,7 +183,6 @@ export interface FileRouteTypes {
     | '/studio'
     | '/campaigns/$campaignId'
     | '/studio/$projectId'
-    | '/campaigns/'
     | '/studio/'
     | '/api/connect/$'
   fileRoutesByTo: FileRoutesByTo
@@ -203,7 +199,6 @@ export interface FileRouteTypes {
     | '/inspire'
     | '/campaigns/$campaignId'
     | '/studio/$projectId'
-    | '/campaigns'
     | '/studio'
     | '/api/connect/$'
   id:
@@ -222,7 +217,6 @@ export interface FileRouteTypes {
     | '/studio'
     | '/campaigns/$campaignId'
     | '/studio/$projectId'
-    | '/campaigns/'
     | '/studio/'
     | '/api/connect/$'
   fileRoutesById: FileRoutesById
@@ -366,20 +360,6 @@ declare module '@tanstack/react-router' {
     }
   }
 }
-
-interface CampaignsRouteChildren {
-  CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRoute
-  CampaignsIndexRoute: typeof CampaignsIndexRoute
-}
-
-const CampaignsRouteChildren: CampaignsRouteChildren = {
-  CampaignsCampaignIdRoute: CampaignsCampaignIdRoute,
-  CampaignsIndexRoute: CampaignsIndexRoute,
-}
-
-const CampaignsRouteWithChildren = CampaignsRoute._addFileChildren(
-  CampaignsRouteChildren,
-)
 
 interface StudioRouteChildren {
   StudioProjectIdRoute: typeof StudioProjectIdRoute

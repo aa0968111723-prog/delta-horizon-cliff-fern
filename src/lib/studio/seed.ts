@@ -1,5 +1,22 @@
+import {
+  CLUB_CTAS,
+  CLUB_DONT_SAY,
+  CLUB_DO_SAY,
+  CLUB_HANDLE,
+  CLUB_HASHTAGS,
+  CLUB_INTRO_SHORT,
+  CLUB_NAME,
+  CLUB_PALETTE,
+  CLUB_SLOGANS,
+  CLUB_VOICE,
+  MASCOT,
+  VISUAL_ANCHORS,
+} from "@/lib/zen/club";
+import { clubBrandMemory } from "./brand";
 import { emptyBoilerplate } from "./boilerplate";
+import { defaultWavePlan, migrateCampaign } from "./campaign";
 import { migrateBrief, migratePlan, migratePlanVersions } from "./brief";
+import { kindFromFormat } from "./content";
 import { buildLayout } from "./layout";
 import { DEFAULT_SHADOW } from "./layers";
 import type { AssetMeta, BrandKit, Layer, LineLayer, Project } from "./types";
@@ -32,9 +49,9 @@ import {
 const SEED_TIME = Date.parse("2026-09-10T20:00:00+08:00");
 
 export const SEED_ASSETS: AssetMeta[] = [
-  {
+  seedAsset({
     id: SEED_LOGO_ID,
-    name: "禪學社標誌",
+    name: "禪光標誌",
     kind: "logo",
     category: "logo",
     mime: "image/svg+xml",
@@ -43,7 +60,7 @@ export const SEED_ASSETS: AssetMeta[] = [
     tags: ["logo", "品牌", "三色光"],
     createdAt: SEED_TIME,
     updatedAt: SEED_TIME,
-    seedSrc: "/seed/zen-mark.svg",
+    seedSrc: "/seed/nisshoku-mark.svg",
     source: "seed",
     licenseNotes: "社團標誌，僅限淡江禪學社網宣。",
     licenseOwner: "淡江大學禪學社",
@@ -107,6 +124,8 @@ export const SEED_ASSETS: AssetMeta[] = [
     favorite: true,
     lastUsedAt: SEED_TIME,
     useCount: 2,
+    attribution: "社團自有標誌",
+    analysisNotes: "",
   },
   {
     id: SEED_CAMPUS_ID,
@@ -165,7 +184,7 @@ export const SEED_BRAND: BrandKit = {
     { id: "c4", hex: "#2A6A64", role: "accent", label: "淡水" },
     { id: "c5", hex: "#1C1A16", role: "ink", label: "文字" },
   ],
-  fontDisplay: "Noto Serif TC",
+  fontDisplay: "Noto Sans TC",
   fontBody: "Noto Sans TC",
   logoAssetId: SEED_LOGO_ID,
   logos: [
@@ -195,8 +214,18 @@ export const SEED_BRAND: BrandKit = {
     hashtags: ["#淡江禪學社", "#淡江大學", "#淡水"],
     captionClose: "想一起來的話，留言或點連結就好。",
   },
+  mascot: "龜龜",
+  motifs: ["龜龜", "三色光", "淡水夜晚", "坐下來", "茶"],
+  likes: ["生活感", "留白", "學生語氣", "夜晚暖光"],
+  dislikes: ["說教", "華麗佛學詞", "企業活動海報", "過度詩意"],
+  audienceNotes:
+    "只寫淡江學生：大一新生、住宿與通勤、剛到淡水的人、想交朋友或暫時喘口氣的人。他們多半對禪不熟。",
   updatedAt: SEED_TIME,
 };
+
+/* ------------------------------------------------------------------ */
+/* 示範活動：浮游禪光                                                     */
+/* ------------------------------------------------------------------ */
 
 const copy = {
   eyebrow: "09 / 24",
@@ -212,11 +241,39 @@ const copy = {
 };
 
 function stabilize(layers: Layer[], prefix: string): Layer[] {
-  return layers.map((layer, index) => ({
-    ...layer,
-    id: `${prefix}${index}`,
-  }));
+  return layers.map((layer, index) => ({ ...layer, id: `${prefix}${index}` }));
 }
+
+export function createSeedCampaign(): ClubCampaign {
+  const waves = suggestWaves(
+    { date: EVENT_DATE, type: "light", name: "浮游禪光" },
+    new Date(SEED_TIME),
+  ).map((wave) =>
+    wave.kind === "hero" ? { ...wave, projectId: SEED_PROJECT_ID } : wave,
+  );
+  return {
+    id: SEED_CAMPAIGN_ID,
+    name: "浮游禪光",
+    type: "light",
+    date: EVENT_DATE,
+    time: "19:00–21:00",
+    location: "淡江大學淡水校園 · 禪學社",
+    oneLiner: "最近是不是很久沒有好好坐下來？",
+    description:
+      "用燈、坐、和一點茶，把開學後的吵雜放慢。不需要會禪，也不用正襟危坐。",
+    theme: "夜晚、光、朋友、喘口氣",
+    studentPain: "開學後行程變滿，休息會心虛。",
+    cta: "來坐一下",
+    signupUrl: "",
+    imageAssetId: SEED_LIGHT_ID,
+    assetIds: [SEED_LIGHT_ID, SEED_TURTLE_ID, SEED_TAMSUI_ID],
+    waves,
+    createdAt: SEED_TIME,
+    updatedAt: SEED_TIME,
+  };
+}
+
+export const SEED_CAMPAIGNS: ClubCampaign[] = [createSeedCampaign()];
 
 export function createSeedProject(): Project {
   const now = SEED_TIME;
@@ -225,7 +282,7 @@ export function createSeedProject(): Project {
   });
   page1.layers = stabilize(page1.layers, "seed_ly_");
   page1.role = "cover";
-  page1.templateId = "product";
+  page1.templateId = "quote";
 
   const page2 = buildLayout(
     "feed-portrait",
@@ -239,6 +296,7 @@ export function createSeedProject(): Project {
     },
     SEED_BRAND,
     "quote",
+    { imageAssetId: SEED_NIGHT_ID },
   );
   page2.layers = stabilize(page2.layers, "seed_p2_ly_");
   page2.role = "problem";
@@ -295,7 +353,7 @@ export function createSeedProject(): Project {
   );
   page4.layers = stabilize(page4.layers, "seed_p4_ly_");
   page4.role = "proof";
-  page4.templateId = "product";
+  page4.templateId = "quote";
 
   const page5 = buildLayout(
     "feed-portrait",
@@ -310,9 +368,9 @@ export function createSeedProject(): Project {
     SEED_BRAND,
     "offer",
   );
-  page5.layers = stabilize(page5.layers, "seed_p5_ly_");
-  page5.role = "cta";
-  page5.templateId = "offer";
+  page4.layers = stabilize(page4.layers, "seed_p4_ly_");
+  page4.role = "cta";
+  page4.templateId = "offer";
 
   const page6 = buildLayout(
     "feed-portrait",
@@ -358,7 +416,7 @@ export function createSeedProject(): Project {
     colorMood: "夜、琥珀、淡水、蓮",
     eyebrow: copy.eyebrow,
     headline: copy.headline,
-    subhead: copy.subhead,
+    subhead: "開學第三週 · 給自己留一個放空的晚上",
     body: copy.body,
     cta: copy.cta,
     captions: [
@@ -448,7 +506,7 @@ export function createSeedProject(): Project {
     createdAt: now,
     updatedAt: now,
     brandId: SEED_BRAND_ID,
-    templateId: "product",
+    templateId: "quote",
     activeFormatId: "feed-portrait",
     status: "done",
     contentKind: "carousel",
@@ -459,13 +517,17 @@ export function createSeedProject(): Project {
     brief,
     copy,
     plan,
-    artboards: { "feed-portrait": page1 },
-    slides: { "feed-portrait": slides },
+    artboards: {
+      "feed-portrait": page1,
+    },
+    slides: {
+      "feed-portrait": slides,
+    },
     slideIndex: 0,
     snapshots: [
       {
         id: "snap_seed_v1",
-        name: "初稿 · 六頁輪播",
+        name: "初稿 · 五頁輪播",
         createdAt: now,
         kind: "manual",
         formatId: "feed-portrait",
@@ -476,6 +538,10 @@ export function createSeedProject(): Project {
     ],
     planVersions: migratePlanVersions(undefined, plan),
     exports: [],
+    campaignId: "camp_floating_light",
+    contentKind: "carousel",
+    scheduledAt: Date.parse("2026-09-17T20:00:00+08:00"),
+    publishedAt: null,
   };
 }
 
@@ -489,7 +555,7 @@ export function createSeedDraft(): Project {
     cta: "晚上來坐一下",
     handle: "@tkuzen",
     caption: "",
-    hashtags: ["#淡江禪學社"],
+    hashtags: ["#淡江禪學社", "#淡江"],
     altText: "",
   };
   const artboard = buildLayout("story", draftCopy, SEED_BRAND, "offer", {
@@ -505,7 +571,7 @@ export function createSeedDraft(): Project {
     createdAt: now,
     updatedAt: now,
     brandId: SEED_BRAND_ID,
-    templateId: "offer",
+    templateId: "quote",
     activeFormatId: "story",
     status: "idea",
     contentKind: "story",
@@ -528,13 +594,142 @@ export function createSeedDraft(): Project {
     }),
     copy: draftCopy,
     plan: null,
-    artboards: { story: artboard },
-    slides: { story: [artboard] },
+    artboards: {
+      story: artboard,
+    },
+    slides: {
+      story: [artboard],
+    },
     slideIndex: 0,
     snapshots: [],
     planVersions: [],
     exports: [],
+    campaignId: "camp_welcome_tea",
+    contentKind: "story",
+    scheduledAt: null,
+    publishedAt: null,
   };
 }
+
+export const SEED_SCHEDULE: ScheduleItem[] = [
+  {
+    id: "sch_hero",
+    projectId: SEED_PROJECT_ID,
+    campaignId: SEED_CAMPAIGN_ID,
+    kind: "carousel",
+    title: "浮游禪光主視覺",
+    scheduledAt: Date.parse("2026-09-17T19:00:00+08:00"),
+    publishedAt: null,
+    status: "scheduled",
+    caption: "最近是不是很久沒有好好坐下來？\n9/24 晚上，淡水校園。來坐一下。",
+    hashtags: ["#淡江禪學社", "#浮游禪光", "#淡水"],
+    imageAssetId: SEED_LIGHT_ID,
+  },
+  {
+    id: "sch_story",
+    projectId: SEED_DRAFT_ID,
+    campaignId: null,
+    kind: "story",
+    title: "開學允許慢一點",
+    scheduledAt: Date.parse("2026-09-16T21:00:00+08:00"),
+    publishedAt: null,
+    status: "creating",
+    imageAssetId: SEED_TAMSUI_ID,
+  },
+];
+
+export const SEED_REMOTE_FILES: RemoteFile[] = [
+  {
+    id: "drv_tea_2025",
+    provider: "drive",
+    name: "2025 茶會現場",
+    mime: "image/jpeg",
+    thumbnail: "/seed/tamsui.svg",
+    url: "/seed/tamsui.svg",
+    tags: ["茶會", "晚上", "同學", "互動"],
+    summary: "歷屆晚上茶會，很多人圍坐。連接 Drive 後會換成真實檔案。",
+  },
+  {
+    id: "drv_plan_light",
+    provider: "drive",
+    name: "浮游禪光企劃",
+    mime: "application/pdf",
+    thumbnail: "/seed/trilight.svg",
+    url: "/seed/trilight.svg",
+    tags: ["浮游禪光", "企劃", "燈"],
+    summary: "活動流程與燈的配置。",
+  },
+  {
+    id: "canva_tea",
+    provider: "canva",
+    name: "茶會 IG 主視覺",
+    mime: "application/canva",
+    thumbnail: "/seed/trilight.svg",
+    url: "/seed/trilight.svg",
+    tags: ["茶會", "Canva", "主視覺"],
+    summary: "歷屆茶會版型，三色光。延續 DNA，不要直接複製。",
+  },
+  {
+    id: "canva_recruit",
+    provider: "canva",
+    name: "招新版型",
+    mime: "application/canva",
+    thumbnail: "/seed/campus.svg",
+    url: "/seed/campus.svg",
+    tags: ["招生", "template"],
+    summary: "招生活動版型。每年換學生情境，不要整張沿用。",
+  },
+];
+
+export function migrateRemoteFile(file: RemoteFile): RemoteFile {
+  if (file.thumbnail) return file;
+  const seed = SEED_REMOTE_FILES.find((row) => row.id === file.id);
+  if (!seed?.thumbnail) return file;
+  return { ...file, thumbnail: seed.thumbnail, url: file.url || seed.url };
+}
+
+export const SEED_IG_MEMORY: IgMemoryPost[] = [
+  {
+    id: "ig_local_1",
+    caption: "最近是不是很久沒有好好坐下來？",
+    date: "2026-09-17",
+    kind: "carousel",
+    likes: 86,
+    comments: 7,
+    saves: 21,
+    reach: 420,
+    impressions: 510,
+    source: "local",
+    projectId: SEED_PROJECT_ID,
+    assetId: SEED_LIGHT_ID,
+  },
+  {
+    id: "ig_mem_tea",
+    caption: "有時候我們需要的不是答案，只是一個安靜的晚上。",
+    date: "2025-12-04",
+    kind: "post",
+    likes: 124,
+    comments: 14,
+    saves: 33,
+    reach: 680,
+    impressions: 740,
+    source: "local",
+    assetId: SEED_TAMSUI_ID,
+    analysis: "生活問句當 Hook，比活動全名更容易停滑。",
+  },
+  {
+    id: "ig_mem_info",
+    caption: "淡江大學禪學社 9/24 浮游禪光活動開始報名，地點在社團教室。",
+    date: "2025-09-10",
+    kind: "post",
+    likes: 22,
+    comments: 1,
+    saves: 4,
+    reach: 390,
+    impressions: 450,
+    source: "local",
+    analysis: "資訊堆疊、沒有問句，停留感較弱。下一次先讓學生覺得被看見。",
+  },
+];
 
 export const SEED_PROJECT = createSeedProject();

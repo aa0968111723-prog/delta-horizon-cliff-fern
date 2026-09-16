@@ -4,6 +4,7 @@ import {
   Images,
   Instagram,
   Plus,
+  Search,
   Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -12,9 +13,11 @@ import { useState } from "react";
 import { AssistantSheet } from "@/components/assistant/assistant-sheet";
 import { CreateMenu } from "@/components/create/create-menu";
 import { SaveIndicator } from "@/components/shared/save-indicator";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
+import { useState } from "react";
 
 const NAV: { to: string; label: string; icon: LucideIcon; match: string }[] = [
   { to: "/", label: "首頁", icon: Sparkles, match: "home" },
@@ -49,21 +52,23 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="flex h-14 items-center justify-center font-display text-lg tracking-tight"
           aria-label="禪學社 Studio 首頁"
         >
-          禪
+          光
         </Link>
         <nav className="flex flex-1 flex-col gap-1 p-2">
           {NAV.map((item) => {
             const active = current === item.match;
+            const dest = hrefFor(item);
             return (
               <Link
                 key={item.match}
-                to={item.to}
+                to={dest.to}
+                params={"params" in dest ? dest.params : undefined}
                 className={cn(
                   "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-xs transition-colors",
                   active ? "bg-surface-2 text-fg" : "text-muted hover:bg-surface-2 hover:text-fg",
                 )}
               >
-                <item.icon className="size-4" />
+                <item.icon className="size-[1.15rem]" />
                 {item.label}
               </Link>
             );

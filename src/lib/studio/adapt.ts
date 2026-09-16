@@ -1,5 +1,6 @@
 import { copyForCarouselPage, copyFromArtboard, remapLayerToFormat, roleTemplate, stampSlideMeta } from "./carousel.ts";
-import { buildLayout, extractImageAssetId } from "./layout.ts";
+import { buildLayout } from "./layout.ts";
+import { pageVisualAsset } from "./pack-visual.ts";
 import type { Artboard, BrandKit, CopyDeck, FormatId, TemplateId } from "./types.ts";
 
 export function adaptArtboard(
@@ -10,7 +11,7 @@ export function adaptArtboard(
 ): Artboard {
   const copy = opts.copy ?? copyFromArtboard(source);
   const templateId = opts.templateId ?? source.templateId ?? roleTemplate(source.role);
-  const imageAssetId = extractImageAssetId(source);
+  const imageAssetId = pageVisualAsset(source);
   const next = buildLayout(targetFormatId, copy, brand, templateId, { imageAssetId });
   next.role = source.role;
   next.templateId = templateId;

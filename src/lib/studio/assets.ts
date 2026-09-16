@@ -10,7 +10,8 @@ import type {
 } from "./types.ts";
 import { expandQuery } from "../creative/search.ts";
 
-export const ASSET_DRAG_MIME = "application/x-kouzhen-asset";
+export const ASSET_DRAG_MIME = "application/x-zen-asset";
+export const ASSET_DRAG_MIME_LEGACY = "application/x-kouzhen-asset";
 
 export const ASSET_CATEGORIES: {
   id: AssetCategory;
@@ -37,12 +38,88 @@ export const ASSET_CATEGORIES: {
 
 export const ASSET_SOURCES: { id: AssetSourceKind; label: string }[] = [
   { id: "upload", label: "本機上傳" },
-  { id: "seed", label: "社團記憶" },
+  { id: "seed", label: "社團素材" },
   { id: "generated", label: "AI 生成" },
   { id: "drive", label: "Google Drive" },
   { id: "canva", label: "Canva" },
   { id: "instagram", label: "Instagram" },
 ];
+
+const ASSET_SOURCE_IDS = new Set<AssetSourceKind>(ASSET_SOURCES.map((item) => item.id));
+
+export function isAssetSourceKind(value: unknown): value is AssetSourceKind {
+  return typeof value === "string" && ASSET_SOURCE_IDS.has(value as AssetSourceKind);
+}
+
+/** 從標籤／權利人還原 Drive、Canva、IG，舊資料曾一律存成「本機上傳」。 */
+export function inferAssetSource(raw: Partial<AssetMeta>): AssetSourceKind {
+  if (raw.source === "generated") return "generated";
+  if (raw.source === "seed" || raw.seedSrc) return "seed";
+  if (isAssetSourceKind(raw.source) && raw.source !== "upload") return raw.source;
+  return inferRemoteOrUpload(raw);
+}
+
+function inferRemoteOrUpload(raw: Partial<AssetMeta>): AssetSourceKind {
+  const blob = `${(raw.tags ?? []).join(" ")} ${raw.licenseOwner ?? ""} ${raw.licenseNotes ?? ""}`;
+  if (/Google Drive/i.test(blob)) return "drive";
+  if (/\bCanva\b/i.test(blob)) return "canva";
+  if (/Instagram/i.test(blob)) return "instagram";
+  if (raw.source === "upload") return "upload";
+  return "upload";
+}
+
+/** 畫布／卡片預覽：示範素材直接用 public 路徑，不等 IndexedDB。 */
+export function previewUrlForAsset(
+  asset: Pick<AssetMeta, "seedSrc">,
+  blobUrl?: string | null,
+): string | undefined {
+  return asset.seedSrc || blobUrl || undefined;
+}
+
+export function mimeForAssetSrc(src: string, fallback = "image/png"): string {
+  if (/\.svg(\?|#|$)/i.test(src)) return "image/svg+xml";
+  if (/\.png(\?|#|$)/i.test(src)) return "image/png";
+  if (/\.webp(\?|#|$)/i.test(src)) return "image/webp";
+  if (/\.gif(\?|#|$)/i.test(src)) return "image/gif";
+  if (/\.jpe?g(\?|#|$)/i.test(src)) return "image/jpeg";
+  return fallback;
+}
+
+/** IndexedDB 裡若曾寫入 HTML 錯誤頁，就不能當圖片預覽。 */
+export function isDisplayableImageBlob(blob: Blob | undefined | null): boolean {
+  if (!blob || blob.size < 16) return false;
+  const type = (blob.type || "").toLowerCase();
+  if (!type) return true;
+  if (type.startsWith("image/")) return true;
+  if (type.includes("svg") || type === "application/xml" || type === "text/xml") return true;
+  if (type.includes("html") || type.includes("json") || type.startsWith("text/")) return false;
+  return false;
+}
+
+/** 匯出畫布時：IndexedDB 裡有可用圖就用 blob，否則退回示範素材的 public 路徑。 */
+export function pickExportImageSource(
+  blob: Blob | undefined | null,
+  seedSrc?: string,
+): { kind: "blob"; blob: Blob } | { kind: "url"; url: string } | null {
+  if (blob && isDisplayableImageBlob(blob)) return { kind: "blob", blob };
+  if (seedSrc) return { kind: "url", url: seedSrc };
+  return null;
+}
+
+/** SVG 用 object-cover 在 Chromium 會變成空白（intrinsic size 0）。 */
+export function isSvgPreviewSrc(src?: string | null, mime?: string) {
+  if ((mime || "").includes("svg")) return true;
+  return /\.svg(\?|#|$)/i.test(src ?? "");
+}
+
+export function assetPreviewFitClass(asset: { mime?: string; seedSrc?: string }, blobUrl?: string | null) {
+  return isSvgPreviewSrc(asset.seedSrc ?? blobUrl, asset.mime) ? "object-fill" : "object-cover";
+}
+
+/** Logo／龜龜是蓋章；照片、插圖、現場才當主視覺。 */
+export function isStampAsset(asset: Pick<AssetMeta, "kind" | "category">): boolean {
+  return asset.kind === "logo" || asset.category === "logo";
+}
 
 export function categoryLabel(id: AssetCategory) {
   return ASSET_CATEGORIES.find((item) => item.id === id)?.label ?? id;
@@ -58,10 +135,19 @@ export function usageLabel(status: AssetUsageStatus) {
   return "未使用";
 }
 
+export function isVideoAsset(asset: { kind?: string; mime?: string }) {
+  return asset.kind === "video" || (asset.mime ?? "").startsWith("video/");
+}
+
 export function kindFromCategory(category: AssetCategory): AssetKind {
-  if (category === "logo") return "logo";
+  if (category === "logo" || category === "mascot") return "logo";
   if (category === "background") return "pattern";
   return "image";
+}
+
+export function kindFromMime(mime: string | undefined, category: AssetCategory, kind?: AssetKind): AssetKind {
+  if (kind === "video" || (mime ?? "").startsWith("video/")) return "video";
+  return kind ?? kindFromCategory(category);
 }
 
 export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
@@ -70,6 +156,7 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
   }
   if (raw.kind === "logo") return "logo";
   if (raw.kind === "pattern") return "background";
+  if ((raw.mime ?? "").startsWith("video/") || raw.kind === "video") return "reels";
   const tags = (raw.tags ?? []).join(" ").toLowerCase();
   const name = (raw.name ?? "").toLowerCase();
   const blob = `${tags} ${name}`;
@@ -90,10 +177,11 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
 
 export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: string }): AssetMeta {
   const category = inferCategory(raw);
+  const source = raw.source && SOURCE_IDS.has(raw.source) ? raw.source : "upload";
   return {
     id: raw.id,
     name: raw.name,
-    kind: raw.kind ?? kindFromCategory(category),
+    kind: kindFromMime(raw.mime, category, raw.kind),
     category,
     mime: raw.mime ?? "image/jpeg",
     width: raw.width ?? 0,
@@ -102,21 +190,21 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
     createdAt: raw.createdAt ?? Date.now(),
     updatedAt: raw.updatedAt ?? raw.createdAt ?? Date.now(),
     seedSrc: raw.seedSrc,
-    source:
-      raw.source === "seed" ||
-      raw.source === "generated" ||
-      raw.source === "upload" ||
-      raw.source === "drive" ||
-      raw.source === "canva" ||
-      raw.source === "instagram"
-        ? raw.source
-        : "upload",
+    source: raw.source === "seed" || raw.source === "generated" || raw.source === "upload" ? raw.source : "upload",
     licenseNotes: raw.licenseNotes ?? "",
     licenseOwner: raw.licenseOwner ?? "",
     favorite: Boolean(raw.favorite),
     lastUsedAt: raw.lastUsedAt ?? null,
     useCount: raw.useCount ?? 0,
+    attribution: raw.attribution ?? "",
+    analysisNotes: raw.analysisNotes ?? "",
   };
+}
+
+const ASSET_SOURCE_IDS: AssetSourceKind[] = ["upload", "seed", "generated", "drive", "canva", "instagram"];
+
+function isAssetSource(v: unknown): v is AssetSourceKind {
+  return typeof v === "string" && ASSET_SOURCE_IDS.includes(v as AssetSourceKind);
 }
 
 export function createGeneratedAsset(input: {
@@ -146,7 +234,7 @@ export function createGeneratedAsset(input: {
 }
 
 export function matchesAssetQuery(asset: AssetMeta, query: string) {
-  const q = query.trim();
+  const q = query.trim().toLowerCase();
   if (!q) return true;
   const blob = [
     asset.name,
@@ -173,7 +261,11 @@ function collectFromBoard(board: Artboard | undefined, ids: Set<string>) {
   }
 }
 
-export function collectUsedAssetIds(projects: Project[], brands: BrandKit[]): Set<string> {
+export function collectUsedAssetIds(
+  projects: Project[],
+  brands: BrandKit[],
+  covers: { coverAssetId?: string | null; reels?: { assetId?: string | null }[] }[] = [],
+): Set<string> {
   const ids = new Set<string>();
   for (const project of projects) {
     for (const board of Object.values(project.artboards)) collectFromBoard(board, ids);
@@ -184,6 +276,7 @@ export function collectUsedAssetIds(projects: Project[], brands: BrandKit[]): Se
   for (const brand of brands) {
     if (brand.logoAssetId) ids.add(brand.logoAssetId);
     for (const logo of brand.logos ?? []) ids.add(logo.assetId);
+    for (const id of brand.memory?.legacyAssetIds ?? []) ids.add(id);
   }
   return ids;
 }
@@ -202,4 +295,29 @@ export function fitPlacedAsset(asset: AssetMeta, maxW: number, maxH: number) {
     w: Math.max(48, Math.round(w * scale)),
     h: Math.max(48, Math.round(h * scale)),
   };
+}
+
+/** 找風格接近的素材：同分類、標籤重疊、名稱接近。 */
+export function similarAssets(asset: AssetMeta, all: AssetMeta[], limit = 6): AssetMeta[] {
+  const tags = new Set(asset.tags.map((t) => t.toLowerCase()));
+  const nameParts = asset.name.toLowerCase().split(/\s+/).filter((p) => p.length > 1);
+  return all
+    .filter((item) => item.id !== asset.id)
+    .map((item) => {
+      let score = 0;
+      if (item.category === asset.category) score += 4;
+      if (item.source === asset.source) score += 1;
+      for (const tag of item.tags) {
+        if (tags.has(tag.toLowerCase())) score += 3;
+      }
+      const blob = item.name.toLowerCase();
+      for (const part of nameParts) {
+        if (blob.includes(part)) score += 2;
+      }
+      return { item, score };
+    })
+    .filter((row) => row.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((row) => row.item);
 }

@@ -40,7 +40,7 @@ export const PlanJsonSchema = z.object({
         text: z.string().catch(""),
       }),
     )
-    .max(4)
+    .max(8)
     .catch([]),
   hashtags: z.array(z.string()).max(20).catch([]),
   storyBeats: z.array(z.string()).max(5).catch([]),
@@ -66,6 +66,8 @@ export const BriefInputSchema = z.object({
   wantStory: z.boolean(),
   wantCarousel: z.boolean(),
   wantReels: z.boolean(),
+  wantThreads: z.boolean().optional(),
+  wantLine: z.boolean().optional(),
   brandName: z.string().min(1).max(80),
   handle: z.string().max(60),
   voice: z.string().max(400),

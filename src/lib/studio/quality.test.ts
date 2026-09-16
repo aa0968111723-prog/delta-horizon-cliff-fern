@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyQaFixToPages } from "./quality-fix.ts";
+import { emptyBrandMemory } from "./brand.ts";
 import { inspectProject } from "./quality.ts";
 import type { Artboard, BrandKit, CopyDeck, TextLayer } from "./types.ts";
 
@@ -8,8 +9,8 @@ const SHADOW = { enabled: false, x: 0, y: 12, blur: 28, color: "rgba(26,24,20,0.
 
 const brand: BrandKit = {
   id: "b",
-  name: "日食",
-  handle: "@nisshoku.coffee",
+  name: "禪學社",
+  handle: "@tku.zen",
   website: "",
   voice: "",
   doSay: "",
@@ -31,6 +32,11 @@ const brand: BrandKit = {
   imageStyle: { mood: "", lighting: "", paletteHint: "", composition: "", do: "", dont: "" },
   rules: { noCompetitorMarks: false, noWatermark: false, noLowRes: false, notes: "" },
   boilerplate: { cta: "到店手沖", disclaimer: "", hashtags: [], captionClose: "" },
+  mascot: "",
+  motifs: [],
+  likes: [],
+  dislikes: [],
+  audienceNotes: "",
   updatedAt: 1,
 };
 

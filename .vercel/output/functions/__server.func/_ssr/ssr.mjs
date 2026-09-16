@@ -4,12 +4,14 @@ import { P as require_jsx_runtime } from "../_libs/@radix-ui/react-alert-dialog+
 import { A as _getRenderedMatches, B as isNotFound, D as getStylesheetHref, E as getScriptPreloadAttrs, I as isRedirect, L as isResolvedRedirect, M as invariant, O as resolveManifestAssetLink, R as parseRedirect, a as isSsrResponse, c as stripSsrResponseBody, f as RouterProvider, i as disposeSsrResponseDetached, j as executeRewriteInput, k as resolveManifestCssLink, n as bindSsrResponseToRequest, o as normalizeSsrResponse, r as defineHandlerCallback, s as replaceSsrResponse, t as renderRouterToStream, z as rootRouteId } from "../_libs/@tanstack/react-router+[...].mjs";
 import { n as createMemoryHistory } from "../_libs/tanstack__history.mjs";
 import { a as getOrigin, c as createSerializationAdapter, d as toCrossJSONAsync, f as toCrossJSONStream, i as getNormalizedURL, l as makeSerovalPlugin, n as mergeHeaders, o as defaultSerovalPlugins, r as attachRouterServerSsrUtils, s as createRawStreamRPCPlugin, t as waitForRequest, u as fromJSON } from "../_libs/@tanstack/router-core+[...].mjs";
-import { n as toResponse, t as H3Event } from "../_libs/h3-v2+rou3.mjs";
+import { i as toResponse, n as parseCookies, r as setCookie, t as H3Event } from "../_libs/h3-v2+rou3.mjs";
 import { AsyncLocalStorage } from "node:async_hooks";
 //#region node_modules/.nitro/vite/services/ssr/index.js
 var ssr_exports = /* @__PURE__ */ __exportAll({
+	a: () => setCookie$1,
 	createServerEntry: () => createServerEntry,
 	default: () => server_default,
+	i: () => getCookie,
 	n: () => TSS_SERVER_FUNCTION,
 	r: () => getServerFnById,
 	t: () => createServerFn
@@ -75,6 +77,42 @@ function getH3Event() {
 	if (!event) throw new Error(`No StartEvent found in AsyncLocalStorage. Make sure you are using the function within the server runtime.`);
 	return event.h3Event;
 }
+/**
+* Parse the request to get HTTP Cookie header string and return an object of all cookie name-value pairs.
+* @returns Object of cookie name-value pairs
+* ```ts
+* const cookies = getCookies()
+* ```
+*/
+function getCookies() {
+	const cookies = parseCookies(getH3Event());
+	const definedCookies = Object.create(null);
+	for (const [name, value] of Object.entries(cookies)) if (value !== void 0) definedCookies[name] = value;
+	return definedCookies;
+}
+/**
+* Get a cookie value by name.
+* @param name Name of the cookie to get
+* @returns {*} Value of the cookie (String or undefined)
+* ```ts
+* const authorization = getCookie('Authorization')
+* ```
+*/
+function getCookie(name) {
+	return getCookies()[name];
+}
+/**
+* Set a cookie value by name.
+* @param name Name of the cookie to set
+* @param value Value of the cookie to set
+* @param options {CookieSerializeOptions} Options for serializing the cookie
+* ```ts
+* setCookie('Authorization', '1234567')
+* ```
+*/
+function setCookie$1(name, value, options) {
+	setCookie(getH3Event(), name, value, options);
+}
 function getResponse() {
 	return getH3Event().res;
 }
@@ -89,7 +127,7 @@ var HEADERS = { TSS_SHELL: "X-TSS_SHELL" };
 * the dev styles URL for route-scoped CSS collection.
 */
 async function getStartManifest(matchedRoutes) {
-	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-ByDFWubD.mjs");
+	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-DOOqJLZO.mjs");
 	const startManifest = tsrStartManifest();
 	let routes = startManifest.routes;
 	routes[rootRouteId];
@@ -109,17 +147,61 @@ async function getStartManifest(matchedRoutes) {
 	};
 }
 var manifest = {
+	"053c91563332c678986db16317e15e99668511125d016720b799489391a15690": {
+		functionName: "getZenAiStatus_createServerFn_handler",
+		importer: () => import("./copy-ai-9EggZy1r.mjs")
+	},
+	"164be129fc3d75a3d02af05799091b61462961f408ef096197cd3f8a58ed7539": {
+		functionName: "generateImage_createServerFn_handler",
+		importer: () => import("./image-ai-CcsLx-v3.mjs")
+	},
+	"1830499ede9f7054919614dc4b7eec520e9a1b10152ac740f01bcbace08b8686": {
+		functionName: "reviewAsStudent_createServerFn_handler",
+		importer: () => import("./copy-ai-9EggZy1r.mjs")
+	},
+	"2e49305bc0c291ee368d144a30d188482352f2cde0ff93e37a0a1acd7a9473e9": {
+		functionName: "generateIdeas_createServerFn_handler",
+		importer: () => import("./campaign-ai-DpHaR5j7.mjs")
+	},
 	"33f8623ec89488020a450daf3dd1d5eaba647d90bfd212224919e7686b4ad56e": {
 		functionName: "generateCampaignPlan_createServerFn_handler",
-		importer: () => import("./campaign-M-ePRg7N.mjs")
+		importer: () => import("./campaign-BVMsvEKT.mjs")
 	},
 	"51052173a1f06126bc3572058baa979c40dbe318b507888eb1c255646b3bd1fe": {
 		functionName: "getCampaignAiStatus_createServerFn_handler",
-		importer: () => import("./campaign-M-ePRg7N.mjs")
+		importer: () => import("./campaign-BVMsvEKT.mjs")
+	},
+	"5807f83ec5517a83cdda4f9caf8407aae1e4d4ece80ac783e19f8a665537a542": {
+		functionName: "disconnectProvider_createServerFn_handler",
+		importer: () => import("./status-BZcDTPSH.mjs")
+	},
+	"7ef27ed7046fbee271f733c33c19ad89852901bd561e23efba86c02be7574e09": {
+		functionName: "generateReelsScript_createServerFn_handler",
+		importer: () => import("./copy-ai-9EggZy1r.mjs")
+	},
+	"7fa32adcefe04ce494c9666a6c08adc0c5b2886a1c27e0f9c37853ec29bfcb11": {
+		functionName: "generateCampaignStrategy_createServerFn_handler",
+		importer: () => import("./campaign-ai-DpHaR5j7.mjs")
 	},
 	"86652c34390936ffd17f0154640d9f08f7b9106dd86d50dcb537409d9aeff764": {
 		functionName: "interpretEditorCommand_createServerFn_handler",
 		importer: () => import("./edit-BXB7vKWy.mjs")
+	},
+	"9a3f680954aed293f72e1ad989246bf475f866215b5eec2338fc8fdc4093fe93": {
+		functionName: "analyzeImage_createServerFn_handler",
+		importer: () => import("./image-ai-CcsLx-v3.mjs")
+	},
+	"be0447b4c1a8c8942aa6c3fad59c141c81b2d731750fbc5191f22be12f982747": {
+		functionName: "generateVisualDirections_createServerFn_handler",
+		importer: () => import("./image-ai-CcsLx-v3.mjs")
+	},
+	"ca6121e6bfa5e659459d5a4afa6adff810d28176000d1565582ceb662f14fd92": {
+		functionName: "generateIgCopy_createServerFn_handler",
+		importer: () => import("./copy-ai-9EggZy1r.mjs")
+	},
+	"e498c792719d53262e51b191ced4639d21fb36dbb86f7760756ad6421c667a7e": {
+		functionName: "getConnections_createServerFn_handler",
+		importer: () => import("./status-BZcDTPSH.mjs")
 	}
 };
 async function getServerFnById(id, access) {
@@ -1389,7 +1471,7 @@ var getBaseManifest = getProdBaseManifest;
 var createEarlyHintsForRequest = createEarlyHintsCollector;
 async function loadEntries() {
 	const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-		import("./router-C_PWIgcC.mjs").then((n) => n.t),
+		import("./router-CCaD8IgA.mjs").then((n) => n.t),
 		import("./start-5Z2QO8AU.mjs"),
 		import("./empty-plugin-adapters-D9UWiqvJ.mjs")
 	]);
@@ -1835,4 +1917,4 @@ function createServerEntry(entry) {
 }
 var server_default = createServerEntry({ fetch });
 //#endregion
-export { createServerEntry, server_default as default, ssr_exports as i, TSS_SERVER_FUNCTION as n, getServerFnById as r, createServerFn as t };
+export { setCookie$1 as a, createServerEntry, server_default as default, getCookie as i, TSS_SERVER_FUNCTION as n, ssr_exports as o, getServerFnById as r, createServerFn as t };

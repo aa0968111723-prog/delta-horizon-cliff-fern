@@ -33,8 +33,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
       cta: "閱讀更多",
       handle: "",
       caption: "",
-      hashtags: [],
-      altText: "",
+      hashtags: ["#淡江大學", "#淡江禪學社", "#浮游禪光"],
+      altText: "淡水夜青微光背景，溫暖陶杯熱茶特寫與大字率排版",
     },
   },
   {
@@ -58,8 +58,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
       cta: "晚上來坐一下",
       handle: "",
       caption: "",
-      hashtags: [],
-      altText: "",
+      hashtags: ["#淡江茶會", "#免費席位"],
+      altText: "活動時間地點與報名指引清晰圖卡",
     },
   },
   {
@@ -108,8 +108,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
       cta: "收藏這句",
       handle: "",
       caption: "",
-      hashtags: [],
-      altText: "",
+      hashtags: ["#克難坡", "#淡江日常", "#淡江禪學社"],
+      altText: "深青漸層留白卡片，寫著爬完克難坡給心靈安靜空間的共鳴金句",
     },
   },
 ];

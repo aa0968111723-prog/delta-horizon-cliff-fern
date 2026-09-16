@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { FolderKanban } from "lucide-react";
+import { PenTool } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { resolveProjectId, useStudio } from "@/stores/studio-store";

@@ -28,6 +28,18 @@ var millisecondsInWeek = 6048e5;
 var millisecondsInDay = 864e5;
 /**
 * @constant
+* @name millisecondsInMinute
+* @summary Milliseconds in 1 minute
+*/
+var millisecondsInMinute = 6e4;
+/**
+* @constant
+* @name millisecondsInHour
+* @summary Milliseconds in 1 hour
+*/
+var millisecondsInHour = 36e5;
+/**
+* @constant
 * @name secondsInDay
 * @summary Seconds in 1 day.
 */
@@ -131,6 +143,103 @@ function constructFrom(date, value) {
 */
 function toDate(argument, context) {
 	return constructFrom(context || argument, argument);
+}
+//#endregion
+//#region node_modules/date-fns/addDays.js
+/**
+* The {@link addDays} function options.
+*/
+/**
+* @name addDays
+* @category Day Helpers
+* @summary Add the specified number of days to the given date.
+*
+* @description
+* Add the specified number of days to the given date.
+*
+* **You don't need date-fns\***:
+*
+* Temporal has a built-in `add` method on all its classes:
+*
+* - [`Temporal.Instant.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/add)
+* - [`Temporal.PlainDate.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate/add)
+* - [`Temporal.PlainDateTime.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDateTime/add)
+* - [`Temporal.PlainTime.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/add)
+* - [`Temporal.PlainYearMonth.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/add)
+* - [`Temporal.ZonedDateTime.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/add)
+*
+* \* **Not really**, see: https://date-fns.org/you-dont-need-date-fns
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The date to be changed
+* @param amount - The amount of days to be added.
+* @param options - An object with options
+*
+* @returns The new date with the days added
+*
+* @example
+* // Add 10 days to 1 September 2014:
+* const result = addDays(new Date(2014, 8, 1), 10)
+* //=> Thu Sep 11 2014 00:00:00
+*
+* @example
+* // Using Temporal:
+* // Add 10 days to 1 September 2014:
+* Temporal.PlainDate.from("2014-09-01").add({ days: 10 }).toString();
+* //=> "2014-09-11"
+*/
+function addDays(date, amount, options) {
+	const _date = toDate(date, options?.in);
+	if (isNaN(amount)) return constructFrom(options?.in || date, NaN);
+	if (!amount) return _date;
+	_date.setDate(_date.getDate() + amount);
+	return _date;
+}
+//#endregion
+//#region node_modules/date-fns/addMonths.js
+/**
+* The {@link addMonths} function options.
+*/
+/**
+* @name addMonths
+* @category Month Helpers
+* @summary Add the specified number of months to the given date.
+*
+* @description
+* Add the specified number of months to the given date.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The date to be changed
+* @param amount - The amount of months to be added.
+* @param options - The options object
+*
+* @returns The new date with the months added
+*
+* @example
+* // Add 5 months to 1 September 2014:
+* const result = addMonths(new Date(2014, 8, 1), 5)
+* //=> Sun Feb 01 2015 00:00:00
+*
+* // Add one month to 30 January 2023:
+* const result = addMonths(new Date(2023, 0, 30), 1)
+* //=> Tue Feb 28 2023 00:00:00
+*/
+function addMonths(date, amount, options) {
+	const _date = toDate(date, options?.in);
+	if (isNaN(amount)) return constructFrom(options?.in || date, NaN);
+	if (!amount) return _date;
+	const dayOfMonth = _date.getDate();
+	const endOfDesiredMonth = constructFrom(options?.in || date, _date.getTime());
+	endOfDesiredMonth.setMonth(_date.getMonth() + amount + 1, 0);
+	if (dayOfMonth >= endOfDesiredMonth.getDate()) return endOfDesiredMonth;
+	else {
+		_date.setFullYear(endOfDesiredMonth.getFullYear(), endOfDesiredMonth.getMonth(), dayOfMonth);
+		return _date;
+	}
 }
 //#endregion
 //#region node_modules/date-fns/_lib/defaultOptions.js
@@ -394,6 +503,44 @@ function startOfISOWeekYear(date, options) {
 	return startOfISOWeek(fourthOfJanuary);
 }
 //#endregion
+//#region node_modules/date-fns/isSameDay.js
+/**
+* The {@link isSameDay} function options.
+*/
+/**
+* @name isSameDay
+* @category Day Helpers
+* @summary Are the given dates in the same day (and year and month)?
+*
+* @description
+* Are the given dates in the same day (and year and month)?
+*
+* @param laterDate - The first date to check
+* @param earlierDate - The second date to check
+* @param options - An object with options
+*
+* @returns The dates are in the same day (and year and month)
+*
+* @example
+* // Are 4 September 06:00:00 and 4 September 18:00:00 in the same day?
+* const result = isSameDay(new Date(2014, 8, 4, 6, 0), new Date(2014, 8, 4, 18, 0))
+* //=> true
+*
+* @example
+* // Are 4 September and 4 October in the same day?
+* const result = isSameDay(new Date(2014, 8, 4), new Date(2014, 9, 4))
+* //=> false
+*
+* @example
+* // Are 4 September, 2014 and 4 September, 2015 in the same day?
+* const result = isSameDay(new Date(2014, 8, 4), new Date(2015, 8, 4))
+* //=> false
+*/
+function isSameDay(laterDate, earlierDate, options) {
+	const [dateLeft_, dateRight_] = normalizeDates(options?.in, laterDate, earlierDate);
+	return +startOfDay(dateLeft_) === +startOfDay(dateRight_);
+}
+//#endregion
 //#region node_modules/date-fns/isDate.js
 /**
 * @name isDate
@@ -467,6 +614,74 @@ function isValid(date) {
 	return !(!isDate(date) && typeof date !== "number" || isNaN(+toDate(date)));
 }
 //#endregion
+//#region node_modules/date-fns/endOfMonth.js
+/**
+* The {@link endOfMonth} function options.
+*/
+/**
+* @name endOfMonth
+* @category Month Helpers
+* @summary Return the end of a month for the given date.
+*
+* @description
+* Return the end of a month for the given date.
+* The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The end of a month
+*
+* @example
+* // The end of a month for 2 September 2014 11:55:00:
+* const result = endOfMonth(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Tue Sep 30 2014 23:59:59.999
+*/
+function endOfMonth(date, options) {
+	const _date = toDate(date, options?.in);
+	const month = _date.getMonth();
+	_date.setFullYear(_date.getFullYear(), month + 1, 0);
+	_date.setHours(23, 59, 59, 999);
+	return _date;
+}
+//#endregion
+//#region node_modules/date-fns/startOfMonth.js
+/**
+* The {@link startOfMonth} function options.
+*/
+/**
+* @name startOfMonth
+* @category Month Helpers
+* @summary Return the start of a month for the given date.
+*
+* @description
+* Return the start of a month for the given date. The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments.
+* Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed,
+* or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The start of a month
+*
+* @example
+* // The start of a month for 2 September 2014 11:55:00:
+* const result = startOfMonth(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Mon Sep 01 2014 00:00:00
+*/
+function startOfMonth(date, options) {
+	const _date = toDate(date, options?.in);
+	_date.setDate(1);
+	_date.setHours(0, 0, 0, 0);
+	return _date;
+}
+//#endregion
 //#region node_modules/date-fns/startOfYear.js
 /**
 * The {@link startOfYear} function options.
@@ -498,6 +713,48 @@ function startOfYear(date, options) {
 	date_.setFullYear(date_.getFullYear(), 0, 1);
 	date_.setHours(0, 0, 0, 0);
 	return date_;
+}
+//#endregion
+//#region node_modules/date-fns/endOfWeek.js
+/**
+* The {@link endOfWeek} function options.
+*/
+/**
+* @name endOfWeek
+* @category Week Helpers
+* @summary Return the end of a week for the given date.
+*
+* @description
+* Return the end of a week for the given date.
+* The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The end of a week
+*
+* @example
+* // The end of a week for 2 September 2014 11:55:00:
+* const result = endOfWeek(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Sat Sep 06 2014 23:59:59.999
+*
+* @example
+* // If the week starts on Monday, the end of the week for 2 September 2014 11:55:00:
+* const result = endOfWeek(new Date(2014, 8, 2, 11, 55, 0), { weekStartsOn: 1 })
+* //=> Sun Sep 07 2014 23:59:59.999
+*/
+function endOfWeek(date, options) {
+	const defaultOptions = getDefaultOptions();
+	const weekStartsOn = options?.weekStartsOn ?? options?.locale?.options?.weekStartsOn ?? defaultOptions.weekStartsOn ?? defaultOptions.locale?.options?.weekStartsOn ?? 0;
+	const _date = toDate(date, options?.in);
+	const day = _date.getDay();
+	const diff = (day < weekStartsOn ? -7 : 0) + 6 - (day - weekStartsOn);
+	_date.setDate(_date.getDate() + diff);
+	_date.setHours(23, 59, 59, 999);
+	return _date;
 }
 //#endregion
 //#region node_modules/date-fns/locale/en-US/_lib/formatDistance.js
@@ -2150,6 +2407,39 @@ function cleanEscapedString(input) {
 	return matched[1].replace(doubleQuoteRegExp, "'");
 }
 //#endregion
+//#region node_modules/date-fns/isSameMonth.js
+/**
+* The {@link isSameMonth} function options.
+*/
+/**
+* @name isSameMonth
+* @category Month Helpers
+* @summary Are the given dates in the same month (and year)?
+*
+* @description
+* Are the given dates in the same month (and year)?
+*
+* @param laterDate - The first date to check
+* @param earlierDate - The second date to check
+* @param options - An object with options
+*
+* @returns The dates are in the same month (and year)
+*
+* @example
+* // Are 2 September 2014 and 25 September 2014 in the same month?
+* const result = isSameMonth(new Date(2014, 8, 2), new Date(2014, 8, 25))
+* //=> true
+*
+* @example
+* // Are 2 September 2014 and 25 September 2015 in the same month?
+* const result = isSameMonth(new Date(2014, 8, 2), new Date(2015, 8, 25))
+* //=> false
+*/
+function isSameMonth(laterDate, earlierDate, options) {
+	const [laterDate_, earlierDate_] = normalizeDates(options?.in, laterDate, earlierDate);
+	return laterDate_.getFullYear() === earlierDate_.getFullYear() && laterDate_.getMonth() === earlierDate_.getMonth();
+}
+//#endregion
 //#region node_modules/date-fns/locale/zh-TW/_lib/formatDistance.js
 var formatDistanceLocale = {
 	lessThanXSeconds: {
@@ -2603,4 +2893,4 @@ var zhTW = {
 	}
 };
 //#endregion
-export { format as n, zhTW as t };
+export { startOfMonth as a, startOfDay as c, addDays as d, endOfWeek as i, startOfWeek as l, isSameMonth as n, endOfMonth as o, format as r, isSameDay as s, zhTW as t, addMonths as u };

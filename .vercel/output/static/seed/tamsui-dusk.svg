@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350" role="img" aria-label="á4³Z„I">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6E7CB4" />
+      <stop offset="42%" stop-color="#C9A489" />
+      <stop offset="72%" stop-color="#F2B77C" />
+      <stop offset="100%" stop-color="#E8A566" />
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#B98A66" />
+      <stop offset="100%" stop-color="#5D5A72" />
+    </linearGradient>
+    <radialGradient id="sun" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFF3DC" />
+      <stop offset="60%" stop-color="#F7C983" stop-opacity="0.7" />
+      <stop offset="100%" stop-color="#F2A65A" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#sky)" />
+  <circle cx="640" cy="742" r="210" fill="url(#sun)" />
+  <circle cx="640" cy="742" r="66" fill="#FFF6E6" opacity="0.92" />
+  <rect y="820" width="1080" height="530" fill="url(#water)" />
+  <g fill="#FFF3DC" opacity="0.34">
+    <rect x="596" y="880" width="88" height="7" rx="3.5" />
+    <rect x="556" y="936" width="168" height="7" rx="3.5" />
+    <rect x="512" y="1000" width="256" height="7" rx="3.5" />
+    <rect x="470" y="1072" width="340" height="6" rx="3" />
+    <rect x="418" y="1152" width="444" height="6" rx="3" />
+    <rect x="360" y="1240" width="560" height="5" rx="2.5" />
+  </g>
+  <path d="M0 828h1080v10H0z" fill="#3B3A4C" opacity="0.5" />
+  <g fill="#3B3A4C" opacity="0.6">
+    <path d="M0 828l86-40 74 22 96-30 82 26 108-34 96 28 92-24 118 32 96-26 132 34v12H0z" />
+  </g>
+</svg>
