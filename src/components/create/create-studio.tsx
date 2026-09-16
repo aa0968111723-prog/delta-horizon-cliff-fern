@@ -1,7 +1,7 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { convertPlan, packCaption, captionFromCopyPack, type ConvertedPack } from "@/lib/ai/convert";
+import { convertPlan, packCaption, captionFromCopyPack, rewriteCopyPack, type ConvertedPack } from "@/lib/ai/convert";
 import { generateCampaignPlan, getCampaignAiStatus, describeAdapter, type AiStatus } from "@/lib/ai/campaign";
 import { generateCopyPacks } from "@/lib/ai/copy-studio";
 import {
@@ -288,21 +288,22 @@ export function CreateStudio() {
   function applyKitCopy(pack: { hook: string; body: string; cta: string; hashtags?: string[] }, toastMsg = "已改這句，月曆會用這版發。") {
     const hook = pack.hook.trim();
     if (!hook) return;
-    const caption = captionFromCopyPack(pack);
-    setEditHook(hook);
+    const next = rewriteCopyPack(pack, plan?.hook);
+    const caption = next.caption;
+    setEditHook(next.hook);
     setOneLiner(hook);
     setPlan((current) =>
       current
         ? {
             ...current,
-            hook: pack.hook,
-            body: pack.body,
+            hook,
+            body: next.body,
             cta: pack.cta,
             captions: [{ style: "student", text: caption }, ...(current.captions ?? []).slice(1)],
           }
         : current,
     );
-    setPacks((rows) => rows.map((row) => (row.tone === tone ? { ...row, ...pack, hook } : row)));
+    setPacks((rows) => rows.map((row) => (row.tone === tone ? { ...row, ...pack, hook, body: next.body } : row)));
     const currentCampaign = campaign;
     if (currentCampaign) {
       updateCampaign(currentCampaign.id, { oneLiner: hook });
@@ -315,7 +316,7 @@ export function CreateStudio() {
           item.kind === "line" ||
           item.title.startsWith(waveLabel("hero"))
         ) {
-          upsertSchedule({ ...item, caption, body: pack.body });
+          upsertSchedule({ ...item, caption, body: next.body });
         }
       }
     }

@@ -94,3 +94,23 @@ export function captionFromCopyPack(pack: { hook: string; body: string; cta: str
   }
   return tidyCopy([hook, body, pack.cta, (pack.hashtags ?? []).join(" ")].filter(Boolean).join("\n"));
 }
+
+/** 快速修改 replaces the first line; keep the rest of the student body. */
+export function rewriteCopyPack(
+  pack: { hook: string; body: string; cta: string; hashtags?: string[] },
+  previousHook?: string,
+) {
+  const hook = pack.hook.trim();
+  let body = pack.body.trim();
+  const prev = previousHook?.trim();
+  if (prev && prev !== hook && body.startsWith(prev)) {
+    body = body.slice(prev.length).trim();
+  }
+  return {
+    hook,
+    body,
+    cta: pack.cta,
+    hashtags: pack.hashtags,
+    caption: captionFromCopyPack({ ...pack, hook, body }),
+  };
+}

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { convertPlan, captionFromCopyPack } from "./convert.ts";
+import { convertPlan, captionFromCopyPack, rewriteCopyPack } from "./convert.ts";
 import { buildMockPlan } from "./mock.ts";
 
 const zenBrief = {
@@ -57,6 +57,22 @@ test("captionFromCopyPack is what Calendar and Canva should send after 快速修
   assert.match(caption, /^可以自己來？/);
   assert.match(caption, /來坐一下/);
   assert.match(caption, /#淡江禪學社/);
+});
+
+test("rewriteCopyPack drops the previous opening line so 快速修改 replaces it", () => {
+  const rewritten = rewriteCopyPack(
+    {
+      hook: "可以自己來？",
+      body: "有時候我們需要的不是答案，只是一個安靜的晚上。\n2026/09/23 19:00，淡江大學淡水校園 · 禪學社\n想找人一起的話，把這則傳給他。",
+      cta: "來坐一下",
+      hashtags: ["#淡江禪學社"],
+    },
+    "有時候我們需要的不是答案，只是一個安靜的晚上。",
+  );
+  assert.match(rewritten.caption, /^可以自己來？/);
+  assert.doesNotMatch(rewritten.caption, /有時候我們需要的不是答案/);
+  assert.match(rewritten.caption, /想找人一起/);
+  assert.doesNotMatch(rewritten.body, /有時候我們需要的不是答案/);
 });
 
 test("captionFromCopyPack does not leak brief form labels into the calendar", () => {
