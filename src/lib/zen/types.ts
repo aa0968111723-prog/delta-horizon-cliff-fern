@@ -37,6 +37,8 @@ export type CreateIntent = {
   idea: string;
   kind: string;
   autoGenerate: boolean;
+  notes?: string;
+  pack?: boolean;
 };
 
 export type ClubCampaign = {

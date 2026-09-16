@@ -20,10 +20,11 @@ import { searchCreativeWorld } from "@/lib/ai/oauth";
 import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
 import { APP_NAME, APP_TAGLINE, CLUB_SHORT } from "@/lib/zen/club";
+import { hitFromIgPost } from "@/lib/zen/from-hit";
 import { clientMemoryLines, composeMemoryNotes } from "@/lib/zen/ingest";
-import { igDnaBlock } from "@/lib/zen/insights";
+import { igDnaBlock, learnFromPosts, nextCreateHint, whyPostWorked } from "@/lib/zen/insights";
+import { inspirationCreateNotes, inspirationFeed, kindFromInspiration } from "@/lib/zen/inspiration";
 import { creativeSearch, groupSearchHits, searchCreativeKnowledge, type SearchHit } from "@/lib/zen/search";
-import { inspirationFeed } from "@/lib/zen/inspiration";
 import { applyPackToWaves } from "@/lib/zen/schedule";
 import { daysUntil, formatMd, seasonContext } from "@/lib/zen/season";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
@@ -51,11 +52,14 @@ export function HomePage() {
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [hitBusy, setHitBusy] = useState(false);
+  const [winBusy, setWinBusy] = useState<string | null>(null);
   const [remoteHits, setRemoteHits] = useState<SearchHit[]>([]);
   const season = seasonContext();
   const featured = campaigns.find((c) => c.id === "camp_floating_light") ?? campaigns[0];
   const remain = featured ? daysUntil(featured.date) : null;
   const brand = brands[0];
+  const learned = useMemo(() => learnFromPosts(igPosts), [igPosts]);
+  const createHint = useMemo(() => nextCreateHint(igPosts), [igPosts]);
 
   const urls = useAssetUrls(useMemo(() => assets.map((a) => a.id), [assets]));
   const localHits = useMemo(
@@ -92,7 +96,6 @@ export function HomePage() {
   }, [q]);
   const upcoming = [...schedule].sort((a, b) => a.scheduledAt - b.scheduledAt).slice(0, 4);
   const recentGen = [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
-  const strongIg = [...igPosts].sort((a, b) => b.saves - a.saves).slice(0, 3);
 
   async function createFromFeatured() {
     if (!featured || !brand) return;
@@ -120,7 +123,12 @@ export function HomePage() {
       const result = await generateCreativePack({
         data: toBriefInput(brief, brand, {
           dnaNotes: igDnaBlock(igPosts),
-          memoryNotes: composeMemoryNotes([world.memoryNotes, clientMemoryLines(memory)]),
+          memoryNotes: composeMemoryNotes([
+          `成效回饋：${createHint.line}`,
+          `避開：${createHint.avoid}`,
+          world.memoryNotes,
+          clientMemoryLines(memory),
+        ]),
           foundCount: world.foundCount,
           citedSources: world.sources,
         }),
@@ -185,8 +193,8 @@ export function HomePage() {
               {remain !== null ? (
                 <p className="mt-2 text-sm text-muted">{remain > 0 ? `還有 ${remain} 天` : remain === 0 ? "就是今天" : "已結束，可做回顧"}</p>
               ) : null}
-              <p className="mt-3 max-w-lg text-sm text-muted">
-                AI 建議：做一篇生活向 Carousel。先讓學生覺得「這好像在講我」，再進活動。
+              <p className="mt-3 max-w-lg text-sm text-muted" data-testid="next-create-hint">
+                AI 建議：{createHint.line}
               </p>
             </div>
             <Button size="lg" disabled={busy} onClick={() => void createFromFeatured()}>
@@ -260,8 +268,10 @@ export function HomePage() {
                 onClick={() => {
                   setCreateIntent({
                     idea: seed.zenClub.hook,
-                    kind: "emotion",
+                    kind: kindFromInspiration(seed),
                     autoGenerate: true,
+                    pack: true,
+                    notes: inspirationCreateNotes(seed),
                   });
                   void navigate({ to: "/create" });
                 }}
@@ -408,11 +418,31 @@ export function HomePage() {
 
       <section className="mt-10">
         <h2 className="text-sm font-medium">過去表現不錯</h2>
+        <p className="mt-2 text-xs text-muted">{createHint.rates}</p>
         <ul className="mt-3 grid gap-2 sm:grid-cols-3">
-          {strongIg.map((post) => (
+          {learned.winning.slice(0, 3).map((post) => (
             <li key={post.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
               <p className="text-sm font-medium">{post.hook}</p>
-              <p className="mt-2 text-xs text-muted">收藏 {post.saves} · 觸及 {post.reach}</p>
+              <p className="mt-2 text-xs text-muted">
+                收藏 {post.saves} · 觸及 {post.reach} · {whyPostWorked(post)}
+              </p>
+              <Button
+                className="mt-3"
+                size="sm"
+                variant="secondary"
+                data-testid={post.id === learned.winning[0]?.id ? "winning-create" : undefined}
+                disabled={Boolean(winBusy)}
+                onClick={() => {
+                  setWinBusy(post.id);
+                  void createFromHit(hitFromIgPost(post))
+                    .then((ok) => {
+                      if (ok) void navigate({ to: "/create" });
+                    })
+                    .finally(() => setWinBusy(null));
+                }}
+              >
+                {winBusy === post.id ? "正在延續…" : "延續這篇再做"}
+              </Button>
             </li>
           ))}
         </ul>

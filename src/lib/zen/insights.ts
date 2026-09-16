@@ -59,6 +59,7 @@ export function learnFromPosts(posts: IgMemoryPost[] = SEED_IG_POSTS) {
     announceSaveRate,
     reelsSaveRate,
     carouselSaveRate,
+    imageSaveRate,
     whatWorks: works.join(""),
     whatFails: fails.join(""),
   };
@@ -79,8 +80,41 @@ export function recentPostedNotes(posts: IgMemoryPost[], now = Date.now()) {
   return line;
 }
 
+export function whyPostWorked(post: IgMemoryPost) {
+  const kind = hookKind(`${post.hook}\n${post.caption}`);
+  const bits: string[] = [];
+  if (kind === "question") bits.push("問句 Hook");
+  else if (kind === "life") bits.push("生活語氣");
+  else bits.push("公告腔，下次改問句");
+  if (post.mediaType === "carousel") bits.push("Carousel 封面是句子");
+  if (post.mediaType === "reels") bits.push("Reels 前 3 秒");
+  if (post.saves >= 80) bits.push("收藏高");
+  return bits.join(" · ");
+}
+
+export function nextCreateHint(posts: IgMemoryPost[] = SEED_IG_POSTS, now = Date.now()) {
+  const learned = learnFromPosts(posts);
+  const recent = recentPostedNotes(posts, now);
+  const stacked = recent.includes("連續活動向");
+  let form = "問句 Hook 的生活向內容";
+  if (stacked) form = "生活或互動，不要再發活動海報";
+  else if (learned.carouselSaveRate > 0 && learned.carouselSaveRate >= learned.imageSaveRate) {
+    form = "Carousel，封面是句子不是海報";
+  } else if (learned.reelsSaveRate > 0 && learned.reelsSaveRate >= learned.imageSaveRate) {
+    form = "Reels，前 3 秒生活畫面";
+  }
+  return {
+    form,
+    line: `做一篇${form}。${learned.whatWorks}`,
+    why: learned.whatWorks,
+    avoid: learned.whatFails,
+    rates: `問句收藏率 ${(learned.questionSaveRate * 100).toFixed(1)}% · 公告 ${(learned.announceSaveRate * 100).toFixed(1)}% · Carousel ${(learned.carouselSaveRate * 100).toFixed(1)}% · Reels ${(learned.reelsSaveRate * 100).toFixed(1)}%`,
+  };
+}
+
 export function igDnaBlock(posts: IgMemoryPost[] = SEED_IG_POSTS) {
   const learned = learnFromPosts(posts);
+  const next = nextCreateHint(posts);
   return `Zen Club IG DNA（優先參考自己的 IG，不要套一般品牌模板）：
 帳號：${IG_DNA.handle}
 語氣：${IG_DNA.voice}
@@ -95,7 +129,8 @@ Hashtag：${IG_DNA.hashtags.join(" ")}
 較有效：${learned.whatWorks}
 較無效：${learned.whatFails}
 避開這些開場：${learned.losingHooks.join("／")}
-${recentPostedNotes(posts)}`;
+${recentPostedNotes(posts)}
+下一則建議：${next.line}`;
 }
 
 export function dnaPromptIdea(posts: IgMemoryPost[] = SEED_IG_POSTS) {

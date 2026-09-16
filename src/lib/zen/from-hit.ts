@@ -37,3 +37,24 @@ export function memorySourceFromHit(hit: SearchHit): CitedSource["source"] {
   }
   return "brand";
 }
+
+export function hitFromIgPost(post: {
+  id: string;
+  hook?: string;
+  caption: string;
+  mediaType: string;
+  postedAt: number;
+  assetId?: string;
+  mediaUrl?: string;
+}): SearchHit {
+  const day = new Date(post.postedAt).toISOString().slice(0, 10);
+  return {
+    id: post.id,
+    source: "instagram",
+    title: post.hook || post.caption.split("\n")[0] || "IG 貼文",
+    subtitle: `Instagram / ${day}`,
+    tags: [post.mediaType],
+    thumbAssetId: post.assetId,
+    thumbUrl: post.mediaUrl,
+  };
+}

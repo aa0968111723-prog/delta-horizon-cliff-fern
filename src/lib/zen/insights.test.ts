@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dnaPromptIdea, igDnaBlock, learnFromPosts, scorePost } from "./insights.ts";
+import { dnaPromptIdea, igDnaBlock, learnFromPosts, nextCreateHint, scorePost, whyPostWorked } from "./insights.ts";
 import { SEED_IG_POSTS } from "./memory.ts";
 import { systemPrompt } from "./voice.ts";
 
@@ -44,4 +44,14 @@ test("learnFromPosts compares question hooks against announcements", () => {
   assert.ok(learned.questionSaveRate > learned.announceSaveRate);
   assert.match(learned.whatWorks, /問句 Hook/);
   assert.match(learned.whatFails, /本週社課/);
+});
+
+test("nextCreateHint answers what to make next from own IG", () => {
+  const hint = nextCreateHint(SEED_IG_POSTS);
+  assert.match(hint.line, /做一篇/);
+  assert.match(hint.why, /問句 Hook|Carousel|Reels/);
+  assert.match(hint.rates, /問句收藏率/);
+  assert.match(igDnaBlock(SEED_IG_POSTS), /下一則建議/);
+  const top = learnFromPosts(SEED_IG_POSTS).winning[0]!;
+  assert.match(whyPostWorked(top), /問句 Hook|生活語氣|Reels|Carousel/);
 });

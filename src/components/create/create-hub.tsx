@@ -1,6 +1,6 @@
 import { applyPickedDirection } from "@/components/create/apply-picked";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AssistantForm } from "@/components/assistant/assistant-form";
 import { ConvertPanel } from "@/components/create/convert-panel";
@@ -46,6 +46,7 @@ export function CreateHub() {
   const [copyBusy, setCopyBusy] = useState(false);
   const [copyPack, setCopyPack] = useState<CopyPack | null>(null);
   const [copyStyle, setCopyStyle] = useState("一般版");
+  const extraNotesRef = useRef("");
   const brand = brands[0];
   const knowledge = useMemo(
     () => searchCreativeKnowledge(idea, { assets, campaigns, igPosts, memory }),
@@ -58,10 +59,17 @@ export function CreateHub() {
     if (!intent) return;
     const nextKind = isCopyKind(intent.kind) ? intent.kind : "event";
     const nextIdea = intent.idea.trim() || "下週有一場茶會";
+    extraNotesRef.current = intent.notes?.trim() ?? "";
     setIdea(nextIdea);
     setCopyKind(nextKind);
     if (!intent.autoGenerate) return;
-    if (nextKind === "carousel" || nextKind === "story" || nextKind === "reels" || nextKind === "event") {
+    const wantsPack =
+      intent.pack ||
+      nextKind === "carousel" ||
+      nextKind === "story" ||
+      nextKind === "reels" ||
+      nextKind === "event";
+    if (wantsPack) {
       void runPack(nextIdea);
     } else {
       void runCopy(nextIdea, nextKind);
@@ -83,6 +91,8 @@ export function CreateHub() {
     try {
       const parsed = parseEventIdea(nextIdea);
       const season = seasonContext();
+      const extraNotes = extraNotesRef.current;
+      extraNotesRef.current = "";
       const brief = migrateBrief({
         eventName: parsed.name,
         schedule: `${parsed.date} ${parsed.time}`,
@@ -90,7 +100,7 @@ export function CreateHub() {
         product: nextIdea,
         audience: "淡江大學學生",
         goal: "awareness",
-        notes: `${nextIdea}\n${season.label}：${season.studentNow}\n${season.contentHint}`,
+        notes: `${nextIdea}\n${season.label}：${season.studentNow}\n${season.contentHint}`.slice(0, 400),
         deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
       });
       const world = searchCreativeKnowledge(nextIdea, {
@@ -103,7 +113,7 @@ export function CreateHub() {
         data: {
           ...toBriefInput(brief, brand, {
             dnaNotes: igDnaBlock(igPosts),
-            memoryNotes: composeMemoryNotes([world.memoryNotes, clientMemoryLines(memory)]),
+            memoryNotes: composeMemoryNotes([extraNotes, world.memoryNotes, clientMemoryLines(memory)]),
             foundCount: world.foundCount,
             citedSources: world.sources,
           }),
@@ -130,6 +140,8 @@ export function CreateHub() {
   async function runCopy(nextIdea = idea, nextKind = copyKind) {
     setCopyBusy(true);
     try {
+      const extraNotes = extraNotesRef.current;
+      extraNotesRef.current = "";
       const world = searchCreativeKnowledge(nextIdea, {
         assets: useStudio.getState().assets,
         campaigns,
@@ -141,7 +153,7 @@ export function CreateHub() {
           idea: nextIdea,
           kind: nextKind,
           dnaNotes: igDnaBlock(igPosts),
-          memoryNotes: composeMemoryNotes([world.memoryNotes, clientMemoryLines(memory)]),
+          memoryNotes: composeMemoryNotes([extraNotes, world.memoryNotes, clientMemoryLines(memory)]),
         },
       });
       if (!result.ok) {

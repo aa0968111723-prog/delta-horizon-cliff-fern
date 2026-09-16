@@ -2,7 +2,7 @@ import { Lightbulb } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { abstractInspiration, inspirationFeed } from "@/lib/zen/inspiration";
+import { abstractInspiration, inspirationCreateNotes, inspirationFeed, kindFromInspiration } from "@/lib/zen/inspiration";
 import { useCreative } from "@/stores/creative-store";
 
 export function InspirePage() {
@@ -49,8 +49,10 @@ export function InspirePage() {
                 onClick={() => {
                   setCreateIntent({
                     idea: seed.zenClub.hook,
-                    kind: "emotion",
+                    kind: kindFromInspiration(seed),
                     autoGenerate: true,
+                    pack: true,
+                    notes: inspirationCreateNotes(seed),
                   });
                   void navigate({ to: "/create" });
                 }}

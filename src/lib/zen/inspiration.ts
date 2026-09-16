@@ -189,3 +189,20 @@ export function inspirationFeed(now = new Date()): InspirationSeed[] {
   const live = seasonInspiration(now);
   return [live, ...INSPIRATION_SEEDS];
 }
+
+export function kindFromInspiration(seed: InspirationSeed) {
+  const blob = `${seed.form} ${seed.zenClub.title} ${seed.watch}`;
+  if (/Reels/i.test(blob)) return "reels";
+  if (/Story|限動/.test(blob)) return "story";
+  if (/Carousel/i.test(blob)) return "carousel";
+  return "emotion";
+}
+
+export function inspirationCreateNotes(seed: InspirationSeed) {
+  const abs = abstractInspiration(seed);
+  return [
+    `研究抽象（不要抄別人作品）：構圖 ${abs.composition}；配色 ${abs.palette}；排版 ${abs.layout}；Hook 形狀 ${abs.hook}；形式 ${abs.form}`,
+    `轉成淡江禪學社：${seed.zenClub.visual}`,
+    seed.zenClub.why,
+  ].join("\n");
+}
