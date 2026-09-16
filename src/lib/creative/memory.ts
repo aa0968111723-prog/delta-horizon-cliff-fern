@@ -1,10 +1,11 @@
 import { sourceLabel } from "../studio/assets.ts";
 import type { AssetMeta, BrandKit } from "../studio/types.ts";
+import type { ExternalMemoryItem } from "../connections/types.ts";
 import type { Campaign, ContentItem } from "./types";
 
 export type CreativeMemoryResult = {
   id: string;
-  kind: "asset" | "campaign" | "content";
+  kind: "asset" | "campaign" | "content" | "external";
   title: string;
   subtitle: string;
   provider: string;
@@ -12,6 +13,7 @@ export type CreativeMemoryResult = {
   assetId?: string;
   campaignId?: string;
   contentId?: string;
+  externalId?: string;
 };
 
 function terms(query: string) {
@@ -25,7 +27,7 @@ function matches(haystack: string, needles: string[]) {
 
 export function searchCreativeMemory(
   query: string,
-  input: { assets: AssetMeta[]; campaigns: Campaign[]; contentItems: ContentItem[] },
+  input: { assets: AssetMeta[]; campaigns: Campaign[]; contentItems: ContentItem[]; externalItems?: ExternalMemoryItem[] },
 ): CreativeMemoryResult[] {
   const needles = terms(query);
   if (!needles.length) return [];
@@ -92,7 +94,27 @@ export function searchCreativeMemory(
     }];
   });
 
-  return [...assets, ...campaigns, ...contentItems]
+  const externalItems = (input.externalItems ?? []).flatMap((item) => {
+    const fields = [item.title, item.mimeType, item.snippet, item.parentId].join(" ");
+    const found = matches(fields, needles);
+    if (!found.length) return [];
+    const provider = item.provider === "google-drive"
+      ? "Google Drive"
+      : item.provider === "canva"
+        ? "Canva"
+        : "Instagram";
+    return [{
+      id: `external:${item.provider}:${item.id}`,
+      kind: "external" as const,
+      title: item.title,
+      subtitle: item.snippet || item.mimeType || "外部來源",
+      provider,
+      matchedBy: found,
+      externalId: item.id,
+    }];
+  });
+
+  return [...assets, ...campaigns, ...contentItems, ...externalItems]
     .sort((a, b) => b.matchedBy.length - a.matchedBy.length || a.title.localeCompare(b.title, "zh-TW"))
     .slice(0, 30);
 }
@@ -148,12 +170,17 @@ export function creativeMemoryStats(input: {
   assets: AssetMeta[];
   campaigns: Campaign[];
   contentItems: ContentItem[];
+  externalItems?: ExternalMemoryItem[];
 }) {
   return {
-    sources: new Set(input.assets.map((asset) => asset.source)).size,
+    sources: new Set([
+      ...input.assets.map((asset) => asset.source),
+      ...(input.externalItems ?? []).map((item) => item.provider),
+    ]).size,
     assets: input.assets.length,
     analyzedAssets: input.assets.filter((asset) => asset.analysis).length,
     campaigns: input.campaigns.length,
     reusableContent: input.contentItems.filter((item) => item.status === "complete" || item.status === "published").length,
+    externalItems: input.externalItems?.length ?? 0,
   };
 }

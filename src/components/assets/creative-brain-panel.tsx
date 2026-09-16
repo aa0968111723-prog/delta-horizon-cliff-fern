@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { creativeMemoryStats, searchCreativeMemory } from "@/lib/creative/memory";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
+import { useConnectionStore } from "@/stores/connection-store";
 import { useStudio } from "@/stores/studio-store";
 
 export function CreativeBrainPanel({ onOpenAsset }: { onOpenAsset: (id: string) => void }) {
@@ -13,14 +14,15 @@ export function CreativeBrainPanel({ onOpenAsset }: { onOpenAsset: (id: string) 
   const assets = useStudio((state) => state.assets);
   const campaigns = useCreative((state) => state.campaigns);
   const contentItems = useCreative((state) => state.contentItems);
+  const externalItems = useConnectionStore((state) => state.driveItems);
   const [query, setQuery] = useState("");
   const stats = useMemo(
-    () => creativeMemoryStats({ assets, campaigns, contentItems }),
-    [assets, campaigns, contentItems],
+    () => creativeMemoryStats({ assets, campaigns, contentItems, externalItems }),
+    [assets, campaigns, contentItems, externalItems],
   );
   const results = useMemo(
-    () => searchCreativeMemory(query, { assets, campaigns, contentItems }),
-    [query, assets, campaigns, contentItems],
+    () => searchCreativeMemory(query, { assets, campaigns, contentItems, externalItems }),
+    [query, assets, campaigns, contentItems, externalItems],
   );
 
   return (
@@ -36,10 +38,11 @@ export function CreativeBrainPanel({ onOpenAsset }: { onOpenAsset: (id: string) 
             同時找目前的素材、Campaign 與內容節奏。未來連接 Google Drive、Canva、Instagram 後，會沿用同一個搜尋與來源標示。
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="grid grid-cols-4 gap-2 text-center">
           <Stat value={stats.assets} label="素材" />
           <Stat value={stats.analyzedAssets} label="已理解" />
           <Stat value={stats.campaigns} label="活動" />
+          <Stat value={stats.externalItems} label="外部" />
         </div>
       </div>
 
@@ -62,6 +65,7 @@ export function CreativeBrainPanel({ onOpenAsset }: { onOpenAsset: (id: string) 
                   type="button"
                   onClick={() => {
                     if (result.assetId) onOpenAsset(result.assetId);
+                    else if (result.externalId) void navigate({ to: "/connections" });
                     else void navigate({ to: "/campaigns" });
                   }}
                   className="flex min-h-20 w-full items-start gap-3 rounded-2xl bg-bg p-3 text-left transition-colors hover:bg-surface-2"

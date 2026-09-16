@@ -14,6 +14,7 @@ import { Route as AssetsRouteImport } from './routes/assets'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as BrandRouteImport } from './routes/brand'
 import { Route as CampaignsRouteImport } from './routes/campaigns'
+import { Route as ConnectionsRouteImport } from './routes/connections'
 import { Route as ExportRouteImport } from './routes/export'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as StudioIndexRouteImport } from './routes/studio.index'
@@ -44,6 +45,11 @@ const CampaignsRoute = CampaignsRouteImport.update({
   path: '/campaigns',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConnectionsRoute = ConnectionsRouteImport.update({
+  id: '/connections',
+  path: '/connections',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExportRoute = ExportRouteImport.update({
   id: '/export',
   path: '/export',
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
   '/campaigns': typeof CampaignsRoute
+  '/connections': typeof ConnectionsRoute
   '/export': typeof ExportRoute
   '/studio': typeof StudioRouteWithChildren
   '/studio/$projectId': typeof StudioProjectIdRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
   '/campaigns': typeof CampaignsRoute
+  '/connections': typeof ConnectionsRoute
   '/export': typeof ExportRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio': typeof StudioIndexRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
   '/campaigns': typeof CampaignsRoute
+  '/connections': typeof ConnectionsRoute
   '/export': typeof ExportRoute
   '/studio': typeof StudioRouteWithChildren
   '/studio/$projectId': typeof StudioProjectIdRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/assistant'
     | '/brand'
     | '/campaigns'
+    | '/connections'
     | '/export'
     | '/studio'
     | '/studio/$projectId'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/assistant'
     | '/brand'
     | '/campaigns'
+    | '/connections'
     | '/export'
     | '/studio/$projectId'
     | '/studio'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/assistant'
     | '/brand'
     | '/campaigns'
+    | '/connections'
     | '/export'
     | '/studio'
     | '/studio/$projectId'
@@ -139,6 +151,7 @@ export interface RootRouteChildren {
   AssistantRoute: typeof AssistantRoute
   BrandRoute: typeof BrandRoute
   CampaignsRoute: typeof CampaignsRoute
+  ConnectionsRoute: typeof ConnectionsRoute
   ExportRoute: typeof ExportRoute
   StudioRoute: typeof StudioRouteWithChildren
 }
@@ -178,6 +191,13 @@ declare module '@tanstack/react-router' {
       path: '/campaigns'
       fullPath: '/campaigns'
       preLoaderRoute: typeof CampaignsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connections': {
+      id: '/connections'
+      path: '/connections'
+      fullPath: '/connections'
+      preLoaderRoute: typeof ConnectionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/export': {
@@ -230,6 +250,7 @@ const rootRouteChildren: RootRouteChildren = {
   AssistantRoute: AssistantRoute,
   BrandRoute: BrandRoute,
   CampaignsRoute: CampaignsRoute,
+  ConnectionsRoute: ConnectionsRoute,
   ExportRoute: ExportRoute,
   StudioRoute: StudioRouteWithChildren,
 }

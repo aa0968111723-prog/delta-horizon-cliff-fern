@@ -95,6 +95,30 @@ test("buildCreativeMemoryContext includes brand lessons and attributable assets"
 test("creativeMemoryStats counts analyzed and reusable memory", () => {
   assert.deepEqual(
     creativeMemoryStats({ assets: [asset], campaigns: [campaign], contentItems: [content] }),
-    { sources: 1, assets: 1, analyzedAssets: 1, campaigns: 1, reusableContent: 1 },
+    { sources: 1, assets: 1, analyzedAssets: 1, campaigns: 1, reusableContent: 1, externalItems: 0 },
   );
+});
+
+test("searchCreativeMemory includes synced external references with attribution", () => {
+  const results = searchCreativeMemory("歷屆 茶會", {
+    assets: [],
+    campaigns: [],
+    contentItems: [],
+    externalItems: [{
+      id: "drive-1",
+      provider: "google-drive",
+      title: "歷屆茶會企劃",
+      mimeType: "application/vnd.google-apps.document",
+      isFolder: false,
+      modifiedAt: "",
+      webUrl: "",
+      thumbnailUrl: "",
+      parentId: "root",
+      snippet: "夜間茶會流程",
+      syncedAt: 1,
+    }],
+  });
+  assert.equal(results[0]?.provider, "Google Drive");
+  assert.equal(results[0]?.kind, "external");
+  assert.equal(results[0]?.externalId, "drive-1");
 });
