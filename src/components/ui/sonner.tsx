@@ -5,7 +5,6 @@ export function Toaster() {
     <Sonner
       theme="light"
       position="bottom-center"
-      style={{ zIndex: 40 }}
       toastOptions={{
         classNames: {
           toast:

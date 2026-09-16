@@ -179,33 +179,7 @@ export type AssetCategory =
   | "template"
   | "history";
 
-export type AssetSourceKind = "upload" | "seed" | "generated" | "google-drive" | "canva" | "instagram";
-
-export type AssetProvenance = {
-  provider: AssetSourceKind;
-  label: string;
-  externalId?: string;
-  externalUrl?: string;
-  collection?: string;
-  sourceDate?: string;
-  importedAt: number;
-  parentAssetId?: string;
-};
-
-/** AI 對素材的理解（Vision AI 結果或本機推斷）。 */
-export type AssetInsight = {
-  summary: string;
-  subjects: string[];
-  palette: string[];
-  mood: string;
-  studentFit: number;
-  brandFit: number;
-  stopPower: number;
-  warnings: string[];
-  suggestions: string[];
-  analyzedAt: number;
-  source: "live" | "mock";
-};
+export type AssetSourceKind = "upload" | "seed" | "generated";
 
 export type AssetUsageStatus = "in-use" | "used" | "unused";
 
@@ -242,7 +216,8 @@ export type AssetMeta = {
   favorite: boolean;
   lastUsedAt: number | null;
   useCount: number;
-  insight?: AssetInsight;
+  attribution?: string;
+  analysisNotes?: string;
 };
 
 export type Background = {
@@ -582,11 +557,7 @@ export type Project = {
   brandId: string;
   templateId: TemplateId;
   activeFormatId: FormatId;
-  status: ContentStatus;
-  contentKind: ContentKind;
-  campaignId: string | null;
-  scheduledAt: number | null;
-  publishedAt: number | null;
+  status: ProjectStatus;
   brief: Brief;
   copy: CopyDeck;
   plan: CampaignPlan | null;

@@ -39,15 +39,7 @@ import {
   normalizeArtboard,
   pagesOf,
 } from "@/lib/studio/layers";
-import {
-  SEED_ASSETS,
-  SEED_BRAND,
-  SEED_BRAND_ID,
-  SEED_CAMPAIGNS,
-  SEED_PROJECT_ID,
-  createSeedDraft,
-  createSeedProject,
-} from "@/lib/studio/seed";
+import { SEED_ASSETS, SEED_BRAND, SEED_BRAND_ID, SEED_PROJECT_ID, createSeedDraft, createSeedProject } from "@/lib/studio/seed";
 import { templateById } from "@/lib/studio/templates";
 import type {
   AlignMode,
@@ -260,18 +252,9 @@ function migrateProject(raw: Project): Project {
   const slideIndex = Math.min(Math.max(0, raw.slideIndex ?? 0), Math.max(0, pages.length - 1));
   if (pages[slideIndex]) artboards[formatId] = pages[slideIndex];
   const plan = migratePlan(raw.plan);
-  const pageCount = slides[formatId]?.length ?? 1;
   return {
     ...raw,
-    status: migrateStatus(raw.status, Boolean(plan)),
-    contentKind: raw.contentKind ?? inferContentKind(formatId, pageCount),
-    campaignId: raw.campaignId ?? null,
-    scheduledAt: raw.scheduledAt ?? null,
-    publishedAt: raw.publishedAt ?? null,
-    copyDrafts: Array.isArray(raw.copyDrafts) ? raw.copyDrafts : [],
-    studentReview: raw.studentReview ?? null,
-    reels: raw.reels ?? null,
-    sources: Array.isArray(raw.sources) ? raw.sources : [],
+    status: raw.status ?? (plan ? "ready" : "draft"),
     exports: raw.exports ?? [],
     artboards,
     slides,
@@ -590,11 +573,7 @@ export const useStudio = create<StudioState>()(
           brandId,
           templateId: tpl,
           activeFormatId: formatId,
-          status: status ?? "making",
-          contentKind: contentKind ?? inferContentKind(formatId, 1),
-          campaignId: campaignId ?? null,
-          scheduledAt: null,
-          publishedAt: null,
+          status: "draft",
           brief: migrateBrief(brief),
           copy,
           plan: null,
@@ -742,11 +721,7 @@ export const useStudio = create<StudioState>()(
           brandId,
           templateId,
           activeFormatId: starter.formatId,
-          status: "making",
-          contentKind: inferContentKind(starter.formatId, 1),
-          campaignId: null,
-          scheduledAt: null,
-          publishedAt: null,
+          status: "draft",
           brief: migrateBrief(starter.brief),
           copy,
           plan: null,
@@ -889,9 +864,7 @@ export const useStudio = create<StudioState>()(
           name: `${src.name} 副本`,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          status: "making",
-          scheduledAt: null,
-          publishedAt: null,
+          status: "draft",
           exports: [],
         };
         set((s) => ({ projects: [copy, ...s.projects], lastProjectId: copy.id }));
@@ -1421,7 +1394,7 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 8,
+      version: 6,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,
@@ -1470,7 +1443,6 @@ export const useStudio = create<StudioState>()(
           brands,
           assets,
           projects,
-          campaigns,
           lastProjectId: state.lastProjectId ?? projects[0]?.id ?? null,
         };
       },

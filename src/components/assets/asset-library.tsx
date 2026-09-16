@@ -185,7 +185,7 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
       <PageHeader
         kicker="創作素材"
         title="素材庫"
-        description="依龜龜、淡水、海報、活動照片來找。AI 可以讀圖、延續風格，或從一張圖開始寫文案。"
+        description="標籤、出處、分析與生成相似。檔案存在這個瀏覽器，可拖到畫布。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="assets" />

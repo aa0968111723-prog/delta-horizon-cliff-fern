@@ -207,11 +207,11 @@ export function logoUsageLabel(usage: LogoUsage) {
 
 export function defaultBrandColors() {
   return [
-    { id: uid("c"), hex: "#3F9E93", role: "primary" as const, label: "澄光" },
-    { id: uid("c"), hex: "#5C6BA8", role: "secondary" as const, label: "夜光" },
-    { id: uid("c"), hex: "#F7F4ED", role: "background" as const, label: "紙白" },
-    { id: uid("c"), hex: "#F2A65A", role: "accent" as const, label: "曦光" },
-    { id: uid("c"), hex: "#23211C", role: "ink" as const, label: "墨" },
+    { id: uid("c"), hex: "#1A1814", role: "primary" as const, label: "主色" },
+    { id: uid("c"), hex: "#6F6A63", role: "secondary" as const, label: "輔助色" },
+    { id: uid("c"), hex: "#F3F0EA", role: "background" as const, label: "背景色" },
+    { id: uid("c"), hex: "#1E4A45", role: "accent" as const, label: "強調" },
+    { id: uid("c"), hex: "#1A1814", role: "ink" as const, label: "文字" },
   ];
 }
 

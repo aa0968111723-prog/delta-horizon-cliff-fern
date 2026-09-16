@@ -3,6 +3,7 @@ import { z } from "zod";
 import { describeAdapter, type AiStatus } from "./campaign";
 import { EditPlanSchema, riskOf, type EditPlan } from "./actions";
 import { interpretMock } from "./edit-mock";
+import { extractJsonObject, grokAvailable, grokChat } from "./grok";
 import type { EditorScene } from "./scene";
 
 export type EditResult =
@@ -74,13 +75,7 @@ const EditInputSchema = z.object({
 });
 
 function extractJson(text: string): unknown {
-  const trimmed = text.trim();
-  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const raw = fence ? fence[1] : trimmed;
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("模型未回傳 JSON");
-  return JSON.parse(raw.slice(start, end + 1));
+  return extractJsonObject(text);
 }
 
 function parsePlan(raw: unknown): EditPlan | null {
@@ -93,8 +88,7 @@ function parsePlan(raw: unknown): EditPlan | null {
 }
 
 async function interpretLive(command: string, scene: EditorScene): Promise<EditResult> {
-  const apiKey = process.env.XAI_API_KEY;
-  if (!apiKey) return { ok: true, plan: interpretMock(command, scene), adapter: "mock" };
+  if (!grokAvailable()) return { ok: true, plan: interpretMock(command, scene), adapter: "mock" };
 
   const prompt = `你是淡江禪學社畫布編輯助手。只能輸出 JSON，不要 markdown。
 根據「目前畫布」把使用者的話變成 actions。禁止只說已完成；沒有對應物件就給空 actions 並在 notes 說明。
@@ -120,30 +114,17 @@ JSON：{summary,risk,actions,notes}
 
 畫布：${JSON.stringify(scene)}`;
 
-  const res = await fetch("https://api.x.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "grok-4.5",
-      temperature: 0.2,
-      max_tokens: 1400,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: "You edit an Instagram artboard via a JSON action list. Output one JSON object." },
-        { role: "user", content: prompt },
-      ],
-    }),
+  const chat = await grokChat({
+    system: "You edit an Instagram artboard via a JSON action list. Output one JSON object.",
+    user: prompt,
+    maxTokens: 1400,
+    temperature: 0.2,
   });
-  if (!res.ok) {
-    return { ok: false, error: `畫布指令暫時無法使用（${res.status}）。可改用本機規則。`, adapter: "live" };
+  if (!chat.ok) {
+    return { ok: false, error: chat.capped ? chat.error : `畫布代理暫時無法使用。可改用本機規則。`, adapter: "live" };
   }
-  const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  const text = body.choices?.[0]?.message?.content ?? "";
   try {
-    const plan = parsePlan(extractJson(text));
+    const plan = parsePlan(extractJson(chat.text));
     if (!plan) return { ok: false, error: "AI 回傳的操作無法套用。可再試一次，或改用本機規則。", adapter: "live" };
     return { ok: true, plan, adapter: "live" };
   } catch {
@@ -176,7 +157,7 @@ export function describeEditAdapter(available: boolean): AiStatus {
 export const interpretEditorCommand = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseEditInput(input))
   .handler(async ({ data }): Promise<EditResult> => {
-    const hasKey = Boolean(process.env.XAI_API_KEY);
+    const hasKey = grokAvailable();
     if (!hasKey || data.forceMock) {
       return { ok: true, plan: interpretMock(data.command, data.scene as EditorScene), adapter: "mock" };
     }

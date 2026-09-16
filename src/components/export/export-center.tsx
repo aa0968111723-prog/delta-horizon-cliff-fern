@@ -86,13 +86,13 @@ export function ExportCenter() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="輸出中心"
-        title="預覽與下載"
-        description="檢查安全區與文案，再輸出 Instagram 用的高畫質檔案。做成全套之後可以一次下載所有畫面。"
+        kicker="淡江大學禪學社 輸出與排程中心"
+        title="品質檢驗、排程與輸出"
+        description="檢查 IG 尺寸安全區、淡江品牌規範與文案字級，一鍵輸出或排入社團內容日曆。"
         actions={
           <Button asChild variant="secondary">
             <Link to="/studio/$projectId" params={{ projectId: project.id }}>
-              回編輯器
+              回畫布編輯器
             </Link>
           </Button>
         }

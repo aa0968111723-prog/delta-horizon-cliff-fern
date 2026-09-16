@@ -52,16 +52,3 @@ export function SheetTitle({
     <DialogPrimitive.Title className={cn("text-base font-medium", className)} {...props} />
   );
 }
-
-export function SheetDescription({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>) {
-  return (
-    <DialogPrimitive.Description className={cn("text-sm text-muted", className)} {...props} />
-  );
-}
-
-export function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("mb-4 flex flex-col gap-1 pr-10", className)} {...props} />;
-}

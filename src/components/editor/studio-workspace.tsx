@@ -9,6 +9,7 @@ import {
   Sparkles,
   Type,
   Undo2,
+  Calendar,
 } from "lucide-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -202,6 +203,12 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
         <Button size="icon-sm" variant="ghost" aria-label="重做" onClick={() => redo(project.id)}>
           <Redo2 className="size-4" />
         </Button>
+        <Button asChild size="sm" variant="outline" className="hidden sm:inline-flex h-7 text-xs gap-1 border-primary/30 text-primary">
+          <Link to="/export">
+            <Calendar className="size-3" />
+            排程輸出
+          </Link>
+        </Button>
         <button
           type="button"
           data-testid="qa-score-chip"
@@ -210,11 +217,11 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
             setPanel("qa");
           }}
           className={cn(
-            "px-2 text-xs tabular-nums",
+            "px-2 text-xs tabular-nums font-semibold",
             qa.score >= 85 ? "text-success" : qa.score >= 70 ? "text-warn" : "text-danger",
           )}
         >
-          {qa.score}
+          {qa.score}分
         </button>
       </header>
       <div className="shrink-0 space-y-2 overflow-x-auto border-b border-border bg-surface px-3 py-2">

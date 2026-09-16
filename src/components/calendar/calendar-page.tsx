@@ -1,456 +1,206 @@
 import { Link } from "@tanstack/react-router";
-import {
-  addDays,
-  addMonths,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  startOfDay,
-  startOfMonth,
-  startOfWeek,
-} from "date-fns";
-import { zhTW } from "date-fns/locale";
-import { CalendarDays, ChevronLeft, ChevronRight, Sparkles, Tent } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { CalendarDays, Instagram, Plus, Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { PostPackBar } from "@/components/create/post-pack";
-import { DownloadPackButton } from "@/components/export/download-pack";
-import { PackFlowBar } from "@/components/shared/pack-flow";
-import { PageHeader, SectionHeader } from "@/components/shared/page-header";
-import { StatusBadge } from "@/components/shared/status-badge";
+import { CampaignEditorDialog } from "@/components/campaigns/campaign-editor";
+import { PageHeader } from "@/components/shared/page-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  parseCalendarDrag,
-  writeCalendarDrag,
-  type CalendarMoveTarget,
-} from "@/lib/studio/calendar-dnd";
-import { groupSameNightPacks } from "@/lib/studio/calendar-groups";
-import { campaignDateMs, waveDateMs } from "@/lib/studio/campaign";
-import { suggestSchedule, offsetDaysFromEventDate, stampTimeOnDay } from "@/lib/studio/schedule";
-import { CONTENT_KIND_ORDER, contentKindLabel } from "@/lib/studio/status";
-import { unscheduledDonePacks } from "@/lib/studio/today-post";
-import type { Campaign, ContentKind, Project } from "@/lib/studio/types";
-import { cn } from "@/lib/utils";
-import { useStudio } from "@/stores/studio-store";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  CAMPAIGN_TYPE_LABELS,
+  CONTENT_STATUS_LABELS,
+  CONTENT_TYPE_LABELS,
+  type Campaign,
+  type ContentStatus,
+} from "@/lib/studio/campaign-types";
+import { useCampaignStore } from "@/lib/studio/campaign-store";
 
-type View = "month" | "week" | "agenda";
+export function CalendarPage({
+  onOpenAi,
+}: {
+  onOpenAi?: (topic: string, campaign?: Campaign) => void;
+}) {
+  const campaigns = useCampaignStore((s) => s.campaigns);
+  const posts = useCampaignStore((s) => s.scheduledPosts);
+  const setPostStatus = useCampaignStore((s) => s.setPostStatus);
+  const deleteScheduledPost = useCampaignStore((s) => s.deleteScheduledPost);
+  const selectCampaign = useCampaignStore((s) => s.selectCampaign);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | ContentStatus>("all");
 
-type DayItem =
-  | { type: "content"; project: Project; at: number }
-  | { type: "wave"; campaign: Campaign; waveId: string; title: string; stage: string; at: number }
-  | { type: "event"; campaign: Campaign; at: number };
-
-type PackDayItem = { type: "pack"; rootId: string; members: Project[]; at: number };
-type CellItem = DayItem | PackDayItem;
-
-type MoveTarget = CalendarMoveTarget;
-
-function packChipLabel(members: Array<Pick<Project, "contentKind">>): string {
-  const kinds = [...new Set(members.map((item) => item.contentKind))].sort(
-    (a, b) => kindOrder(a) - kindOrder(b),
-  );
-  return `全套 · ${kinds.map((kind) => contentKindLabel(kind)).join(" · ")}`;
-}
-
-function kindOrder(kind: ContentKind): number {
-  const index = CONTENT_KIND_ORDER.indexOf(kind);
-  return index < 0 ? 99 : index;
-}
-
-function initialView(): View {
-  if (typeof window === "undefined") return "month";
-  return window.innerWidth < 640 ? "agenda" : "month";
-}
-
-function prefersTapMove(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(pointer: coarse)").matches;
-}
-
-export function CalendarPage() {
-  const projects = useStudio((s) => s.projects);
-  const campaigns = useStudio((s) => s.campaigns);
-  const setSchedule = useStudio((s) => s.setSchedule);
-  const applySchedule = useStudio((s) => s.applySchedule);
-  const updateWave = useStudio((s) => s.updateWave);
-  const waiting = useMemo(() => unscheduledDonePacks(projects), [projects]);
-  const [cursor, setCursor] = useState(() => new Date());
-  const [view, setView] = useState<View>(initialView);
-  const [drag, setDrag] = useState<MoveTarget | null>(null);
-  const [pick, setPick] = useState<MoveTarget | null>(null);
-  const [tapMove] = useState(prefersTapMove);
-  const dragRef = useRef<MoveTarget | null>(null);
-
-  const items = useMemo<DayItem[]>(() => {
-    const rows: DayItem[] = [];
-    for (const project of projects) {
-      const at = project.scheduledAt ?? project.publishedAt;
-      if (at) rows.push({ type: "content", project, at });
+  const grouped = useMemo(() => {
+    const filtered = posts.filter((p) => statusFilter === "all" || p.status === statusFilter);
+    const map = new Map<string, typeof posts>();
+    for (const post of filtered) {
+      const day = post.scheduledAt.slice(0, 10) || "未排期";
+      const list = map.get(day) ?? [];
+      list.push(post);
+      map.set(day, list);
     }
-    for (const campaign of campaigns) {
-      const eventAt = campaignDateMs(campaign);
-      if (eventAt) rows.push({ type: "event", campaign, at: eventAt });
-      for (const wave of campaign.waves) {
-        if (wave.contentId) continue;
-        const at = waveDateMs(campaign, wave);
-        if (at) {
-          rows.push({
-            type: "wave",
-            campaign,
-            waveId: wave.id,
-            title: wave.title,
-            stage: wave.stage,
-            at,
-          });
-        }
-      }
-    }
-    return rows.sort((a, b) => a.at - b.at);
-  }, [projects, campaigns]);
-
-  const days = useMemo(() => {
-    if (view === "week") {
-      const start = startOfWeek(cursor, { weekStartsOn: 1 });
-      return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-    }
-    const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 });
-    const end = endOfWeek(endOfMonth(cursor), { weekStartsOn: 1 });
-    const out: Date[] = [];
-    for (let d = start; d <= end; d = addDays(d, 1)) out.push(d);
-    return out;
-  }, [cursor, view]);
-
-  const agenda = useMemo(() => {
-    const from = startOfDay(new Date()).getTime();
-    const upcoming = items.filter((item) => item.at >= from);
-    const contents = upcoming.filter((item): item is Extract<DayItem, { type: "content" }> => item.type === "content");
-    const others = upcoming.filter((item) => item.type !== "content");
-    return [...groupSameNightPacks(contents), ...others].sort((a, b) => a.at - b.at).slice(0, 30);
-  }, [items]);
-
-  function itemsOn(day: Date) {
-    return items.filter((item) => isSameDay(item.at, day));
-  }
-
-  function cellsOn(day: Date): CellItem[] {
-    const raw = itemsOn(day);
-    const contents = raw.filter((item): item is Extract<DayItem, { type: "content" }> => item.type === "content");
-    const others = raw.filter((item) => item.type !== "content");
-    return [...groupSameNightPacks(contents), ...others].sort((a, b) => a.at - b.at);
-  }
-
-  function stampOnDay(project: Project, day: Date): number {
-    return stampTimeOnDay(project.scheduledAt ?? project.publishedAt, day.getTime());
-  }
-
-  function clearMove() {
-    dragRef.current = null;
-    setDrag(null);
-    setPick(null);
-  }
-
-  function beginDrag(target: MoveTarget, transfer: DataTransfer | null) {
-    dragRef.current = target;
-    setDrag(target);
-    writeCalendarDrag(transfer, target);
-  }
-
-  function endDrag() {
-    dragRef.current = null;
-    setDrag(null);
-  }
-
-  function moveProject(projectId: string, day: Date) {
-    const project = projects.find((p) => p.id === projectId);
-    if (!project) return;
-    const at = stampOnDay(project, day);
-    setSchedule(project.id, at);
-    clearMove();
-    toast.success(`已改到 ${format(at, "M/d HH:mm")}`);
-  }
-
-  function movePack(ids: string[], day: Date) {
-    const entries = ids.flatMap((id) => {
-      const project = projects.find((item) => item.id === id);
-      if (!project || project.status === "published") return [];
-      return [{ projectId: id, at: stampOnDay(project, day) }];
-    });
-    if (!entries.length) {
-      toast.info("這套已經發出去了，改期不會動它。");
-      return;
-    }
-    applySchedule(entries);
-    clearMove();
-    toast.success(`全套改到 ${format(day, "M/d")}，同一晚一起發。`);
-  }
-
-  function moveWave(campaignId: string, waveId: string, day: Date) {
-    const campaign = campaigns.find((item) => item.id === campaignId);
-    if (!campaign) return;
-    const offset = offsetDaysFromEventDate(campaign.date, day.getTime());
-    if (offset == null) {
-      toast.info("這場活動還沒定日期，節奏沒辦法改期。");
-      return;
-    }
-    updateWave(campaignId, waveId, { offsetDays: offset });
-    clearMove();
-    toast.success(`節奏改到 ${format(day, "M/d")}`);
-  }
-
-  function dropOn(day: Date, transfer?: DataTransfer | null) {
-    const target = parseCalendarDrag(transfer) ?? dragRef.current ?? drag ?? pick;
-    if (!target) return;
-    if (target.kind === "content") moveProject(target.id, day);
-    else if (target.kind === "pack") movePack(target.ids, day);
-    else moveWave(target.campaignId, target.waveId, day);
-  }
-
-  function runAutoSchedule() {
-    const suggestions = suggestSchedule(projects, campaigns);
-    if (!suggestions.length) {
-      toast.info("沒有可以排的內容。先把活動節奏或完成的稿準備好。");
-      return;
-    }
-    const count = applySchedule(suggestions);
-    toast.success(`已依宣傳節奏排了 ${count} 則，同一套會排在同一晚。`);
-  }
-
-  const pickedLabel = (() => {
-    if (!pick) return null;
-    if (pick.kind === "content") return projects.find((p) => p.id === pick.id)?.name ?? null;
-    if (pick.kind === "pack") {
-      const first = projects.find((item) => item.id === pick.ids[0]);
-      return first ? packChipLabel(pick.ids.flatMap((id) => projects.filter((item) => item.id === id))) : "全套";
-    }
-    const campaign = campaigns.find((item) => item.id === pick.campaignId);
-    return campaign?.waves.find((wave) => wave.id === pick.waveId)?.title ?? campaign?.name ?? null;
-  })();
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [posts, statusFilter]);
 
   return (
-    <main className="mx-auto w-full min-w-0 max-w-5xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="排程"
-        title="內容日曆"
-        description="只服務創作與發布：什麼時候發、發什麼型態。沒有負責人，也沒有審核流程。"
+        kicker="內容日曆"
+        title="活動與發文節奏"
+        description="一人網宣把茶會、社課與 IG 排程放在同一張表。生成後可直接進畫布。"
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={runAutoSchedule}>
-              <Sparkles className="size-4" />
-              依宣傳節奏排程
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link to="/instagram">
+                <Instagram className="size-4" />
+                IG 九宮格
+              </Link>
             </Button>
-            <div className="flex items-center gap-1 rounded-full bg-surface p-1 shadow-[var(--shadow-border)]">
-              {(
-                [
-                  { id: "month" as const, label: "月" },
-                  { id: "week" as const, label: "週" },
-                  { id: "agenda" as const, label: "清單" },
-                ]
-              ).map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setView(tab.id)}
-                  className={cn(
-                    "min-h-9 rounded-full px-3 text-xs transition-colors",
-                    view === tab.id ? "bg-accent text-accent-fg" : "text-muted hover:text-fg",
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            <Button
+              size="sm"
+              data-testid="create-campaign"
+              onClick={() => {
+                setEditId(null);
+                setEditorOpen(true);
+              }}
+            >
+              <Plus className="size-4" />
+              建立活動
+            </Button>
           </div>
         }
       />
 
-      {pickedLabel ? (
-        <p className="mt-4 rounded-xl bg-surface px-3 py-2 text-xs text-muted shadow-[var(--shadow-border)]">
-          已選「{pickedLabel}」。點一個日期改過去。
-          <button type="button" className="ml-2 underline" onClick={() => setPick(null)}>
-            取消
-          </button>
-        </p>
-      ) : null}
-
-      {view !== "agenda" ? (
-        <div className="mt-6 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="上一個"
-              onClick={() => setCursor(view === "week" ? addDays(cursor, -7) : addMonths(cursor, -1))}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <p className="min-w-28 text-center text-sm font-medium">
-              {format(cursor, view === "week" ? "M月 d日 那週" : "yyyy年 M月", { locale: zhTW })}
-            </p>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="下一個"
-              onClick={() => setCursor(view === "week" ? addDays(cursor, 7) : addMonths(cursor, 1))}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => setCursor(new Date())}>
-            今天
-          </Button>
-        </div>
-      ) : null}
-
-      {view === "agenda" ? (
-        <AgendaList
-          items={agenda}
-          onRescheduleContent={(projectId, day) => moveProject(projectId, day)}
-          onReschedulePack={(ids, day) => movePack(ids, day)}
-          onRescheduleWave={(campaignId, waveId, day) => moveWave(campaignId, waveId, day)}
-        />
-      ) : (
-        <>
-          <div className={cn(view === "week" && "overflow-x-auto")}>
-            <div className={cn(view === "week" && "min-w-xl sm:min-w-0")}>
-              <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs text-muted">
-                {["一", "二", "三", "四", "五", "六", "日"].map((d) => (
-                  <span key={d}>{d}</span>
-                ))}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold">社團活動</h2>
+        <ul className="grid gap-3 md:grid-cols-2">
+          {campaigns.map((camp) => (
+            <li key={camp.id} className="rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-border)]">
+              <div className="flex items-start justify-between gap-2">
+                <Badge variant="accent">{CAMPAIGN_TYPE_LABELS[camp.type]}</Badge>
+                <span className="text-xs text-muted">{camp.date}</span>
               </div>
-              <div
-                data-testid={view === "week" ? "calendar-week" : "calendar-month"}
-                className="mt-1 grid grid-cols-7 gap-1"
-              >
-            {days.map((day) => {
-              const dayCells = cellsOn(day);
-              const dim = view === "month" && !isSameMonth(day, cursor);
-              const cap = view === "week" ? 8 : 3;
-              return (
-                <div
-                  key={day.toISOString()}
-                  data-testid="calendar-day"
-                  data-date={format(day, "yyyy-MM-dd")}
-                  data-in-month={dim ? "0" : "1"}
-                  onDragEnter={(e) => e.preventDefault()}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+              <h3 className="mt-2 text-base font-semibold">{camp.name}</h3>
+              <p className="mt-1 text-sm text-muted">{camp.oneLiner}</p>
+              <p className="mt-2 text-xs text-subtle">
+                {camp.time} · {camp.location}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    selectCampaign(camp.id);
+                    onOpenAi?.(`${camp.name} 完整宣傳波段`, camp);
                   }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    dropOn(day, e.dataTransfer);
-                  }}
-                  onClick={(e) => {
-                    if (!pick) return;
-                    if ((e.target as HTMLElement).closest("a")) return;
-                    dropOn(day);
-                  }}
-                  className={cn(
-                    "rounded-xl p-1.5 shadow-[var(--shadow-border)] transition-shadow",
-                    view === "week" ? "glass min-h-40 sm:min-h-52" : "glass min-h-24 sm:min-h-28",
-                    dim && "opacity-45",
-                    isSameDay(day, new Date()) && "ring-2 ring-ring",
-                    (drag || pick) && "hover:shadow-[var(--shadow-lift)]",
-                  )}
                 >
-                  <p className="px-0.5 text-xs tabular-nums text-muted">
-                    {view === "week" ? format(day, "M/d", { locale: zhTW }) : format(day, "d")}
-                  </p>
-                  <ul className="mt-1 space-y-1">
-                    {dayCells.slice(0, cap).map((item) => (
-                      <li key={keyOf(item)}>
-                        <CalendarChip
-                          item={item}
-                          selected={isCellSelected(item, pick)}
-                          tapMove={tapMove}
-                          onBeginDrag={beginDrag}
-                          onEndDrag={endDrag}
-                          onPick={setPick}
-                        />
-                      </li>
-                    ))}
-                    {dayCells.length > cap ? (
-                      <li className="px-1 text-xs text-subtle">+{dayCells.length - cap}</li>
-                    ) : null}
-                  </ul>
-                </div>
-              );
-            })}
+                  <Sparkles className="size-4" />
+                  生成宣傳波段
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setEditId(camp.id);
+                    setEditorOpen(true);
+                  }}
+                >
+                  編輯
+                </Button>
               </div>
-            </div>
-          </div>
-          <p className="mt-3 text-xs text-subtle">
-            {tapMove
-              ? "點一則內容、全套或灰色節奏再點日期就能改期。"
-              : view === "week"
-                ? "這一週七欄。已排程的內容可以拖到別天，同一套拖過去就整晚一起改。"
-                : "已排程的內容和還沒建立的節奏都可以拖到別的日期。同一套會併成一格，拖過去就整晚一起改。手機點再點日期也能改。"}
-          </p>
-        </>
-      )}
+            </li>
+          ))}
+        </ul>
+      </section>
 
-      {waiting.length ? (
-        <section className="mt-6">
-          <SectionHeader title="完成了、還沒排" hint="同一則做成的全套會併成一列。排這套、或複製文案下載圖就能發。" />
-          <ul className="grid gap-3 lg:grid-cols-2">
-            {waiting.map((row) => (
-              <li key={row.rootId} className="min-w-0 rounded-2xl surface-card p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <Link
-                    to="/studio/$projectId"
-                    params={{ projectId: row.primary.id }}
-                    className="min-w-0"
-                  >
-                    <span className="block truncate text-sm font-medium">{row.primary.name}</span>
-                    <span className="block truncate text-xs text-muted">
-                      {row.pack.length > 1
-                        ? row.pack.map((item) => contentKindLabel(item.contentKind)).join("、")
-                        : contentKindLabel(row.primary.contentKind)}
-                    </span>
-                  </Link>
-                  <StatusBadge status={row.primary.status} />
-                </div>
-                {row.pack.length > 1 ? (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <PackFlowBar projectId={row.primary.id} />
-                    <DownloadPackButton projectId={row.primary.id} size="sm" variant="secondary" />
-                  </div>
-                ) : null}
-                <PostPackBar
-                  copy={row.primary.copy}
-                  kind={row.primary.contentKind}
-                  projectId={row.primary.id}
-                  variant="compact"
-                  className="mt-3 pt-2"
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {items.length === 0 ? (
-        <div className="mt-8 rounded-2xl surface-card p-8">
-          <CalendarDays className="mx-auto size-5 text-subtle" />
-          <p className="mt-2 text-sm text-muted">日曆上還沒有東西。</p>
-          <div className="mt-3 flex flex-wrap justify-center gap-2">
-            <Button asChild size="sm">
-              <Link to="/campaigns" search={{ new: "1" }}>
-                <Tent className="size-4" />
-                建立活動
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="secondary">
-              <Link to="/create" search={{ from: "idea" }}>
-                <Sparkles className="size-4" />
-                寫一篇
-              </Link>
-            </Button>
-          </div>
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+            <CalendarDays className="size-4 text-accent" />
+            排程表
+          </h2>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+            <SelectTrigger className="h-9 w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部狀態</SelectItem>
+              {(Object.keys(CONTENT_STATUS_LABELS) as ContentStatus[]).map((id) => (
+                <SelectItem key={id} value={id}>
+                  {CONTENT_STATUS_LABELS[id]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      ) : null}
+
+        {grouped.length === 0 ? (
+          <p className="rounded-2xl bg-surface px-4 py-8 text-center text-sm text-muted">還沒有排程。從活動生成波段，或在 AI 創作裡按排入日曆。</p>
+        ) : (
+          <div className="space-y-4" data-testid="content-calendar">
+            {grouped.map(([day, list]) => (
+              <div key={day} className="rounded-2xl border border-border bg-surface p-3">
+                <p className="mb-2 text-xs font-semibold text-accent">{day}</p>
+                <ul className="space-y-2">
+                  {list.map((post) => (
+                    <li
+                      key={post.id}
+                      className="flex flex-col gap-2 rounded-xl bg-surface-2/70 p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge>{CONTENT_TYPE_LABELS[post.contentType]}</Badge>
+                          <span className="text-sm font-medium">{post.title}</span>
+                        </div>
+                        <p className="mt-1 line-clamp-1 text-xs text-muted">{post.hook}</p>
+                        <p className="text-[11px] text-subtle">{post.scheduledAt} · {post.sourceRef}</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Select
+                          value={post.status}
+                          onValueChange={(v) => {
+                            setPostStatus(post.id, v as ContentStatus);
+                            toast.success("排程狀態已更新");
+                          }}
+                        >
+                          <SelectTrigger className="h-9 w-28">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(CONTENT_STATUS_LABELS) as ContentStatus[]).map((id) => (
+                              <SelectItem key={id} value={id}>
+                                {CONTENT_STATUS_LABELS[id]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" variant="ghost" onClick={() => deleteScheduledPost(post.id)}>
+                          移除
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <CampaignEditorDialog
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        campaignId={editId}
+        onSaved={(campaign, generate) => {
+          selectCampaign(campaign.id);
+          if (generate) onOpenAi?.(`${campaign.name} 完整宣傳波段`, campaign);
+        }}
+      />
     </main>
   );
 }

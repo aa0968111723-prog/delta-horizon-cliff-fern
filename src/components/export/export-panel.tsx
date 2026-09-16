@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { Calendar, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DownloadPackButton, PackExportHint } from "@/components/export/download-pack";
@@ -13,6 +14,7 @@ import { igPostText, packStats, packLimit, threadsPostText } from "@/lib/studio/
 import type { Artboard, BrandKit, Project } from "@/lib/studio/types";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
+import { useCampaignStore } from "@/lib/studio/campaign-store";
 
 export function ExportPanel({
   project,
@@ -24,7 +26,7 @@ export function ExportPanel({
   artboard: Artboard;
 }) {
   const recordExport = useStudio((s) => s.recordExport);
-  const assets = useStudio((s) => s.assets);
+  const addScheduledPost = useCampaignStore((s) => s.addScheduledPost);
   const [scale, setScale] = useState<1 | 2 | 3>(2);
   const [type, setType] = useState<"image/png" | "image/jpeg">("image/png");
   const [busy, setBusy] = useState(false);
@@ -187,21 +189,39 @@ export function ExportPanel({
       >
         複製貼文文案
       </Button>
-      <p className="text-xs tabular-nums text-muted">
-        {(() => {
-          const stats = packStats(igPostText(project.copy), packLimit("ig"));
-          return `貼文 ${stats.length} / ${stats.limit} 字${stats.over ? "，超過上限了" : ""}`;
-        })()}
-      </p>
       <Button
-        variant="secondary"
-        className="w-full"
-        onClick={async () => {
-          await navigator.clipboard.writeText(threadsPostText(project.copy));
-          toast.success("已複製 Threads 文案");
+        variant="outline"
+        className="w-full gap-1.5 text-xs border-primary/40 text-primary hover:bg-primary/5"
+        onClick={() => {
+          const contentType =
+            pages.length > 1
+              ? "carousel"
+              : format.id === "story"
+              ? "story"
+              : format.id === "reels-cover"
+              ? "reels"
+              : "ig-post";
+
+          addScheduledPost({
+            projectId: project.id,
+            title: project.name,
+            contentType,
+            status: "scheduled",
+            scheduledAt: new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 16).replace("T", " "),
+            hook: project.copy.headline.replace("\n", " "),
+            caption: project.copy.caption,
+            hashtags: project.copy.hashtags,
+            cta: project.copy.cta,
+            visualDirection: `${format.name} · ${brand.name}`,
+            slidesCount: pages.length,
+            sourceKind: "brand-memory",
+            sourceRef: `Studio 畫布 / ${project.name}`,
+          });
+          toast.success(`已將「${project.name}」排入社團內容日曆！`);
         }}
       >
-        複製 Threads 文案
+        <Calendar className="size-3.5" />
+        排入社團內容日曆
       </Button>
       {project.copy.altText ? (
         <Button

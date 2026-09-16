@@ -15,13 +15,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { analyzeImage, generateImage, insightFromAnalysis } from "@/lib/ai/image-ai";
-import { formatBrandMemory, toggleLegacyAssetId } from "@/lib/studio/brand";
-import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
-import { ASSET_CATEGORIES, assetPreviewFitClass, kindFromCategory, similarAssets, sourceLabel, usageLabel } from "@/lib/studio/assets";
-import { saveGeneratedImage, urlToDataUrl } from "@/lib/studio/generated-image";
+import { analyzeCreativeAsset, generateZenCreativeWave } from "@/lib/ai/zen-creative";
+import { applyCreativeToStudio } from "@/lib/studio/apply-creative";
+import { ASSET_CATEGORIES, sourceLabel, usageLabel } from "@/lib/studio/assets";
+import { kindFromCategory } from "@/lib/studio/assets";
+import { useCampaignStore } from "@/lib/studio/campaign-store";
 import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
-import { cn } from "@/lib/utils";
+import { buildLocalCreativeWave } from "@/lib/studio/zen-prompt-engine";
 import { useStudio } from "@/stores/studio-store";
 
 export function AssetDetailSheet({
@@ -46,17 +46,9 @@ export function AssetDetailSheet({
   const placeAsset = useStudio((s) => s.placeAsset);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
-  const assets = useStudio((s) => s.assets);
-  const brand = useStudio((s) => s.brands[0]);
-  const updateBrand = useStudio((s) => s.updateBrand);
-  const igDnaText = useIgDnaText();
-  const insightsText = useIgInsightsText();
-  const [busy, setBusy] = useState<"analyze" | "extend" | null>(null);
-
-  const similar = useMemo(
-    () => (asset ? similarAssets(asset, assets, 4) : []),
-    [asset, assets],
-  );
+  const addCreativeSource = useCampaignStore((s) => s.addCreativeSource);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [similarBusy, setSimilarBusy] = useState(false);
 
   if (!asset) return null;
   const current = asset;
@@ -125,74 +117,62 @@ export function AssetDetailSheet({
   }
 
   async function analyze() {
-    if (!preview) {
-      toast.error("這張圖還沒載入，稍後再試。");
-      return;
-    }
-    setBusy("analyze");
+    setAnalyzing(true);
     try {
-      const imageUrl = await urlToDataUrl(preview);
-      const res = await analyzeImage({
-        data: {
-          imageUrl,
-          question: "這張圖適不適合禪學社網宣？可以怎麼延續？",
-          name: current.name,
-          category: current.category,
-          tags: current.tags,
-          licenseNotes: current.licenseNotes,
-          source: current.source,
-          brandMemoryText: brand ? formatBrandMemory(brand.memory, assets) : undefined,
-          igDnaText: igDnaText || undefined,
-          insightsText: insightsText || undefined,
-        },
+      const result = await analyzeCreativeAsset({
+        data: { name: current.name, category: current.category, tags: current.tags },
       });
       if (!res.ok) {
         toast.warning(res.error);
       }
+      const extraTags = result.analysis.detectedElements.slice(0, 6);
       updateAsset(current.id, {
-        insight: insightFromAnalysis(res.analysis, res.adapter),
+        analysisNotes: result.analysis.contentSummary,
+        tags: [...new Set([...current.tags, ...extraTags])],
+        attribution: current.attribution || current.licenseOwner || "素材庫",
       });
-      toast.success(res.adapter === "local" ? "已用本機規則讀完這張圖" : "已讀完這張圖");
-    } catch {
-      toast.error("讀圖時出錯了。");
+      toast.success(result.adapter === "live" ? "已用 Grok 看過這張圖" : "已完成本機視覺分析");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "分析失敗");
     } finally {
-      setBusy(null);
+      setAnalyzing(false);
     }
   }
 
-  async function extendStyle() {
-    const prompt = current.insight?.stylePrompt;
-    if (!prompt) {
-      toast.error("先按「讀這張圖」，才有風格可以延續。");
-      return;
-    }
-    setBusy("extend");
+  async function generateSimilar() {
+    const topic = `延續「${current.name}」的光線與留白`;
+    const details = current.analysisNotes || current.tags.join("、");
+    setSimilarBusy(true);
     try {
-      const res = await generateImage({
-        data: {
-          prompt,
-          ratio: "4:5",
-          styleHint: brand
-            ? `${brand.imageStyle.mood}｜${brand.imageStyle.lighting}｜${brand.imageStyle.composition}`
-            : undefined,
-        },
+      const result = await generateZenCreativeWave({ data: { topic, details } });
+      const wave = result.ok
+        ? result.wave
+        : buildLocalCreativeWave({ topic, details });
+      if (!result.ok) toast.message("改用本機草案繼續");
+      addCreativeSource({
+        source: "ai-generated",
+        title: `相似視覺 · ${current.name}`,
+        subtitle: current.attribution || current.licenseOwner || "素材庫延伸",
+        thumbnailUrl: current.seedSrc || "/seed/cup.jpg",
+        category: "AI 生成",
+        tags: ["相似", ...current.tags.slice(0, 4)],
+        date: new Date().toISOString().slice(0, 10),
+        meta: { fromAssetId: current.id, imagePrompt: wave.directions[0].imagePrompt },
       });
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
-      const meta = await saveGeneratedImage({
-        dataUrl: res.dataUrl,
-        name: `${current.name} 延續`,
-        prompt: res.revisedPrompt || prompt,
-        tags: ["延續風格", current.name],
+      const { projectId } = applyCreativeToStudio({
+        topic: `延續素材「${current.name}」`,
+        direction: wave.directions[0],
+        conversion: wave.conversion,
+        source: result.ok ? result.adapter : "mock",
+        schedule: false,
       });
-      addAsset(meta);
-      toast.success("延續圖已存進素材庫");
-    } catch {
-      toast.error("生成時出錯了。");
+      onOpenChange(false);
+      toast.success(result.ok && result.adapter === "live" ? "已用 Grok 生成同風格並套上畫布" : "已生成同風格方向並套上畫布");
+      void navigate({ to: "/studio/$projectId", params: { projectId } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "生成失敗");
     } finally {
-      setBusy(null);
+      setSimilarBusy(false);
     }
   }
 
@@ -456,13 +436,30 @@ export function AssetDetailSheet({
           <Input
             value={asset.licenseOwner}
             onChange={(e) => patch("licenseOwner", e.target.value)}
-            placeholder="例如：淡江大學禪學社、拍攝的社員"
+            placeholder="例如：淡江禪學社、茶會紀錄"
           />
         </div>
+        <div>
+          <Label className="mb-1.5 block">出處標註</Label>
+          <Input
+            value={asset.attribution ?? ""}
+            onChange={(e) => patch("attribution", e.target.value)}
+            placeholder="Google Drive／2025 茶會、Canva 母模板、實拍"
+          />
+        </div>
+        {asset.analysisNotes ? (
+          <p className="rounded-lg bg-surface-2 p-2.5 text-xs text-muted">{asset.analysisNotes}</p>
+        ) : null}
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
         <div className="flex flex-wrap gap-2 pb-4">
           <Button onClick={place} disabled={!lastProjectId}>
             放到目前畫布
+          </Button>
+          <Button variant="secondary" data-testid="analyze-asset" disabled={analyzing} onClick={() => void analyze()}>
+            {analyzing ? "分析中…" : "分析圖片"}
+          </Button>
+          <Button variant="outline" data-testid="generate-similar" disabled={similarBusy} onClick={() => void generateSimilar()}>
+            {similarBusy ? "生成中…" : "生成相似並套用"}
           </Button>
           <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}

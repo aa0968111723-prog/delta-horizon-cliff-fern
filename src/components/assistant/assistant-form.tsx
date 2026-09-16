@@ -47,8 +47,6 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const setLastProjectId = useStudio((s) => s.setLastProjectId);
   const setAssistantOpen = useUi((s) => s.setAssistantOpen);
-  const igDnaText = useIgDnaText();
-  const insightsText = useIgInsightsText();
 
   const existing = projectId ? projects.find((p) => p.id === projectId) : undefined;
   const [targetId, setTargetId] = useState<string>(() => (useUi.getState().creativePreset ? "new" : (existing?.id ?? "new")));
@@ -159,12 +157,7 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
     setError(null);
     try {
       const connected = status?.available ?? false;
-      const payload = toBriefInput(brief, brand, {
-        forceMock: forceMock || !connected,
-        igDnaText: igDnaText || undefined,
-        insightsText: insightsText || undefined,
-        brandMemoryText: brand ? formatBrandMemory(brand.memory, assets) : undefined,
-      });
+      const payload = toBriefInput(brief, brand, { forceMock: forceMock || !connected });
       const result = await generateCampaignPlan({ data: payload });
       if (!result.ok) {
         setError(result.error);

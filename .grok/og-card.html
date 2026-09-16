@@ -3,98 +3,69 @@
   <head>
     <meta charset="utf-8" />
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body {
+      @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700&family=Noto+Serif+TC:wght@700&display=swap");
+      html, body { margin: 0; }
+      .card {
         width: 1200px;
         height: 630px;
-        overflow: hidden;
-        background: #f4f1ea;
-      }
-      body {
-        background:
-          radial-gradient(900px 420px at 88% 18%, rgba(217, 122, 91, 0.28), transparent 58%),
-          radial-gradient(720px 360px at 8% 92%, rgba(216, 184, 106, 0.22), transparent 60%),
-          linear-gradient(135deg, #f4f1ea 0%, #e7efe9 52%, #d9e4df 100%);
-      }
-      .frame {
-        position: absolute;
-        inset: 36px;
-        border: 1px solid rgba(23, 77, 73, 0.18);
-        border-radius: 28px;
-      }
-      .lockup {
-        position: absolute;
-        left: 88px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 640px;
-      }
-      .kicker {
-        font-family: "Noto Sans TC", "PingFang TC", sans-serif;
-        font-size: 18px;
-        letter-spacing: 0.28em;
-        color: #174d49;
-        font-weight: 600;
-      }
-      .wordmark {
-        margin-top: 18px;
-        font-family: "Noto Serif TC", "Source Han Serif TC", serif;
-        font-weight: 600;
-        font-size: 118px;
-        line-height: 0.95;
+        background: #f3f0ea;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Noto Sans TC", sans-serif;
         color: #1a1814;
       }
-      .rule {
-        width: 48px;
-        height: 3px;
-        background: #d8b86a;
-        margin: 28px 0 22px;
-      }
-      .caption {
-        font-family: "Noto Sans TC", "PingFang TC", sans-serif;
-        font-size: 22px;
-        line-height: 1.45;
-        color: #174d49;
-        max-width: 520px;
-      }
-      .card {
-        position: absolute;
-        right: 92px;
-        top: 118px;
-        width: 280px;
-        height: 350px;
+      .frame {
+        width: 1104px;
+        height: 534px;
+        background: #fffcf7;
+        border: 3px solid #1e4a45;
         border-radius: 28px;
-        background: #174d49;
-        color: #f4f1ea;
-        padding: 28px 24px;
-        box-shadow: 0 28px 60px -28px rgba(26, 24, 20, 0.45);
-        transform: rotate(6deg);
+        display: flex;
+        align-items: center;
+        padding: 0 72px;
+        gap: 64px;
+        box-sizing: border-box;
       }
-      .card small {
-        font-family: "Noto Sans TC", sans-serif;
-        letter-spacing: 0.16em;
-        font-size: 12px;
-        opacity: 0.72;
+      .orb {
+        width: 280px;
+        height: 280px;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at 50% 50%, #f7f6f2 0 22px, #d97736 23px 68px, #4a7c72 69px 118px, #1e3a4c 119px 100%);
+        flex-shrink: 0;
       }
-      .card p {
+      h1 {
+        margin: 0;
         font-family: "Noto Serif TC", serif;
-        font-size: 36px;
+        font-size: 72px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
         line-height: 1.15;
-        margin-top: 72px;
+      }
+      p {
+        margin: 18px 0 0;
+        font-size: 28px;
+        font-weight: 500;
+        color: #1e4a45;
+      }
+      .tag {
+        margin-top: 14px;
+        font-size: 20px;
+        color: #6f6a63;
       }
     </style>
   </head>
   <body>
-    <div class="frame"></div>
-    <div class="lockup">
-      <div class="kicker">淡江大學禪學社</div>
-      <div class="wordmark">禪作所</div>
-      <div class="rule"></div>
-      <div class="caption">一人完成給淡江學生看的 IG 網宣</div>
-    </div>
     <div class="card">
-      <small>09.24 / TKU</small>
-      <p>最近是不是<br>很久沒有<br>好好坐下來？</p>
+      <div class="frame">
+        <div class="orb"></div>
+        <div>
+          <h1>淡江禪學社</h1>
+          <p>一人網宣創作中控台</p>
+          <div class="tag">穩定 · 陪伴 · 好好坐下來</div>
+        </div>
+      </div>
     </div>
   </body>
 </html>

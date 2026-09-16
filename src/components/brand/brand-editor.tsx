@@ -151,9 +151,9 @@ export function BrandEditor() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="品牌中心"
-        title="品牌記憶"
-        description="理念、龜龜、三色光、語氣與歷屆文宣會在每一次 AI 生成前先被讀進去。名稱與 Logo 仍然在這裡改。"
+        kicker="淡江大學禪學社 Brand Brain"
+        title="社團品牌記憶與規範"
+        description="社團定位、三色光識別、生活感色盤、字體層級、學生生活語調與避開宗教說教規則。所有 AI 創作與品質檢查將直接讀取此品牌大腦。"
         actions={
           <BrandSubnav current="brand" />
         }

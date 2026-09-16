@@ -17,8 +17,6 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
   const assets = useStudio((s) => s.assets);
   const updateProject = useStudio((s) => s.updateProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
-  const igDnaText = useIgDnaText();
-  const insightsText = useIgInsightsText();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<AiStatus | null>(null);
@@ -53,12 +51,7 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
     try {
       const connected = status?.available ?? false;
       const result = await generateCampaignPlan({
-        data: toBriefInput(brief, brand, {
-          forceMock: forceMock || !connected,
-          igDnaText: igDnaText || undefined,
-          insightsText: insightsText || undefined,
-          brandMemoryText: formatBrandMemory(brand.memory, assets),
-        }),
+        data: toBriefInput(brief, brand, { forceMock: forceMock || !connected }),
       });
       if (!result.ok) {
         setError(result.error);

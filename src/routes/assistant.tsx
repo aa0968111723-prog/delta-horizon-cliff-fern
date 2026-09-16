@@ -24,13 +24,13 @@ export const Route = createFileRoute("/assistant")({
 function AssistantPage() {
   const lastProjectId = useStudio((s) => s.lastProjectId);
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="AI 助手"
-        title="畫布與企劃"
-        description="對目前編輯器下指令（放大標題、換圖、改尺寸），或填活動需求生成企劃。大幅修改會先預覽，每次操作都可撤銷。"
+        kicker="淡江大學禪學社 AI 創作助手"
+        title="一人 AI 創作中控台"
+        description="針對迎新茶會、日常社課或校園生活痛點生成企劃、文案與畫布指令。結合淡江受眾視角模擬，確保無宗教沉重感與 AI 塑料味。"
       />
-      <div className="mt-8 rounded-2xl surface-card p-4 sm:p-6">
+      <div className="mt-8 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] sm:p-6">
         <AssistantForm variant="page" projectId={lastProjectId} />
       </div>
     </main>

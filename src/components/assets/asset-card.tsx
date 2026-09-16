@@ -40,7 +40,7 @@ export function AssetCard({
 
   return (
     <article
-      className="group overflow-hidden rounded-2xl surface-card"
+      className="group overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-border)]"
       draggable={draggable}
       onDragStart={(e) => {
         e.dataTransfer.setData(ASSET_DRAG_MIME, asset.id);
@@ -82,7 +82,8 @@ export function AssetCard({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{asset.name}</p>
             <p className="truncate text-xs text-muted">
-              {categoryLabel(asset.category)} · {provenanceLabel(asset)}
+              {categoryLabel(asset.category)} · {sourceLabel(asset.source)}
+              {asset.attribution ? ` · ${asset.attribution}` : ""}
             </p>
           </div>
           <Button

@@ -17,15 +17,12 @@ export const ASSET_CATEGORIES: {
   hint: string;
   virtual?: boolean;
 }[] = [
-  { id: "mascot", label: "龜龜", hint: "吉祥物、輕鬆內容、限動、倒數" },
-  { id: "campus", label: "淡水／校園", hint: "淡水河、克難坡、宿舍、窗邊" },
-  { id: "poster", label: "海報／文宣", hint: "歷屆主視覺、海報、印刷品" },
-  { id: "photo", label: "活動照片", hint: "社課、茶會、現場紀實" },
-  { id: "people", label: "社員現場", hint: "人、手、坐下來的瞬間" },
-  { id: "background", label: "場景底圖", hint: "材質、留白、可壓字的底" },
+  { id: "photo", label: "活動照片", hint: "商品、場景、活動紀實" },
+  { id: "people", label: "人物", hint: "人像、手部、服務瞬間" },
+  { id: "background", label: "背景", hint: "桌面、材質、留白場景" },
   { id: "illustration", label: "插圖", hint: "手繪、裝飾、編輯素材" },
   { id: "icon", label: "圖示", hint: "小圖、符號、徽章" },
-  { id: "logo", label: "標誌", hint: "三色光標誌與變體" },
+  { id: "logo", label: "Logo", hint: "標誌與變體" },
   { id: "template", label: "模板", hint: "可套用的版型起點", virtual: true },
   { id: "history", label: "歷史素材", hint: "曾放到畫布的檔案", virtual: true },
 ];
@@ -33,10 +30,7 @@ export const ASSET_CATEGORIES: {
 export const ASSET_SOURCES: { id: AssetSourceKind; label: string }[] = [
   { id: "upload", label: "本機上傳" },
   { id: "seed", label: "示範素材" },
-  { id: "generated", label: "AI 生成" },
-  { id: "drive", label: "Google Drive" },
-  { id: "canva", label: "Canva" },
-  { id: "instagram", label: "Instagram" },
+  { id: "generated", label: "生成" },
 ];
 
 const ASSET_SOURCE_IDS = new Set<AssetSourceKind>(ASSET_SOURCES.map((item) => item.id));
@@ -144,10 +138,7 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
   const tags = (raw.tags ?? []).join(" ").toLowerCase();
   const name = (raw.name ?? "").toLowerCase();
   const blob = `${tags} ${name}`;
-  if (/龜龜|吉祥物|gugu|mascot/.test(blob)) return "mascot";
-  if (/淡水|校園|克難坡|宮燈|河邊|tamsui|campus/.test(blob)) return "campus";
-  if (/海報|文宣|主視覺|poster/.test(blob)) return "poster";
-  if (/人物|人像|社員|portrait|people/.test(blob)) return "people";
+  if (/人物|人像|portrait|people/.test(blob)) return "people";
   if (/背景|場景|材質|background|texture/.test(blob)) return "background";
   if (/插圖|illustration|handdrawn/.test(blob)) return "illustration";
   if (/圖示|icon|badge/.test(blob)) return "icon";
@@ -171,13 +162,14 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
     createdAt: raw.createdAt ?? Date.now(),
     updatedAt: raw.updatedAt ?? raw.createdAt ?? Date.now(),
     seedSrc: raw.seedSrc,
-    source: inferAssetSource(raw),
+    source: raw.source === "seed" || raw.source === "generated" || raw.source === "upload" ? raw.source : "upload",
     licenseNotes: raw.licenseNotes ?? "",
     licenseOwner: raw.licenseOwner ?? "",
     favorite: Boolean(raw.favorite),
     lastUsedAt: raw.lastUsedAt ?? null,
     useCount: raw.useCount ?? 0,
-    insight: raw.insight,
+    attribution: raw.attribution ?? "",
+    analysisNotes: raw.analysisNotes ?? "",
   };
 }
 
@@ -194,41 +186,29 @@ export function createGeneratedAsset(input: {
   width: number;
   height: number;
   category?: AssetCategory;
-  tags?: string[];
-  licenseNotes?: string;
-  licenseOwner?: string;
 }): AssetMeta {
   const now = Date.now();
   return migrateAsset({
     id: input.id,
     name: input.name,
-    kind: kindFromCategory(input.category ?? "illustration"),
-    category: input.category ?? "illustration",
+    kind: kindFromCategory(input.category ?? "icon"),
+    category: input.category ?? "icon",
     mime: input.mime,
     width: input.width,
     height: input.height,
-    tags: input.tags ?? ["AI 生成"],
+    tags: ["生成", "QR"],
     createdAt: now,
     updatedAt: now,
     source: "generated",
-    licenseNotes: input.licenseNotes ?? "在本機產生，僅供畫面使用。",
-    licenseOwner: input.licenseOwner ?? "本機產生",
+    licenseNotes: "由構幀依報名網址在本機產生，僅供畫面使用。",
+    licenseOwner: "本機產生",
   });
 }
 
 export function matchesAssetQuery(asset: AssetMeta, query: string) {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  const blob = [
-    asset.name,
-    asset.category,
-    categoryLabel(asset.category),
-    sourceLabel(asset.source),
-    asset.licenseNotes,
-    asset.insight?.summary ?? "",
-    asset.insight?.captionIdea ?? "",
-    ...(asset.tags ?? []),
-  ]
+  const blob = [asset.name, asset.category, categoryLabel(asset.category), asset.licenseNotes, asset.licenseOwner, asset.attribution, ...(asset.tags ?? [])]
     .join(" ")
     .toLowerCase();
   return q.split(/\s+/).every((part) => blob.includes(part));
