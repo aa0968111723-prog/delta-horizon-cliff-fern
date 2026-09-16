@@ -21,6 +21,10 @@ import { Route as IgRouteImport } from './routes/ig'
 import { Route as ImageRouteImport } from './routes/image'
 import { Route as InspireRouteImport } from './routes/inspire'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
+import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
+import { Route as OauthCanvaRouteImport } from './routes/oauth.canva'
+import { Route as OauthInstagramRouteImport } from './routes/oauth.instagram'
 import { Route as StudioIndexRouteImport } from './routes/studio.index'
 import { Route as StudioProjectIdRouteImport } from './routes/studio.$projectId'
 import { Route as ApiConnectSplatRouteImport } from './routes/api/connect/$'
@@ -85,6 +89,26 @@ const StudioRoute = StudioRouteImport.update({
   path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CampaignsIndexRoute = CampaignsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CampaignsRoute,
+} as any)
+const CampaignsCampaignIdRoute = CampaignsCampaignIdRouteImport.update({
+  id: '/$campaignId',
+  path: '/$campaignId',
+  getParentRoute: () => CampaignsRoute,
+} as any)
+const OauthCanvaRoute = OauthCanvaRouteImport.update({
+  id: '/oauth/canva',
+  path: '/oauth/canva',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthInstagramRoute = OauthInstagramRouteImport.update({
+  id: '/oauth/instagram',
+  path: '/oauth/instagram',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudioIndexRoute = StudioIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -114,7 +138,11 @@ export interface FileRoutesByFullPath {
   '/image': typeof ImageRoute
   '/inspire': typeof InspireRoute
   '/studio': typeof StudioRouteWithChildren
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
+  '/oauth/canva': typeof OauthCanvaRoute
+  '/oauth/instagram': typeof OauthInstagramRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns/': typeof CampaignsIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/api/connect/$': typeof ApiConnectSplatRoute
 }
@@ -131,6 +159,7 @@ export interface FileRoutesByTo {
   '/image': typeof ImageRoute
   '/inspire': typeof InspireRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns': typeof CampaignsIndexRoute
   '/studio': typeof StudioIndexRoute
   '/api/connect/$': typeof ApiConnectSplatRoute
 }
@@ -148,7 +177,11 @@ export interface FileRoutesById {
   '/image': typeof ImageRoute
   '/inspire': typeof InspireRoute
   '/studio': typeof StudioRouteWithChildren
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
+  '/oauth/canva': typeof OauthCanvaRoute
+  '/oauth/instagram': typeof OauthInstagramRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns/': typeof CampaignsIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/api/connect/$': typeof ApiConnectSplatRoute
 }
@@ -167,7 +200,11 @@ export interface FileRouteTypes {
     | '/image'
     | '/inspire'
     | '/studio'
+    | '/campaigns/$campaignId'
+    | '/oauth/canva'
+    | '/oauth/instagram'
     | '/studio/$projectId'
+    | '/campaigns/'
     | '/studio/'
     | '/api/connect/$'
   fileRoutesByTo: FileRoutesByTo
@@ -184,6 +221,7 @@ export interface FileRouteTypes {
     | '/image'
     | '/inspire'
     | '/studio/$projectId'
+    | '/campaigns'
     | '/studio'
     | '/api/connect/$'
   id:
@@ -200,7 +238,11 @@ export interface FileRouteTypes {
     | '/image'
     | '/inspire'
     | '/studio'
+    | '/campaigns/$campaignId'
+    | '/oauth/canva'
+    | '/oauth/instagram'
     | '/studio/$projectId'
+    | '/campaigns/'
     | '/studio/'
     | '/api/connect/$'
   fileRoutesById: FileRoutesById
@@ -307,6 +349,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/campaigns/': {
+      id: '/campaigns/'
+      path: '/'
+      fullPath: '/campaigns/'
+      preLoaderRoute: typeof CampaignsIndexRouteImport
+      parentRoute: typeof CampaignsRoute
+    }
+    '/campaigns/$campaignId': {
+      id: '/campaigns/$campaignId'
+      path: '/$campaignId'
+      fullPath: '/campaigns/$campaignId'
+      preLoaderRoute: typeof CampaignsCampaignIdRouteImport
+      parentRoute: typeof CampaignsRoute
+    }
+    '/oauth/canva': {
+      id: '/oauth/canva'
+      path: '/oauth/canva'
+      fullPath: '/oauth/canva'
+      preLoaderRoute: typeof OauthCanvaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/instagram': {
+      id: '/oauth/instagram'
+      path: '/oauth/instagram'
+      fullPath: '/oauth/instagram'
+      preLoaderRoute: typeof OauthInstagramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/studio/': {
       id: '/studio/'
       path: '/'
@@ -330,6 +400,20 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface CampaignsRouteChildren {
+  CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRoute
+  CampaignsIndexRoute: typeof CampaignsIndexRoute
+}
+
+const CampaignsRouteChildren: CampaignsRouteChildren = {
+  CampaignsCampaignIdRoute: CampaignsCampaignIdRoute,
+  CampaignsIndexRoute: CampaignsIndexRoute,
+}
+
+const CampaignsRouteWithChildren = CampaignsRoute._addFileChildren(
+  CampaignsRouteChildren,
+)
 
 interface StudioRouteChildren {
   StudioProjectIdRoute: typeof StudioProjectIdRoute

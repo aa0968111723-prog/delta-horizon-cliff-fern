@@ -22,7 +22,7 @@ export function emptyBrief(): Brief {
     schedule: "",
     location: "",
     offer: "",
-    audience: "",
+    audience: "淡江大學學生",
     goal: "awareness",
     features: "",
     style: "",

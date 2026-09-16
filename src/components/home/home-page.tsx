@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { runPublishItem } from "@/lib/connect/publish-item";
 import { calendarSearchFromScheduled } from "@/lib/studio/calendar-search";
@@ -361,8 +360,7 @@ export function HomePage() {
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
 
       {pendingFeel ? (
         <section className="mt-10 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]" data-testid="home-awaiting-feel">

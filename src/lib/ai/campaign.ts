@@ -2,7 +2,10 @@ import { completeCarouselPages } from "@/lib/studio/carousel";
 import { zenSystemPrompt } from "@/lib/zen/context";
 import { labelDirections } from "@/lib/zen/direction";
 import { createServerFn } from "@tanstack/react-start";
-import type { CampaignPlan, TemplateId } from "@/lib/studio/types";
+import type { CampaignPlan, ContentKind, TemplateId } from "@/lib/studio/types";
+import { studentContext } from "@/lib/club/season";
+import { systemPlanner, studentReviewInstruction } from "@/lib/club/prompts";
+import { extractJson } from "./json";
 import { buildMockPlan } from "./mock";
 import { BriefInputSchema, PlanJsonSchema, type BriefInput } from "./schema";
 
@@ -21,14 +24,23 @@ export type AiStatus = {
   detail: string;
 };
 
-function extractJson(text: string): unknown {
-  const trimmed = text.trim();
-  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const raw = fence ? fence[1] : trimmed;
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("模型未回傳 JSON");
-  return JSON.parse(raw.slice(start, end + 1));
+function asContentKind(value: string): ContentKind {
+  const allowed: ContentKind[] = [
+    "ig-post",
+    "carousel",
+    "story",
+    "reels",
+    "threads",
+    "line",
+    "poster",
+    "recap",
+    "member-story",
+    "countdown",
+    "qa",
+    "poll",
+    "knowledge",
+  ];
+  return allowed.includes(value as ContentKind) ? (value as ContentKind) : "ig-post";
 }
 
 function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: CampaignPlan["source"]): CampaignPlan {
@@ -47,10 +59,10 @@ function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: Campaig
     headline,
     subhead: parsed.subhead,
     body: parsed.body,
-    cta: parsed.cta || "了解更多",
+    cta: parsed.cta || "來坐一下",
     captions: parsed.captions.length
       ? parsed.captions
-      : [{ style: "敘事", text: parsed.hook || parsed.concept || headline }],
+      : [{ style: "學生版", text: parsed.hook || parsed.concept || headline }],
     hashtags: parsed.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)),
     storyBeats: parsed.storyBeats,
     carouselPages: parsed.carouselPages,
@@ -108,12 +120,13 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
     return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
 
-  const forbidden = data.forbiddenWords.filter(Boolean).join("、") || "無";
+  const ctx = studentContext();
+  const forbidden = data.forbiddenWords.filter(Boolean).join("、") || "誠摯邀請您、蒞臨、限時瘋搶";
   const deliverables = [
     data.wantPost ? "單張貼文" : null,
     data.wantCarousel ? "輪播" : null,
     data.wantStory ? "限時動態" : null,
-    data.wantReels ? "Reels 封面" : null,
+    data.wantReels ? "Reels 封面與腳本" : null,
   ]
     .filter(Boolean)
     .join("、");
@@ -129,16 +142,16 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
 常用 CTA：${data.preferredCtas || "來坐一下"}
 圖片風格：${data.imageStyle || "夜晚、空氣感、三色光"}
 
-活動名稱：${data.eventName}
+活動：${data.eventName}
 時間：${data.schedule || "未填"}
-地點：${data.location || "未填"}
-產品／內容：${data.product || data.eventName}
-優惠：${data.offer || "無"}
+地點：${data.location || "淡江校園"}
+內容：${data.product || data.eventName}
+補充優惠／條件：${data.offer || "任何人都可以來"}
 受眾：${data.audience}
 目的：${data.goal}
 特色：${data.features || "無"}
-希望風格：${data.style || "無"}
-需要產出：${deliverables || "單張貼文"}
+風格：${data.style || "無"}
+產出：${deliverables || "單張貼文"}
 補充：${data.notes || "無"}
 過去 IG 表現：${data.memoryHint || "問句 Hook 與生活向收藏較高"}
 
@@ -175,10 +188,11 @@ cta 2-6 字，像「來坐一下」。`;
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
+    signal: AbortSignal.timeout(18_000),
     body: JSON.stringify({
       model: "grok-4.5",
       temperature: 0.6,
-      max_tokens: 4096,
+      max_tokens: 5000,
       response_format: { type: "json_object" },
       messages: [
         {
@@ -225,5 +239,11 @@ export const generateCampaignPlan = createServerFn({ method: "POST" })
     if (!hasKey || data.forceMock) {
       return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
     }
-    return generateLive(data);
+    try {
+      const live = await generateLive(data);
+      if (live.ok) return live;
+      return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
+    } catch {
+      return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
+    }
   });

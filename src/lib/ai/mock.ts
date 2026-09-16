@@ -39,6 +39,9 @@ function stripForbidden(text: string, words: string[]) {
 }
 
 export function buildMockPlan(data: BriefInput): CampaignPlan {
+  if (isZenClub(data.brandName) || isZenClub(data.audience) || isZenClub(data.handle)) {
+    return buildZenMockPlan(data);
+  }
   const name = data.eventName.trim();
   const when = data.schedule.trim() || "近期檔期";
   const where = data.location.trim() || "到店";

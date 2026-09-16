@@ -163,7 +163,13 @@ export type AssetCategory =
   | "reels"
   | "archive"
   | "template"
-  | "history";
+  | "history"
+  | "campus"
+  | "tamsui"
+  | "poster"
+  | "story-asset"
+  | "reels-asset"
+  | "event";
 
 export type AssetSourceKind = "upload" | "seed" | "generated" | "drive" | "canva" | "instagram";
 

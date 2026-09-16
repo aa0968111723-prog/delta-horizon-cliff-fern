@@ -128,7 +128,7 @@ export const BriefInputSchema = z.object({
   goal: z.enum(["awareness", "traffic", "conversion", "ugc"]),
   features: z.string().max(400),
   style: z.string().max(200),
-  notes: z.string().max(400),
+  notes: z.string().max(1200),
   wantPost: z.boolean(),
   wantStory: z.boolean(),
   wantCarousel: z.boolean(),
