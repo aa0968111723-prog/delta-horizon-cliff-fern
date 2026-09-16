@@ -87,6 +87,11 @@ if (!heroCaption) issues.push("月曆沒有主視覺自己的文案");
 if (warmupCaption && heroCaption && warmupCaption === heroCaption) {
   issues.push("預熱和主視覺還是同一篇文案");
 }
+const reasonAt = titles.findIndex((text) => /^參加理由/.test(text));
+const threadsAt = titles.findIndex((text) => /^Threads/.test(text));
+if (reasonAt >= 0 && threadsAt >= 0 && threadsAt < reasonAt) {
+  issues.push(`Threads 插在參加理由前面: ${titles.slice(0, 12).join(" / ")}`);
+}
 await page.screenshot({ path: "/workspace/screenshots/search-into-create-calendar.png", fullPage: true });
 
 await page.goto(`${base}/`, { waitUntil: "networkidle" });

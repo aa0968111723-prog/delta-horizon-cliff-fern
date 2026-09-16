@@ -97,7 +97,7 @@ tones 必含 short,normal,emotional,student,life,humor。禁止誠摯邀請。`,
         ],
       }),
     });
-    if (!res.ok) return { ok: false, adapter: "live", error: `文案服務暫時無法使用（${res.status}）。` };
+    if (!res.ok) return { ok: true, adapter: "mock", packs: packsMock, review };
     const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     try {
       const parsed = JSON.parse(body.choices?.[0]?.message?.content ?? "{}") as {
@@ -107,6 +107,6 @@ tones 必含 short,normal,emotional,student,life,humor。禁止誠摯邀請。`,
       if (!parsed.packs?.length) throw new Error("empty");
       return { ok: true, adapter: "live", packs: parsed.packs, review: parsed.review ?? review };
     } catch {
-      return { ok: false, adapter: "live", error: "文案無法解析，可改用本機草案。" };
+      return { ok: true, adapter: "mock", packs: packsMock, review };
     }
   });

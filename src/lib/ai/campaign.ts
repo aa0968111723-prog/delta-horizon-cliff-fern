@@ -191,7 +191,7 @@ cta 2-6 字，像「來坐一下」。`;
   });
 
   if (!res.ok) {
-    return { ok: false, error: `企劃服務暫時無法使用（${res.status}）。可改用本機草案。`, adapter: "live" };
+    return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
 
   const body = (await res.json()) as {
@@ -200,7 +200,7 @@ cta 2-6 字，像「來坐一下」。`;
   const text = body.choices?.[0]?.message?.content ?? "";
   const plan = planFromModel(text);
   if (!plan) {
-    return { ok: false, error: "AI 回傳無法解析。可再試一次，或改用本機草案。", adapter: "live" };
+    return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
   if (data.wantCarousel) {
     plan.carouselPages = completeCarouselPages(plan.carouselPages, plan);

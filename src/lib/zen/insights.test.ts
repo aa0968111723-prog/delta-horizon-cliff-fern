@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { awaitingFeel, hookLine, learnFromIg } from "./insights.ts";
 import { nextKindAfter, offsetDaysForConvertedKind, convertedScheduledAt, rhythmHint, skipConvertedIgPost } from "./rhythm.ts";
+import { suggestWaves } from "./schedule.ts";
 import { createPkce } from "../connect/pkce.ts";
 import { canvaBrief, canvaSize } from "../connect/canva-format.ts";
 import { mockWaveDraft } from "../ai/wave-draft.ts";
@@ -182,6 +183,27 @@ test("tea kit with 主視覺 does not also schedule a twin IG Post", () => {
   assert.equal(skipConvertedIgPost([{ kind: "hero" }, { kind: "warmup" }]), true);
   assert.equal(skipConvertedIgPost([]), false);
   assert.equal(skipConvertedIgPost([{ kind: "warmup" }]), false);
+});
+
+test("Threads and Reels wait until after 參加理由", () => {
+  const waves = suggestWaves(
+    { date: "2026-09-23", type: "tea", name: "茶會" },
+    new Date("2026-09-16T10:00:00+08:00"),
+  );
+  const event = Date.parse("2026-09-23T11:00:00.000Z");
+  const reason = waves.find((wave) => wave.kind === "reason")?.scheduledAt ?? 0;
+  const hero = waves.find((wave) => wave.kind === "hero")?.scheduledAt ?? 0;
+  const countdown = waves.find((wave) => wave.kind === "countdown")?.scheduledAt ?? 0;
+  const threads = convertedScheduledAt("threads", event, waves);
+  const reels = convertedScheduledAt("reels", event, waves);
+  const carousel = convertedScheduledAt("carousel", event, waves);
+  assert.ok(carousel > hero);
+  assert.ok(threads > reason);
+  assert.ok(reels > threads);
+  assert.ok(threads < event);
+  assert.ok(reels < event);
+  assert.ok(threads <= countdown);
+  assert.ok(reels <= countdown);
 });
 
 test("pkce verifier is not the challenge", () => {

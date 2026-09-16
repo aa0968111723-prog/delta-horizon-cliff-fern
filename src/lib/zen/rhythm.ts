@@ -64,18 +64,24 @@ export function convertedScheduledAt(
   waves: { kind: string; scheduledAt?: number | null }[],
 ): number {
   const day = 86_400_000;
+  const hour = 3_600_000;
   const hero = waves.find((wave) => wave.kind === "hero")?.scheduledAt;
   if (!hero) return eventWhen + offsetDaysForConvertedKind(kind) * day;
   const countdown = waves.find((wave) => wave.kind === "countdown")?.scheduledAt;
+  const reason = waves.find((wave) => wave.kind === "reason")?.scheduledAt ?? hero;
   switch (kind) {
     case "ig-post":
       return hero;
     case "carousel":
       return hero + day;
-    case "threads":
-      return hero + 2 * day;
-    case "reels":
-      return hero + 3 * day;
+    case "threads": {
+      const preferred = countdown ? countdown - 3 * hour : reason + day;
+      return Math.max(preferred, reason + hour);
+    }
+    case "reels": {
+      const preferred = countdown ? countdown - 2 * hour : reason + 2 * day;
+      return Math.max(preferred, reason + 2 * hour);
+    }
     case "story":
       return countdown ?? eventWhen - 2 * day;
     case "line":

@@ -63,7 +63,10 @@ export const regenerateCampaignWave = createServerFn({ method: "POST" })
         ],
       }),
     });
-    if (!res.ok) return { ok: false, error: `這波暫時無法重寫（${res.status}）。` };
+    if (!res.ok) {
+      const review = studentReviewOf(`${mock.hook}\n${mock.body}`, data.schedule ?? "", data.location ?? "");
+      return { ok: true, draft: mock, reviewNotes: review.notes };
+    }
     const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     try {
       const parsed = JSON.parse(body.choices?.[0]?.message?.content ?? "{}") as Partial<WaveDraft>;
@@ -71,6 +74,7 @@ export const regenerateCampaignWave = createServerFn({ method: "POST" })
       const review = studentReviewOf(`${draft.hook}\n${draft.body}`, data.schedule ?? "", data.location ?? "");
       return { ok: true, draft, reviewNotes: review.notes };
     } catch {
-      return { ok: false, error: "這波無法解析，可再用本機草案。" };
+      const review = studentReviewOf(`${mock.hook}\n${mock.body}`, data.schedule ?? "", data.location ?? "");
+      return { ok: true, draft: mock, reviewNotes: review.notes };
     }
   });
