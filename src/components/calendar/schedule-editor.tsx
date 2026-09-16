@@ -1,5 +1,5 @@
-import { format } from "date-fns";
 import { useState } from "react";
+import { datetimeLocalTaipei, parseDatetimeLocalTaipei } from "@/lib/zen/dates";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +24,7 @@ export function ScheduleEditor({
 }) {
   const [title, setTitle] = useState(item.title);
   const [caption, setCaption] = useState(item.caption ?? "");
-  const [when, setWhen] = useState(format(item.scheduledAt, "yyyy-MM-dd'T'HH:mm"));
+  const [when, setWhen] = useState(datetimeLocalTaipei(item.scheduledAt));
   const [kind, setKind] = useState<ContentKind>(item.kind);
   const [status, setStatus] = useState<ContentStatus>(item.status);
 
@@ -87,7 +87,7 @@ export function ScheduleEditor({
         <Button
           data-testid="schedule-save"
           onClick={() => {
-            const scheduledAt = new Date(when).getTime();
+            const scheduledAt = parseDatetimeLocalTaipei(when);
             onSave({
               ...item,
               title: title.trim() || item.title,

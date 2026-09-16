@@ -1310,7 +1310,7 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-  version: 5,
+      version: 6,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,
@@ -1368,7 +1368,7 @@ export const useStudio = create<StudioState>()(
         const projects = (state.projects ?? []).map(migrateProject);
         let campaigns = (state.campaigns ?? SEED_CAMPAIGNS).map(migrateCampaign);
         let schedule = (state.schedule ?? SEED_SCHEDULE).map(migrateScheduleItem);
-        if ((fromVersion ?? 0) < 5) {
+        if ((fromVersion ?? 0) < 6) {
           const next = retuneCadence(campaigns, schedule);
           campaigns = next.campaigns;
           schedule = next.schedule;

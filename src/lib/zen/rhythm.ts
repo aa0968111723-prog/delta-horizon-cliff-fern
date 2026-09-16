@@ -1,4 +1,7 @@
 import type { ContentKind } from "../studio/types.ts";
+import { sameTaipeiDay } from "./dates.ts";
+
+export const STORY_FRAME_GAP_MS = 90_000;
 
 const LIFE: ContentKind[] = ["member-story", "knowledge", "qa", "poll"];
 const PROMO: ContentKind[] = ["ig-post", "carousel", "poster", "countdown"];
@@ -82,11 +85,33 @@ export function convertedScheduledAt(
       const preferred = countdown ? countdown - 2 * hour : reason + 2 * day;
       return Math.max(preferred, reason + 2 * hour);
     }
-    case "story":
-      return countdown ?? eventWhen - 2 * day;
+    case "story": {
+      const countdownAt = countdown ?? eventWhen - 2 * day;
+      if (reason) {
+        const afterReason = reason + 2 * hour;
+        if (afterReason < countdownAt && !sameTaipeiDay(afterReason, countdownAt)) return afterReason;
+      }
+      return eventWhen - 2 * day;
+    }
     case "line":
-      return eventWhen - day;
+      return eventWhen - 9 * hour;
     default:
       return eventWhen + offsetDaysForConvertedKind(kind) * day;
   }
+}
+
+/** Converted 限動 titles look like「Story 1 · 茶會」— 當日提醒 is a wave, not a frame. */
+export function storyFrameIndex(title?: string): number | undefined {
+  const match = title?.match(/^Story\s+(\d+)/);
+  if (!match) return undefined;
+  const index = Number(match[1]) - 1;
+  return Number.isFinite(index) && index >= 0 ? index : undefined;
+}
+
+export function convertedStoryAt(
+  index: number,
+  eventWhen: number,
+  waves: { kind: string; scheduledAt?: number | null }[],
+) {
+  return convertedScheduledAt("story", eventWhen, waves) + Math.max(0, index) * STORY_FRAME_GAP_MS;
 }

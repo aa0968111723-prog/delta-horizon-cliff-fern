@@ -996,7 +996,7 @@ export function CreateStudio() {
             campaignId: created.id,
             kind: "story",
             title: `Story ${row.index + 1} · ${eventName || nextPlan.campaignName || idea.slice(0, 12)}`,
-            scheduledAt: prev?.scheduledAt ?? scheduledAt + row.index * 90_000,
+            scheduledAt: prev?.status === "published" ? prev.scheduledAt : scheduledAt + row.index * 90_000,
             publishedAt: null,
             status: "scheduled",
             caption: row.caption,

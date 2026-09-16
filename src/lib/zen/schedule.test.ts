@@ -335,3 +335,44 @@ test("retuneCadence moves Threads after 參加理由 and leaves published rows",
   assert.equal(next.schedule.find((row) => row.id === "done")?.scheduledAt, 1);
   assert.ok(reasonAt >= reason || reasonAt > hero - 86_400_000);
 });
+
+test("retuneCadence moves stacked Stories off 倒數 night", () => {
+  const now = new Date("2026-09-16T10:00:00+08:00");
+  const waves = suggestWaves({ date: "2026-09-23", type: "tea", name: "茶會" }, now);
+  const countdown = waves.find((wave) => wave.kind === "countdown")?.scheduledAt ?? 0;
+  const campaigns = [{ id: "camp_tea", date: "2026-09-23", type: "tea" as const, name: "茶會", waves }];
+  const schedule = [
+    {
+      id: "s1",
+      campaignId: "camp_tea",
+      title: "Story 1 · 茶會",
+      kind: "story",
+      status: "scheduled",
+      scheduledAt: countdown,
+    },
+    {
+      id: "s2",
+      campaignId: "camp_tea",
+      title: "Story 2 · 茶會",
+      kind: "story",
+      status: "scheduled",
+      scheduledAt: countdown,
+    },
+    {
+      id: "dayof",
+      campaignId: "camp_tea",
+      title: "當日提醒 · 茶會",
+      kind: "story",
+      status: "scheduled",
+      scheduledAt: countdown,
+    },
+  ];
+  const next = retuneCadence(campaigns, schedule, now);
+  const s1 = next.schedule.find((row) => row.id === "s1")?.scheduledAt ?? 0;
+  const s2 = next.schedule.find((row) => row.id === "s2")?.scheduledAt ?? 0;
+  const dayof = next.schedule.find((row) => row.id === "dayof")?.scheduledAt ?? 0;
+  const nextCountdown = next.campaigns[0]?.waves?.find((wave) => wave.kind === "countdown")?.scheduledAt ?? 0;
+  assert.ok(s1 < nextCountdown);
+  assert.ok(s2 > s1);
+  assert.ok(dayof > nextCountdown);
+});

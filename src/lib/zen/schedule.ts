@@ -1,7 +1,7 @@
 import { uid } from "../studio/ids.ts";
 import type { CampaignWave, CampaignWaveKind, ClubCampaign, ContentKind, EventKind, FormatId } from "../studio/types.ts";
 import { canGraphPublish, isFeedGraphKind, isStoryGraphKind } from "./memory.ts";
-import { convertedScheduledAt, nextKindAfter, skipConvertedIgPost } from "./rhythm.ts";
+import { convertedScheduledAt, convertedStoryAt, nextKindAfter, skipConvertedIgPost, storyFrameIndex } from "./rhythm.ts";
 
 const WAVE_LABEL: Record<CampaignWaveKind, string> = {
   warmup: "預熱",
@@ -288,7 +288,7 @@ export function waveKindFromTitle(title?: string): CampaignWaveKind | undefined 
 
 /**
  * Rebuild unpublished tea-party clocks from the campaign date.
- * Published rows stay put. Converted Threads/Reels follow 參加理由.
+ * Published rows stay put. Threads/Reels follow 參加理由. Stories leave 倒數 night.
  */
 export function retuneCadence<
   C extends { id: string; date: string; type: EventKind; name: string; waves?: CampaignWave[] },
@@ -318,6 +318,10 @@ export function retuneCadence<
       return wave?.scheduledAt ? { ...item, scheduledAt: wave.scheduledAt } : item;
     }
     if (item.kind === "ig-post" && skipConvertedIgPost(campaign.waves)) return item;
+    if (item.kind === "story") {
+      const index = storyFrameIndex(item.title) ?? 0;
+      return { ...item, scheduledAt: convertedStoryAt(index, eventWhen, campaign.waves) };
+    }
     if (!converted.has(item.kind)) return item;
     return { ...item, scheduledAt: convertedScheduledAt(item.kind as ContentKind, eventWhen, campaign.waves) };
   });

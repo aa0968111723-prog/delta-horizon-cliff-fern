@@ -149,3 +149,51 @@ export function shiftHostEveningToTaipei(ms: number): number {
   if (hour > 5) return ms;
   return ms - 8 * 3_600_000;
 }
+
+export function taipeiParts(ms: number) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(ms));
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour").padStart(2, "0"),
+    minute: get("minute").padStart(2, "0"),
+  };
+}
+
+export function taipeiDayKey(ms: number) {
+  const part = taipeiParts(ms);
+  return `${part.year}-${part.month}-${part.day}`;
+}
+
+export function sameTaipeiDay(a: number, b: number) {
+  return taipeiDayKey(a) === taipeiDayKey(b);
+}
+
+/** Agenda / Home clocks are 淡水 evenings, not the host timezone. */
+export function formatTaipeiClock(ms: number) {
+  if (!Number.isFinite(ms) || ms <= 0) return "";
+  const part = taipeiParts(ms);
+  return `${Number(part.month)}/${Number(part.day)} ${part.hour}:${part.minute}`;
+}
+
+export function datetimeLocalTaipei(ms: number) {
+  const part = taipeiParts(ms);
+  return `${part.year}-${part.month}-${part.day}T${part.hour}:${part.minute}`;
+}
+
+/** datetime-local has no zone; the club always means 淡水. */
+export function parseDatetimeLocalTaipei(value: string) {
+  const match = value.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  if (!match) return Number.NaN;
+  return Date.parse(`${match[1]}T${match[2]}:00+08:00`);
+}

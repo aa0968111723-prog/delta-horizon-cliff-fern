@@ -92,6 +92,24 @@ const threadsAt = titles.findIndex((text) => /^Threads/.test(text));
 if (reasonAt >= 0 && threadsAt >= 0 && threadsAt < reasonAt) {
   issues.push(`Threads 插在參加理由前面: ${titles.slice(0, 12).join(" / ")}`);
 }
+const storyAt = titles.findIndex((text) => /^Story 1/.test(text));
+const countdownAt = titles.findIndex((text) => /^倒數/.test(text));
+if (storyAt >= 0 && countdownAt >= 0 && storyAt > countdownAt) {
+  issues.push(`限動疊在倒數晚上: ${titles.slice(0, 16).join(" / ")}`);
+}
+const lineAt = titles.findIndex((text) => /^LINE/.test(text));
+const reelsAt = titles.findIndex((text) => /^Reels/.test(text));
+if (lineAt >= 0 && threadsAt >= 0 && reelsAt >= 0 && lineAt > threadsAt && lineAt < reelsAt) {
+  issues.push(`LINE 插在 Threads 和 Reels 中間: ${titles.slice(0, 16).join(" / ")}`);
+}
+const warmupWhen = await page.locator('[data-testid="agenda-title"]').evaluateAll((nodes) => {
+  const hit = nodes.find((node) => /^預熱/.test(node.textContent ?? ""));
+  const when = hit?.parentElement?.querySelector('[data-testid="agenda-when"]')?.textContent ?? "";
+  return when;
+});
+if (warmupWhen && !/20:00/.test(warmupWhen)) {
+  issues.push(`月曆沒有顯示淡水晚上（預熱應為 20:00）: ${warmupWhen}`);
+}
 if ((await page.locator('[data-testid="agenda-shift-later"]').count()) === 0) {
   issues.push("月曆 Agenda 不能改日期（沒有後一天）");
 }

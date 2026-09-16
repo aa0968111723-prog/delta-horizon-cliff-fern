@@ -8,6 +8,9 @@ import {
   hasScheduleCue,
   isArchivalEventIdea,
   preferredScheduleText,
+  datetimeLocalTaipei,
+  formatTaipeiClock,
+  parseDatetimeLocalTaipei,
   shiftHostEveningToTaipei,
   shouldReopenCampaign,
 } from "./dates.ts";
@@ -119,4 +122,11 @@ test("a leftover UTC 19:00 stamp becomes 19:00 in 淡水, once", () => {
   assert.equal(new Date(shifted).toISOString(), "2026-09-17T11:00:00.000Z");
   assert.equal(shiftHostEveningToTaipei(shifted), shifted);
   assert.equal(shiftHostEveningToTaipei(Date.parse("2026-09-23T11:00:00.000Z")), Date.parse("2026-09-23T11:00:00.000Z"));
+});
+
+test("calendar clocks print 淡水 evening, not host UTC noon", () => {
+  const warmup = Date.parse("2026-09-16T12:00:00.000Z");
+  assert.equal(formatTaipeiClock(warmup), "9/16 20:00");
+  assert.equal(datetimeLocalTaipei(warmup), "2026-09-16T20:00");
+  assert.equal(parseDatetimeLocalTaipei("2026-09-16T20:00"), Date.parse("2026-09-16T20:00:00+08:00"));
 });

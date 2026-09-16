@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { runPublishItem } from "@/lib/connect/publish-item";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
+import { formatTaipeiClock } from "@/lib/zen/dates";
 import { agendaSorted, firstPublishable, isDue } from "@/lib/zen/schedule";
 import { campaignsForCalendar, hasLiveEventCampaign, scheduleForCampaign } from "@/lib/studio/calendar-search";
 import { igSearchParams } from "@/lib/studio/ig-search";
@@ -296,8 +297,8 @@ export function CalendarPage() {
                     {item.caption}
                   </p>
                 ) : null}
-                <p className="text-xs text-muted">
-                  {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })} · {contentKindLabel(item.kind)} · {contentStatusLabel(item.status)}
+                <p className="text-xs text-muted" data-testid="agenda-when">
+                  {formatTaipeiClock(item.scheduledAt)} · {contentKindLabel(item.kind)} · {contentStatusLabel(item.status)}
                   {isDue(item) ? (
                     <span
                       data-testid={item.id === agenda.find((row) => isDue(row))?.id ? "calendar-due" : undefined}

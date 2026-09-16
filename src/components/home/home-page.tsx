@@ -10,6 +10,7 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { calendarSearchFromScheduled, calendarSearchParams } from "@/lib/studio/calendar-search";
 import { contentKindLabel } from "@/lib/studio/content";
 import { academicBeat, academicBeatLabel, daysUntil } from "@/lib/zen/context";
+import { formatTaipeiClock } from "@/lib/zen/dates";
 import { ideaFromInspiration, inspirationForBeat } from "@/lib/zen/inspiration";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { feelLabel, type PostFeel } from "@/lib/zen/feel";
@@ -252,7 +253,7 @@ export function HomePage() {
                     </p>
                   ) : null}
                   <p className="text-xs text-muted">
-                    {contentKindLabel(item.kind)} · {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })}
+                    {contentKindLabel(item.kind)} · {formatTaipeiClock(item.scheduledAt)}
                   </p>
                   </div>
                 </div>

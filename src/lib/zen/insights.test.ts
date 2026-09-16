@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { awaitingFeel, hookLine, learnFromIg } from "./insights.ts";
-import { nextKindAfter, offsetDaysForConvertedKind, convertedScheduledAt, rhythmHint, skipConvertedIgPost } from "./rhythm.ts";
+import { nextKindAfter, offsetDaysForConvertedKind, convertedScheduledAt, convertedStoryAt, rhythmHint, skipConvertedIgPost, storyFrameIndex } from "./rhythm.ts";
 import { suggestWaves } from "./schedule.ts";
 import { createPkce } from "../connect/pkce.ts";
 import { canvaBrief, canvaSize } from "../connect/canva-format.ts";
@@ -183,6 +183,49 @@ test("tea kit with 主視覺 does not also schedule a twin IG Post", () => {
   assert.equal(skipConvertedIgPost([{ kind: "hero" }, { kind: "warmup" }]), true);
   assert.equal(skipConvertedIgPost([]), false);
   assert.equal(skipConvertedIgPost([{ kind: "warmup" }]), false);
+});
+
+test("Story frames sit after 參加理由, not on 倒數 night", () => {
+  const waves = suggestWaves(
+    { date: "2026-09-23", type: "tea", name: "茶會" },
+    new Date("2026-09-16T10:00:00+08:00"),
+  );
+  const event = Date.parse("2026-09-23T11:00:00.000Z");
+  const reason = waves.find((wave) => wave.kind === "reason")?.scheduledAt ?? 0;
+  const countdown = waves.find((wave) => wave.kind === "countdown")?.scheduledAt ?? 0;
+  const story = convertedScheduledAt("story", event, waves);
+  const storyLast = convertedStoryAt(3, event, waves);
+  const dayTaipei = (ms: number) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit" }).format(
+      new Date(ms),
+    );
+  assert.ok(story > reason);
+  assert.ok(storyLast < countdown);
+  assert.notEqual(dayTaipei(story), dayTaipei(countdown));
+  assert.equal(storyFrameIndex("Story 1 · 茶會"), 0);
+  assert.equal(storyFrameIndex("Story 4 · 茶會"), 3);
+  assert.equal(storyFrameIndex("當日提醒 · 茶會"), undefined);
+});
+
+test("LINE is the event morning, not between Threads and Reels", () => {
+  const waves = suggestWaves(
+    { date: "2026-09-23", type: "tea", name: "茶會" },
+    new Date("2026-09-16T10:00:00+08:00"),
+  );
+  const event = Date.parse("2026-09-23T11:00:00.000Z");
+  const threads = convertedScheduledAt("threads", event, waves);
+  const reels = convertedScheduledAt("reels", event, waves);
+  const line = convertedScheduledAt("line", event, waves);
+  const countdown = waves.find((wave) => wave.kind === "countdown")?.scheduledAt ?? 0;
+  const dayof = waves.find((wave) => wave.kind === "dayof")?.scheduledAt ?? 0;
+  const hourTaipei = (ms: number) =>
+    Number(
+      new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Taipei", hour: "numeric", hourCycle: "h23" }).format(new Date(ms)),
+    );
+  assert.ok(line > countdown);
+  assert.ok(line < dayof);
+  assert.ok(!(line > threads && line < reels));
+  assert.equal(hourTaipei(line), 10);
 });
 
 test("Threads and Reels wait until after 參加理由", () => {
