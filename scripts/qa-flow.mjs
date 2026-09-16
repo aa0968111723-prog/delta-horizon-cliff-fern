@@ -364,7 +364,8 @@ try {
   await expectText("從一張圖片", "圖片理解");
   await page.waitForSelector('[data-testid="analyze-asset-asset_tamsui_dusk"]', { timeout: 15000 });
   await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
-  await page.waitForSelector("text=本機規則", { timeout: 20000 });
+  await page.waitForSelector('[data-testid="image-analysis"]', { timeout: 20000 });
+  await page.waitForSelector('[data-testid="make-kind-ig-post"]', { timeout: 15000 });
   await expectText("圖片本機規則", "本機規則");
   await expectText("圖片適合淡江", "適合淡江學生");
   await expectText("圖片不會太宗教", "不會太宗教");
@@ -404,7 +405,7 @@ try {
   await expectText("做成限動會排成 9:16", "限動與 Reels 封面會排成 Story 9:16");
   await expectText("做成 LINE 會排橫式", "做成 LINE 圖會排成橫式 1.91:1");
   await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
-  await page.waitForSelector("text=本機規則", { timeout: 20000 });
+  await page.waitForSelector('[data-testid="make-kind-story"]', { timeout: 20000 });
   await tap(
     page
       .locator("section")
@@ -438,7 +439,8 @@ try {
   await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });
   await page.waitForSelector('[data-testid="analyze-asset-asset_tamsui_dusk"]', { timeout: 15000 });
   await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
-  await page.waitForSelector("text=本機規則", { timeout: 20000 });
+  await page.waitForSelector('[data-testid="image-analysis"]', { timeout: 20000 });
+  await page.waitForSelector('[data-testid="make-kind-reels"]', { timeout: 15000 });
   await expectText("做成 Reels 會寫腳本", "做成 Reels 封面會同時寫一支 20 秒腳本");
   await tap(
     page
@@ -476,7 +478,8 @@ try {
   await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });
   await page.waitForSelector('[data-testid="analyze-asset-asset_tamsui_dusk"]', { timeout: 15000 });
   await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
-  await page.waitForSelector("text=本機規則", { timeout: 20000 });
+  await page.waitForSelector('[data-testid="image-analysis"]', { timeout: 20000 });
+  await page.waitForSelector('[data-testid="make-kind-carousel"]', { timeout: 15000 });
   await expectText("做成輪播會拆五頁", "輪播排成 IG 4:5 並拆成五頁");
   await tap(
     page
@@ -515,7 +518,8 @@ try {
   await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });
   await page.waitForSelector('[data-testid="analyze-asset-asset_tamsui_dusk"]', { timeout: 15000 });
   await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
-  await page.waitForSelector("text=本機規則", { timeout: 20000 });
+  await page.waitForSelector('[data-testid="image-analysis"]', { timeout: 20000 });
+  await page.waitForSelector('[data-testid="make-kind-ig-post"]', { timeout: 15000 });
   await expectText("做成貼文入口再點", "做成貼文");
   await tap(
     page

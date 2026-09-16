@@ -349,7 +349,7 @@ export function ImageUnderstanding({
             <p className="text-sm text-muted">
               {busy
                 ? "正在用本機規則看這張適不適合淡江學生…"
-                : "選好圖就會先用本機規則看適不適合淡江學生。做成限動、輪播、Reels 封面或 LINE 圖時，會依 9:16、4:5 或 1.91:1 重構構圖。"}
+                : "選好圖就會先用本機規則看適不適合淡江學生。做成貼文、限動、輪播、Reels 封面或 LINE 圖時，會依 4:5、9:16 或 1.91:1 重構構圖。"}
             </p>
           )}
         </div>

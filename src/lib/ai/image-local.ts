@@ -80,7 +80,7 @@ function readFlags(input: LocalVisionInput, scene: Scene) {
   return { tooReligious, tooOld, tooAi, fitsTku };
 }
 
-const MAKE_NEXT = ["做成限動", "做成輪播", "做成 Reels 封面", "用這張寫文案"];
+const MAKE_NEXT = ["做成貼文", "做成限動", "做成輪播", "做成 Reels 封面", "用這張寫文案"];
 
 function sceneDraft(
   scene: Scene,
