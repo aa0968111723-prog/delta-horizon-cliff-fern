@@ -58,10 +58,10 @@ export function DialogViewport({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & { overlayClassName?: string }) {
   return (
     <DialogPortal>
-      <DialogOverlay className={overlayClassName} />
+      <DialogOverlay className={cn("z-[80]", overlayClassName)} />
       <DialogPrimitive.Content
         className={cn(
-          "fixed inset-0 z-50 flex items-end justify-center overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] outline-none sm:items-center",
+          "fixed inset-0 z-[80] flex items-end justify-center overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] outline-none sm:items-center",
           "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           className,
         )}

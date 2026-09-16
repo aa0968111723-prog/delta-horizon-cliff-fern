@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
+import { toast } from "sonner";
 import { Dialog, DialogClose, DialogDescription, DialogTitle, DialogViewport } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -21,9 +22,15 @@ export function IgPeek({
   children: ReactNode;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (next) toast.dismiss();
+        onOpenChange(next);
+      }}
+    >
       <DialogViewport
-        overlayClassName="bg-fg/80"
+        overlayClassName="z-[80] bg-fg/80"
         data-testid="ig-peek"
         onPointerDown={(event) => {
           if (event.target === event.currentTarget) onOpenChange(false);

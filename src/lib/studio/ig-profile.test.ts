@@ -6,6 +6,7 @@ import {
   igHighlights,
   igPeekMode,
   indexOfId,
+  storyPeekChrome,
   isHighlightKind,
   isIgFeedKind,
   storyPreviewProjects,
@@ -92,6 +93,21 @@ test("indexOfId starts the story viewer on the tapped highlight", () => {
   assert.equal(indexOfId(rows, "reels-c"), 2);
   assert.equal(indexOfId(rows, "missing"), 0);
   assert.equal(indexOfId(rows, null), 0);
+});
+
+test("storyPeekChrome names the page, not 1/1 of stories", () => {
+  assert.equal(
+    storyPeekChrome({ kind: "story", storyIndex: 0, storyCount: 1, pageIndex: 0, pageCount: 3 }),
+    "限動預覽 · 限時動態 · 第 1/3 頁",
+  );
+  assert.equal(
+    storyPeekChrome({ kind: "story", storyIndex: 0, storyCount: 1, pageIndex: 1, pageCount: 3 }),
+    "限動預覽 · 限時動態 · 第 2/3 頁",
+  );
+  assert.equal(
+    storyPeekChrome({ kind: "reels", storyIndex: 1, storyCount: 3, pageIndex: 0, pageCount: 1 }),
+    "限動預覽 · Reels · 2/3 則 · 第 1/1 頁",
+  );
 });
 
 test("igGridProjects only returns Instagram feed posts", () => {

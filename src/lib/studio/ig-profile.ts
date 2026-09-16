@@ -1,3 +1,4 @@
+import { contentKindLabel } from "./status.ts";
 import type { ContentKind, Project } from "./types.ts";
 
 const HIGHLIGHT_KINDS = new Set<ContentKind>(["story", "countdown", "poll", "reels"]);
@@ -62,4 +63,20 @@ export function indexOfId<T extends { id: string }>(rows: T[], id: string | null
   if (!id) return 0;
   const index = rows.findIndex((row) => row.id === id);
   return index >= 0 ? index : 0;
+}
+
+/** 限動預覽標題：先講第幾頁，多則時才加「幾則」。不要把三頁限動寫成 1/1。 */
+export function storyPeekChrome(input: {
+  kind: ContentKind;
+  storyIndex: number;
+  storyCount: number;
+  pageIndex: number;
+  pageCount: number;
+}): string {
+  const kind = contentKindLabel(input.kind);
+  const page = `第 ${input.pageIndex + 1}/${Math.max(input.pageCount, 1)} 頁`;
+  if (input.storyCount > 1) {
+    return `限動預覽 · ${kind} · ${input.storyIndex + 1}/${input.storyCount} 則 · ${page}`;
+  }
+  return `限動預覽 · ${kind} · ${page}`;
 }

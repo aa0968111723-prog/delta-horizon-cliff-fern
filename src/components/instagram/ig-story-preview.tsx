@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
-import { indexOfId } from "@/lib/studio/ig-profile";
+import { indexOfId, storyPeekChrome } from "@/lib/studio/ig-profile";
 import { pagesOf } from "@/lib/studio/layers";
-import { contentKindLabel } from "@/lib/studio/status";
 import type { BrandKit, Project } from "@/lib/studio/types";
 import { CLUB_HANDLE } from "@/lib/zen/club";
 import { cn } from "@/lib/utils";
@@ -81,9 +80,20 @@ export function IgStoryPreview({
       className="mx-auto w-full max-w-[18rem]"
       data-testid="ig-story-viewer"
       data-story-id={story.id}
+      data-page={pageIdx + 1}
+      data-pages={pages.length}
     >
-      <p className={cn("mb-2 text-xs", tone === "overlay" ? "text-accent-fg" : "pr-12 text-subtle")}>
-        限動預覽 · {contentKindLabel(story.contentKind)} · {storyIdx + 1}/{projects.length}
+      <p
+        className={cn("mb-2 text-xs", tone === "overlay" ? "text-accent-fg" : "pr-12 text-subtle")}
+        data-testid="ig-story-chrome"
+      >
+        {storyPeekChrome({
+          kind: story.contentKind,
+          storyIndex: storyIdx,
+          storyCount: projects.length,
+          pageIndex: pageIdx,
+          pageCount: pages.length,
+        })}
       </p>
       <div className="relative isolate overflow-hidden rounded-[1.75rem] bg-surface shadow-[var(--shadow-lift)]">
         <div className="flex gap-1 px-3 pt-3">
@@ -113,13 +123,15 @@ export function IgStoryPreview({
           )}
           <button
             type="button"
-            aria-label="上一則限動"
+            data-testid="ig-story-prev"
+            aria-label={pageIdx > 0 ? "上一頁" : "上一則限動"}
             onClick={goPrev}
             className="absolute inset-y-0 left-0 w-1/3"
           />
           <button
             type="button"
-            aria-label="下一則限動"
+            data-testid="ig-story-next"
+            aria-label={pageIdx < lastPage ? "下一頁" : "下一則限動"}
             onClick={goNext}
             className="absolute inset-y-0 right-0 w-2/3"
           />

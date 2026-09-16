@@ -534,25 +534,46 @@ try {
     (await page.getByTestId("slide-bar-expand").count()) === 0,
     "限動不該出現展開六頁",
   );
+  await page.waitForSelector("[data-testid=slide-count]", { timeout: 8000 });
+  const storySlideCount = ((await page.getByTestId("slide-count").first().textContent()) ?? "").trim();
+  record("做成限動頁數", /\/[3-5]\b/.test(storySlideCount), `頁數是 ${storySlideCount || "沒有"}`);
   await page.getByTestId("studio-ig-peek").first().evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );
   await page.waitForSelector("[data-testid=ig-story-viewer]", { timeout: 8000 });
   await expectText("編輯裡用限動看", "限動預覽");
+  await expectText("限動預覽第一頁", "第 1/3 頁");
   const studioPeek = await page.evaluate(() => {
     const viewer = document.querySelector("[data-testid=ig-story-viewer]");
     const board = viewer?.querySelector('[data-ratio="9:16"]');
     const box = board?.getBoundingClientRect();
     const id = viewer?.getAttribute("data-story-id") ?? "";
+    const pages = Number(viewer?.getAttribute("data-pages") ?? "0");
+    const page = Number(viewer?.getAttribute("data-page") ?? "0");
     if (!box) return { ok: false, detail: "沒有 9:16 畫面" };
     return {
-      ok: box.height > box.width && box.height >= 180 && id.length > 0,
-      detail: `${id} ${Math.round(box.width)}×${Math.round(box.height)}`,
+      ok: box.height > box.width && box.height >= 180 && id.length > 0 && pages >= 3 && page === 1,
+      detail: `${id} 第 ${page}/${pages} 頁 ${Math.round(box.width)}×${Math.round(box.height)}`,
     };
   });
   record("編輯裡限動是直式", Boolean(studioPeek.ok), studioPeek.detail);
+  const peekToasts = await page.evaluate(() =>
+    [...document.querySelectorAll("[data-sonner-toast]")].filter((el) => {
+      const box = el.getBoundingClientRect();
+      return box.width > 0 && box.height > 0;
+    }).length,
+  );
+  record("限動預覽沒有提示蓋住", peekToasts === 0, peekToasts ? `還有 ${peekToasts} 則提示` : "");
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${prefix}-studio-ig-peek.png` });
+  await page.getByTestId("ig-story-next").first().evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await expectText("限動預覽第二頁", "第 2/3 頁");
+  const pageTwo = await page.locator("[data-testid=ig-story-viewer]").getAttribute("data-page");
+  record("限動預覽可翻頁", pageTwo === "2", `現在第 ${pageTwo ?? "?"} 頁`);
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: `${prefix}-studio-ig-peek-page2.png` });
   await page.getByTestId("ig-peek-close").evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );
