@@ -6,7 +6,6 @@ import {
   Lightbulb,
   Plus,
   Sparkles,
-  SwatchBook,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -71,7 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   active ? "bg-accent text-accent-fg" : "text-muted hover:bg-surface-2 hover:text-fg",
                 )}
               >
-                <item.icon className="size-4" />
+                <item.icon className="size-[18px]" />
                 {item.label}
               </Link>
             );

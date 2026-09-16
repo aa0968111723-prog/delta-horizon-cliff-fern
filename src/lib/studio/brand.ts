@@ -1,12 +1,27 @@
 import { emptyBoilerplate } from "./boilerplate.ts";
 import { uid } from "./ids.ts";
 import type {
+  BrandMemory,
   BrandKit,
+  BrandMemory,
   BrandRules,
   ImageStyle,
   LogoUsage,
   LogoVariant,
 } from "./types.ts";
+
+export function emptyBrandMemory(): BrandMemory {
+  return {
+    mission: "",
+    audienceSegments: [],
+    campusContexts: [],
+    seasonalMoments: [],
+    contentPillars: [],
+    signatureElements: [],
+    learnedPatterns: [],
+    updatedAt: Date.now(),
+  };
+}
 
 export function emptyImageStyle(): ImageStyle {
   return {

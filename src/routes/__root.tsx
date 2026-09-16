@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
@@ -5,6 +6,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { StudioProvider } from "@/components/shell/studio-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { APP_NAME, CLUB_NAME } from "@/lib/zen/labels";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "禪光";
@@ -43,14 +45,16 @@ function Root() {
       <body>
         <PreviewHostBridge />
         <AuthProvider>
-          <TooltipProvider delayDuration={250}>
-            <StudioProvider>
-              <AppShell>
-                <Outlet />
-              </AppShell>
-              <Toaster />
-            </StudioProvider>
-          </TooltipProvider>
+          <QueryClientProvider client={queryClient}>
+            <TooltipProvider delayDuration={250}>
+              <StudioProvider>
+                <AppShell>
+                  <Outlet />
+                </AppShell>
+                <Toaster />
+              </StudioProvider>
+            </TooltipProvider>
+          </QueryClientProvider>
         </AuthProvider>
         <Scripts />
       </body>

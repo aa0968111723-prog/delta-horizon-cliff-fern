@@ -9,6 +9,7 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { AssetUploadError, decodeAssetImage } from "@/lib/studio/asset-upload";
 import { ASSET_DRAG_MIME, ASSET_CATEGORIES, kindFromCategory, matchesAssetQuery } from "@/lib/studio/assets";
+import { hasPlaceablePixels } from "@/lib/studio/drive-import";
 import { uid } from "@/lib/studio/ids";
 import type { AssetCategory } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -73,9 +74,17 @@ export function AssetTray({ projectId }: { projectId: string }) {
   }
 
   function place(assetId: string, name: string) {
+    const asset = assets.find((item) => item.id === assetId);
     const ok = placeAsset(projectId, assetId);
-    if (ok) toast.success(`已放入「${name}」`);
-    else toast.error("無法放到畫布");
+    if (ok) {
+      toast.success(`已放入「${name}」`);
+      return;
+    }
+    toast.error(
+      asset && !hasPlaceablePixels(asset)
+        ? "這是來源參考，沒有原圖像素，不能放到畫布。"
+        : "無法放到畫布",
+    );
   }
 
   return (
@@ -117,7 +126,7 @@ export function AssetTray({ projectId }: { projectId: string }) {
       <p className="px-3 pb-1 text-xs text-subtle">拖到畫布，或點一下放入。檔案只存在此裝置。</p>
       {visible.length === 0 ? (
         <div className="p-3">
-          <EmptyState icon={Images} title="沒有素材" description="上傳商品圖或 Logo，點一下就能放到畫布。" />
+          <EmptyState icon={Images} title="沒有素材" description="上傳活動照片或 Logo，點一下就能放到畫布。" />
         </div>
       ) : (
         <ScrollArea className="min-h-0 flex-1">

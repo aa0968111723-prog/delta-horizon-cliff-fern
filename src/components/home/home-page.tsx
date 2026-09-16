@@ -33,8 +33,9 @@ import { useStudio } from "@/stores/studio-store";
 
 export function HomePage() {
   const navigate = useNavigate();
-  const projects = useStudio((s) => s.projects);
-  const brands = useStudio((s) => s.brands);
+  const hydrated = useStudio((s) => s.hydrated);
+  const campaigns = useStudio((s) => s.campaigns);
+  const contents = useStudio((s) => s.contents);
   const assets = useStudio((s) => s.assets);
   const campaigns = useCreative((s) => s.campaigns);
   const schedule = useCreative((s) => s.schedule);
@@ -111,7 +112,11 @@ export function HomePage() {
     } finally {
       setBusy(false);
     }
-  }
+    for (const b of brands) if (b.logoAssetId) ids.push(b.logoAssetId);
+    for (const a of assets) ids.push(a.id);
+    return ids;
+  }, [recent, brands, assets]);
+  const urls = useAssetUrls(assetIds);
 
   async function createFromSearch() {
     const idea = q.trim();

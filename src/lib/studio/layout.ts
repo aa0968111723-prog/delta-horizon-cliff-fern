@@ -291,7 +291,7 @@ export function buildLayout(
         y: frameTop,
         w: W - S.left - S.right,
         h: 40,
-        text: copy.eyebrow || "LIMITED",
+        text: copy.eyebrow || "活動",
         fontFamily: body,
         fontWeight: 500,
         fontSize: 20,
@@ -598,8 +598,8 @@ export const TEMPLATE_META: {
   name: string;
   description: string;
 }[] = [
-  { id: "editorial", name: "編輯封面", description: "大標＋主視覺，適合品牌敘事" },
-  { id: "product", name: "商品主圖", description: "上圖下文，適合單品上市" },
-  { id: "offer", name: "優惠公告", description: "置中大標與 CTA，適合檔期" },
-  { id: "quote", name: "引言卡片", description: "語句為主，適合價值主張" },
+  { id: "editorial", name: "編輯封面", description: "大標＋主視覺，適合活動敘事" },
+  { id: "product", name: "活動主視覺", description: "上圖下文，適合現場照片與主視覺" },
+  { id: "offer", name: "資訊公告", description: "置中大標與 CTA，適合時間地點與報名" },
+  { id: "quote", name: "引言卡片", description: "語句為主，適合值得傳給朋友的一句話" },
 ];

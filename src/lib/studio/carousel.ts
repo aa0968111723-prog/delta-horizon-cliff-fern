@@ -33,7 +33,7 @@ export const PAGE_ROLE_LABEL: Record<CarouselPageRole, string> = {
   cover: "封面",
   problem: "痛點",
   detail: "重點",
-  proof: "案例",
+  proof: "現場",
   cta: "行動",
   close: "結尾",
 };
@@ -56,7 +56,7 @@ export function roleTemplate(role?: CarouselPageRole, fallback: TemplateId = "ed
 }
 
 export function roleEyebrow(role?: CarouselPageRole, coverEyebrow = ""): string {
-  if (!role || role === "cover") return coverEyebrow || "EVENT";
+  if (!role || role === "cover") return coverEyebrow || "活動";
   return CAROUSEL_SEQUENCE.find((item) => item.role === role)?.eyebrow ?? role.toUpperCase();
 }
 

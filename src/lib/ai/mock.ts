@@ -34,6 +34,16 @@ function stripForbidden(text: string, words: string[]) {
   return next.replace(/\s{2,}/g, " ").trim();
 }
 
+function studentHook(name: string, features: string, brandMemory?: string) {
+  const learned = learnedHookFromMemory(brandMemory);
+  if (learned) return learned;
+  const text = `${name} ${features}`;
+  if (/茶|夜|晚/.test(text)) return "有時候我們需要的不是答案，只是一個安靜的晚上。";
+  if (/期中|期末|考|壓力|情緒/.test(text)) return "最近是不是連休息都覺得有罪惡感？";
+  if (/招生|新生|朋友|認識/.test(text)) return "剛到淡江，還在找一個可以自在待著的地方嗎？";
+  return "最近是不是很久沒有好好坐下來？";
+}
+
 export function buildMockPlan(data: BriefInput): CampaignPlan {
   const name = data.eventName.trim();
   const when = data.schedule.trim() || "近期檔期";
@@ -111,7 +121,7 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
           subhead: audience,
           body: insight,
           cta,
-          visualNote: "案例頁用現場、物件或一句可被相信的話。",
+          visualNote: "現場頁用同學、物件或一句可被相信的話。",
           templateId: "product",
         },
         {
@@ -168,7 +178,7 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
     visualDirection,
     templateId,
     colorMood: visualTheme,
-    eyebrow: data.goal === "conversion" ? "LIMITED" : "EVENT",
+    eyebrow: data.goal === "conversion" ? "今晚" : "活動",
     headline,
     subhead,
     body,
@@ -197,6 +207,7 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
         : []),
     ],
     checklist: [
+      ...(remember ? [`現場筆記：${remember}`] : []),
       "標題不超過兩行，且落在安全區內",
       "時間與地點至少在一頁出現",
       "CTA 可讀、對比足夠",
@@ -205,7 +216,13 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
       "Logo 沒壓到主體",
     ],
     altText: `${name}的宣傳畫面，標題為「${headline.replace("\n", " ")}」，標示${when}、${where}。`,
-    qaNotes: ["避免把價格或焦慮話術放進主畫面", `風格維持：${style}`],
+    qaNotes: [
+      "淡江學生視角：第一句要像在說我的生活，不先講社團全名",
+      "檢查是否太宗教、太嚴肅、太文青或太像 AI",
+      "確認看得懂活動在做什麼，時間、地點與參加方式都找得到",
+      "讓人看完會想傳給朋友，而不是只看到一則招生廣告",
+      remember ? `現場筆記：${remember}` : `風格維持：${style}`,
+    ],
     generatedAt: Date.now(),
     source: "mock",
     visualDirections: [

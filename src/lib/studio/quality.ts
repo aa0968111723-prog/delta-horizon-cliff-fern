@@ -475,7 +475,7 @@ function inspectPage(artboard: Artboard, brand: BrandKit, pageIndex: number, cop
         title: `${img.name} 可能被變形`,
         location: here(img),
         detail: "圖片沒有指定 cover／contain，匯出時可能被硬 Stretch。",
-        suggestion: "主視覺用 cover 裁切，商品完整展示才用 contain。",
+        suggestion: "主視覺用 cover 裁切，現場照片完整展示才用 contain。",
         layerId: img.id,
         pageIndex,
         fix: { kind: "fit-image", pageIndex, layerId: img.id },
@@ -667,7 +667,7 @@ function inspectCarousel(pages: Artboard[]): QaIssue[] {
         title: "輪播標題對齊不統一",
         location: pageLabel(first, 0),
         detail: `有的頁置${align0 === "center" ? "中" : "左"}、有的頁不同。偶爾可接受，但超過一半頁面不一致時會像拼貼。`,
-        suggestion: "封面／案例可置左，引言頁可置中；同一角色的頁要相同。不要每頁換對齊。",
+        suggestion: "封面／現場可置左，引言頁可置中；同一角色的頁要相同。不要每頁換對齊。",
         pageIndex: 0,
       });
     }
@@ -709,7 +709,7 @@ export function inspectProject(pages: Artboard[], brand: BrandKit, copy: CopyDec
         check: "headline",
         severity: "fail",
         title: "沒有畫布",
-        location: "作品",
+        location: "網宣",
         detail: "這個尺寸還沒有頁面。",
         suggestion: "先產生一頁或套用企劃。",
         pageIndex: 0,

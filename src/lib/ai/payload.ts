@@ -45,6 +45,14 @@ export function toBriefInput(
     imageStyle: [brand.imageStyle?.mood, brand.imageStyle?.lighting, brand.imageStyle?.paletteHint]
       .filter(Boolean)
       .join("；"),
+    brandMemory: buildCreativeMemoryContext({
+      brand,
+      assets: extra?.assets ?? [],
+      campaigns: extra?.campaigns ?? [],
+      styleReferences: extra?.styleReferences,
+      instagramHashtags: extra?.instagramHashtags,
+      outcomeHashtags: extra?.outcomeHashtags,
+    }),
     ...(extra?.forceMock ? { forceMock: true } : {}),
     ...(extra?.dnaNotes ? { dnaNotes: extra.dnaNotes } : {}),
     ...(extra?.memoryNotes ? { memoryNotes: extra.memoryNotes } : {}),

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
-export function SlideBar({ project }: { project: Project }) {
+export function SlideBar({ project, compact = false }: { project: Project; compact?: boolean }) {
   const setSlide = useStudio((s) => s.setSlide);
   const addSlide = useStudio((s) => s.addSlide);
   const removeSlide = useStudio((s) => s.removeSlide);
@@ -113,28 +113,47 @@ export function SlideBar({ project }: { project: Project }) {
         </Button>
         <Button
           size="sm"
-          className="min-h-11"
+          className="min-h-11 shrink-0"
           variant="ghost"
           onClick={() => setCarouselPreview(true)}
           data-testid="carousel-preview-open"
         >
           <Rows3 className="size-4" />
-          整組預覽
+          {compact ? "預覽" : "整組預覽"}
         </Button>
         {pages.length < 6 ? (
           <Button
             size="sm"
-            className="min-h-11"
+            className="min-h-11 shrink-0"
             variant="secondary"
             onClick={() => {
               expandCarousel(project.id);
               toast.success("已展開為六頁輪播腳本");
             }}
           >
-            展開六頁
+            {compact ? "六頁" : "展開六頁"}
           </Button>
         ) : null}
+        {compact
+          ? ADAPT_FORMATS.map((id) => {
+              const format = formatById(id);
+              const active = project.activeFormatId === id;
+              return (
+                <Button
+                  key={id}
+                  size="sm"
+                  className="min-h-11 shrink-0"
+                  variant={active ? "default" : "secondary"}
+                  data-testid={`adapt-format-${id}`}
+                  onClick={() => adapt(id)}
+                >
+                  {active ? `重排 ${format.short}` : format.short}
+                </Button>
+              );
+            })
+          : null}
       </div>
+      {compact ? null : (
       <div className="flex items-center gap-1 overflow-x-auto">
         <span className="flex shrink-0 items-center gap-1 text-xs text-muted">
           <LayoutGrid className="size-3.5" />
@@ -157,6 +176,7 @@ export function SlideBar({ project }: { project: Project }) {
           );
         })}
       </div>
+      )}
     </div>
   );
 }

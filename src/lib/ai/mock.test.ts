@@ -89,3 +89,17 @@ test("buildMockPlan strips forbidden words", () => {
   assert.equal(plan.carouselPages.length, 1);
   assert.equal(plan.source, "mock");
 });
+
+test("mock campaign reuses a field-note hook and remember line", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "浮游禪光",
+    features: "一起坐坐",
+    audience: "剛開學的淡江學生",
+    brandMemory: "已學到的規律：現場：「浮游禪光」覺得像淡江的 Hook「下課後先不要急著回完所有訊息」、現場：「浮游禪光」實際來的人／反應：住宿生比較多、現場：「浮游禪光」下次要記得：時間放 Caption 最上面",
+  });
+  assert.equal(plan.hook, "下課後先不要急著回完所有訊息");
+  assert.match(plan.insight, /住宿生比較多/);
+  assert.equal(plan.checklist[0], "現場筆記：時間放 Caption 最上面");
+  assert.doesNotMatch(plan.hook, /Insights|觀看次數/);
+});

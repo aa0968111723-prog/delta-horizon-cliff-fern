@@ -20,6 +20,7 @@ import { Route as CreateRouteImport } from './routes/create'
 import { Route as ExportRouteImport } from './routes/export'
 import { Route as InspireRouteImport } from './routes/inspire'
 import { Route as InstagramRouteImport } from './routes/instagram'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
 import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
@@ -68,11 +69,6 @@ const ConnectRoute = ConnectRouteImport.update({
   path: '/connect',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CreateRoute = CreateRouteImport.update({
-  id: '/create',
-  path: '/create',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ExportRoute = ExportRouteImport.update({
   id: '/export',
   path: '/export',
@@ -86,6 +82,11 @@ const InspireRoute = InspireRouteImport.update({
 const InstagramRoute = InstagramRouteImport.update({
   id: '/instagram',
   path: '/instagram',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudioRoute = StudioRouteImport.update({
@@ -162,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/export': typeof ExportRoute
   '/inspire': typeof InspireRoute
   '/instagram': typeof InstagramRoute
+  '/search': typeof SearchRoute
   '/studio': typeof StudioRouteWithChildren
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/create/image': typeof CreateImageRoute
@@ -210,6 +212,7 @@ export interface FileRoutesById {
   '/export': typeof ExportRoute
   '/inspire': typeof InspireRoute
   '/instagram': typeof InstagramRoute
+  '/search': typeof SearchRoute
   '/studio': typeof StudioRouteWithChildren
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/create/image': typeof CreateImageRoute
@@ -237,6 +240,7 @@ export interface FileRouteTypes {
     | '/export'
     | '/inspire'
     | '/instagram'
+    | '/search'
     | '/studio'
     | '/campaigns/$campaignId'
     | '/create/image'
@@ -284,6 +288,7 @@ export interface FileRouteTypes {
     | '/export'
     | '/inspire'
     | '/instagram'
+    | '/search'
     | '/studio'
     | '/campaigns/$campaignId'
     | '/create/image'
@@ -310,6 +315,7 @@ export interface RootRouteChildren {
   ExportRoute: typeof ExportRoute
   InspireRoute: typeof InspireRoute
   InstagramRoute: typeof InstagramRoute
+  SearchRoute: typeof SearchRoute
   StudioRoute: typeof StudioRouteWithChildren
   ApiIgMediaIdRoute: typeof ApiIgMediaIdRoute
   ApiOauthCanvaCallbackRoute: typeof ApiOauthCanvaCallbackRoute
@@ -369,13 +375,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConnectRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/create': {
-      id: '/create'
-      path: '/create'
-      fullPath: '/create'
-      preLoaderRoute: typeof CreateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/export': {
       id: '/export'
       path: '/export'
@@ -395,6 +394,13 @@ declare module '@tanstack/react-router' {
       path: '/instagram'
       fullPath: '/instagram'
       preLoaderRoute: typeof InstagramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio': {
@@ -536,6 +542,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExportRoute: ExportRoute,
   InspireRoute: InspireRoute,
   InstagramRoute: InstagramRoute,
+  SearchRoute: SearchRoute,
   StudioRoute: StudioRouteWithChildren,
   ApiIgMediaIdRoute: ApiIgMediaIdRoute,
   ApiOauthCanvaCallbackRoute: ApiOauthCanvaCallbackRoute,

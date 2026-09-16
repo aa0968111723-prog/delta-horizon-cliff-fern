@@ -3,7 +3,23 @@ import { AssistantForm } from "@/components/assistant/assistant-form";
 import { PageHeader } from "@/components/shared/page-header";
 import { useStudio } from "@/stores/studio-store";
 
-export const Route = createFileRoute("/assistant")({ component: AssistantPage });
+export type AssistantSearch = {
+  project?: string;
+  desk?: CreationDesk;
+};
+
+function parseAssistantSearch(search: Record<string, unknown>): AssistantSearch {
+  const desk = search.desk;
+  return {
+    project: typeof search.project === "string" && search.project ? search.project : undefined,
+    desk: desk === "plan" || desk === "copy" || desk === "art" ? desk : undefined,
+  };
+}
+
+export const Route = createFileRoute("/assistant")({
+  validateSearch: parseAssistantSearch,
+  component: AssistantPage,
+});
 
 function AssistantPage() {
   const lastProjectId = useStudio((s) => s.lastProjectId);

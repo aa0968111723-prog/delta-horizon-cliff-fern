@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BriefFields } from "@/components/assistant/brief-fields";
-import { EditorAgent } from "@/components/assistant/editor-agent";
+import { CanvasEditor } from "@/components/assistant/canvas-editor";
 import { PlanResult } from "@/components/assistant/plan-result";
 import { Button } from "@/components/ui/button";
+import { CreationLoop } from "@/components/shared/creation-loop";
 import { describeAdapter, generateCampaignPlan, getCampaignAiStatus, type AiStatus } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
@@ -72,10 +73,10 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
 
   return (
     <div className="space-y-6 p-4 pb-8">
-      <EditorAgent projectId={project.id} compact />
+      <CanvasEditor projectId={project.id} compact />
       <div className="border-t border-border pt-5">
         <h2 className="text-sm font-medium">宣傳企劃</h2>
-        <p className="mt-1 text-xs text-muted">給代理的活動條件。生成後會變成頁面與畫布。</p>
+        <p className="mt-1 text-xs text-muted">活動條件會帶入 Brand Memory 與校園情境。生成後會變成頁面與畫布。</p>
       </div>
       <div
         data-testid="ai-adapter-banner"
@@ -112,7 +113,12 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
               ? "生成本機草案並排版"
               : "生成企劃並排版"}
       </Button>
-      {project.plan ? <PlanResult projectId={project.id} /> : null}
+      {project.plan ? (
+        <>
+          <CreationLoop current="copy" />
+          <PlanResult projectId={project.id} />
+        </>
+      ) : null}
     </div>
   );
 }

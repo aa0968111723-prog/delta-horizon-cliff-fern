@@ -37,7 +37,7 @@ function storyCopy(base: CopyDeck, plan: CampaignPlan): CopyDeck {
   const beats = plan.storyBeats;
   return {
     ...base,
-    eyebrow: "STORY",
+    eyebrow: "限動",
     headline: plan.hook || base.headline,
     subhead: beats[0] || base.subhead,
     body: beats.slice(1).join("\n") || base.body,
