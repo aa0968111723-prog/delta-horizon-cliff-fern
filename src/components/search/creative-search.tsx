@@ -22,15 +22,16 @@ export function CreativeSearch() {
   const [found, setFound] = useState(0);
   const [detail, setDetail] = useState("");
   const [groups, setGroups] = useState<Record<string, SearchHit[]>>({});
+  const [driveLoginUrl, setDriveLoginUrl] = useState<string | undefined>();
 
   async function run(query: string) {
     setBusy(true);
     try {
       const result = await searchCreative({ data: { query } });
-      if (result.loginRequired) maybeConnectorLogin(result);
       setGroups(result.groups);
       setFound(result.found);
       setDetail(result.driveDetail);
+      setDriveLoginUrl(result.loginRequired ? result.loginUrl : undefined);
       setLastSearch(query);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "搜尋失敗");
@@ -73,6 +74,15 @@ export function CreativeSearch() {
           </Button>
         </form>
         <p className="mt-2 text-xs text-muted">{busy ? "搜尋中…" : found ? `找到 ${found} 個相關素材。${detail}` : detail}</p>
+        {driveLoginUrl ? (
+          <Button
+            className="mt-3"
+            variant="secondary"
+            onClick={() => maybeConnectorLogin({ loginRequired: true, loginUrl: driveLoginUrl })}
+          >
+            連接 Google Drive 再搜一次
+          </Button>
+        ) : null}
         {Object.entries(groups).map(([key, list]) =>
           list.length ? (
             <section key={key} className="mt-4">

@@ -181,6 +181,9 @@ export const disconnectOAuth = createServerFn({ method: "POST" })
 export const listConnectedMedia = createServerFn({ method: "POST" }).handler(async () => {
   const req = getRequest();
   const blob = await readBlobFromCookie(req?.headers.get("cookie") ?? null);
-  const [canva, instagram] = await Promise.all([fetchCanvaDesigns(blob), fetchInstagramMedia(blob)]);
-  return { canva, instagram };
+  const empty = { canva: [] as Awaited<ReturnType<typeof fetchCanvaDesigns>>, instagram: [] as Awaited<ReturnType<typeof fetchInstagramMedia>> };
+  return Promise.race([
+    Promise.all([fetchCanvaDesigns(blob), fetchInstagramMedia(blob)]).then(([canva, instagram]) => ({ canva, instagram })),
+    new Promise<typeof empty>((resolve) => setTimeout(() => resolve(empty), 4000)),
+  ]);
 });

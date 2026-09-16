@@ -56,11 +56,16 @@ export const searchCreative = createServerFn({ method: "POST" })
 
     try {
       const { callTool } = await import("@/lib/app-data/client.server");
-      const result = await callTool(
-        GoogleDriveTools.search,
-        { query: data.query || "淡江 禪學社" },
-        { connectorType: ConnectorType.GoogleDrive },
-      );
+      const result = await Promise.race([
+        callTool(
+          GoogleDriveTools.search,
+          { query: data.query || "淡江 禪學社" },
+          { connectorType: ConnectorType.GoogleDrive },
+        ),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("drive-timeout")), 4000);
+        }),
+      ]);
       if (result.loginRequired) {
         loginRequired = true;
         loginUrl = result.loginUrl;

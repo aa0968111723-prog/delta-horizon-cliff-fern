@@ -5,6 +5,21 @@ import type { OAuthBlob } from "./vault.server";
 
 export type LiveHit = MemoryItem & { live?: boolean };
 
+const FETCH_MS = 4000;
+
+function timedFetch(url: string, init?: RequestInit) {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(FETCH_MS) });
+}
+
+async function withTimeout<T>(work: Promise<T>, fallback: T, ms = FETCH_MS): Promise<T> {
+  return Promise.race([
+    work,
+    new Promise<T>((resolve) => {
+      setTimeout(() => resolve(fallback), ms);
+    }),
+  ]);
+}
+
 export type DriveProbe = {
   connected: boolean;
   loginRequired: boolean;
@@ -13,48 +28,54 @@ export type DriveProbe = {
 };
 
 export async function probeDrive(): Promise<DriveProbe> {
-  try {
-    const { callTool } = await import("@/lib/app-data/client.server");
-    const result = await callTool(
-      GoogleDriveTools.search,
-      { query: "淡江 禪學社" },
-      { connectorType: ConnectorType.GoogleDrive },
-    );
-    if (result.loginRequired) {
-      return {
-        connected: false,
-        loginRequired: true,
-        loginUrl: result.loginUrl,
-        detail: "需要透過官方 Google 連接。Token 只走伺服器。",
-      };
-    }
-    if (result.ok) {
-      return {
-        connected: true,
-        loginRequired: false,
-        detail: "已連接 Google Drive。憑證不會進瀏覽器。",
-      };
-    }
-    const classified = classifyCallToolError(result);
-    return {
-      connected: false,
-      loginRequired: false,
-      detail: classified?.message || result.errorMessage || "Drive 暫時無法確認。",
-    };
-  } catch {
-    return {
-      connected: false,
-      loginRequired: false,
-      detail: "預覽環境可能還讀不到 Google Drive，社團記憶仍可搜。",
-    };
-  }
+  const disconnected: DriveProbe = {
+    connected: false,
+    loginRequired: false,
+    detail: "預覽環境可能還讀不到 Google Drive，社團記憶仍可搜。",
+  };
+  return withTimeout(
+    (async () => {
+      try {
+        const { callTool } = await import("@/lib/app-data/client.server");
+        const result = await callTool(
+          GoogleDriveTools.search,
+          { query: "淡江 禪學社" },
+          { connectorType: ConnectorType.GoogleDrive },
+        );
+        if (result.loginRequired) {
+          return {
+            connected: false,
+            loginRequired: true,
+            loginUrl: result.loginUrl,
+            detail: "需要透過官方 Google 連接。Token 只走伺服器。",
+          };
+        }
+        if (result.ok) {
+          return {
+            connected: true,
+            loginRequired: false,
+            detail: "已連接 Google Drive。憑證不會進瀏覽器。",
+          };
+        }
+        const classified = classifyCallToolError(result);
+        return {
+          connected: false,
+          loginRequired: false,
+          detail: classified?.message || result.errorMessage || "Drive 暫時無法確認。",
+        };
+      } catch {
+        return disconnected;
+      }
+    })(),
+    disconnected,
+  );
 }
 
 export async function fetchCanvaDesigns(blob: OAuthBlob | null): Promise<LiveHit[]> {
   const token = blob?.canva?.access;
   if (!token) return [];
   try {
-    const res = await fetch("https://api.canva.com/rest/v1/designs", {
+    const res = await timedFetch("https://api.canva.com/rest/v1/designs", {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return [];
@@ -82,7 +103,7 @@ export async function fetchInstagramMedia(blob: OAuthBlob | null): Promise<LiveH
   const token = blob?.instagram?.access;
   if (!token) return [];
   try {
-    const accounts = await fetch(
+    const accounts = await timedFetch(
       `https://graph.facebook.com/v21.0/me/accounts?fields=instagram_business_account{id,username}&access_token=${encodeURIComponent(token)}`,
     );
     if (!accounts.ok) return [];
@@ -91,7 +112,7 @@ export async function fetchInstagramMedia(blob: OAuthBlob | null): Promise<LiveH
     };
     const ig = parsed.data?.map((row) => row.instagram_business_account).find((row) => row?.id);
     if (!ig?.id) return [];
-    const media = await fetch(
+    const media = await timedFetch(
       `https://graph.facebook.com/v21.0/${ig.id}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count,saved&limit=18&access_token=${encodeURIComponent(token)}`,
     );
     if (!media.ok) return [];
