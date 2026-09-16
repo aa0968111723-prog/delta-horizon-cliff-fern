@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" role="img" aria-label="night tea">
+  <rect width="1080" height="1080" fill="#1C2422"/>
+  <circle cx="260" cy="360" r="220" fill="#7EB8C9" opacity=".45"/>
+  <circle cx="540" cy="280" r="200" fill="#E0B07A" opacity=".5"/>
+  <circle cx="820" cy="380" r="230" fill="#D9A3A3" opacity=".42"/>
+  <ellipse cx="540" cy="860" rx="360" ry="80" fill="#2A3431"/>
+  <ellipse cx="540" cy="640" rx="230" ry="86" fill="#2F5F56"/>
+  <ellipse cx="540" cy="608" rx="168" ry="50" fill="#F6F1E8"/>
+  <circle cx="300" cy="780" r="22" fill="#2F5F56"/>
+  <circle cx="780" cy="780" r="22" fill="#2F5F56"/>
+  <rect x="90" y="820" width="900" height="180" rx="28" fill="#F6F1E8"/>
+  <text x="540" y="900" text-anchor="middle" font-family="Georgia, serif" font-size="48" fill="#1C2422">來坐一下就好</text>
+  <text x="540" y="960" text-anchor="middle" font-family="sans-serif" font-size="24" fill="#2F5F56">夜間茶會 / 淡江</text>
+</svg>
