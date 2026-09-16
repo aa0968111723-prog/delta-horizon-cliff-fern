@@ -1,3 +1,4 @@
+import { encodeReelsFromPng } from "@/lib/ai/reels-encode";
 import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
 import { pullCanvaDesign } from "@/lib/connect/canva";
 import { canvaSize } from "@/lib/connect/canva-format";
@@ -9,7 +10,7 @@ import { syncConnection } from "@/lib/connect/sync";
 import { getAssetBlob } from "@/lib/studio/assets-idb";
 import { bytesToBase64 } from "@/lib/studio/bytes";
 import { isIgPublishMime, persistGeneratedImage } from "@/lib/studio/raster";
-import type { ScheduleItem } from "@/lib/studio/types";
+import type { ReelsScript, ScheduleItem } from "@/lib/studio/types";
 import { canGraphPublish, graphPublishFormat } from "@/lib/zen/memory";
 import { useStudio } from "@/stores/studio-store";
 
@@ -31,7 +32,7 @@ export type PublishItemResult = {
   insightsLearned?: boolean;
 };
 
-type PublishFormat = "story" | "feed-portrait";
+type PublishFormat = "story" | "feed-portrait" | "reels";
 
 async function pngFromBase64(base64: string, mime: string, format: PublishFormat) {
   const size = canvaSize(format);
@@ -123,6 +124,14 @@ async function withInsights(result: PublishItemResult): Promise<PublishItemResul
   };
 }
 
+function pickReelsScript(item: ScheduleItem): ReelsScript | undefined {
+  const projects = useStudio.getState().projects;
+  const project = item.projectId
+    ? projects.find((row) => row.id === item.projectId)
+    : projects.find((row) => row.campaignId === item.campaignId);
+  return project?.plan?.reelsScript;
+}
+
 function persistMarkedPublish(item: ScheduleItem, result: PublishItemResult) {
   if (!result.marked) return result;
   useStudio.getState().publishSchedule(item.id, result.extra);
@@ -136,18 +145,39 @@ export async function runPublishItem(item: ScheduleItem): Promise<PublishItemRes
   if (!canGraphPublish(item.kind)) {
     return persistMarkedPublish(
       item,
-      await withInsights({ note: "Reels／Threads／LINE 請在 IG App 發。文案已複製。", marked: true }),
+      await withInsights({ note: "Threads／LINE 請在 IG App 發。文案已複製。", marked: true }),
     );
   }
   const format = graphPublishFormat(item.kind) ?? "feed-portrait";
   const { slides, imageUrl } = await collectSlides(item, format);
+  let videoBase64: string | undefined;
+  if (format === "reels") {
+    if (!slides[0]) {
+      return persistMarkedPublish(
+        item,
+        await withInsights({ note: "這則 Reels 還沒有畫面。腳本已複製，可在 IG App 發。", marked: true }),
+      );
+    }
+    const encoded = await encodeReelsFromPng(slides[0], pickReelsScript(item), item.caption || item.title);
+    if (!encoded) {
+      return persistMarkedPublish(
+        item,
+        await withInsights({
+          note: "這台瀏覽器還不能編成 Reels 影片。腳本已複製，可在 IG App 發。",
+          marked: true,
+        }),
+      );
+    }
+    videoBase64 = encoded.base64;
+  }
   const result = await publishInstagramMedia({
     data: {
       caption,
       imageUrl,
-      imageBase64: slides[0],
-      imageBase64s: slides.length >= 2 ? slides : undefined,
-      mime: "image/png",
+      imageBase64: format === "reels" ? undefined : slides[0],
+      imageBase64s: format === "reels" || slides.length < 2 ? undefined : slides,
+      videoBase64,
+      mime: format === "reels" ? "video/mp4" : "image/png",
       title: item.title,
       format,
     },

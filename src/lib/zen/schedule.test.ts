@@ -110,7 +110,19 @@ test("firstPublishable prefers a due carousel over a due Story", () => {
   assert.equal(pick?.id, "hero");
 });
 
-test("firstPublishable prefers a due countdown Story over later Reels copy-to-app", () => {
+test("firstPublishable prefers a due Reels over Threads copy-to-app", () => {
+  const now = 100;
+  const pick = firstPublishable(
+    [
+      { id: "line", status: "scheduled", scheduledAt: 10, kind: "line" },
+      { id: "reels", status: "scheduled", scheduledAt: 40, kind: "reels" },
+    ],
+    now,
+  );
+  assert.equal(pick?.id, "reels");
+});
+
+test("firstPublishable prefers a due countdown Story over a due Reels", () => {
   const now = 100;
   const pick = firstPublishable(
     [

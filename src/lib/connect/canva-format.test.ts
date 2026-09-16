@@ -11,6 +11,8 @@ import {
 
 test("canvaSize uses IG custom pixels instead of invalid presets", () => {
   assert.deepEqual(canvaSize("story"), { width: 1080, height: 1920 });
+  assert.deepEqual(canvaSize("reels"), { width: 1080, height: 1920 });
+  assert.deepEqual(canvaSize("reels-cover"), { width: 1080, height: 1920 });
   assert.deepEqual(canvaSize("feed-portrait"), { width: 1080, height: 1350 });
   assert.deepEqual(canvaSize("threads"), { width: 1080, height: 1080 });
   assert.deepEqual(canvaSize("line"), { width: 1040, height: 1040 });

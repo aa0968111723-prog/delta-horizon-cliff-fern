@@ -48,12 +48,12 @@ test("official permalink turns published tea-party into Instagram memory", () =>
   assert.equal(memory.permalink, "https://www.instagram.com/p/tea1/");
 });
 
-test("stories and countdown publish as official Graph STORIES, not feed", () => {
+test("stories and countdown publish as official Graph STORIES, Reels as REELS", () => {
   assert.equal(canGraphPublish("ig-post"), true);
   assert.equal(canGraphPublish("carousel"), true);
   assert.equal(canGraphPublish("story"), true);
   assert.equal(canGraphPublish("countdown"), true);
-  assert.equal(canGraphPublish("reels"), false);
+  assert.equal(canGraphPublish("reels"), true);
   assert.equal(canGraphPublish("threads"), false);
   assert.equal(canGraphPublish("line"), false);
   assert.equal(isFeedGraphKind("carousel"), true);
@@ -63,5 +63,6 @@ test("stories and countdown publish as official Graph STORIES, not feed", () => 
   assert.equal(graphPublishFormat("story"), "story");
   assert.equal(graphPublishFormat("countdown"), "story");
   assert.equal(graphPublishFormat("ig-post"), "feed-portrait");
-  assert.equal(graphPublishFormat("reels"), null);
+  assert.equal(graphPublishFormat("reels"), "reels");
+  assert.equal(graphPublishFormat("threads"), null);
 });

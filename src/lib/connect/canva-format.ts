@@ -24,7 +24,8 @@ export type CanvaCopy = {
 export type AutofillValue = { type: "text"; text: string } | { type: "image"; asset_id: string };
 
 export function canvaSize(format: string): { width: number; height: number } {
-  const id = FORMAT_IDS.includes(format as FormatId) ? (format as FormatId) : "feed-portrait";
+  const mapped = format === "reels" ? "reels-cover" : format;
+  const id = FORMAT_IDS.includes(mapped as FormatId) ? (mapped as FormatId) : "feed-portrait";
   const spec = formatById(id);
   return { width: spec.width, height: spec.height };
 }

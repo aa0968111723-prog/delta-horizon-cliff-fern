@@ -5,6 +5,7 @@ import {
   graphContainerParams,
   isPublicImageUrl,
   isStoryGraphFormat,
+  reelsParams,
   storyParams,
   mediaContainerUrl,
   mediaPermalinkUrl,
@@ -54,6 +55,14 @@ test("Graph URLs and public image check stay official and non-local", () => {
   assert.equal(isStoryGraphFormat("feed-portrait"), false);
   assert.equal(storyGraph.media_type, "STORIES");
   assert.equal("caption" in storyGraph, false);
+  const reels = reelsParams({
+    videoUrl: "https://drive.google.com/uc?export=download&id=tea",
+    caption: "最近是不是很久沒有好好坐下來？",
+  });
+  assert.equal(reels.media_type, "REELS");
+  assert.equal(reels.video_url, "https://drive.google.com/uc?export=download&id=tea");
+  assert.equal(reels.share_to_feed, "true");
+  assert.doesNotMatch(JSON.stringify(reels), /access_token/);
 });
 
 test("parseIgUser reads professional account without tokens in payload", () => {

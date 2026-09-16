@@ -13,10 +13,14 @@ export function driveAnyoneReader() {
   return { role: "reader" as const, type: "anyone" as const };
 }
 
-export function driveFileMetadata(name: string, parentId?: string) {
+export function drivePublicVideoUrl(fileId: string) {
+  return `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`;
+}
+
+export function driveFileMetadata(name: string, parentId?: string, mimeType = "image/png") {
   return {
     name: name.slice(0, 80) || "禪光主視覺",
-    mimeType: "image/png",
+    mimeType,
     ...(parentId ? { parents: [parentId] } : {}),
   };
 }
@@ -74,17 +78,18 @@ async function ensurePublishFolder(token: string): Promise<string | undefined> {
   return parseFileId(await created.json()) ?? undefined;
 }
 
-export async function hostImageOnDrive(opts: {
+async function hostBytesOnDrive(opts: {
   token: string;
   bytes: Uint8Array;
   name: string;
+  mime: string;
 }): Promise<string | null> {
   const folderId = await ensurePublishFolder(opts.token).catch(() => undefined);
   const boundary = `zen_${crypto.randomUUID().replaceAll("-", "")}`;
   const { body, contentType } = driveMultipartBody(
-    driveFileMetadata(opts.name, folderId),
+    driveFileMetadata(opts.name, folderId, opts.mime),
     opts.bytes,
-    "image/png",
+    opts.mime,
     boundary,
   );
   const uploaded = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", {
@@ -106,5 +111,23 @@ export async function hostImageOnDrive(opts: {
     },
     body: JSON.stringify(driveAnyoneReader()),
   }).catch(() => undefined);
-  return drivePublicImageUrl(fileId);
+  return fileId;
+}
+
+export async function hostImageOnDrive(opts: {
+  token: string;
+  bytes: Uint8Array;
+  name: string;
+}): Promise<string | null> {
+  const fileId = await hostBytesOnDrive({ ...opts, mime: "image/png" });
+  return fileId ? drivePublicImageUrl(fileId) : null;
+}
+
+export async function hostVideoOnDrive(opts: {
+  token: string;
+  bytes: Uint8Array;
+  name: string;
+}): Promise<string | null> {
+  const fileId = await hostBytesOnDrive({ ...opts, mime: "video/mp4" });
+  return fileId ? drivePublicVideoUrl(fileId) : null;
 }

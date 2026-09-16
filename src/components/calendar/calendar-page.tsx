@@ -268,7 +268,15 @@ export function CalendarPage() {
                   <Button
                     size="sm"
                     disabled={publishingId === item.id || item.status === "published"}
-                    data-testid={item.id === publishTarget?.id ? "calendar-publish" : undefined}
+                    data-testid={
+                      item.id === publishTarget?.id
+                        ? "calendar-publish"
+                        : item.kind === "reels"
+                          ? "calendar-reels-publish"
+                          : item.kind === "story" || item.kind === "countdown"
+                            ? "calendar-story-publish"
+                            : undefined
+                    }
                     onClick={() => void publishItem(item.id)}
                   >
                     發布到 IG

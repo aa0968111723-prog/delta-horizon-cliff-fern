@@ -75,9 +75,10 @@ export function ReelsBoard({
   }
 
   return (
-    <section className="mt-8">
+    <section className="mt-8" data-testid="reels-board">
       <h2 className="text-sm font-medium">Reels 0–20 秒</h2>
       <p className="mt-1 text-sm text-muted">Hook：{script.hook}</p>
+      <p className="mt-1 text-xs text-muted">到期發布會把分鏡編成 9:16 短影音，走 Instagram 官方 Reels。</p>
       {lastCover ? (
         <div className="mt-3 max-w-48">
           <HeroVisual base64={lastCover.base64} mime={lastCover.mime} headline={script.hook} />

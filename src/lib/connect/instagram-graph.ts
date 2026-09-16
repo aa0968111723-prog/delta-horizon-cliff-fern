@@ -36,6 +36,20 @@ export function isStoryGraphFormat(format?: string) {
   return format === "story";
 }
 
+export function isReelsGraphFormat(format?: string) {
+  return format === "reels";
+}
+
+/** Official Reels container. Needs a public HTTPS MP4. */
+export function reelsParams(opts: { videoUrl: string; caption: string }) {
+  return {
+    media_type: "REELS",
+    video_url: opts.videoUrl,
+    caption: opts.caption.slice(0, 2200),
+    share_to_feed: "true",
+  };
+}
+
 /** Official Stories container. Caption is not a Graph Stories field. */
 export function storyParams(imageUrl: string) {
   return {

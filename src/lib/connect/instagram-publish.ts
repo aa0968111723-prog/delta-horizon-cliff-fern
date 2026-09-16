@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { hostImageOnCanva } from "./canva-export";
-import { hostImageOnDrive } from "./drive-publish";
+import { hostImageOnDrive, hostVideoOnDrive } from "./drive-publish";
 import { accessTokenFor } from "./tokens";
 import {
   accountsUrl,
@@ -9,6 +9,7 @@ import {
   carouselItemParams,
   graphContainerParams,
   isPublicImageUrl,
+  isReelsGraphFormat,
   isStoryGraphFormat,
   mediaContainerUrl,
   mediaInsightsUrl,
@@ -19,6 +20,7 @@ import {
   parseIgUser,
   parsePermalink,
   parsePublishId,
+  reelsParams,
   waitUntilContainerReady,
 } from "./instagram-graph";
 
@@ -40,6 +42,8 @@ const Input = z.object({
   imageUrls: z.array(z.string().max(2000)).max(10).optional(),
   imageBase64: z.string().max(4_000_000).optional(),
   imageBase64s: z.array(z.string().max(4_000_000)).max(6).optional(),
+  videoUrl: z.string().max(2000).optional(),
+  videoBase64: z.string().max(3_500_000).optional(),
   mime: z.string().max(40).optional(),
   title: z.string().max(80).optional(),
   format: z.string().max(40).optional(),
@@ -116,11 +120,31 @@ async function hostPublicImages(
   return { urls: urls.slice(0, 10), hostedBy: urls.length && !bases.length ? "given" : hostedBy };
 }
 
-async function waitReady(containerId: string, token: string) {
+async function hostPublicVideo(
+  data: z.infer<typeof Input>,
+): Promise<{ url: string; hostedBy: "given" | "drive" } | null> {
+  if (data.videoUrl && isPublicImageUrl(data.videoUrl)) {
+    return { url: data.videoUrl, hostedBy: "given" };
+  }
+  if (!data.videoBase64) return null;
+  const drive = await accessTokenFor("drive");
+  if (!drive) return null;
+  const url = await hostVideoOnDrive({
+    token: drive.accessToken,
+    bytes: Buffer.from(data.videoBase64, "base64"),
+    name: `${data.title || "禪光Reels"}.mp4`,
+  }).catch(() => null);
+  if (!url || !isPublicImageUrl(url)) return null;
+  return { url, hostedBy: "drive" };
+}
+
+async function waitReady(containerId: string, token: string, video = false) {
   return waitUntilContainerReady({
     containerId,
     token,
     fetchJson: graphStatus,
+    attempts: video ? 40 : 15,
+    delayMs: video ? 3000 : 2000,
   });
 }
 
@@ -132,8 +156,8 @@ async function createContainer(igId: string, token: string, params: Record<strin
   return parseContainerId(json);
 }
 
-async function publishCreation(igId: string, token: string, creationId: string) {
-  const ready = await waitReady(creationId, token);
+async function publishCreation(igId: string, token: string, creationId: string, video = false) {
+  const ready = await waitReady(creationId, token, video);
   if (!ready.ok) return null;
   const publishUrl = new URL(mediaPublishUrl(igId));
   publishUrl.searchParams.set("creation_id", creationId);
@@ -188,6 +212,56 @@ export const publishInstagramMedia = createServerFn({ method: "POST" })
         reason: "not-connected",
         note: "先到「連接」用官方 OAuth 連接 Instagram。文案可先複製，本機標記已發布。",
       };
+    }
+    const reels = isReelsGraphFormat(data.format);
+    if (reels) {
+      const hostedVideo = await hostPublicVideo(data);
+      if (!hostedVideo) {
+        return {
+          ok: false,
+          reason: "no-image",
+          note: "官方發布 Reels 需要公開 MP4。請連接 Google Drive（需寫入），或先複製腳本後在 IG App 發。",
+        };
+      }
+      try {
+        let ig: { id: string; username?: string } | null = bundle.igUserId
+          ? { id: bundle.igUserId, username: bundle.accountLabel }
+          : null;
+        if (!ig?.id) {
+          const accounts = await graphJson(accountsUrl(bundle.accessToken));
+          ig = parseIgUser(accounts);
+        }
+        if (!ig?.id) {
+          return { ok: false, reason: "api", note: "找不到 Instagram 專業帳號。請重新授權。" };
+        }
+        const params = reelsParams({ videoUrl: hostedVideo.url, caption: data.caption });
+        const creationId = await createContainer(ig.id, bundle.accessToken, params);
+        if (!creationId) {
+          return { ok: false, reason: "api", note: "IG 還沒準備好這則 Reels 容器，請稍後再試。" };
+        }
+        const mediaId = await publishCreation(ig.id, bundle.accessToken, creationId, true);
+        if (!mediaId) {
+          return { ok: false, reason: "api", note: "Reels 還在轉檔，請稍後再試。" };
+        }
+        const permalink = await readPermalink(mediaId, bundle.accessToken);
+        const insights = await readInsights(mediaId, bundle.accessToken);
+        const hostedNote = hostedVideo.hostedBy === "drive" ? "影片已進 Google Drive「禪光發布」，" : "";
+        return {
+          ok: true,
+          mediaId,
+          permalink,
+          imageUrl: hostedVideo.url,
+          hostedBy: hostedVideo.hostedBy,
+          insights,
+          note: `${hostedNote}已用 Instagram 官方 API 發到 Reels。`.trim(),
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          reason: "api",
+          note: error instanceof Error ? error.message : "IG 官方 Reels 暫時失敗。腳本可先複製。",
+        };
+      }
     }
     const hosted = await hostPublicImages(data);
     if (!hosted) {

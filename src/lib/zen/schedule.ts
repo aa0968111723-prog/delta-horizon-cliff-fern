@@ -1,6 +1,6 @@
 import { uid } from "../studio/ids.ts";
 import type { CampaignWave, CampaignWaveKind, ClubCampaign, ContentKind, EventKind } from "../studio/types.ts";
-import { canGraphPublish, isFeedGraphKind } from "./memory.ts";
+import { canGraphPublish, isFeedGraphKind, isStoryGraphKind } from "./memory.ts";
 import { nextKindAfter } from "./rhythm.ts";
 
 const WAVE_LABEL: Record<CampaignWaveKind, string> = {
@@ -148,7 +148,7 @@ export function agendaSorted<T extends { status: string; scheduledAt: number }>(
   return [...due, ...rest];
 }
 
-/** Prefer a due Feed post, then a due Story (official STORIES). Reels stay copy-to-app. */
+/** Prefer a due Feed post, then a due Story, then a due Reels (official Graph). */
 export function firstPublishable<
   T extends { status: string; scheduledAt: number; kind: ContentKind },
 >(items: T[], now = Date.now()): T | undefined {
@@ -158,9 +158,11 @@ export function firstPublishable<
   const due = dueScheduled(unpublished, now);
   return (
     due.find((item) => isFeedGraphKind(item.kind)) ??
+    due.find((item) => isStoryGraphKind(item.kind)) ??
     due.find((item) => canGraphPublish(item.kind)) ??
     due[0] ??
     unpublished.find((item) => isFeedGraphKind(item.kind)) ??
+    unpublished.find((item) => isStoryGraphKind(item.kind)) ??
     unpublished.find((item) => canGraphPublish(item.kind)) ??
     unpublished[0]
   );

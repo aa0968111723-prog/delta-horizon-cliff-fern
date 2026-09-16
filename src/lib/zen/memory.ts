@@ -36,12 +36,17 @@ export function isStoryGraphKind(kind: ContentKind) {
   return kind === "story" || kind === "countdown";
 }
 
-export function canGraphPublish(kind: ContentKind) {
-  return isFeedGraphKind(kind) || isStoryGraphKind(kind);
+export function isReelsGraphKind(kind: ContentKind) {
+  return kind === "reels";
 }
 
-export function graphPublishFormat(kind: ContentKind): "story" | "feed-portrait" | null {
+export function canGraphPublish(kind: ContentKind) {
+  return isFeedGraphKind(kind) || isStoryGraphKind(kind) || isReelsGraphKind(kind);
+}
+
+export function graphPublishFormat(kind: ContentKind): "story" | "feed-portrait" | "reels" | null {
   if (isStoryGraphKind(kind)) return "story";
+  if (isReelsGraphKind(kind)) return "reels";
   if (isFeedGraphKind(kind)) return "feed-portrait";
   return null;
 }
