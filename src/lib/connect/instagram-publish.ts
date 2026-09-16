@@ -49,7 +49,8 @@ export const publishInstagramMedia = createServerFn({ method: "POST" })
         note: "先到「連接」用官方 OAuth 連接 Instagram。文案可先複製，本機標記已發布。",
       };
     }
-    if (!isPublicImageUrl(data.imageUrl)) {
+    const imageUrl = data.imageUrl ?? "";
+    if (!isPublicImageUrl(imageUrl)) {
       return {
         ok: false,
         reason: "no-image",
@@ -62,7 +63,7 @@ export const publishInstagramMedia = createServerFn({ method: "POST" })
       if (!ig?.id) {
         return { ok: false, reason: "api", note: "找不到 Instagram 專業帳號。請重新授權。" };
       }
-      const params = containerParams({ imageUrl: data.imageUrl, caption: data.caption });
+      const params = containerParams({ imageUrl, caption: data.caption });
       const containerUrl = new URL(mediaContainerUrl(ig.id));
       containerUrl.searchParams.set("image_url", params.image_url);
       containerUrl.searchParams.set("caption", params.caption);

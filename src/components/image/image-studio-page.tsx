@@ -75,7 +75,7 @@ export function ImageStudioPage() {
     if (autoRan.current) return;
     autoRan.current = true;
     void (async () => {
-      await copyGo();
+      await copyGo(idea, true);
       await directionsGo();
     })();
   }, []);
@@ -100,7 +100,7 @@ export function ImageStudioPage() {
     }
   }
 
-  async function copyGo(nextIdea = idea) {
+  async function copyGo(nextIdea = idea, silent = false) {
     setBusy(true);
     try {
       const result = await generateCopyPacks({
@@ -116,7 +116,7 @@ export function ImageStudioPage() {
       }
       setPacks(result.packs);
       setReview(result.review);
-      toast.success("已生成文案");
+      if (!silent) toast.success("已生成文案");
     } finally {
       setBusy(false);
     }
@@ -237,7 +237,7 @@ export function ImageStudioPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-28 md:px-8 md:py-10 lg:pb-10">
+    <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-36 md:px-8 md:py-10 lg:pb-10">
       <PageHeader
         kicker="Image Studio"
         title="不要只生禪風海報"

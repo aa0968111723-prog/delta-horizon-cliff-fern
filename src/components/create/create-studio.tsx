@@ -529,7 +529,7 @@ export function CreateStudio() {
   }, [plan]);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-28 md:px-8 md:py-10 lg:pb-10">
+    <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-36 md:px-8 md:py-10 lg:pb-10">
       <PageHeader
         kicker="AI 創作"
         title="從一句話開始"
@@ -581,7 +581,7 @@ export function CreateStudio() {
             </div>
           </div>
         ) : null}
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
           <Button disabled={busy} onClick={() => void runKit()}>
             AI 生成完整宣傳
           </Button>
