@@ -22,6 +22,7 @@ import { publicImageUrl } from "@/lib/connect/ig-publish";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { varyImagePrompt } from "@/lib/creative/image-vary";
 import { inferCampaignType, inferEventDate, isoFromMs, scheduledAtFor } from "@/lib/creative/schedule";
+import { annotateWavesFromPack, captionForPackKind, PACK_SCHEDULE_KINDS, remainingPackKinds, topicForPackKind } from "@/lib/creative/pack-schedule";
 import { gatherStatusLine, searchCreative, selectSourcesForPack } from "@/lib/creative/search";
 import type { SearchHit } from "@/lib/creative/types";
 import type { CanvaLoopStep } from "@/lib/creative/session";
@@ -31,7 +32,7 @@ import { createGeneratedAsset } from "@/lib/studio/assets";
 import { brandMemoryBlock } from "@/lib/studio/brand";
 import { emptyBrief } from "@/lib/studio/brief";
 import { uid } from "@/lib/studio/ids";
-import { COPY_TONES, formatForKind } from "@/lib/studio/content";
+import { COPY_TONES, formatForKind, contentKindLabel } from "@/lib/studio/content";
 import type { CarouselPagePlan, ContentKind, CreativeDirection, ReelsBeat, SourceRef, StoryFrame } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
@@ -134,7 +135,6 @@ export function CreateStudio({
   const igPosts = useCreative((s) => s.igPosts);
   const inspirations = useCreative((s) => s.inspirations);
   const generateWaves = useCreative((s) => s.generateWaves);
-  const addCampaign = useCreative((s) => s.addCampaign);
   const addMemory = useCreative((s) => s.addMemory);
   const bindScheduledWave = useCreative((s) => s.bindScheduledWave);
   const setConnection = useCreative((s) => s.setConnection);
@@ -262,6 +262,16 @@ export function CreateStudio({
         savedAt: Date.now(),
       });
       toast.success(heroPrompt && !opts?.skipHero ? "完整宣傳與主視覺好了" : "完整宣傳好了");
+      const campId = resolvedCampaignId;
+      if (campId) {
+        const live = useCreative.getState();
+        const camp = live.campaigns.find((item) => item.id === campId);
+        if (camp) {
+          if (!camp.waves.length) live.generateWaves(camp.id);
+          const fresh = useCreative.getState().campaigns.find((item) => item.id === campId);
+          if (fresh) live.updateCampaign(campId, { waves: annotateWavesFromPack(fresh.waves, nextPack) });
+        }
+      }
     } catch {
       toast.error("生成失敗，再試一次。");
     } finally {
@@ -502,15 +512,24 @@ export function CreateStudio({
 
   function applyToStudio(
     andSchedule: boolean,
-    opts?: { kind?: ContentKind; nextPack?: CreativePack; stay?: boolean; silent?: boolean },
+    opts?: {
+      kind?: ContentKind;
+      nextPack?: CreativePack;
+      stay?: boolean;
+      silent?: boolean;
+      skipNavigate?: boolean;
+      campaignId?: string;
+    },
   ): { projectId: string; day: string } | undefined {
     const brand = brands[0];
     const active = opts?.nextPack ?? pack;
     const kind = opts?.kind ?? "carousel";
     if (!brand || !active) return;
-    let camp = resolvedCampaignId ? campaigns.find((c) => c.id === resolvedCampaignId) : undefined;
+    const live = useCreative.getState();
+    const campId = opts?.campaignId ?? resolvedCampaignId;
+    let camp = campId ? live.campaigns.find((item) => item.id === campId) : undefined;
     if (!camp && andSchedule) {
-      camp = addCampaign({
+      camp = live.addCampaign({
         name: active.plan.campaignName,
         date: inferEventDate(query),
         type: inferCampaignType(`${query} ${active.plan.campaignName}`),
@@ -548,15 +567,14 @@ export function CreateStudio({
         });
     applyCampaignPlan(project.id, active.plan, brief);
     const activeCopy = copies.find((c) => c.tone === tone) ?? copies[0];
-    if (activeCopy) {
-      useStudio.getState().setCopy(project.id, {
-        headline: activeCopy.hook,
-        body: activeCopy.body,
-        cta: activeCopy.cta,
-        caption: `${activeCopy.body}\n\n${activeCopy.cta}\n${activeCopy.hashtags.join(" ")}`,
-        hashtags: activeCopy.hashtags,
-      });
-    }
+    const caption = captionForPackKind(active, kind, activeCopy);
+    useStudio.getState().setCopy(project.id, {
+      headline: kind === "carousel" || kind === "ig-post" ? (activeCopy?.hook ?? active.plan.hook) : topicForPackKind(active, kind),
+      body: caption,
+      cta: activeCopy?.cta ?? active.plan.cta,
+      caption,
+      hashtags: activeCopy?.hashtags ?? active.plan.hashtags,
+    });
     setStudioProjectId(project.id);
     const prevSession = readLastSession();
     writeLastSession({
@@ -589,12 +607,14 @@ export function CreateStudio({
       scheduledAt: andSchedule ? scheduledAt : null,
     });
     if (camp && andSchedule) {
-      if (!camp.waves.length) generateWaves(camp.id);
+      if (!useCreative.getState().campaigns.find((item) => item.id === camp.id)?.waves.length) {
+        generateWaves(camp.id);
+      }
       bindScheduledWave(camp.id, {
         kind,
         projectId: project.id,
         scheduledAt,
-        topic: active.plan.hook,
+        topic: topicForPackKind(active, kind),
         status: "scheduled",
       });
     }
@@ -604,11 +624,60 @@ export function CreateStudio({
     }
     if (opts?.stay) return { projectId: project.id, day };
     if (andSchedule) {
-      void navigate({ to: "/calendar", search: { day } });
+      if (!opts?.skipNavigate) void navigate({ to: "/calendar", search: { day } });
       return { projectId: project.id, day };
     }
-    void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+    if (!opts?.skipNavigate) void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
     return { projectId: project.id, day };
+  }
+
+  function scheduleWholeCampaign() {
+    const active = pack;
+    if (!active || !brands[0]) {
+      toast.message("先生成一版完整宣傳");
+      return;
+    }
+    const live = useCreative.getState();
+    let camp = resolvedCampaignId ? live.campaigns.find((item) => item.id === resolvedCampaignId) : undefined;
+    if (!camp) {
+      camp = live.addCampaign({
+        name: active.plan.campaignName,
+        date: inferEventDate(query),
+        type: inferCampaignType(`${query} ${active.plan.campaignName}`),
+        oneLiner: active.plan.hook,
+        fullIntro: active.plan.body,
+        studentPain: active.plan.insight,
+        cta: active.plan.cta,
+        theme: active.plan.visualTheme,
+        location: "淡江校園",
+      });
+      setCreatedCampaignId(camp.id);
+    }
+    if (!camp.waves.length) live.generateWaves(camp.id);
+    const campId = camp.id;
+    camp = useCreative.getState().campaigns.find((item) => item.id === campId) ?? camp;
+    live.updateCampaign(campId, { waves: annotateWavesFromPack(camp.waves, active) });
+    camp = useCreative.getState().campaigns.find((item) => item.id === campId) ?? camp;
+    const kinds = remainingPackKinds(camp.waves, PACK_SCHEDULE_KINDS);
+    if (!kinds.length) {
+      toast.message("這套已經在月曆裡");
+      const day = camp.waves[0]?.scheduledAt ? isoFromMs(camp.waves[0].scheduledAt) : camp.date;
+      void navigate({ to: "/calendar", search: { day } });
+      return;
+    }
+    let firstDay = camp.date;
+    for (const kind of kinds) {
+      const placed = applyToStudio(true, {
+        kind,
+        nextPack: active,
+        silent: true,
+        skipNavigate: true,
+        campaignId: campId,
+      });
+      if (placed && kind === kinds[0]) firstDay = placed.day;
+    }
+    toast.success(`已把 ${kinds.map((kind) => contentKindLabel(kind)).join("、")} 依節奏排進月曆`);
+    void navigate({ to: "/calendar", search: { day: firstDay } });
   }
 
   function goIgPreview() {
@@ -935,6 +1004,10 @@ export function CreateStudio({
             {inspirations[0] ? (
               <p className="mt-1 text-xs text-muted">靈感抽象：{inspirations[0].pattern} → {inspirations[0].clubTurn}</p>
             ) : null}
+            <p className="mt-3 text-xs text-muted">Carousel、Story、Reels、Threads 可以一次排進月曆，節奏會錯開，不會連發招生。</p>
+            <Button className="mt-3 min-h-11 rounded-full" onClick={scheduleWholeCampaign}>
+              整套排進月曆
+            </Button>
           </div>
 
           <div>
@@ -1122,15 +1195,14 @@ export function CreateStudio({
                       在 Canva 繼續改
                     </Button>
                   ) : null}
-                  <Button
-                    variant="secondary"
-                    className="min-h-11 rounded-full"
-                    onClick={goIgPreview}
-                  >
+                  <Button className="min-h-11 rounded-full" onClick={scheduleWholeCampaign}>
+                    整套排進月曆
+                  </Button>
+                  <Button variant="secondary" className="min-h-11 rounded-full" onClick={goIgPreview}>
                     IG Preview
                   </Button>
                   <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => applyToStudio(true)}>
-                    排進月曆
+                    只排這一則
                   </Button>
                 </div>
               </div>
@@ -1138,11 +1210,14 @@ export function CreateStudio({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button className="min-h-11 rounded-full" onClick={() => applyToStudio(false)}>
+            <Button className="min-h-11 rounded-full" onClick={scheduleWholeCampaign}>
+              整套排進月曆
+            </Button>
+            <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => applyToStudio(false)}>
               套進畫布
             </Button>
             <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => applyToStudio(true)}>
-              排進月曆
+              只排這一則
             </Button>
             <Button
               variant="secondary"
