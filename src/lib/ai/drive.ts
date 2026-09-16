@@ -10,6 +10,7 @@ export type DriveSearchResult =
 
 const SearchInput = z.object({
   query: z.string().min(1).max(200),
+  folderHint: z.string().max(80).optional(),
 });
 
 function unwrap(input: unknown) {
@@ -22,7 +23,7 @@ export const searchClubDrive = createServerFn({ method: "POST" })
   .validator((input: unknown) => SearchInput.parse(unwrap(input)))
   .handler(async ({ data }): Promise<DriveSearchResult> => {
     const { executeDriveSearch } = await import("./drive.server");
-    return executeDriveSearch(data.query);
+    return executeDriveSearch(data.query, data.folderHint);
   });
 
 export const getConnectionCapabilities = createServerFn({ method: "POST" }).handler(async () => {

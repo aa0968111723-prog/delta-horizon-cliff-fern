@@ -7,6 +7,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CAMPAIGN_TYPES } from "@/lib/zen/types";
 import type { CampaignType } from "@/lib/zen/types";
+import { igDnaBlock } from "@/lib/zen/insights";
 import { emptyCampaign, suggestWaves } from "@/lib/zen/schedule";
 import { formatMd } from "@/lib/zen/season";
 import { useCreative } from "@/stores/creative-store";
@@ -127,6 +128,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const attach = useCreative((s) => s.attachProject);
   const patchWave = useCreative((s) => s.patchWave);
+  const igPosts = useCreative((s) => s.igPosts);
   const [busy, setBusy] = useState(false);
 
   if (!campaign) {
@@ -169,7 +171,9 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               notes: campaign.studentPain,
               deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
             });
-            const result = await generateCreativePack({ data: toBriefInput(brief, brand) });
+            const result = await generateCreativePack({
+              data: toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
+            });
             if (!result.ok) return;
             const project = createProject({
               name: campaign.name,
@@ -220,6 +224,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                       eventName: campaign.name,
                       schedule: `${campaign.date} ${campaign.time}`,
                       location: campaign.location,
+                      dnaNotes: igDnaBlock(igPosts),
                     },
                   });
                   if (!result.ok) return;

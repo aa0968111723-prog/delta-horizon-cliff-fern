@@ -1,4 +1,4 @@
-import type { CampaignPlan, CarouselPagePlan } from "../studio/types.ts";
+import type { CampaignPlan, CarouselPagePlan, ContentKind, FormatId } from "../studio/types.ts";
 
 export type ConvertedFormats = {
   post: { hook: string; body: string; cta: string };
@@ -57,4 +57,93 @@ function defaultCarousel(plan: CampaignPlan): CarouselPagePlan[] {
     { role: "cta", headline: cta, subhead: plan.subhead, body: "時間地點看這頁。找一個朋友一起來也行。", cta, visualNote: "只留資訊。", templateId: "offer" },
     { role: "close", headline: plan.hook.slice(0, 12), subhead: "淡江禪學社", body: plan.cta, cta, visualNote: "可截圖。", templateId: "quote" },
   ];
+}
+
+export const CONVERT_TARGETS = [
+  { id: "post", label: "IG Post", formatId: "feed-portrait" as FormatId, contentKind: "ig-post" as ContentKind },
+  { id: "carousel", label: "Carousel", formatId: "feed-portrait" as FormatId, contentKind: "carousel" as ContentKind },
+  { id: "story", label: "Story", formatId: "story" as FormatId, contentKind: "story" as ContentKind },
+  { id: "reels", label: "Reels", formatId: "reels-cover" as FormatId, contentKind: "reels" as ContentKind },
+  { id: "threads", label: "Threads", formatId: "threads" as FormatId, contentKind: "threads" as ContentKind },
+  { id: "line", label: "LINE", formatId: "line" as FormatId, contentKind: "line" as ContentKind },
+] as const;
+
+export type ConvertTargetId = (typeof CONVERT_TARGETS)[number]["id"];
+
+export function convertTargetById(id: ConvertTargetId) {
+  return CONVERT_TARGETS.find((row) => row.id === id)!;
+}
+
+export function briefFlagsForTarget(id: ConvertTargetId) {
+  return {
+    post: id === "post",
+    carousel: id === "carousel",
+    story: id === "story",
+    reels: id === "reels",
+    threads: id === "threads",
+    line: id === "line",
+  };
+}
+
+export function previewLines(converted: ConvertedFormats, id: ConvertTargetId): string[] {
+  if (id === "post") return [converted.post.hook, converted.post.body, converted.post.cta];
+  if (id === "carousel") return converted.carousel.map((p) => p.headline.replace(/\n/g, " "));
+  if (id === "story") return converted.story.map((p) => p.headline);
+  if (id === "reels") return converted.reels.map((b) => `${b.startSec}–${b.endSec}s ${b.caption}`);
+  if (id === "threads") return converted.threads.split("\n").filter(Boolean);
+  return converted.line.split("\n").filter(Boolean);
+}
+
+export function clipboardText(converted: ConvertedFormats, id: ConvertTargetId) {
+  if (id === "post") return `${converted.post.hook}\n\n${converted.post.body}\n\n${converted.post.cta}`;
+  if (id === "carousel") return converted.carousel.map((p, i) => `${i + 1}. ${p.headline.replace(/\n/g, " ")}\n${p.body}`).join("\n\n");
+  if (id === "story") return converted.story.map((p, i) => `Story ${i + 1} ${p.headline}\n${p.body}`).join("\n\n");
+  if (id === "reels") {
+    return converted.reels
+      .map((b) => `${b.startSec}–${b.endSec}s\n畫面：${b.visual}\n字幕：${b.caption}\n旁白：${b.voiceover}`)
+      .join("\n\n");
+  }
+  if (id === "threads") return converted.threads;
+  return converted.line;
+}
+
+export function captionForTarget(converted: ConvertedFormats, id: ConvertTargetId) {
+  if (id === "post") return `${converted.post.hook}\n\n${converted.post.body}`;
+  if (id === "carousel") return converted.carousel.map((p) => p.headline.replace(/\n/g, " ")).join(" → ");
+  if (id === "story") return converted.story.map((p) => p.headline).join(" / ");
+  if (id === "reels") return converted.reels.map((b) => b.caption).join(" / ");
+  if (id === "threads") return converted.threads;
+  return converted.line;
+}
+
+export function planForConvertTarget(plan: CampaignPlan, converted: ConvertedFormats, id: ConvertTargetId): CampaignPlan {
+  if (id === "post") {
+    return { ...plan, captions: [{ style: "IG", text: clipboardText(converted, "post") }] };
+  }
+  if (id === "carousel") return { ...plan, carouselPages: converted.carousel };
+  if (id === "story") return { ...plan, storyBeats: converted.story.map((s) => s.body) };
+  if (id === "reels") return { ...plan, reelsScript: converted.reels, hook: converted.reels[0]?.caption ?? plan.hook };
+  if (id === "threads") {
+    return { ...plan, threadsPost: converted.threads, captions: [{ style: "Threads", text: converted.threads }] };
+  }
+  return { ...plan, lineCopy: converted.line, captions: [{ style: "LINE", text: converted.line }] };
+}
+
+export function copyKindForContent(kind: ContentKind) {
+  if (kind === "carousel") return "carousel" as const;
+  if (kind === "story") return "story" as const;
+  if (kind === "reels") return "reels" as const;
+  if (kind === "countdown") return "countdown" as const;
+  if (kind === "recap") return "recap" as const;
+  if (kind === "member-story") return "member" as const;
+  if (kind === "knowledge" || kind === "qa") return "knowledge" as const;
+  if (kind === "poll") return "emotion" as const;
+  return "event" as const;
+}
+
+export function tonightAt(daysAhead = 0, hour = 20) {
+  const d = new Date();
+  d.setDate(d.getDate() + daysAhead);
+  d.setHours(hour, 0, 0, 0);
+  return d.getTime();
 }

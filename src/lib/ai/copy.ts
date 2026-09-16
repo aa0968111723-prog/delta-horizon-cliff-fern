@@ -26,6 +26,7 @@ const CopyInput = z.object({
   schedule: z.string().max(80).optional(),
   location: z.string().max(80).optional(),
   forceMock: z.boolean().optional(),
+  dnaNotes: z.string().max(2000).optional(),
 });
 
 function mockCopy(data: z.infer<typeof CopyInput>): CopyPack {
@@ -106,10 +107,11 @@ export const generateCopyPack = createServerFn({ method: "POST" })
         max_tokens: 1800,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: systemPrompt("copy") },
+          { role: "system", content: systemPrompt("copy", { dnaNotes: data.dnaNotes }) },
           {
             role: "user",
             content: `為淡江禪學社寫 IG 文案。類型：${data.kind}。想法：${data.idea}。活動：${data.eventName ?? ""}。時間：${data.schedule ?? ""}。地點：${data.location ?? ""}。
+優先延續自己 IG 有效的 Hook 與語氣，不要套一般品牌模板。
 輸出 JSON：hook, body, cta, hashtags[], variants[{style,text}]（短版/一般版/感性版/學生版/生活版/幽默版）, studentReview{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,tooLong,knowsWhat,knowsWhenWhere,wouldBringFriend,knowsSignup,notes,rewriteHook}`,
           },
         ],

@@ -1,6 +1,7 @@
-import { CLUB_NAME, CLUB_SHORT, LIGHTS, MASCOT } from "./club";
-import { audienceSummary } from "./audience";
-import { seasonContext } from "./season";
+import { CLUB_NAME, CLUB_SHORT, LIGHTS, MASCOT } from "./club.ts";
+import { audienceSummary } from "./audience.ts";
+import { igDnaBlock } from "./insights.ts";
+import { seasonContext } from "./season.ts";
 
 export const ZEN_TRANSLATION = [
   "安定",
@@ -45,8 +46,12 @@ export const ANTI_AI_RULES = `文案必須像淡江學生、社團的人在發 I
 優先口語、有人味、偶爾不工整。禪要轉譯成：${ZEN_TRANSLATION.join("、")}。
 不要一開始就堆佛學名詞或說教。目標是讓學生覺得「這好像跟我的生活有關」。`;
 
-export function systemPrompt(kind: "copy" | "campaign" | "image" | "vision" | "review") {
+export function systemPrompt(
+  kind: "copy" | "campaign" | "image" | "vision" | "review",
+  extras?: { dnaNotes?: string },
+) {
   const season = seasonContext();
+  const liveDna = extras?.dnaNotes?.trim() ? `\n即時 IG 記憶：\n${extras.dnaNotes.trim()}` : "";
   const head = `你在為「${CLUB_NAME}」做一人網宣創作。使用者同時是企劃、文案、設計、社群編輯、排程者。
 唯一客群是淡江大學學生，不要寫成抽象的「年輕人／Z 世代」。
 學生樣貌：
@@ -57,7 +62,9 @@ ${audienceSummary()}
 淡水／校園：${season.campus}。${season.weather}
 內容節奏：${season.contentHint}
 吉祥物：${MASCOT}。活動常見視覺：${LIGHTS}。
-${ANTI_AI_RULES}`;
+${ANTI_AI_RULES}
+
+${igDnaBlock()}${liveDna}`;
 
   if (kind === "image") {
     return `${head}

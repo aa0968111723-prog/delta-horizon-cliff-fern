@@ -17,6 +17,7 @@ import { searchCreativeWorld } from "@/lib/ai/oauth";
 import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
 import { APP_NAME, APP_TAGLINE, CLUB_SHORT } from "@/lib/zen/club";
+import { igDnaBlock } from "@/lib/zen/insights";
 import { INSPIRATION_SEEDS } from "@/lib/zen/inspiration";
 import { daysUntil, formatMd, seasonContext } from "@/lib/zen/season";
 import { creativeSearch, groupSearchHits, type SearchHit } from "@/lib/zen/search";
@@ -103,7 +104,7 @@ export function HomePage() {
       });
       const result = await generateCreativePack({
         data: {
-          ...toBriefInput(brief, brand),
+          ...toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
           memoryNotes: memory.map((m) => m.subtitle).join("\n"),
         },
       });

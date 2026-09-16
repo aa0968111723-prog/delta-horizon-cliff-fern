@@ -120,7 +120,7 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
     .filter(Boolean)
     .join("、");
 
-  const prompt = `${systemPrompt("campaign")}
+  const prompt = `${systemPrompt("campaign", { dnaNotes: data.dnaNotes })}
 
 請只輸出 JSON。
 

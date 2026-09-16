@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { creativeSearch, expandCreativeQuery, groupSearchHits } from "./search.ts";
 import { suggestWaves } from "./schedule.ts";
-import { convertFromPlan } from "./convert.ts";
+import { convertFromPlan, CONVERT_TARGETS, briefFlagsForTarget, captionForTarget } from "./convert.ts";
 import { migrateStatus } from "../studio/status.ts";
 
 test("migrateStatus maps old studio statuses", () => {
@@ -137,6 +137,43 @@ test("convertFromPlan always returns carousel story reels threads line", () => {
   assert.equal(out.reels.length, 5);
   assert.ok(out.threads.includes("坐好"));
   assert.ok(out.line.includes("茶會"));
+});
+
+test("convert targets map six formats to canvas and calendar kinds", () => {
+  assert.equal(CONVERT_TARGETS.length, 6);
+  assert.deepEqual(
+    CONVERT_TARGETS.map((t) => t.id),
+    ["post", "carousel", "story", "reels", "threads", "line"],
+  );
+  assert.equal(CONVERT_TARGETS.find((t) => t.id === "story")?.formatId, "story");
+  assert.equal(briefFlagsForTarget("carousel").carousel, true);
+  assert.equal(briefFlagsForTarget("carousel").post, false);
+  const converted = convertFromPlan({
+    campaignName: "茶會",
+    concept: "",
+    insight: "想找一個晚上",
+    hook: "最近是不是很久沒坐好？",
+    visualTheme: "",
+    visualDirection: "",
+    templateId: "quote",
+    colorMood: "",
+    eyebrow: "",
+    headline: "坐好",
+    subhead: "9/19 淡水",
+    body: "茶",
+    cta: "晚上見",
+    captions: [{ style: "短版", text: "坐好" }],
+    hashtags: [],
+    storyBeats: [],
+    carouselPages: [],
+    assetNeeds: [],
+    checklist: [],
+    altText: "",
+    qaNotes: [],
+    generatedAt: 1,
+    source: "mock",
+  });
+  assert.match(captionForTarget(converted, "post"), /坐好/);
 });
 
 test("expandCreativeQuery adds tea night terms", () => {

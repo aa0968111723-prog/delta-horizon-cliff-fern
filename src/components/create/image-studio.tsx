@@ -23,6 +23,7 @@ import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { uid } from "@/lib/studio/ids";
 import type { VisualDirection } from "@/lib/studio/types";
 import type { VisionAnalysis } from "@/lib/ai/image";
+import { igDnaBlock } from "@/lib/zen/insights";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
@@ -39,6 +40,7 @@ export function ImageStudio() {
   const createProject = useStudio((s) => s.createProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const setLastPack = useCreative((s) => s.setLastPack);
+  const igPosts = useCreative((s) => s.igPosts);
   const [prompt, setPrompt] = useState("我要宣傳茶會");
   const [aspect, setAspect] = useState<ImageAspect>("4:5");
   const [busy, setBusy] = useState<string | null>(null);
@@ -161,7 +163,9 @@ export function ImageStudio() {
             line: true,
           },
         });
-        const result = await generateCreativePack({ data: toBriefInput(brief, brand) });
+        const result = await generateCreativePack({
+          data: toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
+        });
         if (!result.ok) {
           toast.error(result.error);
           return;
@@ -181,7 +185,9 @@ export function ImageStudio() {
   async function extendCopy() {
     setBusy("copy");
     try {
-      const result = await generateCopyPack({ data: { idea: prompt, kind: "event" } });
+      const result = await generateCopyPack({
+        data: { idea: prompt, kind: "event", dnaNotes: igDnaBlock(igPosts) },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;

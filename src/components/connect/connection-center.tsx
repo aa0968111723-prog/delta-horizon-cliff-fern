@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { getConnectionCapabilities, searchClubDrive } from "@/lib/ai/drive";
 import { disconnectOAuth, searchCanvaWorld, searchInstagramWorld } from "@/lib/ai/oauth";
 import { redirectToLoginIfRequired } from "@/lib/app-data/login";
@@ -21,6 +22,8 @@ export function ConnectionCenter() {
   const connections = useCreative((s) => s.connections);
   const setConnection = useCreative((s) => s.setConnection);
   const addMemory = useCreative((s) => s.addMemory);
+  const driveFolderQuery = useCreative((s) => s.driveFolderQuery);
+  const setDriveFolderQuery = useCreative((s) => s.setDriveFolderQuery);
   const [caps, setCaps] = useState<Caps | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -72,7 +75,9 @@ export function ConnectionCenter() {
     setBusy(id);
     try {
       if (id === "drive") {
-        const result = await searchClubDrive({ data: { query: "茶會 OR 浮游禪光 OR 龜龜" } });
+        const result = await searchClubDrive({
+          data: { query: "茶會 OR 浮游禪光 OR 龜龜", folderHint: driveFolderQuery },
+        });
         if (!result.ok) {
           if (result.loginRequired) {
             setConnection("drive", { status: "needs-auth", detail: "需要官方 Google 授權" });
@@ -207,6 +212,17 @@ export function ConnectionCenter() {
                 <p className="mt-1 text-sm text-muted">
                   {statusLabel(item.status)} · {item.detail}
                 </p>
+                {item.id === "drive" ? (
+                  <label className="mt-3 block">
+                    <span className="text-xs text-muted">淡江禪學社主要資料夾</span>
+                    <Input
+                      className="mt-1"
+                      value={driveFolderQuery}
+                      onChange={(e) => setDriveFolderQuery(e.target.value)}
+                      placeholder="淡江禪學社"
+                    />
+                  </label>
+                ) : null}
               </div>
               <div className="flex shrink-0 flex-col gap-2">
                 <Button size="sm" disabled={busy === item.id} onClick={() => void connect(item.id)}>

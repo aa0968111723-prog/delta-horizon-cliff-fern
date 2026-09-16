@@ -2,6 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AssistantForm } from "@/components/assistant/assistant-form";
+import { ConvertPanel } from "@/components/create/convert-panel";
 import { PackResult } from "@/components/create/pack-result";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { generateCreativePack } from "@/lib/ai/pack";
 import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
 import type { CopyPack } from "@/lib/zen/types";
-import { convertFromPlan } from "@/lib/zen/convert";
+import { igDnaBlock } from "@/lib/zen/insights";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
@@ -23,13 +24,13 @@ export function CreateHub() {
   const lastPack = useCreative((s) => s.lastPack);
   const setLastPack = useCreative((s) => s.setLastPack);
   const memory = useCreative((s) => s.memory);
+  const igPosts = useCreative((s) => s.igPosts);
   const [idea, setIdea] = useState("下週有一場茶會");
   const [busy, setBusy] = useState(false);
   const [copyBusy, setCopyBusy] = useState(false);
   const [copyPack, setCopyPack] = useState<CopyPack | null>(null);
   const [copyStyle, setCopyStyle] = useState("一般版");
   const brand = brands[0];
-  const converted = lastPack ? convertFromPlan(lastPack.plan) : null;
 
   async function runPack() {
     if (!brand) return;
@@ -46,7 +47,7 @@ export function CreateHub() {
       });
       const result = await generateCreativePack({
         data: {
-          ...toBriefInput(brief, brand),
+          ...toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
           memoryNotes: memory.map((m) => m.subtitle).join("\n"),
         },
       });
@@ -64,7 +65,9 @@ export function CreateHub() {
   async function runCopy() {
     setCopyBusy(true);
     try {
-      const result = await generateCopyPack({ data: { idea, kind: "event" } });
+      const result = await generateCopyPack({
+        data: { idea, kind: "event", dnaNotes: igDnaBlock(igPosts) },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -124,13 +127,7 @@ export function CreateHub() {
       {lastPack ? (
         <section className="mt-8">
           <PackResult pack={lastPack} onApply={applyDirection} />
-          {converted ? (
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <ConvertCard title="Carousel" lines={converted.carousel.map((p) => p.headline)} />
-              <ConvertCard title="Story" lines={converted.story.map((p) => p.headline)} />
-              <ConvertCard title="Reels" lines={converted.reels.map((b) => `${b.startSec}–${b.endSec}s ${b.caption}`)} />
-            </div>
-          ) : null}
+          <ConvertPanel pack={lastPack} />
         </section>
       ) : null}
 
@@ -168,18 +165,5 @@ export function CreateHub() {
         </div>
       </section>
     </main>
-  );
-}
-
-function ConvertCard({ title, lines }: { title: string; lines: string[] }) {
-  return (
-    <article className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-      <p className="text-xs text-muted">{title}</p>
-      <ul className="mt-2 space-y-1 text-sm">
-        {lines.slice(0, 6).map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
-    </article>
   );
 }

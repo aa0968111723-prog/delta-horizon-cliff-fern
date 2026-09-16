@@ -139,6 +139,7 @@ export const BriefInputSchema = z.object({
   preferredCtas: z.string().max(160).optional(),
   imageStyle: z.string().max(400).optional(),
   forceMock: z.boolean().optional(),
+  dnaNotes: z.string().max(2000).optional(),
 });
 
 export type BriefInput = z.infer<typeof BriefInputSchema>;

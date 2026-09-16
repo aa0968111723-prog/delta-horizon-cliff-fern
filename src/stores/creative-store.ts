@@ -94,8 +94,10 @@ type CreativeState = {
   connections: ConnectionState[];
   lastPack: CreativePack | null;
   searchQuery: string;
+  driveFolderQuery: string;
   setHydrated: (v: boolean) => void;
   setSearchQuery: (q: string) => void;
+  setDriveFolderQuery: (q: string) => void;
   setLastPack: (pack: CreativePack | null) => void;
   upsertCampaign: (campaign: ClubCampaign) => void;
   patchCampaign: (id: string, patch: Partial<ClubCampaign>) => void;
@@ -103,6 +105,9 @@ type CreativeState = {
   attachProject: (campaignId: string, projectId: string) => void;
   upsertSchedule: (item: ScheduleItem) => void;
   moveSchedule: (id: string, scheduledAt: number) => void;
+  patchSchedule: (id: string, patch: Partial<ScheduleItem>) => void;
+  duplicateSchedule: (id: string) => ScheduleItem | null;
+  removeSchedule: (id: string) => void;
   setConnection: (id: ConnectionId, patch: Partial<ConnectionState>) => void;
   addMemory: (item: MemoryItem) => void;
   addIgPost: (post: IgMemoryPost) => void;
@@ -122,8 +127,10 @@ export const useCreative = create<CreativeState>()(
       connections: SEED_CONNECTIONS,
       lastPack: null,
       searchQuery: "",
+      driveFolderQuery: "淡江禪學社",
       setHydrated: (v) => set({ hydrated: v }),
       setSearchQuery: (searchQuery) => set({ searchQuery }),
+      setDriveFolderQuery: (driveFolderQuery) => set({ driveFolderQuery }),
       setLastPack: (lastPack) => set({ lastPack }),
       upsertCampaign: (campaign) =>
         set((s) => {
@@ -182,8 +189,27 @@ export const useCreative = create<CreativeState>()(
         }),
       moveSchedule: (id, scheduledAt) =>
         set((s) => ({
-          schedule: s.schedule.map((row) => (row.id === id ? { ...row, scheduledAt } : row)),
+          schedule: s.schedule.map((row) => (row.id === id ? { ...row, scheduledAt, status: row.status === "published" ? row.status : "scheduled" } : row)),
         })),
+      patchSchedule: (id, patch) =>
+        set((s) => ({
+          schedule: s.schedule.map((row) => (row.id === id ? { ...row, ...patch } : row)),
+        })),
+      duplicateSchedule: (id) => {
+        const item = get().schedule.find((row) => row.id === id);
+        if (!item) return null;
+        const copy: ScheduleItem = {
+          ...item,
+          id: uid("sch"),
+          title: item.title.includes("（複本）") ? item.title : `${item.title}（複本）`,
+          status: "idea",
+          scheduledAt: item.scheduledAt + 86_400_000,
+          publishedAt: null,
+        };
+        get().upsertSchedule(copy);
+        return copy;
+      },
+      removeSchedule: (id) => set((s) => ({ schedule: s.schedule.filter((row) => row.id !== id) })),
       setConnection: (id, patch) =>
         set((s) => ({
           connections: s.connections.map((c) => (c.id === id ? { ...c, ...patch } : c)),
@@ -206,7 +232,27 @@ export const useCreative = create<CreativeState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 1,
+      version: 2,
+      migrate: (persisted) => {
+        const row = (persisted ?? {}) as {
+          campaigns: ClubCampaign[];
+          schedule: ScheduleItem[];
+          igPosts: IgMemoryPost[];
+          memory: MemoryItem[];
+          connections: ConnectionState[];
+          lastPack: CreativePack | null;
+          driveFolderQuery?: string;
+        };
+        return {
+          campaigns: row.campaigns,
+          schedule: row.schedule,
+          igPosts: row.igPosts,
+          memory: row.memory,
+          connections: row.connections,
+          lastPack: row.lastPack ?? null,
+          driveFolderQuery: row.driveFolderQuery || "淡江禪學社",
+        };
+      },
       partialize: (s) => ({
         campaigns: s.campaigns,
         schedule: s.schedule,
@@ -214,6 +260,7 @@ export const useCreative = create<CreativeState>()(
         memory: s.memory,
         connections: s.connections,
         lastPack: s.lastPack,
+        driveFolderQuery: s.driveFolderQuery,
       }),
     },
   ),

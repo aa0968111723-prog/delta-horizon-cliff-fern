@@ -4,12 +4,13 @@ import { isLoginRequired } from "@/lib/app-data/login";
 import { expandCreativeQuery } from "@/lib/zen/search";
 import type { DriveSearchResult } from "./drive";
 
-export async function executeDriveSearch(query: string): Promise<DriveSearchResult> {
+export async function executeDriveSearch(query: string, folderHint?: string): Promise<DriveSearchResult> {
   const { expanded } = expandCreativeQuery(query);
+  const scoped = folderHint?.trim() ? `${folderHint.trim()} ${expanded}` : expanded;
   const { callTool } = await import("@/lib/app-data/client.server");
   const result = await callTool(
     GoogleDriveTools.search,
-    { query: expanded },
+    { query: scoped },
     { connectorType: ConnectorType.GoogleDrive },
   );
   if (isLoginRequired(result)) {

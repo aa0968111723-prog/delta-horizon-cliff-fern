@@ -1,5 +1,5 @@
-import { CLUB_HANDLE, CLUB_NAME } from "./club";
-import type { ConnectionState, IgMemoryPost, MemoryItem } from "./types";
+import { CLUB_HANDLE, CLUB_NAME } from "./club.ts";
+import type { ConnectionState, IgMemoryPost, MemoryItem } from "./types.ts";
 
 export const SEED_CAMPAIGN_ID = "camp_floating_light";
 export const SEED_TEA_ID = "camp_welcome_tea";
