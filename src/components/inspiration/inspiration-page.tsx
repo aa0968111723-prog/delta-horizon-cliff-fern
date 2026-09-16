@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { INSPIRATION, inspirationQuery } from "@/lib/club/inspiration";
+import { writeHandoff } from "@/lib/create/handoff";
 import { useUi } from "@/stores/ui-store";
 
 export function InspirationPage() {
@@ -29,10 +30,11 @@ export function InspirationPage() {
             <p className="mt-3 rounded-2xl bg-bg px-3 py-2 text-sm">禪學社可以這樣用：{card.clubUse}</p>
             <Button
               className="mt-4"
+              data-testid="inspiration-to-campaign"
               onClick={() => {
                 setCreateOpen(false);
-                void navigate({ to: "/create", search: { tab: "copy" } });
-                window.sessionStorage.setItem("zen-idea", inspirationQuery(card));
+                writeHandoff({ idea: inspirationQuery(card), tab: "campaign" });
+                void navigate({ to: "/create", search: { tab: "campaign" } });
               }}
             >
               轉成我們的內容

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { IgThumb } from "@/components/create/ig-thumb";
 import { IG_DNA } from "@/lib/club/memory";
 import { lessonsFromIg } from "@/lib/club/insights";
+import { writeHandoff } from "@/lib/create/handoff";
 import { listConnectedMedia } from "@/lib/connections/oauth";
 import { useCreative, type IgMemoryPost } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -115,7 +116,7 @@ export function InstagramCenter() {
                   <Link
                     to="/create"
                     search={{ tab: "campaign" }}
-                    onClick={() => window.sessionStorage.setItem("zen-idea", active.caption)}
+                    onClick={() => writeHandoff({ idea: active.caption, tab: "campaign", sourceLabel: `Instagram / ${active.takenAt}` })}
                   >
                     AI 分析並做新的
                   </Link>

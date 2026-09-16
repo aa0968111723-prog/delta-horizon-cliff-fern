@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/input";
+import { writeHandoff } from "@/lib/create/handoff";
 import { generateCampaignPlan } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
 import { generateCopyPack } from "@/lib/copy/generate";
@@ -275,7 +276,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                   <Link
                     to="/create"
                     search={{ tab: "image" }}
-                    onClick={() => window.sessionStorage.setItem("zen-idea", `${wave.hook} ${current.name}`)}
+                    onClick={() => writeHandoff({ idea: `${wave.hook} ${current.name}`, tab: "image", sourceLabel: `活動 / ${current.name}` })}
                   >
                     換視覺
                   </Link>
@@ -332,7 +333,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                   <Link
                     to="/create"
                     search={{ tab: "image" }}
-                    onClick={() => window.sessionStorage.setItem("zen-idea", dir.imagePrompt)}
+                    onClick={() => writeHandoff({ idea: dir.imagePrompt, tab: "image", sourceLabel: `活動 / ${current.name}` })}
                   >
                     用這個方向生成圖片
                   </Link>

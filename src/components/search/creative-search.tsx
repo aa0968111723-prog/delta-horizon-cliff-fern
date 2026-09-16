@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { writeHandoff } from "@/lib/create/handoff";
 import { searchCreative } from "@/lib/search/creative";
 import { folderSearchInput } from "@/lib/connections/presets";
 import { sourceLabel } from "@/stores/creative-store";
@@ -101,7 +102,7 @@ export function CreativeSearch() {
                       size="sm"
                       variant="ghost"
                       onClick={() => {
-                        window.sessionStorage.setItem("zen-idea", `${item.title}\n${item.notes}`);
+                        writeHandoff({ idea: `${item.title}\n${item.notes}`, tab: "campaign", sourceLabel: `${item.subtitle}` });
                         setSearchOpen(false);
                       }}
                       asChild

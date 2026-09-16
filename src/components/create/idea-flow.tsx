@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/input";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { IgThumb } from "@/components/create/ig-thumb";
 import { generateCampaignPlan } from "@/lib/ai/campaign";
+import { applyStudentReviewToPlan } from "@/lib/copy/review";
 import { toBriefInput } from "@/lib/ai/payload";
 import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, notesFromHits, summarizeFound } from "@/lib/club/compose";
 import { parseIdea } from "@/lib/club/idea";
@@ -28,7 +29,13 @@ import { cn } from "@/lib/utils";
 
 type Phase = "idea" | "research" | "directions" | "pack";
 
-export function IdeaFlow() {
+export function IdeaFlow({
+  seedIdea,
+  seedConvertKind,
+}: {
+  seedIdea?: string;
+  seedConvertKind?: ContentKind;
+} = {}) {
   const navigate = useNavigate();
   const brands = useStudio((s) => s.brands);
   const createProject = useStudio((s) => s.createProject);
@@ -44,7 +51,7 @@ export function IdeaFlow() {
   const folder = useCreative((s) => s.folder);
   const igPosts = useCreative((s) => s.igPosts);
 
-  const [idea, setIdea] = useState("下週有一場茶會");
+  const [idea, setIdea] = useState(seedIdea || "下週有一場茶會");
   const [phase, setPhase] = useState<Phase>("idea");
   const [status, setStatus] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -52,7 +59,7 @@ export function IdeaFlow() {
   const [picked, setPicked] = useState<CreativeDirection | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [campaignId, setCampaignId] = useState<string | null>(null);
-  const [packKind, setPackKind] = useState<ContentKind>("ig-post");
+  const [packKind, setPackKind] = useState<ContentKind>(seedConvertKind || "ig-post");
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -68,12 +75,9 @@ export function IdeaFlow() {
   const urls = useAssetUrls(assetIds);
 
   useEffect(() => {
-    const stored = window.sessionStorage.getItem("zen-idea");
-    if (stored) {
-      setIdea(stored.split("\n")[0] || stored);
-      window.sessionStorage.removeItem("zen-idea");
-    }
-  }, []);
+    if (seedIdea) setIdea(seedIdea);
+    if (seedConvertKind) setPackKind(seedConvertKind);
+  }, [seedIdea, seedConvertKind]);
 
   const converted = plan ? convertPlan(plan, packKind) : null;
   const thumb = heroUrl || hits[0]?.thumb || "/seed/tea.svg";
@@ -122,7 +126,8 @@ export function IdeaFlow() {
     const parsed = parseIdea(idea);
     setBusy(true);
     try {
-      const nextPlan = applyPickedDirection(plan, direction);
+      const reviewed = applyStudentReviewToPlan(applyPickedDirection(plan, direction));
+      const nextPlan = reviewed.plan;
       const brief = briefFromIdea(parsed, notesFromHits(parsed, hits));
       const existing = campaigns.find((item) => item.name === parsed.eventName);
       const campaign = upsertCampaign({
@@ -155,7 +160,7 @@ export function IdeaFlow() {
       setProjectId(projectNext.id);
       setCampaignId(campaign.id);
       setPhase("pack");
-      toast.success("已生成主視覺方向、文案、Carousel、Story、Threads、Reels");
+      toast.success("已生成主視覺方向與多模態內容，並依淡江學生視角改過一輪");
     } finally {
       setBusy(false);
     }
@@ -321,6 +326,32 @@ export function IdeaFlow() {
               <p className="mt-1 text-muted">太宗教？{plan.studentReview.tooReligious}</p>
               <p className="mt-1 text-muted">太像 AI？{plan.studentReview.tooAi}</p>
               <p className="mt-1">建議改：{plan.studentReview.revisions.join("、")}</p>
+              <Button
+                className="mt-3"
+                size="sm"
+                variant="secondary"
+                data-testid="idea-apply-review"
+                disabled={busy}
+                onClick={() => {
+                  const reviewed = applyStudentReviewToPlan(plan);
+                  setPlan(reviewed.plan);
+                  if (projectId) {
+                    const parsed = parseIdea(idea);
+                    applyCampaignPlan(projectId, reviewed.plan, briefFromIdea(parsed, notesFromHits(parsed, hits)));
+                  }
+                  if (campaignId) {
+                    upsertCampaign({
+                      id: campaignId,
+                      name: parseIdea(idea).eventName,
+                      oneLiner: reviewed.plan.hook,
+                      cta: reviewed.plan.cta,
+                    });
+                  }
+                  toast.success(reviewed.applied.join("、"));
+                }}
+              >
+                套用淡江學生視角
+              </Button>
             </div>
           ) : null}
 

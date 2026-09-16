@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AssistantForm } from "@/components/assistant/assistant-form";
 import { IdeaFlow } from "@/components/create/idea-flow";
@@ -7,8 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { CONVERT_TARGETS, convertPlan } from "@/lib/convert/pack";
 import { COPY_INTENTS, COPY_TONES, generateCopyPack, type CopyPack } from "@/lib/copy/generate";
+import { applyStudentReviewToPack } from "@/lib/copy/review";
+import { readHandoff, type CreateHandoff, type CreateTab } from "@/lib/create/handoff";
 import { generateImageDirections, generateStudioImage, IMAGE_ASPECTS } from "@/lib/image/studio";
 import { analyzeImage, type VisionReport } from "@/lib/vision/analyze";
+import { compactDataUrl, loadAssetDataUrl } from "@/lib/vision/media";
+import {
+  convertKindFromAction,
+  formatFromVisionAction,
+  ideaFromVision,
+  isImageVisionAction,
+} from "@/lib/vision/tags";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { createGeneratedAsset } from "@/lib/studio/assets";
 import { formatById } from "@/lib/studio/formats";
@@ -16,18 +25,54 @@ import { uid } from "@/lib/studio/ids";
 import { useStudio } from "@/stores/studio-store";
 import { useCreative } from "@/stores/creative-store";
 import { lessonPrompt } from "@/lib/club/insights";
-import type { ContentKind, CreativeDirection } from "@/lib/studio/types";
+import type { ContentKind, CreativeDirection, FormatId } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 
-export type CreateTab = "campaign" | "copy" | "image" | "vision" | "convert";
+export type { CreateTab };
 
 export function CreateHub({ initialTab = "campaign" }: { initialTab?: CreateTab }) {
   const lastProjectId = useStudio((s) => s.lastProjectId);
+  const projects = useStudio((s) => s.projects);
   const [tab, setTab] = useState<CreateTab>(initialTab);
+  const [bridge, setBridge] = useState<CreateHandoff>({});
 
   useEffect(() => {
     setTab(initialTab);
   }, [initialTab]);
+
+  useEffect(() => {
+    const next = readHandoff();
+    if (next) {
+      setBridge(next);
+      if (next.tab) setTab(next.tab);
+    }
+  }, []);
+
+  const lastPlan = projects.find((item) => item.id === lastProjectId)?.plan;
+
+  function applyVisionAction(action: { id: string; report: VisionReport; preview: string | null; note: string }) {
+    const idea = ideaFromVision(action.id, action.report, action.note);
+    const convertKind = convertKindFromAction(action.id);
+    const next: CreateHandoff = {
+      idea,
+      imageDataUrl: action.preview ?? undefined,
+      visionNote: action.note,
+      visionAction: action.id,
+      convertKind,
+      formatId: formatFromVisionAction(action.id),
+      sourceLabel: "圖片理解",
+    };
+    setBridge(next);
+    if (isImageVisionAction(action.id)) {
+      setTab("image");
+      return;
+    }
+    if (convertKind && lastPlan) {
+      setTab("convert");
+      return;
+    }
+    setTab("campaign");
+  }
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
@@ -54,7 +99,7 @@ export function CreateHub({ initialTab = "campaign" }: { initialTab?: CreateTab 
       <div className="mt-6 rounded-3xl bg-surface p-4 shadow-[var(--shadow-border)] sm:p-6">
         {tab === "campaign" ? (
           <div className="space-y-8">
-            <IdeaFlow />
+            <IdeaFlow seedIdea={bridge.idea} seedConvertKind={bridge.convertKind} />
             <details className="rounded-2xl bg-bg px-4 py-3">
               <summary className="cursor-pointer text-sm text-muted">需要填完整活動欄位再生成</summary>
               <div className="mt-4">
@@ -63,36 +108,50 @@ export function CreateHub({ initialTab = "campaign" }: { initialTab?: CreateTab 
             </details>
           </div>
         ) : null}
-        {tab === "copy" ? <CopyStudio /> : null}
-        {tab === "image" ? <ImageStudio /> : null}
-        {tab === "vision" ? <VisionStudio onAction={(id) => {
-          if (id === "similar" || id === "continue" || id === "redesign") setTab("image");
-          if (id === "carousel" || id === "story" || id === "reels") setTab("convert");
-        }} /> : null}
-        {tab === "convert" ? <ConvertStudio /> : null}
+        {tab === "copy" ? <CopyStudio seedIdea={bridge.idea} /> : null}
+        {tab === "image" ? (
+          <ImageStudio
+            seedIdea={bridge.idea}
+            referenceImage={bridge.imageDataUrl}
+            sourceLabel={bridge.sourceLabel}
+            seedFormat={bridge.formatId}
+            seedAction={bridge.visionAction}
+          />
+        ) : null}
+        {tab === "vision" ? (
+          <VisionStudio
+            seedImage={bridge.imageDataUrl}
+            seedNote={bridge.visionNote}
+            seedAssetId={bridge.assetId}
+            onAction={applyVisionAction}
+          />
+        ) : null}
+        {tab === "convert" ? (
+          <ConvertStudio
+            seedKind={bridge.convertKind}
+            seedIdea={bridge.idea}
+            onMakeCampaign={() => setTab("campaign")}
+          />
+        ) : null}
       </div>
     </main>
   );
 }
 
-function CopyStudio() {
+function CopyStudio({ seedIdea }: { seedIdea?: string }) {
   const projects = useStudio((s) => s.projects);
   const setCopy = useStudio((s) => s.setCopy);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const igPosts = useCreative((s) => s.igPosts);
-  const [idea, setIdea] = useState("最近是不是很久沒有好好坐下來？");
+  const [idea, setIdea] = useState(seedIdea || "最近是不是很久沒有好好坐下來？");
   const [intent, setIntent] = useState("情緒共鳴");
   const [tone, setTone] = useState("學生版");
   const [pack, setPack] = useState<CopyPack | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const stored = window.sessionStorage.getItem("zen-idea");
-    if (stored) {
-      setIdea(stored.split("\n")[0] || stored);
-      window.sessionStorage.removeItem("zen-idea");
-    }
-  }, []);
+    if (seedIdea) setIdea(seedIdea);
+  }, [seedIdea]);
 
   async function run() {
     setBusy(true);
@@ -141,6 +200,14 @@ function CopyStudio() {
           <p className="text-sm">{pack.cta}</p>
           <p className="text-xs text-muted">{pack.hashtags.join(" ")}</p>
           <p className="text-xs text-muted">學生視角：{pack.studentReview.wouldStop} {pack.studentReview.revisions.join("、")}</p>
+          <Button
+            size="sm"
+            variant="secondary"
+            data-testid="copy-apply-review"
+            onClick={() => setPack(applyStudentReviewToPack(pack).pack)}
+          >
+            套用淡江學生視角
+          </Button>
           {project ? (
             <Button
               variant="secondary"
@@ -163,22 +230,33 @@ function CopyStudio() {
   );
 }
 
-function ImageStudio() {
+function ImageStudio({
+  seedIdea,
+  referenceImage,
+  sourceLabel,
+  seedFormat,
+  seedAction,
+}: {
+  seedIdea?: string;
+  referenceImage?: string;
+  sourceLabel?: string;
+  seedFormat?: FormatId;
+  seedAction?: string;
+}) {
   const addAsset = useStudio((s) => s.addAsset);
-  const [idea, setIdea] = useState("我要宣傳茶會");
-  const [formatId, setFormatId] = useState<(typeof IMAGE_ASPECTS)[number]["id"]>("feed-portrait");
+  const [idea, setIdea] = useState(seedIdea || "我要宣傳茶會");
+  const [formatId, setFormatId] = useState<(typeof IMAGE_ASPECTS)[number]["id"]>(
+    seedFormat && IMAGE_ASPECTS.some((item) => item.id === seedFormat) ? seedFormat : "feed-portrait",
+  );
   const [dirs, setDirs] = useState<CreativeDirection[]>([]);
   const [picked, setPicked] = useState<CreativeDirection | null>(null);
   const [urls, setUrls] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const stored = window.sessionStorage.getItem("zen-idea");
-    if (stored) {
-      setIdea(stored.split("\n")[0] || stored);
-      window.sessionStorage.removeItem("zen-idea");
-    }
-  }, []);
+    if (seedIdea) setIdea(seedIdea);
+    if (seedFormat && IMAGE_ASPECTS.some((item) => item.id === seedFormat)) setFormatId(seedFormat);
+  }, [seedIdea, seedFormat]);
 
   async function directions() {
     setBusy(true);
@@ -198,7 +276,16 @@ function ImageStudio() {
     setBusy(true);
     setPicked(direction);
     try {
-      const result = await generateStudioImage({ data: { prompt: direction.imagePrompt, variation, headline: direction.headline, eventName: idea } });
+      const editUrl = referenceImage ? compactDataUrl(referenceImage) : null;
+      const result = await generateStudioImage({
+        data: {
+          prompt: `${direction.imagePrompt}. ${idea}`.slice(0, 1200),
+          variation,
+          headline: direction.headline,
+          eventName: idea.slice(0, 40),
+          editUrls: editUrl ? [editUrl] : undefined,
+        },
+      });
       setUrls(result.urls);
       const url = result.urls[0];
       if (!url) {
@@ -213,15 +300,15 @@ function ImageStudio() {
       addAsset(
         createGeneratedAsset({
           id,
-          name: `${direction.name} · ${idea}`,
+          name: `${direction.name} · ${idea.slice(0, 18)}`,
           mime: blob.type || "image/png",
           width: format.width,
           height: format.height,
           category: "poster",
-          tags: ["AI生成", direction.name, idea],
+          tags: ["AI生成", direction.name, seedAction || "圖片Studio"].filter(Boolean),
         }),
       );
-      toast.success("已存進素材庫 · 來源：AI Generated");
+      toast.success(sourceLabel ? `已存進素材庫 · 來源：AI Generated（參考 ${sourceLabel}）` : "已存進素材庫 · 來源：AI Generated");
     } finally {
       setBusy(false);
     }
@@ -229,6 +316,12 @@ function ImageStudio() {
 
   return (
     <div className="space-y-4">
+      {referenceImage ? (
+        <div className="rounded-2xl bg-bg p-3">
+          <p className="text-xs text-muted">參考畫面{sourceLabel ? ` · ${sourceLabel}` : ""}</p>
+          <img src={referenceImage} alt="風格參考" className="mt-2 max-h-40 rounded-xl object-contain" />
+        </div>
+      ) : null}
       <label className="block text-sm">
         我想做
         <Input value={idea} onChange={(e) => setIdea(e.target.value)} />
@@ -268,18 +361,35 @@ function ImageStudio() {
   );
 }
 
-function VisionStudio({ onAction }: { onAction: (id: string) => void }) {
-  const [note, setNote] = useState("");
+function VisionStudio({
+  onAction,
+  seedImage,
+  seedNote,
+  seedAssetId,
+}: {
+  onAction: (action: { id: string; report: VisionReport; preview: string | null; note: string }) => void;
+  seedImage?: string;
+  seedNote?: string;
+  seedAssetId?: string;
+}) {
+  const assets = useStudio((s) => s.assets);
+  const [note, setNote] = useState(seedNote || "");
   const [report, setReport] = useState<VisionReport | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(seedImage || null);
   const [busy, setBusy] = useState(false);
+  const started = useRef(false);
 
-  async function onFile(file: File) {
-    const dataUrl = await fileToDataUrl(file);
-    setPreview(dataUrl);
+  async function runAnalyze(dataUrl: string, extraNote: string) {
     setBusy(true);
     try {
-      const result = await analyzeImage({ data: { imageDataUrl: dataUrl, note } });
+      const result = await analyzeImage({
+        data: {
+          imageDataUrl:
+            compactDataUrl(dataUrl, 5_500_000) ||
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+          note: extraNote || "原圖較大，以檔名與畫面描述分析",
+        },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -288,6 +398,29 @@ function VisionStudio({ onAction }: { onAction: (id: string) => void }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    if (seedImage) {
+      setPreview(seedImage);
+      void runAnalyze(seedImage, seedNote || "");
+      return;
+    }
+    if (!seedAssetId) return;
+    const asset = assets.find((item) => item.id === seedAssetId);
+    void loadAssetDataUrl({ id: seedAssetId, seedSrc: asset?.seedSrc }).then((dataUrl) => {
+      if (!dataUrl) return;
+      setPreview(dataUrl);
+      void runAnalyze(dataUrl, seedNote || asset?.name || "");
+    });
+  }, [seedImage, seedAssetId, seedNote, assets]);
+
+  async function onFile(file: File) {
+    const dataUrl = await fileToDataUrl(file);
+    setPreview(dataUrl);
+    await runAnalyze(dataUrl, note);
   }
 
   return (
@@ -311,7 +444,12 @@ function VisionStudio({ onAction }: { onAction: (id: string) => void }) {
           <ul className="flex flex-wrap gap-2 pt-2">
             {report.actions.map((action) => (
               <li key={action.id}>
-                <Button size="sm" variant="secondary" onClick={() => onAction(action.id)}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  data-testid={`vision-action-${action.id}`}
+                  onClick={() => onAction({ id: action.id, report, preview, note })}
+                >
                   {action.label}
                 </Button>
               </li>
@@ -323,14 +461,35 @@ function VisionStudio({ onAction }: { onAction: (id: string) => void }) {
   );
 }
 
-function ConvertStudio() {
+function ConvertStudio({
+  seedKind,
+  seedIdea,
+  onMakeCampaign,
+}: {
+  seedKind?: ContentKind;
+  seedIdea?: string;
+  onMakeCampaign: () => void;
+}) {
   const projects = useStudio((s) => s.projects);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const project = projects.find((p) => p.id === lastProjectId);
-  const [kind, setKind] = useState<ContentKind>("carousel");
+  const [kind, setKind] = useState<ContentKind>(seedKind || "carousel");
+
+  useEffect(() => {
+    if (seedKind) setKind(seedKind);
+  }, [seedKind]);
 
   if (!project?.plan) {
-    return <p className="text-sm text-muted">先在「活動宣傳」生成一篇，就可以一鍵轉成 Carousel、Story、Threads、LINE、Reels。</p>;
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted">先在「活動宣傳」生成一篇，就可以一鍵轉成 Carousel、Story、Threads、LINE、Reels。</p>
+        {seedIdea ? (
+          <Button data-testid="convert-to-campaign" onClick={onMakeCampaign}>
+            用剛才的圖去做完整宣傳
+          </Button>
+        ) : null}
+      </div>
+    );
   }
 
   const converted = convertPlan(project.plan, kind);
