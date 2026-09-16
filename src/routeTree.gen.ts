@@ -27,6 +27,7 @@ import { Route as CreateIndexRouteImport } from './routes/create.index'
 import { Route as CreateImageRouteImport } from './routes/create.image'
 import { Route as StudioIndexRouteImport } from './routes/studio.index'
 import { Route as StudioProjectIdRouteImport } from './routes/studio.$projectId'
+import { Route as ApiIgMediaIdRouteImport } from './routes/api/ig-media.$id'
 import { Route as ApiOauthCanvaCallbackRouteImport } from './routes/api/oauth.canva.callback'
 import { Route as ApiOauthCanvaStartRouteImport } from './routes/api/oauth.canva.start'
 import { Route as ApiOauthInstagramCallbackRouteImport } from './routes/api/oauth.instagram.callback'
@@ -122,6 +123,11 @@ const StudioProjectIdRoute = StudioProjectIdRouteImport.update({
   path: '/$projectId',
   getParentRoute: () => StudioRoute,
 } as any)
+const ApiIgMediaIdRoute = ApiIgMediaIdRouteImport.update({
+  id: '/api/ig-media/$id',
+  path: '/api/ig-media/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiOauthCanvaCallbackRoute = ApiOauthCanvaCallbackRouteImport.update({
   id: '/api/oauth/canva/callback',
   path: '/api/oauth/canva/callback',
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/campaigns/': typeof CampaignsIndexRoute
   '/create/': typeof CreateIndexRoute
   '/studio/': typeof StudioIndexRoute
+  '/api/ig-media/$id': typeof ApiIgMediaIdRoute
   '/api/oauth/canva/callback': typeof ApiOauthCanvaCallbackRoute
   '/api/oauth/canva/start': typeof ApiOauthCanvaStartRoute
   '/api/oauth/instagram/callback': typeof ApiOauthInstagramCallbackRoute
@@ -184,6 +191,7 @@ export interface FileRoutesByTo {
   '/campaigns': typeof CampaignsIndexRoute
   '/create': typeof CreateIndexRoute
   '/studio': typeof StudioIndexRoute
+  '/api/ig-media/$id': typeof ApiIgMediaIdRoute
   '/api/oauth/canva/callback': typeof ApiOauthCanvaCallbackRoute
   '/api/oauth/canva/start': typeof ApiOauthCanvaStartRoute
   '/api/oauth/instagram/callback': typeof ApiOauthInstagramCallbackRoute
@@ -209,6 +217,7 @@ export interface FileRoutesById {
   '/campaigns/': typeof CampaignsIndexRoute
   '/create/': typeof CreateIndexRoute
   '/studio/': typeof StudioIndexRoute
+  '/api/ig-media/$id': typeof ApiIgMediaIdRoute
   '/api/oauth/canva/callback': typeof ApiOauthCanvaCallbackRoute
   '/api/oauth/canva/start': typeof ApiOauthCanvaStartRoute
   '/api/oauth/instagram/callback': typeof ApiOauthInstagramCallbackRoute
@@ -235,6 +244,7 @@ export interface FileRouteTypes {
     | '/campaigns/'
     | '/create/'
     | '/studio/'
+    | '/api/ig-media/$id'
     | '/api/oauth/canva/callback'
     | '/api/oauth/canva/start'
     | '/api/oauth/instagram/callback'
@@ -256,6 +266,7 @@ export interface FileRouteTypes {
     | '/campaigns'
     | '/create'
     | '/studio'
+    | '/api/ig-media/$id'
     | '/api/oauth/canva/callback'
     | '/api/oauth/canva/start'
     | '/api/oauth/instagram/callback'
@@ -280,6 +291,7 @@ export interface FileRouteTypes {
     | '/campaigns/'
     | '/create/'
     | '/studio/'
+    | '/api/ig-media/$id'
     | '/api/oauth/canva/callback'
     | '/api/oauth/canva/start'
     | '/api/oauth/instagram/callback'
@@ -299,6 +311,7 @@ export interface RootRouteChildren {
   InspireRoute: typeof InspireRoute
   InstagramRoute: typeof InstagramRoute
   StudioRoute: typeof StudioRouteWithChildren
+  ApiIgMediaIdRoute: typeof ApiIgMediaIdRoute
   ApiOauthCanvaCallbackRoute: typeof ApiOauthCanvaCallbackRoute
   ApiOauthCanvaStartRoute: typeof ApiOauthCanvaStartRoute
   ApiOauthInstagramCallbackRoute: typeof ApiOauthInstagramCallbackRoute
@@ -433,6 +446,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioProjectIdRouteImport
       parentRoute: typeof StudioRoute
     }
+    '/api/ig-media/$id': {
+      id: '/api/ig-media/$id'
+      path: '/api/ig-media/$id'
+      fullPath: '/api/ig-media/$id'
+      preLoaderRoute: typeof ApiIgMediaIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/oauth/canva/callback': {
       id: '/api/oauth/canva/callback'
       path: '/api/oauth/canva/callback'
@@ -517,6 +537,7 @@ const rootRouteChildren: RootRouteChildren = {
   InspireRoute: InspireRoute,
   InstagramRoute: InstagramRoute,
   StudioRoute: StudioRouteWithChildren,
+  ApiIgMediaIdRoute: ApiIgMediaIdRoute,
   ApiOauthCanvaCallbackRoute: ApiOauthCanvaCallbackRoute,
   ApiOauthCanvaStartRoute: ApiOauthCanvaStartRoute,
   ApiOauthInstagramCallbackRoute: ApiOauthInstagramCallbackRoute,

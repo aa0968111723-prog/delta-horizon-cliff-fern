@@ -28,6 +28,8 @@ const DesignInput = z.object({
 const PublishInput = z.object({
   caption: z.string().min(1).max(2200),
   imageUrl: z.string().url().max(2000).optional(),
+  imageB64: z.string().min(24).max(4_000_000).optional(),
+  mime: z.string().max(80).optional(),
 });
 
 export const getOAuthStatus = createServerFn({ method: "POST" }).handler(async () => {
@@ -129,25 +131,36 @@ export const publishOrQueueInstagram = createServerFn({ method: "POST" })
     | { ok: true; mediaId: string }
     | { ok: false; error: string; caption: string; needsReauth?: boolean; needsPublicUrl?: boolean }
   > => {
-    const { isPublicHttpsUrl } = await import("@/lib/zen/ingest");
-    if (!data.imageUrl) {
-      return {
-        ok: false,
-        caption: data.caption,
-        needsPublicUrl: true,
-        error: "官方發布需要公開圖片網址。文案可先複製，或先標記已發布。",
-      };
+    const { instagramCanFetchUrl, publishHostMessage, decodePublishImageB64, igMediaPublicUrl } =
+      await import("@/lib/zen/ig-media");
+    let imageUrl = data.imageUrl?.trim() || "";
+    if (!instagramCanFetchUrl(imageUrl) && data.imageB64) {
+      const decoded = decodePublishImageB64(data.imageB64, data.mime);
+      if (decoded) {
+        const { putIgPublishMedia } = await import("@/lib/ai/ig-media.server");
+        const id = await putIgPublishMedia(decoded);
+        if (id) {
+          try {
+            const { getRequest } = await import("@tanstack/react-start/server");
+            const { publicOrigin } = await import("@/lib/oauth/session.server");
+            const request = getRequest();
+            if (request) imageUrl = igMediaPublicUrl(publicOrigin(request), id);
+          } catch {
+            /* keep pasted url */
+          }
+        }
+      }
     }
-    if (!isPublicHttpsUrl(data.imageUrl)) {
+    if (!imageUrl || !instagramCanFetchUrl(imageUrl)) {
       return {
         ok: false,
         caption: data.caption,
         needsPublicUrl: true,
-        error: "圖片網址必須是公開 https，不能是本機或內網。",
+        error: publishHostMessage({ hosted: Boolean(imageUrl), canFetch: instagramCanFetchUrl(imageUrl) }),
       };
     }
     const { publishInstagramImage } = await import("@/lib/oauth/instagram.server");
-    const result = await publishInstagramImage({ imageUrl: data.imageUrl, caption: data.caption });
+    const result = await publishInstagramImage({ imageUrl, caption: data.caption });
     if (result.ok) return result;
     return { ...result, caption: data.caption };
   });

@@ -136,6 +136,20 @@ export function InstagramCenter() {
     if (!lastPack) return null;
     return formatScript(convertFromPlan(lastPack.plan), previewFormat, previewProject?.contentKind);
   }, [lastPack, previewFormat, previewProject?.contentKind]);
+  const previewAssetId =
+    lastVisualAssetId ??
+    filmstrip?.assetIds[previewProject?.slideIndex ?? 0] ??
+    filmstrip?.assetIds[0] ??
+    previewPages[0]?.layers.find((layer) => layer.type === "image")?.assetId ??
+    previewPages[0]?.background.assetId ??
+    assets[0]?.id ??
+    null;
+  const previewImageSrc = resolveAssetSrc(
+    previewAssetId,
+    urls,
+    assets.find((asset) => asset.id === previewAssetId)?.seedSrc ??
+      SEED_ASSETS.find((asset) => asset.id === previewAssetId)?.seedSrc,
+  );
 
   useEffect(() => {
     setTab(igView);
@@ -453,6 +467,7 @@ export function InstagramCenter() {
             key={id}
             size="sm"
             variant={tab === id ? "default" : "secondary"}
+            data-testid={`ig-tab-${id}`}
             onClick={() => {
               setTab(id);
               setIgView(id);
@@ -708,7 +723,11 @@ export function InstagramCenter() {
               <Button size="sm" variant="secondary" onClick={scheduleCurrent} disabled={!caption.trim()}>
                 排進日曆
               </Button>
-              <PublishIgButton caption={caption} onPublished={() => rememberPreviewPublished()} />
+              <PublishIgButton
+                caption={caption}
+                imageSrc={previewImageSrc}
+                onPublished={() => rememberPreviewPublished()}
+              />
               <Button size="sm" variant="ghost" onClick={rememberPreviewPublished} disabled={!caption.trim()}>
                 寫進過去 IG
               </Button>
@@ -741,7 +760,14 @@ export function InstagramCenter() {
                 </p>
                 <p className="text-sm">{item.title}</p>
                 <div className="mt-2">
-                  <PublishIgButton caption={item.captionPreview} />
+                  <PublishIgButton
+                    caption={item.captionPreview}
+                    imageSrc={resolveAssetSrc(
+                      schedulePreviewAssetId(item, campaigns),
+                      urls,
+                      assets.find((asset) => asset.id === schedulePreviewAssetId(item, campaigns))?.seedSrc,
+                    )}
+                  />
                 </div>
               </li>
             ))}

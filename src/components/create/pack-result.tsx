@@ -35,6 +35,10 @@ export function PackResult({
       </p>
       <h3 className="mt-2 font-display text-2xl">{pack.copy.hook}</h3>
       <p className="mt-2 text-sm text-muted">{pack.insight}</p>
+      <p className="mt-2 text-xs text-muted" data-testid="pack-student-review">
+        學生視角：停下？{pack.copy.studentReview.wouldStop} 太宗教？{pack.copy.studentReview.tooReligious}{" "}
+        太 AI？{pack.copy.studentReview.tooAi}
+      </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {pack.citedSources.map((src) => (
           <Badge key={`${src.source}-${src.label}`} variant="default">

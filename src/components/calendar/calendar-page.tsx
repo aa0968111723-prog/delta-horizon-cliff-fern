@@ -8,15 +8,17 @@ import { openScheduledPreview } from "@/components/create/open-preview";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
+import { useAssetUrls, resolveAssetSrc } from "@/hooks/use-asset-urls";
 import { generateCopyPack } from "@/lib/ai/copy";
 import { uid } from "@/lib/studio/ids";
 import type { ContentKind } from "@/lib/studio/types";
 import { copyKindForContent } from "@/lib/zen/convert";
 import { igDnaBlock } from "@/lib/zen/insights";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
-import { isWaveScheduleItem, placeScheduleItems, rhythmHint } from "@/lib/zen/schedule";
+import { isWaveScheduleItem, placeScheduleItems, rhythmHint, schedulePreviewAssetId } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
+import { useStudio } from "@/stores/studio-store";
 
 type Mode = "month" | "week" | "agenda";
 
@@ -45,6 +47,8 @@ export function CalendarPage() {
   const navigate = useNavigate();
   const schedule = useCreative((s) => s.schedule);
   const igPosts = useCreative((s) => s.igPosts);
+  const campaigns = useCreative((s) => s.campaigns);
+  const assets = useStudio((s) => s.assets);
   const moveSchedule = useCreative((s) => s.moveSchedule);
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
   const patchSchedule = useCreative((s) => s.patchSchedule);
@@ -57,6 +61,18 @@ export function CalendarPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [extendBusy, setExtendBusy] = useState<string | null>(null);
   const editing = schedule.find((item) => item.id === editingId);
+  const previewIds = useMemo(
+    () =>
+      [
+        ...new Set(
+          schedule
+            .map((item) => schedulePreviewAssetId(item, campaigns))
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ],
+    [schedule, campaigns],
+  );
+  const urls = useAssetUrls(previewIds);
 
   useEffect(() => {
     if (window.matchMedia("(max-width: 640px)").matches) setMode("agenda");
@@ -297,6 +313,11 @@ export function CalendarPage() {
                     <>
                       <PublishIgButton
                         caption={item.captionPreview}
+                        imageSrc={resolveAssetSrc(
+                          schedulePreviewAssetId(item, campaigns),
+                          urls,
+                          assets.find((asset) => asset.id === schedulePreviewAssetId(item, campaigns))?.seedSrc,
+                        )}
                         onPublished={() => {
                           markPublished(item.id);
                           toast.success("已寫進過去 IG，下次生成會參考這則");
