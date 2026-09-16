@@ -82,8 +82,10 @@ export function PackResult({
         <p className="mt-1 text-sm">Post · Story · Carousel · Reels · Threads · LINE</p>
         <Button
           className="mt-3 min-h-11 w-full"
+          data-testid="format-suite"
           disabled={locked}
           onClick={() => {
+            toast.message("正在做成 Post、Story、Carousel、Reels、Threads、LINE…");
             setSuiteBusy(true);
             void applyFormatSuite({
               pack,
@@ -97,6 +99,9 @@ export function PackResult({
                 }
                 toast.success(`已做成 ${result.count} 種格式並排進日曆`);
                 return onSuiteDone?.(result);
+              })
+              .catch((err) => {
+                toast.error(err instanceof Error ? err.message : "做成整套時出了問題");
               })
               .finally(() => setSuiteBusy(false));
           }}

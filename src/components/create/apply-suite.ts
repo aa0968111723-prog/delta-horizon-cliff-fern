@@ -2,11 +2,11 @@ import { applyVisualDirection } from "@/components/create/apply-visual";
 import { uid } from "@/lib/studio/ids";
 import { tonightAt } from "@/lib/zen/convert";
 import { formatSuitePlan } from "@/lib/zen/from-idea";
-import type { CreativePack } from "@/lib/zen/types";
+import type { CreativePack, ScheduleItem } from "@/lib/zen/types";
 import { useCreative } from "@/stores/creative-store";
 
 export type ApplySuiteResult =
-  | { ok: true; count: number; scheduled: number; firstAssetId: string }
+  | { ok: true; count: number; scheduled: number; firstAssetId: string; titles: string[] }
   | { ok: false; error: string };
 
 export async function applyFormatSuite(input: {
@@ -14,10 +14,9 @@ export async function applyFormatSuite(input: {
   directionId?: string;
   campaignId?: string | null;
 }): Promise<ApplySuiteResult> {
-  const creative = useCreative.getState();
   const campaignId =
     input.campaignId ??
-    creative.campaigns.find(
+    useCreative.getState().campaigns.find(
       (campaign) =>
         campaign.name === input.pack.campaignName || input.pack.campaignName.includes(campaign.name),
     )?.id ??
@@ -25,9 +24,9 @@ export async function applyFormatSuite(input: {
   const steps = formatSuitePlan(input.pack);
   const generatedIds: Partial<Record<(typeof steps)[number]["id"], string>> = {};
   const assetIds: string[] = [];
+  const pending: ScheduleItem[] = [];
   let firstAssetId = "";
   let firstFormatId = steps[0]?.formatId;
-  let scheduled = 0;
 
   for (const step of steps) {
     const reuseFrom = step.reuseFrom ? generatedIds[step.reuseFrom] : undefined;
@@ -48,9 +47,9 @@ export async function applyFormatSuite(input: {
       firstFormatId = result.formatId;
     }
     assetIds.push(result.assetId);
-    creative.upsertSchedule({
+    pending.push({
       id: uid("sch"),
-      title: `${input.pack.copy.hook} · ${step.label}`,
+      title: `${step.label} · ${input.pack.campaignName}`,
       contentKind: step.contentKind,
       status: "scheduled",
       scheduledAt: tonightAt(step.days),
@@ -59,22 +58,38 @@ export async function applyFormatSuite(input: {
       campaignId,
       captionPreview: step.caption,
     });
-    scheduled += 1;
   }
 
-  if (firstAssetId && firstFormatId) {
-    creative.setIgPreview(firstAssetId, firstFormatId);
+  useCreative.setState((state) => ({
+    lastVisualAssetId: firstAssetId || state.lastVisualAssetId,
+    igView: firstAssetId ? "preview" : state.igView,
+    ...(firstFormatId ? { igFormat: firstFormatId } : {}),
+    schedule: [...pending, ...state.schedule.filter((row) => !pending.some((item) => item.id === row.id))],
+    campaigns: campaignId
+      ? state.campaigns.map((campaign) =>
+          campaign.id === campaignId
+            ? {
+                ...campaign,
+                coverAssetId: generatedIds.post ?? campaign.coverAssetId,
+                relatedAssetIds: [...new Set([...assetIds, ...campaign.relatedAssetIds])].slice(0, 8),
+                updatedAt: Date.now(),
+              }
+            : campaign,
+        )
+      : state.campaigns,
+  }));
+
+  const liveIds = new Set(useCreative.getState().schedule.map((item) => item.id));
+  const missing = pending.filter((item) => !liveIds.has(item.id));
+  if (missing.length) {
+    return { ok: false, error: `日曆沒寫進去：${missing.map((item) => item.title).join("、")}` };
   }
 
-  if (campaignId) {
-    const campaign = useCreative.getState().campaigns.find((row) => row.id === campaignId);
-    if (campaign) {
-      creative.patchCampaign(campaignId, {
-        coverAssetId: generatedIds.post ?? campaign.coverAssetId,
-        relatedAssetIds: [...new Set([...assetIds, ...campaign.relatedAssetIds])].slice(0, 8),
-      });
-    }
-  }
-
-  return { ok: true, count: steps.length, scheduled, firstAssetId };
+  return {
+    ok: true,
+    count: pending.length,
+    scheduled: pending.length,
+    firstAssetId,
+    titles: pending.map((item) => item.title),
+  };
 }
