@@ -90,6 +90,8 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
     favorite: Boolean(raw.favorite),
     lastUsedAt: raw.lastUsedAt ?? null,
     useCount: raw.useCount ?? 0,
+    analysis: raw.analysis,
+    generationPrompt: raw.generationPrompt,
   };
 }
 

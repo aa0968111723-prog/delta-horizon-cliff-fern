@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AssetCard } from "@/components/assets/asset-card";
 import { AssetDetailSheet } from "@/components/assets/asset-detail";
+import { ImageStudio } from "@/components/assets/image-studio";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { EmptyState, ErrorState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
@@ -176,7 +177,7 @@ export function AssetLibrary() {
       <PageHeader
         kicker="淡江禪學社 Creative Brain"
         title="AI Creative Library"
-        description="集中活動照片、社員、淡江校園、淡水、龜龜、三色光與歷屆網宣。現在可搜尋、收藏並放入創作，後續會加入 AI 分析與跨來源素材。"
+        description="集中活動照片、社員、淡江校園、淡水、龜龜、三色光與歷屆網宣；生成新主視覺、分析素材，再直接放入 Studio。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="assets" />
@@ -188,6 +189,7 @@ export function AssetLibrary() {
         }
       />
 
+      <ImageStudio />
       <StorageNotice className="mt-4" />
 
       <input
@@ -386,6 +388,7 @@ export function AssetLibrary() {
         onDelete={() => {
           if (active) setPendingDelete(active.id);
         }}
+        onCreated={(id) => setActiveId(id)}
       />
 
       <AlertDialog open={Boolean(pendingDelete)} onOpenChange={() => setPendingDelete(null)}>

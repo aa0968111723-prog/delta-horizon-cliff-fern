@@ -1,4 +1,4 @@
-import { Star, Trash2 } from "lucide-react";
+import { BrainCircuit, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,11 @@ export function AssetCard({
               {usageLabel(usage)}
             </Badge>
           </span>
+          {asset.analysis ? (
+            <span className="absolute top-2 right-2 rounded-full bg-surface/90 p-1.5 text-accent shadow-sm" title="已有 AI 視覺分析">
+              <BrainCircuit className="size-3.5" />
+            </span>
+          ) : null}
         </div>
       </button>
       <div className="space-y-1.5 px-3 py-2.5">

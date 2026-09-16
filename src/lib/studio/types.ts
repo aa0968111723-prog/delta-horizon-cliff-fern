@@ -123,6 +123,22 @@ export type AssetSourceKind = "upload" | "seed" | "generated";
 
 export type AssetUsageStatus = "in-use" | "used" | "unused";
 
+export type AssetAnalysis = {
+  summary: string;
+  subjects: string[];
+  colors: string[];
+  lighting: string;
+  composition: string;
+  textHierarchy: string;
+  brandFit: string;
+  studentFit: string;
+  stopPower: string;
+  risks: string[];
+  recommendations: string[];
+  suggestedTags: string[];
+  analyzedAt: number;
+};
+
 export type AssetMeta = {
   id: string;
   name: string;
@@ -142,6 +158,8 @@ export type AssetMeta = {
   favorite: boolean;
   lastUsedAt: number | null;
   useCount: number;
+  analysis?: AssetAnalysis;
+  generationPrompt?: string;
 };
 
 export type Background = {
