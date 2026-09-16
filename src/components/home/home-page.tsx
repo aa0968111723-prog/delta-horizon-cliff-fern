@@ -316,6 +316,16 @@ export function HomePage() {
                     >
                       看畫面
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        markPublished(item.id);
+                        toast.success("已寫進過去 IG，下次生成會參考這則");
+                      }}
+                    >
+                      寫進過去 IG
+                    </Button>
                   </div>
                 </li>
               );
