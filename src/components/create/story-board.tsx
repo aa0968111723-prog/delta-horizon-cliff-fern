@@ -21,14 +21,17 @@ export function StoryBoard({
   onSchedule?: () => void;
 }) {
   const frames = useMemo(() => storyFrameLines(plan), [plan]);
-  const storedIds = useStudio((s) =>
-    campaignId
-      ? s.schedule
-          .filter((item) => item.campaignId === campaignId && item.kind === "story")
-          .sort((a, b) => a.scheduledAt - b.scheduledAt)
-          .map((item) => item.imageAssetId)
-          .filter((id): id is string => Boolean(id))
-      : [],
+  const schedule = useStudio((s) => s.schedule);
+  const storedIds = useMemo(
+    () =>
+      campaignId
+        ? schedule
+            .filter((item) => item.campaignId === campaignId && item.kind === "story")
+            .sort((a, b) => a.scheduledAt - b.scheduledAt)
+            .map((item) => item.imageAssetId)
+            .filter((id): id is string => Boolean(id))
+        : [],
+    [schedule, campaignId],
   );
   const [busy, setBusy] = useState(false);
   const [localIds, setLocalIds] = useState<string[]>([]);
