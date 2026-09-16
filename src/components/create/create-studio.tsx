@@ -309,21 +309,21 @@ export function CreateStudio({
               setVision(result.report);
               toast.success(`已讀「${asset.name}」，可以延續風格或整套生成`);
               if (autoRun) {
-                if (mode === "image") await runDirections(result.report);
+                if (mode === "image") await runDirections(result.report, { silent: true });
                 else await runPack({ vision: result.report });
               }
             } else if (autoRun) {
-              if (mode === "image") await runDirections();
+              if (mode === "image") await runDirections(undefined, { silent: true });
               else await runPack();
             }
           } else if (autoRun) {
-            if (mode === "image") await runDirections();
+            if (mode === "image") await runDirections(undefined, { silent: true });
             else await runPack();
           }
         } catch {
           toast.error("這張圖讀不到，改丟一張進來也可以。");
           if (autoRun) {
-            if (mode === "image") await runDirections();
+            if (mode === "image") await runDirections(undefined, { silent: true });
             else await runPack();
           }
         } finally {
@@ -335,13 +335,13 @@ export function CreateStudio({
     if (mode === "vision") fileRef.current?.click();
     if (autoRun) {
       ran.current = true;
-      if (mode === "image") void runDirections();
+      if (mode === "image") void runDirections(undefined, { silent: true });
       else void runPack();
       return;
     }
     if (mode === "image") {
       ran.current = true;
-      void runDirections();
+      void runDirections(undefined, { silent: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRun, initialAssetId, mode]);
@@ -399,7 +399,7 @@ export function CreateStudio({
     }
   }
 
-  async function runDirections(report?: VisionReport | null) {
+  async function runDirections(report?: VisionReport | null, opts?: { silent?: boolean }) {
     const vis = report !== undefined ? report : vision;
     setBusy(true);
     try {
@@ -420,7 +420,7 @@ export function CreateStudio({
         setDirections(result.directions);
         setDirId(result.directions[0]?.id ?? null);
         if (pack) setPack({ ...pack, directions: result.directions });
-        toast.success("三個視覺方向好了，先選一個再生成圖");
+        if (!opts?.silent) toast.success("三個視覺方向好了，先選一個再生成圖");
       }
     } finally {
       setBusy(false);
@@ -1150,7 +1150,36 @@ export function CreateStudio({
         <img src={imageSrc} alt="生成或上傳的畫面" className="mt-6 w-full rounded-3xl shadow-[var(--shadow-artboard)]" />
       ) : null}
 
-      {hits.length || gatherNote || pickedHits.length ? (
+      {mode === "image" && busy && !shownDirections.length ? (
+        <p className="mt-4 text-sm text-muted">先想三個視覺方向，也同時在找過去的茶會與品牌素材…</p>
+      ) : null}
+
+      {shownDirections.length ? (
+        <VisualDirectionBoard
+          directions={shownDirections}
+          dirId={activeDir?.id ?? dirId}
+          activeDir={activeDir}
+          aspect={aspect}
+          busy={busy}
+          imageSrc={imageSrc}
+          onPick={(dir) => {
+            setDirId(dir.id);
+            if (pack && dir.id !== dirId && dir.imagePrompt) {
+              void runImage(dir.imagePrompt, aspect, { silent: true });
+            }
+          }}
+          onAspect={setAspect}
+          onGenerate={() => {
+            if (activeDir?.imagePrompt) void runImage(activeDir.imagePrompt);
+          }}
+          onVary={(kind) => {
+            if (activeDir?.imagePrompt) void runImage(varyImagePrompt(activeDir.imagePrompt, kind));
+          }}
+          onRefresh={() => void runDirections()}
+        />
+      ) : null}
+
+      {(hits.length || gatherNote || pickedHits.length) && (mode !== "image" || shownDirections.length) ? (
         <div className="mt-4">
           <p className="text-sm text-muted">{gatherNote || (hits.length ? `找到 ${hits.length} 個相關素材 · 根據過去內容準備 3 個方向` : "先用品牌記憶生成 3 個方向")}</p>
           {pickedHits.length ? (
@@ -1197,31 +1226,6 @@ export function CreateStudio({
             }}
           />
         </div>
-      ) : null}
-
-      {shownDirections.length ? (
-        <VisualDirectionBoard
-          directions={shownDirections}
-          dirId={activeDir?.id ?? dirId}
-          activeDir={activeDir}
-          aspect={aspect}
-          busy={busy}
-          imageSrc={imageSrc}
-          onPick={(dir) => {
-            setDirId(dir.id);
-            if (pack && dir.id !== dirId && dir.imagePrompt) {
-              void runImage(dir.imagePrompt, aspect, { silent: true });
-            }
-          }}
-          onAspect={setAspect}
-          onGenerate={() => {
-            if (activeDir?.imagePrompt) void runImage(activeDir.imagePrompt);
-          }}
-          onVary={(kind) => {
-            if (activeDir?.imagePrompt) void runImage(varyImagePrompt(activeDir.imagePrompt, kind));
-          }}
-          onRefresh={() => void runDirections()}
-        />
       ) : null}
 
       {pack ? (
@@ -1490,7 +1494,7 @@ function VisualDirectionBoard({
   onRefresh: () => void;
 }) {
   return (
-    <section className="mt-8" data-visual-directions="">
+    <section className="mt-6" data-visual-directions="">
       <h2 className="text-sm font-medium">三個視覺方向</h2>
       <p className="mt-1 text-xs text-muted">每個方向有概念、配色、構圖、字、主文案。選一個再生成，不要直接出禪風海報。</p>
       <ul className="mt-3 grid gap-3 md:grid-cols-3">
