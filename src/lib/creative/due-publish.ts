@@ -91,6 +91,10 @@ export function duePublishTargets(input: {
     if (!isReady(project.status)) continue;
     if (!isDue(project.scheduledAt)) continue;
     if (seenProjects.has(project.id)) continue;
+    const boundToWave = input.campaigns.some((campaign) =>
+      campaign.waves.some((wave) => wave.projectId === project.id),
+    );
+    if (boundToWave) continue;
     const cover = coverOf(project);
     targets.push({
       campaignId: project.campaignId ?? undefined,

@@ -73,7 +73,7 @@ export function suggestWaves(
         topic: item.topic,
         contentKind: item.contentKind,
         projectId: null,
-        scheduledAt: when.getTime(),
+        scheduledAt: ensureFutureSlot(when.getTime(), from.getTime()),
         publishedAt: null,
         status,
       };
@@ -125,7 +125,7 @@ export function planPreviewSchedule(input: {
     : undefined;
   const hint = `${input.project.name} ${input.caption}`;
   const date = existing?.date ?? inferEventDate(hint, input.now);
-  const scheduledAt = scheduledAtFor(input.project.contentKind, date);
+  const scheduledAt = scheduledAtFor(input.project.contentKind, date, input.now?.getTime());
   return {
     action: "schedule" as const,
     campaignId: existing?.id ?? null,
@@ -161,11 +161,26 @@ export function offsetDaysForKind(kind: ContentKind): number {
   return -10;
 }
 
+const DAY_MS = 86400000;
+
+/** 今天 19:00 已過就改明天晚上，避免一排進月曆就被到期發布吃掉。 */
+export function nextTaipeiEvening(now: number) {
+  const today = isoFromMs(now);
+  const tonight = Date.parse(`${today}T19:00:00+08:00`);
+  if (Number.isNaN(tonight)) return now + DAY_MS;
+  return tonight > now ? tonight : tonight + DAY_MS;
+}
+
+export function ensureFutureSlot(scheduledAt: number, now = Date.now()) {
+  if (scheduledAt > now) return scheduledAt;
+  return nextTaipeiEvening(now);
+}
+
 export function scheduledAtFor(kind: ContentKind, campDate?: string, now = Date.now()): number {
-  if (!campDate) return now + 86400000;
+  if (!campDate) return nextTaipeiEvening(now);
   const event = Date.parse(`${campDate}T19:00:00+08:00`);
-  if (Number.isNaN(event)) return now + 86400000;
-  return event + offsetDaysForKind(kind) * 86400000;
+  if (Number.isNaN(event)) return nextTaipeiEvening(now);
+  return ensureFutureSlot(event + offsetDaysForKind(kind) * DAY_MS, now);
 }
 
 export function waveIntentForKind(kind: ContentKind): string {

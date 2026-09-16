@@ -1012,7 +1012,7 @@ export function CreateStudio({
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-20 md:px-8 md:py-10">
       <p className="text-xs tracking-[0.18em] text-muted uppercase">AI 創作台</p>
       <h1 className="mt-1 font-display text-3xl md:text-4xl">把一句話變成整套網宣</h1>
       <p className="mt-2 text-sm text-muted">文案、方向、Carousel、Story、Threads、Reels 會一起出來。不會出現 Agent 管理。</p>
@@ -1315,6 +1315,7 @@ export function CreateStudio({
             hook={pack.plan.hook}
             caption={copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook}
             imageSrc={imageSrc}
+            storySrc={reelsCoverSrc}
             handle="@tkuzen"
           />
 
@@ -1476,30 +1477,42 @@ function IgPhonePreview({
   hook,
   caption,
   imageSrc,
+  storySrc,
   handle,
 }: {
   hook: string;
   caption: string;
   imageSrc: string | null;
+  storySrc?: string | null;
   handle: string;
 }) {
   return (
     <div>
       <h2 className="text-sm font-medium">IG Preview</h2>
-      <div className="mx-auto mt-3 w-[min(100%,280px)] rounded-[2rem] bg-[#1c1a16] p-3 text-[#f3eee4] shadow-[var(--shadow-artboard)]">
-        <p className="px-1 text-xs">{handle}</p>
-        <div className="mt-2 aspect-4/5 overflow-hidden rounded-2xl bg-linear-to-b from-[#2a6a64] to-[#161410]">
-          {imageSrc ? (
-            <img src={imageSrc} alt="" className="size-full object-cover" />
-          ) : (
-            <div className="flex size-full flex-col justify-end p-4">
-              <p className="font-display text-xl leading-snug">{hook}</p>
-            </div>
-          )}
+      <div className="mt-3 flex flex-wrap items-start justify-center gap-4">
+        <div className="w-[min(100%,280px)] rounded-[2rem] bg-[#1c1a16] p-3 text-[#f3eee4] shadow-[var(--shadow-artboard)]">
+          <p className="px-1 text-xs">{handle} · 貼文</p>
+          <div className="mt-2 aspect-4/5 overflow-hidden rounded-2xl bg-linear-to-b from-[#2a6a64] to-[#161410]">
+            {imageSrc ? (
+              <img src={imageSrc} alt="" className="size-full object-cover" />
+            ) : (
+              <div className="flex size-full flex-col justify-end p-4">
+                <p className="font-display text-xl leading-snug">{hook}</p>
+              </div>
+            )}
+          </div>
+          <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap px-1 font-sans text-[11px] leading-relaxed text-[#f3eee4]/90">
+            {caption}
+          </pre>
         </div>
-        <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap px-1 font-sans text-[11px] leading-relaxed text-[#f3eee4]/90">
-          {caption}
-        </pre>
+        {storySrc ? (
+          <div className="w-[min(42%,168px)] rounded-[2rem] bg-[#1c1a16] p-2 text-[#f3eee4] shadow-[var(--shadow-artboard)]" data-ig-story-preview="">
+            <p className="px-1 text-[10px]">{handle} · 限動</p>
+            <div className="mt-2 aspect-9/16 overflow-hidden rounded-2xl bg-linear-to-b from-[#2a6a64] to-[#161410]">
+              <img src={storySrc} alt="" className="size-full object-cover" />
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

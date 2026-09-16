@@ -123,9 +123,32 @@ test("ads-heavy mix drops stacked promo waves for a knowledge beat", () => {
 });
 
 test("carousel schedule is event minus 7 Taipei days", () => {
-  const at = scheduledAtFor("carousel", "2026-09-23");
+  const noon = Date.parse("2026-09-16T12:00:00+08:00");
+  const at = scheduledAtFor("carousel", "2026-09-23", noon);
   assert.equal(isoFromMs(at), "2026-09-16");
-  assert.equal(isoFromMs(scheduledAtFor("story", "2026-09-23")), "2026-09-22");
+  assert.equal(isoFromMs(scheduledAtFor("story", "2026-09-23", noon)), "2026-09-22");
+});
+
+test("carousel after 19:00 Taipei moves to the next evening instead of going due", () => {
+  const night = Date.parse("2026-09-16T20:30:00+08:00");
+  assert.equal(isoFromMs(scheduledAtFor("carousel", "2026-09-23", night)), "2026-09-17");
+  const plan = planPreviewSchedule({
+    project: {
+      id: "proj_night",
+      name: "下週有一場茶會 · Carousel",
+      status: "done",
+      scheduledAt: null,
+      campaignId: null,
+      contentKind: "carousel",
+      copy: { headline: "最近是不是很久沒坐好？", body: "帶一個朋友就好", cta: "晚上來坐一下" },
+    },
+    campaigns: [],
+    caption: "最近是不是很久沒坐好？",
+    now: new Date(night),
+  });
+  assert.equal(plan.action, "schedule");
+  if (plan.action !== "schedule") return;
+  assert.equal(plan.day, "2026-09-17");
 });
 
 test("binding a converted carousel moves 情緒共鳴 to the format date", () => {
@@ -140,7 +163,7 @@ test("binding a converted carousel moves 情緒共鳴 to the format date", () =>
   const next = bindScheduledWave(waves, {
     kind: "carousel",
     projectId: "proj_carousel",
-    scheduledAt: scheduledAtFor("carousel", campaignDate),
+    scheduledAt: scheduledAtFor("carousel", campaignDate, Date.parse("2026-09-16T12:00:00+08:00")),
     topic: "最近是不是很久沒坐好",
     status: "scheduled",
     campaignDate,
@@ -164,7 +187,7 @@ test("binding story does not steal 當天 or 回顧", () => {
   const next = bindScheduledWave(waves, {
     kind: "story",
     projectId: "proj_story",
-    scheduledAt: scheduledAtFor("story", campaignDate),
+    scheduledAt: scheduledAtFor("story", campaignDate, Date.parse("2026-09-16T12:00:00+08:00")),
     topic: "明天晚上見",
     status: "scheduled",
     campaignDate,

@@ -3,6 +3,8 @@ import { isoFromMs } from "./schedule.ts";
 import type { CalendarItem, ClubCampaign } from "./types.ts";
 import type { Artboard, Project, SourceRef } from "../studio/types.ts";
 
+const DAY_MS = 86400000;
+
 export type CalendarProject = Pick<
   Project,
   "id" | "name" | "status" | "contentKind" | "scheduledAt" | "publishedAt" | "campaignId" | "sourceRefs"
@@ -41,6 +43,39 @@ export function calendarCoverOf(input: {
     coverUrl: fromRefs.mediaUrl,
     coverFromCanva: fromCanva && Boolean(fromRefs.assetIds[0] || fromRefs.mediaUrl),
   };
+}
+
+/** 拖曳或改日期：波次與專案同一天，避免舊的 project.scheduledAt 被到期發布。 */
+export function rescheduleCalendarItem(input: {
+  campaigns: ClubCampaign[];
+  itemId: string;
+  dateIso: string;
+}): { campaigns: ClubCampaign[]; projectId?: string; scheduledAt: number } | null {
+  if (input.itemId.startsWith("event-")) return null;
+  const scheduledAt = Date.parse(`${input.dateIso}T19:00:00+08:00`);
+  if (Number.isNaN(scheduledAt)) return null;
+  for (const campaign of input.campaigns) {
+    const wave = campaign.waves.find(
+      (item) => item.id === input.itemId || (item.projectId != null && `proj-${item.projectId}` === input.itemId),
+    );
+    if (!wave) continue;
+    const event = Date.parse(`${campaign.date}T19:00:00+08:00`);
+    const offsetDays = Number.isNaN(event) ? wave.offsetDays : Math.round((scheduledAt - event) / DAY_MS);
+    return {
+      campaigns: input.campaigns.map((item) =>
+        item.id === campaign.id
+          ? {
+              ...item,
+              waves: item.waves.map((row) => (row.id === wave.id ? { ...row, scheduledAt, offsetDays } : row)),
+            }
+          : item,
+      ),
+      projectId: wave.projectId ?? undefined,
+      scheduledAt,
+    };
+  }
+  if (!input.itemId.startsWith("proj-")) return null;
+  return { campaigns: input.campaigns, projectId: input.itemId.slice("proj-".length), scheduledAt };
 }
 
 export function calendarCoverIds(items: CalendarItem[]) {

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calendarCoverOf, calendarFrom } from "./calendar.ts";
+import { calendarCoverOf, calendarFrom, rescheduleCalendarItem } from "./calendar.ts";
+import { isoFromMs } from "./schedule.ts";
 import { SEED_CAMPAIGNS } from "./memory-seed.ts";
 import { SEED_LIGHT_ID } from "../studio/seed-ids.ts";
 
@@ -91,4 +92,32 @@ test("a standalone scheduled project still carries its Canva asset", () => {
   );
   assert.equal(items[0]?.coverAssetId, "asset_canva_story");
   assert.equal(items[0]?.coverFromCanva, true);
+});
+
+test("reschedule keeps the wave and project on the new Taipei evening", () => {
+  const moved = rescheduleCalendarItem({
+    campaigns: [
+      {
+        ...SEED_CAMPAIGNS[0],
+        waves: [
+          {
+            id: "wave_tea_visual",
+            offsetDays: -7,
+            intent: "主視覺",
+            topic: "茶會 Carousel",
+            contentKind: "carousel",
+            projectId: "proj_canva_tea",
+            scheduledAt: Date.parse("2026-09-16T19:00:00+08:00"),
+            status: "scheduled",
+          },
+        ],
+      },
+    ],
+    itemId: "wave_tea_visual",
+    dateIso: "2026-09-18",
+  });
+  assert.ok(moved);
+  assert.equal(moved?.projectId, "proj_canva_tea");
+  assert.equal(isoFromMs(moved?.scheduledAt ?? 0), "2026-09-18");
+  assert.equal(moved?.campaigns[0]?.waves[0]?.offsetDays, -6);
 });

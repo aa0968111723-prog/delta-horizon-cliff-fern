@@ -7,7 +7,7 @@ import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { calendarCoverIds, calendarFrom } from "@/lib/creative/calendar";
+import { calendarCoverIds, calendarFrom, rescheduleCalendarItem } from "@/lib/creative/calendar";
 import { createSearchForCalendarItem } from "@/lib/creative/schedule";
 import { contentKindLabel } from "@/lib/studio/content";
 import { STATUS_META } from "@/lib/studio/status";
@@ -18,7 +18,6 @@ import type { CalendarItem } from "@/lib/creative/types";
 
 export function CalendarPage({ focusDay }: { focusDay?: string }) {
   const campaigns = useCreative((s) => s.campaigns);
-  const moveWave = useCreative((s) => s.moveWave);
   const duplicateWave = useCreative((s) => s.duplicateWave);
   const projects = useStudio((s) => s.projects);
   const navigate = useNavigate();
@@ -63,11 +62,11 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
   }, [cursor]);
 
   function onDrop(dateIso: string, itemId: string) {
-    for (const campaign of campaigns) {
-      if (campaign.waves.some((w) => w.id === itemId)) {
-        moveWave(campaign.id, itemId, dateIso);
-        return;
-      }
+    const result = rescheduleCalendarItem({ campaigns, itemId, dateIso });
+    if (!result) return;
+    useCreative.setState({ campaigns: result.campaigns });
+    if (result.projectId) {
+      useStudio.getState().updateProject(result.projectId, { scheduledAt: result.scheduledAt });
     }
   }
 
@@ -149,6 +148,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
               onExtend={() => extend(item)}
               onCopy={() => item.campaignId && item.waveId && duplicateWave(item.campaignId, item.waveId)}
               onCreate={() => createWave(item)}
+              onReschedule={(dateIso) => onDrop(dateIso, item.waveId ?? item.id)}
             />
           ))}
         </ul>
@@ -260,6 +260,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
                         item={item}
                         onExtend={() => extend(item)}
                         onCreate={() => createWave(item)}
+                        onReschedule={(dateIso) => onDrop(dateIso, item.waveId ?? item.id)}
                       />
                     </div>
                   ))}
@@ -297,6 +298,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
                             : undefined
                         }
                         onCreate={() => createWave(item)}
+                        onReschedule={(dateIso) => onDrop(dateIso, item.waveId ?? item.id)}
                       />
                     </div>
                   ))
@@ -359,6 +361,7 @@ function AgendaRow({
   onExtend,
   onCopy,
   onCreate,
+  onReschedule,
 }: {
   item: CalendarItem;
   urls: Record<string, string>;
@@ -366,6 +369,7 @@ function AgendaRow({
   onExtend: () => void;
   onCopy: () => void;
   onCreate: () => void;
+  onReschedule: (dateIso: string) => void;
 }) {
   return (
     <li
@@ -389,7 +393,7 @@ function AgendaRow({
           </p>
         </div>
       </div>
-      <ItemActions item={item} onExtend={onExtend} onCopy={onCopy} onCreate={onCreate} />
+      <ItemActions item={item} onExtend={onExtend} onCopy={onCopy} onCreate={onCreate} onReschedule={onReschedule} />
     </li>
   );
 }
@@ -399,11 +403,13 @@ function ItemActions({
   onExtend,
   onCopy,
   onCreate,
+  onReschedule,
 }: {
   item: CalendarItem;
   onExtend: () => void;
   onCopy?: () => void;
   onCreate?: () => void;
+  onReschedule?: (dateIso: string) => void;
 }) {
   return (
     <div className="mt-2 flex flex-wrap gap-2">
@@ -419,6 +425,21 @@ function ItemActions({
         <Button size="sm" variant="ghost" onClick={onCopy}>
           複製
         </Button>
+      ) : null}
+      {item.kind !== "event" && item.status !== "published" && onReschedule ? (
+        <label className="flex min-h-11 items-center gap-2 rounded-full bg-surface-2 px-3 text-xs text-muted">
+          改日期
+          <input
+            type="date"
+            value={item.date}
+            aria-label={`改 ${item.title} 的日期`}
+            className="min-h-11 min-w-[9.5rem] bg-transparent text-sm text-fg"
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next && next !== item.date) onReschedule(next);
+            }}
+          />
+        </label>
       ) : null}
       {item.projectId ? (
         <Button asChild size="sm" variant="ghost">

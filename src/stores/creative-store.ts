@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { calendarFrom } from "@/lib/creative/calendar";
+import { calendarFrom, rescheduleCalendarItem } from "@/lib/creative/calendar";
 import { bindScheduledWave as placeOnWave, suggestWaves, isoFromMs } from "@/lib/creative/schedule";
 import { annotateIgPosts, clubInsightsFromPosts, lastLearnFromInsights, lastLearnFromPosts } from "@/lib/club/insights";
 import { prepareIgIngest } from "@/lib/creative/ig-memory";
@@ -151,16 +151,8 @@ export const useCreative = create<CreativeState>()(
         });
       },
       moveWave: (campaignId, waveId, dateIso) => {
-        const campaign = get().campaigns.find((c) => c.id === campaignId);
-        if (!campaign) return;
-        const event = new Date(`${campaign.date}T00:00:00+08:00`);
-        const next = new Date(`${dateIso}T19:00:00+08:00`);
-        const offsetDays = Math.round((next.getTime() - event.getTime()) / 86400000);
-        get().updateCampaign(campaignId, {
-          waves: campaign.waves.map((w) =>
-            w.id === waveId ? { ...w, scheduledAt: next.getTime(), offsetDays } : w,
-          ),
-        });
+        const result = rescheduleCalendarItem({ campaigns: get().campaigns, itemId: waveId, dateIso });
+        if (result) set({ campaigns: result.campaigns });
       },
       duplicateWave: (campaignId, waveId) => {
         const campaign = get().campaigns.find((c) => c.id === campaignId);

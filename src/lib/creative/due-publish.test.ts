@@ -117,3 +117,29 @@ test("standalone scheduled project is due without a campaign wave", () => {
   assert.equal(due.length, 1);
   assert.equal(due[0].projectId, "proj_solo");
 });
+
+test("a dragged wave's old project date does not auto-publish", () => {
+  const campaigns: ClubCampaign[] = [
+    {
+      ...SEED_CAMPAIGNS[0],
+      waves: [
+        {
+          id: "wave_tea_visual",
+          offsetDays: -5,
+          intent: "主視覺",
+          topic: "茶會 Carousel",
+          contentKind: "carousel",
+          projectId: "proj_float_light",
+          scheduledAt: Date.parse("2026-09-18T19:00:00+08:00"),
+          status: "scheduled",
+        },
+      ],
+    },
+  ];
+  const due = duePublishTargets({
+    campaigns,
+    projects: [{ ...visualProject, status: "scheduled", scheduledAt: Date.parse("2026-09-16T19:00:00+08:00") }],
+    now: Date.parse("2026-09-16T20:30:00+08:00"),
+  });
+  assert.equal(due.length, 0);
+});
