@@ -105,7 +105,7 @@ export function nextCreateHint(posts: IgMemoryPost[] = SEED_IG_POSTS, now = Date
   }
   return {
     form,
-    line: `做一篇${form}。${learned.whatWorks}`,
+    line: `做一篇${form}。先讓學生覺得「這好像在講我」，再進活動。`,
     why: learned.whatWorks,
     avoid: learned.whatFails,
     rates: `問句收藏率 ${(learned.questionSaveRate * 100).toFixed(1)}% · 公告 ${(learned.announceSaveRate * 100).toFixed(1)}% · Carousel ${(learned.carouselSaveRate * 100).toFixed(1)}% · Reels ${(learned.reelsSaveRate * 100).toFixed(1)}%`,
