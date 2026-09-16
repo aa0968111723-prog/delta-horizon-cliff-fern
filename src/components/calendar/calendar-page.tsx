@@ -121,7 +121,10 @@ export function CalendarPage() {
 
   const agenda = useMemo(() => {
     const from = startOfDay(new Date()).getTime();
-    return items.filter((item) => item.at >= from).slice(0, 30);
+    const upcoming = items.filter((item) => item.at >= from);
+    const contents = upcoming.filter((item): item is Extract<DayItem, { type: "content" }> => item.type === "content");
+    const others = upcoming.filter((item) => item.type !== "content");
+    return [...groupSameNightPacks(contents), ...others].sort((a, b) => a.at - b.at).slice(0, 30);
   }, [items]);
 
   function itemsOn(day: Date) {
@@ -330,6 +333,7 @@ export function CalendarPage() {
         <AgendaList
           items={agenda}
           onRescheduleContent={(projectId, day) => moveProject(projectId, day)}
+          onReschedulePack={(ids, day) => movePack(ids, day)}
           onRescheduleWave={(campaignId, waveId, day) => moveWave(campaignId, waveId, day)}
         />
       ) : (
@@ -540,13 +544,80 @@ function CalendarChip({
   );
 }
 
+function AgendaPackCard({
+  item,
+  onReschedulePack,
+}: {
+  item: PackDayItem;
+  onReschedulePack: (ids: string[], day: Date) => void;
+}) {
+  const primary = item.members.find((member) => member.id === item.rootId) ?? item.members[0]!;
+  const ids = item.members.map((member) => member.id);
+  const kinds = [...new Set(item.members.map((member) => member.contentKind))].sort(
+    (a, b) => kindOrder(a) - kindOrder(b),
+  );
+  return (
+    <>
+      <div className="flex items-center gap-3">
+        <label className="w-16 shrink-0 text-xs tabular-nums text-muted">
+          <span className="block">{format(item.at, "M/d")}</span>
+          <span className="block text-subtle">{format(item.at, "HH:mm")}</span>
+          <input
+            type="date"
+            aria-label={`改期 ${packChipLabel(item.members)}`}
+            value={format(item.at, "yyyy-MM-dd")}
+            onChange={(e) => {
+              if (!e.target.value) return;
+              onReschedulePack(ids, new Date(`${e.target.value}T00:00:00`));
+            }}
+            className="mt-1 w-full min-h-8 rounded-lg bg-surface-2 px-1 text-xs text-fg"
+          />
+        </label>
+        <Link to="/studio/$projectId" params={{ projectId: primary.id }} className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">{primary.name}</span>
+          <span className="block truncate text-xs text-muted">{packChipLabel(item.members)}</span>
+        </Link>
+        <StatusBadge status={primary.status} />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {kinds.map((kind) => {
+          const member = item.members.find((entry) => entry.contentKind === kind) ?? primary;
+          return (
+            <Link
+              key={member.id}
+              to="/studio/$projectId"
+              params={{ projectId: member.id }}
+              className="inline-flex min-h-9 items-center rounded-full bg-surface-2 px-3 text-xs text-muted"
+            >
+              {contentKindLabel(kind)}
+            </Link>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <PackFlowBar projectId={primary.id} />
+        <DownloadPackButton projectId={primary.id} size="sm" variant="secondary" />
+      </div>
+      <PostPackBar
+        copy={primary.copy}
+        kind={primary.contentKind}
+        projectId={primary.id}
+        variant="compact"
+        className="mt-3 pt-2"
+      />
+    </>
+  );
+}
+
 function AgendaList({
   items,
   onRescheduleContent,
+  onReschedulePack,
   onRescheduleWave,
 }: {
-  items: DayItem[];
+  items: CellItem[];
   onRescheduleContent: (projectId: string, day: Date) => void;
+  onReschedulePack: (ids: string[], day: Date) => void;
   onRescheduleWave: (campaignId: string, waveId: string, day: Date) => void;
 }) {
   if (!items.length) return null;
@@ -554,7 +625,9 @@ function AgendaList({
     <ul className="mt-6 space-y-2">
       {items.map((item) => (
         <li key={keyOf(item)} className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
-          {item.type === "content" ? (
+          {item.type === "pack" ? (
+            <AgendaPackCard item={item} onReschedulePack={onReschedulePack} />
+          ) : item.type === "content" ? (
             <>
             <div className="flex items-center gap-3">
               <label className="w-16 shrink-0 text-xs tabular-nums text-muted">

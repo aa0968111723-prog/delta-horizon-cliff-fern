@@ -246,6 +246,12 @@ try {
   await expectText("日曆型態晶片", "IG 貼文");
   await expectText("日曆全套晶片", "全套 ·");
   await page.screenshot({ path: `${prefix}-calendar.png` });
+  await page.getByRole("button", { name: "清單" }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForTimeout(400);
+  await expectText("日曆清單全套", "全套 ·");
+  await page.screenshot({ path: `${prefix}-calendar-agenda.png` });
 
   // 8. 活動詳情 + AI 生成完整宣傳
   await page.goto(`${base}/campaigns`, { waitUntil: "networkidle" });
