@@ -48,3 +48,10 @@ export function compactDataUrl(dataUrl: string, max = 400_000) {
   if (dataUrl.length <= max) return dataUrl;
   return null;
 }
+
+export async function editUrlFromSrc(src?: string | null) {
+  if (!src) return null;
+  if (src.startsWith("data:")) return compactDataUrl(src);
+  const data = await urlToDataUrl(src);
+  return data ? compactDataUrl(data) : null;
+}

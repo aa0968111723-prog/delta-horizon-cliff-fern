@@ -23,6 +23,7 @@ import { folderSearchInput } from "@/lib/connections/presets";
 import { beginOAuth } from "@/lib/connections/begin";
 import { takeOAuthResume } from "@/lib/connections/resume";
 import { generateStudioImage } from "@/lib/image/studio";
+import { relatedNotesFromHits } from "@/lib/image/related";
 import { moodFromVariation, posterDataUrl } from "@/lib/image/poster";
 import { createGeneratedAsset } from "@/lib/studio/assets";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
@@ -32,6 +33,7 @@ import { pagesOf } from "@/lib/studio/layers";
 import { searchCreative, type SearchHit } from "@/lib/search/creative";
 import { adoptIdeaFromHit, assetFromHit, hitFromAsset, hitFromPack, mergeLocalHits, uniqueIds } from "@/lib/search/hits";
 import { styleBriefFromReport, styleReportFromHit } from "@/lib/vision/from-hit";
+import { editUrlFromSrc } from "@/lib/vision/media";
 import type { CampaignPlan, ContentKind, CreativeDirection } from "@/lib/studio/types";
 import { sourceLabel, useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -289,7 +291,7 @@ if (seedAutoRun) return;
     setStatus("已生成完整宣傳，並排入 Calendar。");
     setPublishHint(rasterReadyMessage(packed));
     toast.success("已生成主視覺、文案與多模態內容，並排入 Calendar");
-    void paintHero(direction, nextPlan, raw, packKind)
+    void paintHero(direction, nextPlan, raw, packKind, currentHits)
       .then((painted) => {
         if (!painted) return packed;
         setKindUrls((prev) => ({ ...prev, [packKind]: painted.url }));
@@ -497,8 +499,16 @@ if (seedAutoRun) return;
     return { id, url };
   }
 
-  async function paintHero(direction: CreativeDirection, currentPlan = plan, raw = idea, kind = packKind) {
+  async function paintHero(
+    direction: CreativeDirection,
+    currentPlan = plan,
+    raw = idea,
+    kind = packKind,
+    currentHits = hits,
+  ) {
     const format = formatById(formatIdFromKind(kind));
+    const refThumb = currentHits.find((item) => item.thumb)?.thumb;
+    const editUrl = await editUrlFromSrc(refThumb);
     const result = await generateStudioImage({
       data: {
         prompt: direction.imagePrompt,
@@ -506,6 +516,8 @@ if (seedAutoRun) return;
         eventName: parseIdea(raw).eventName,
         formatId: format.id,
         variation: kind === "story" ? "mood" : kind === "reels" ? "style" : kind === "threads" || kind === "line" ? "text" : "regen",
+        relatedNotes: relatedNotesFromHits(currentHits).slice(0, 400),
+        editUrls: editUrl ? [editUrl] : undefined,
       },
     });
     const url = result.urls[0];

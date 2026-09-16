@@ -20,3 +20,15 @@ test("empty live parse falls back to three mock directions", () => {
   assert.equal(dirs.length, 3);
   assert.equal(dirs[0]?.id, "dir_a");
 });
+
+test("story directions keep type in the safe zone", () => {
+  const dirs = mockDirections("我要宣傳茶會", "茶會", "", { formatId: "story" });
+  assert.match(dirs[0]?.composition ?? "", /安全區/);
+  assert.match(dirs.map((row) => row.imagePrompt).join(" "), /9:16/);
+});
+
+test("related source notes stay in the image prompt", () => {
+  const dirs = mockDirections("我要宣傳茶會", "茶會", "", { relatedNotes: "Google Drive / 2025 茶會" });
+  assert.match(dirs.map((row) => row.imagePrompt).join(" "), /Google Drive \/ 2025 茶會/);
+  assert.match(dirs.map((row) => row.imagePrompt).join(" "), /do not copy/);
+});
