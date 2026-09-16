@@ -1,73 +1,35 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import {
-  CalendarDays,
-  Camera,
-  ChevronRight,
-  Film,
-  Images,
-  LayoutGrid,
-  MessageCircleMore,
-  Sparkles,
-  WandSparkles,
-  type LucideIcon,
-} from "lucide-react";
-import { useMemo } from "react";
-import { CreativeBrainPanel } from "@/components/assets/creative-brain-panel";
-import { CreationLoop } from "@/components/shared/creation-loop";
+import { format as formatDate } from "date-fns";
+import { zhTW } from "date-fns/locale";
+import { ArrowRight, Images, Plus, Search, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CreateLaunchSheet } from "@/components/create/create-sheet";
+import { applyPickedDirection } from "@/components/create/apply-picked";
+import { createFromHit } from "@/components/create/from-hit";
+import { runIdeaPack } from "@/components/create/run-idea";
+import { PackResult } from "@/components/create/pack-result";
+import { ConvertPanel } from "@/components/create/convert-panel";
+import { DueSlotCard } from "@/components/instagram/due-slot";
+import { NewProjectDialog } from "@/components/dashboard/new-project-dialog";
+import { EmptyState } from "@/components/shared/empty-state";
+import { SearchHitCard } from "@/components/search/hit-card";
 import { ProjectCard } from "@/components/shared/project-card";
 import { Button } from "@/components/ui/button";
-import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { upcomingItems, daysUntilLabel } from "@/lib/creative/calendar";
-import { categoryLabel } from "@/lib/studio/assets";
-import type { Brief } from "@/lib/studio/types";
+import { Input } from "@/components/ui/input";
+import { useAssetUrls, resolveAssetSrc } from "@/hooks/use-asset-urls";
+import { searchCreativeWorld } from "@/lib/ai/oauth";
+import { APP_NAME, APP_TAGLINE, CLUB_SHORT } from "@/lib/zen/club";
+import { hitFromIgPost } from "@/lib/zen/from-hit";
+import { isCreateQuery } from "@/lib/zen/from-idea";
+import { composeMemoryNotes } from "@/lib/zen/ingest";
+import { learnAfterPublish, learnFromPosts, nextCreateHint, whyPostWorked } from "@/lib/zen/insights";
+import { inspirationCreateNotes, inspirationFeed, kindFromInspiration } from "@/lib/zen/inspiration";
+import { creativeSearch, groupSearchHits, type SearchHit } from "@/lib/zen/search";
+import { daysUntil, formatMd, seasonContext } from "@/lib/zen/season";
+import { dueScheduleItems, upcomingScheduleItems, schedulePreviewAssetId } from "@/lib/zen/schedule";
+import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
-import { useUi } from "@/stores/ui-store";
-
-const RECOMMENDED_BRIEF: Partial<Brief> = {
-  eventName: "09/24 浮游禪光",
-  product: "浮游禪光晚間活動",
-  schedule: "09/24 19:00–21:00",
-  location: "淡江大學校園",
-  audience: "剛開學還在適應課表、通勤、宿舍與新關係的淡江學生",
-  goal: "awareness",
-  features: "一個可以慢下來、整理最近心情，也能自在認識新朋友的晚上",
-  style: "夜晚、柔和三色光、有校園生活感，不宗教、不說教",
-  notes: "Hook 從開學後的忙亂與很久沒有好好坐下來切入；時間、地點與報名方式要一眼找到。",
-  deliverables: { post: true, carousel: true, story: true, reels: true },
-};
-
-const QUICK_STARTS: {
-  label: string;
-  hint: string;
-  icon: LucideIcon;
-  preset: Partial<Brief>;
-}[] = [
-  {
-    label: "生成 IG 貼文",
-    hint: "Hook、Caption、CTA",
-    icon: MessageCircleMore,
-    preset: { deliverables: { post: true, carousel: false, story: false, reels: false } },
-  },
-  {
-    label: "生成 Carousel",
-    hint: "六頁說完一個主題",
-    icon: LayoutGrid,
-    preset: { deliverables: { post: true, carousel: true, story: false, reels: false } },
-  },
-  {
-    label: "生成 Story",
-    hint: "3–5 張限動節奏",
-    icon: Camera,
-    preset: { deliverables: { post: false, carousel: false, story: true, reels: false } },
-  },
-  {
-    label: "生成 Reels",
-    hint: "封面與短影音企劃",
-    icon: Film,
-    preset: { deliverables: { post: false, carousel: false, story: false, reels: true } },
-  },
-];
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -75,24 +37,80 @@ export function HomePage() {
   const campaigns = useStudio((s) => s.campaigns);
   const contents = useStudio((s) => s.contents);
   const assets = useStudio((s) => s.assets);
-  const contentItems = useCreative((s) => s.contentItems);
-  const campaign = useCreative((s) => s.campaigns[0]);
-  const startCreative = useUi((s) => s.startCreative);
-  const upcoming = useMemo(() => upcomingItems(contentItems), [contentItems]);
-  const recent = useMemo(
-    () => [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4),
-    [projects],
-  );
+  const campaigns = useCreative((s) => s.campaigns);
+  const schedule = useCreative((s) => s.schedule);
+  const igPosts = useCreative((s) => s.igPosts);
+  const memory = useCreative((s) => s.memory);
+  const lastPack = useCreative((s) => s.lastPack);
+  const setCreateIntent = useCreative((s) => s.setCreateIntent);
+  const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [hitBusy, setHitBusy] = useState(false);
+  const [winBusy, setWinBusy] = useState<string | null>(null);
+  const [remoteHits, setRemoteHits] = useState<SearchHit[]>([]);
+  const season = seasonContext();
+  const featured = campaigns.find((c) => c.id === "camp_floating_light") ?? campaigns[0];
+  const remain = featured ? daysUntil(featured.date) : null;
+  const learned = useMemo(() => learnFromPosts(igPosts), [igPosts]);
+  const createHint = useMemo(() => nextCreateHint(igPosts), [igPosts]);
+  const justLearned = igPosts.find((post) => post.id.startsWith("ig_studio_"));
+  const wantsCreate = isCreateQuery(q);
 
-  const assetIds = useMemo(() => {
-    const ids: string[] = [];
-    for (const p of recent) {
-      const board = p.artboards[p.activeFormatId];
-      if (!board) continue;
-      for (const l of board.layers) {
-        if (l.type === "image") ids.push(l.assetId);
-        if (l.type === "logo" && l.assetId) ids.push(l.assetId);
-      }
+  const urls = useAssetUrls(useMemo(() => assets.map((a) => a.id), [assets]));
+  const localHits = useMemo(
+    () => (q.trim() ? creativeSearch(q, { assets, campaigns, igPosts, memory }) : []),
+    [q, assets, campaigns, igPosts, memory],
+  );
+  const hits = useMemo(() => {
+    const seen = new Set(localHits.map((h) => `${h.source}:${h.id}`));
+    const merged = [...localHits];
+    for (const hit of remoteHits) {
+      const key = `${hit.source}:${hit.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(hit);
+    }
+    return merged;
+  }, [localHits, remoteHits]);
+  const grouped = groupSearchHits(hits);
+
+  useEffect(() => {
+    const query = q.trim();
+    if (!query) {
+      setRemoteHits([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void searchCreativeWorld({ data: { query } })
+        .then((result) => {
+          if (result.ok) setRemoteHits(result.hits);
+        })
+        .catch(() => setRemoteHits([]));
+    }, 320);
+    return () => window.clearTimeout(timer);
+  }, [q]);
+  const upcoming = useMemo(() => upcomingScheduleItems(schedule), [schedule]);
+  const dueAll = useMemo(() => dueScheduleItems(schedule, Date.now(), 0), [schedule]);
+  const due = useMemo(() => dueAll.slice(0, 3), [dueAll]);
+  const recentGen = [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
+
+  async function createFromFeatured() {
+    if (!featured) return;
+    setBusy(true);
+    try {
+      await runIdeaPack({
+        idea: `${featured.name} ${featured.tagline}`,
+        notes: composeMemoryNotes([
+          featured.studentPain,
+          `成效回饋：${createHint.line}`,
+          `避開：${createHint.avoid}`,
+        ]),
+        campaign: featured,
+      });
+    } finally {
+      setBusy(false);
     }
     for (const b of brands) if (b.logoAssetId) ids.push(b.logoAssetId);
     for (const a of assets) ids.push(a.id);
@@ -100,234 +118,405 @@ export function HomePage() {
   }, [recent, brands, assets]);
   const urls = useAssetUrls(assetIds);
 
-  function begin(preset: Partial<Brief>) {
-    startCreative({
-      ...preset,
-      deliverables: preset.deliverables ?? {
-        post: true,
-        carousel: true,
-        story: true,
-        reels: false,
-      },
-    });
+  async function createFromSearch() {
+    const idea = q.trim();
+    if (!idea) return;
+    setBusy(true);
+    try {
+      await runIdeaPack({ idea });
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-5 md:px-8 md:py-8">
-      <header className="flex items-center justify-between gap-4">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
+      <p className="text-xs tracking-[0.18em] text-muted uppercase">{APP_TAGLINE}</p>
+      <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium tracking-widest text-accent">淡江大學禪學社</p>
-          <h1 className="mt-1 font-display text-2xl tracking-tight md:text-3xl">禪作所</h1>
+          <h1 className="font-display text-3xl tracking-tight md:text-4xl">{APP_NAME}</h1>
+          <p className="mt-2 max-w-xl text-base text-fg">今天可以創作什麼？</p>
+          <p className="mt-1 max-w-xl text-sm text-muted">
+            {CLUB_SHORT}一人創作台。{season.label} · {season.studentNow}
+          </p>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => begin({})}>
-          <WandSparkles className="size-4" />
-          開始創作
-        </Button>
-      </header>
-
-      <section className="mt-5 overflow-hidden rounded-2xl bg-accent text-accent-fg shadow-[var(--shadow-artboard)]">
-        <div className="grid md:grid-cols-[1.2fr_0.8fr]">
-          <div className="p-5 sm:p-7">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-accent-fg/75">
-              <span className="rounded-full bg-accent-fg/10 px-2.5 py-1">今天推薦創作</span>
-              <span>
-                {campaign
-                  ? `${campaign.eventDate.slice(5).replace("-", "/")}・${daysUntilLabel(campaign.eventDate)}`
-                  : "先從下一場活動開始"}
-              </span>
-            </div>
-            <h2 className="mt-5 max-w-xl font-display text-3xl leading-tight tracking-tight sm:text-4xl">
-              最近是不是很久沒有
-              <br />
-              好好坐下來？
-            </h2>
-            <p className="mt-4 max-w-lg text-sm leading-6 text-accent-fg/80">
-              {campaign
-                ? `用開學後的忙亂切入「${campaign.name.replace(/^\d{2}\/\d{2}\s*/, "")}」，做一組不說教、有夜晚校園感的 IG Carousel。`
-                : "先建立下一場活動，再做一組給淡江學生看的 IG 內容。"}
-            </p>
-            <Button
-              className="mt-6 bg-accent-fg text-accent hover:bg-accent-fg/90"
-              onClick={() => begin(RECOMMENDED_BRIEF)}
-            >
-              <Sparkles className="size-4" />
-              AI 幫我創作
-            </Button>
-          </div>
-          <div className="relative min-h-52 overflow-hidden bg-surface-2/15 p-5">
-            <div className="absolute -right-10 -top-12 size-44 rounded-full bg-warn/40 blur-3xl" />
-            <div className="absolute -bottom-10 left-4 size-40 rounded-full bg-danger/30 blur-3xl" />
-            <div className="relative mx-auto flex h-full max-w-64 items-center justify-center">
-              <div className="w-40 rotate-3 rounded-2xl bg-surface p-3 text-fg shadow-[var(--shadow-artboard)]">
-                <div className="aspect-[4/5] rounded-xl bg-bg p-4">
-                  <p className="text-xs font-medium text-accent">09.24 / TKU</p>
-                  <p className="mt-8 font-display text-2xl leading-tight">浮游<br />禪光</p>
-                  <div className="mt-6 h-1 w-10 rounded-full bg-warn" />
-                  <p className="mt-3 text-xs leading-5 text-muted">留一個晚上<br />和自己坐在一起</p>
-                </div>
-              </div>
-              <div className="-ml-5 mt-8 w-28 -rotate-6 rounded-xl bg-surface p-2 shadow-[var(--shadow-artboard)]">
-                <div className="aspect-[9/16] rounded-lg bg-accent p-3 text-accent-fg">
-                  <p className="text-xs">今晚</p>
-                  <p className="mt-8 font-display text-lg">先不用<br />急著想通</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-6">
-        <CreationLoop />
-      </section>
-
-      <section className="mt-8">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="text-xs text-muted">先選一種尺寸</p>
-            <h2 className="mt-1 font-display text-xl">我現在想創作什麼？</h2>
-          </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/assistant">打開 AI 創作 <ChevronRight className="size-4" /></Link>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setCreateOpen(true)}>
+            快速開始
+          </Button>
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="size-4" />
+            空白畫布
           </Button>
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {QUICK_STARTS.map((item) => (
-            <button
+      </div>
+
+      {featured ? (
+        <section className="mt-8 overflow-hidden rounded-[1.75rem] bg-surface p-5 shadow-[var(--shadow-artboard)] md:p-8">
+          <p className="text-xs tracking-[0.16em] text-muted uppercase">今天推薦創作</p>
+          <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-sm text-dusk">{formatMd(featured.date)} {featured.name}</p>
+              <h2 className="mt-1 font-display text-3xl leading-tight md:text-4xl">{featured.tagline}</h2>
+              {remain !== null ? (
+                <p className="mt-2 text-sm text-muted">{remain > 0 ? `還有 ${remain} 天` : remain === 0 ? "就是今天" : "已結束，可做回顧"}</p>
+              ) : null}
+              <p className="mt-3 max-w-md text-sm text-muted" data-testid="next-create-hint">
+                AI 建議：{createHint.line}
+              </p>
+              {justLearned ? (
+                <p className="mt-2 text-sm text-dusk" data-testid="home-learned">
+                  {learnAfterPublish(igPosts)}
+                </p>
+              ) : null}
+              {dueAll.length ? (
+                <p className="mt-2 text-sm text-dusk">有 {dueAll.length} 則到時間了，可以直接發。</p>
+              ) : null}
+            </div>
+            <Button size="lg" disabled={busy} onClick={() => void createFromFeatured()}>
+              <Sparkles className="size-4" />
+              {busy ? "正在想…" : "AI 幫我創作"}
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
+      {due.length ? (
+        <section className="mt-8" data-testid="home-due">
+          <div className="mb-3 flex items-end justify-between">
+            <h2 className="text-sm font-medium">現在可以發</h2>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/calendar">打開排程</Link>
+            </Button>
+          </div>
+          <ul className="space-y-3">
+            {due.map((item) => {
+              const assetId = schedulePreviewAssetId(item, campaigns);
+              return (
+                <DueSlotCard
+                  key={item.id}
+                  item={item}
+                  imageSrc={resolveAssetSrc(
+                    assetId,
+                    urls,
+                    assets.find((asset) => asset.id === assetId)?.seedSrc,
+                  )}
+                />
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
+      <div className="relative mt-6">
+        <Search className="pointer-events-none absolute top-3.5 left-3 size-4 text-subtle" />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="找以前晚上的茶會照片、龜龜、浮游禪光…"
+          className="h-12 rounded-2xl pl-10"
+        />
+      </div>
+      {q.trim() ? (
+        <p className="mt-3 text-sm text-muted">
+          {hits.length > 0
+            ? `找到 ${hits.length} 個相關素材 · 依 Drive、Canva、IG、AI 生成分類`
+            : wantsCreate
+              ? "會用品牌記憶、過去內容與淡江學生情境生成。"
+              : "本機還沒對上這句。試試「找以前晚上的茶會照片」或「找有龜龜的素材」。"}
+        </p>
+      ) : null}
+      {wantsCreate ? (
+        <Button
+          className="mt-3 min-h-11 w-full sm:w-auto"
+          data-testid="home-idea-pack"
+          disabled={busy}
+          onClick={() => void createFromSearch()}
+        >
+          <Sparkles className="size-4" />
+          {busy
+            ? "正在找素材、想方向…"
+            : hits.length > 0
+              ? `根據 ${hits.length} 個相關素材生成 3 個方向`
+              : "AI 生成完整宣傳"}
+        </Button>
+      ) : null}
+      {hits.length > 0 ? (
+        <div className="mt-3 space-y-4">
+          {grouped.map((group) => (
+            <div key={group.source}>
+              <p className="text-[11px] tracking-wide text-muted uppercase">{sourceLabel(group.source)}</p>
+              <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+                {group.items.slice(0, 4).map((hit) => (
+                  <SearchHitCard
+                    key={`${hit.source}-${hit.id}`}
+                    hit={hit}
+                    busy={hitBusy}
+                    onCreate={(item) => {
+                      setHitBusy(true);
+                      void createFromHit(item)
+                        .then((ok) => {
+                          if (ok) void navigate({ to: "/create" });
+                        })
+                        .finally(() => setHitBusy(false));
+                    }}
+                  />
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {lastPack ? (
+        <section className="mt-8" data-testid="home-last-pack">
+          <div className="mb-3 flex items-end justify-between">
+            <h2 className="text-sm font-medium">剛才 AI 生成</h2>
+            <div className="flex gap-1">
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/calendar">看日曆節奏</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/create">繼續修</Link>
+              </Button>
+            </div>
+          </div>
+          <PackResult
+            compact
+            pack={lastPack}
+            campaignId={
+              campaigns.find(
+                (campaign) =>
+                  campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name),
+              )?.id ?? featured?.id
+            }
+            onApply={async (directionId) => {
+              const campaignId =
+                campaigns.find(
+                  (campaign) =>
+                    campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name),
+                )?.id ?? featured?.id;
+              const result = await applyPickedDirection({
+                pack: lastPack,
+                directionId,
+                campaignId,
+              });
+              if (!result.ok) return;
+              void navigate({ to: "/instagram" });
+            }}
+            onSuiteDone={() => navigate({ to: "/instagram" })}
+          />
+          <div className="mt-3">
+            <p className="mb-2 text-xs text-muted">一篇做成其他格式，並排進日曆</p>
+            <ConvertPanel
+              compact
+              pack={lastPack}
+              campaignId={
+                campaigns.find(
+                  (campaign) =>
+                    campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name),
+                )?.id ?? featured?.id
+              }
+            />
+          </div>
+        </section>
+      ) : null}
+
+      <section className="mt-8">
+        <div className="mb-3 flex items-end justify-between">
+          <h2 className="text-sm font-medium">今日靈感</h2>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/inspire">全部</Link>
+          </Button>
+        </div>
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {inspirationFeed().slice(0, 2).map((seed) => (
+            <li key={seed.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <p className="text-xs text-muted">{seed.watch}</p>
+              <p className="mt-2 text-sm font-medium">{seed.zenClub.hook}</p>
+              <p className="mt-1 text-xs text-muted">{seed.zenClub.why}</p>
+              <Button
+                className="mt-3"
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setCreateIntent({
+                    idea: seed.zenClub.hook,
+                    kind: kindFromInspiration(seed),
+                    autoGenerate: true,
+                    pack: true,
+                    notes: inspirationCreateNotes(seed),
+                  });
+                  void navigate({ to: "/create" });
+                }}
+              >
+                用這個 Hook 創作
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-sm font-medium">快速開始</h2>
+        <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+          {(
+            [
+              { label: "從一句想法開始", to: "/create", intent: { idea: "最近是不是連休息都覺得有罪惡感？", kind: "emotion", autoGenerate: true, pack: true } },
+              { label: "生成 IG 貼文", to: "/create", intent: { idea: "下週有一場茶會", kind: "event", autoGenerate: true, pack: true } },
+              { label: "生成圖片", to: "/create/image" },
+              { label: "從一張圖片開始", to: "/create/image" },
+              { label: "生成 Story", to: "/create", intent: { idea: "把活動做成 3 到 5 張限動", kind: "story", autoGenerate: true } },
+              { label: "生成 Carousel", to: "/create", intent: { idea: "茶會 Carousel，第一頁先講生活", kind: "carousel", autoGenerate: true } },
+              { label: "生成 Reels", to: "/create", intent: { idea: "茶會 Reels，前三秒先讓學生停下來", kind: "reels", autoGenerate: true } },
+              { label: "建立活動", to: "/campaigns" },
+              { label: "從 Drive 素材", to: "/connect" },
+              { label: "從 Canva 設計", to: "/connect" },
+              { label: "從以前 IG", to: "/instagram" },
+              { label: "靈感研究", to: "/inspire" },
+            ] as const
+          ).map((item) => (
+            <Link
               key={item.label}
-              type="button"
-              onClick={() => begin(item.preset)}
-              className="min-h-32 rounded-2xl bg-surface p-4 text-left shadow-[var(--shadow-border)] transition-transform hover:-translate-y-0.5 hover:shadow-[var(--shadow-border-hover)]"
+              to={item.to}
+              onClick={() => {
+                if ("intent" in item && item.intent) setCreateIntent(item.intent);
+                else setCreateIntent(null);
+              }}
+              className="rounded-2xl bg-surface px-4 py-4 text-sm shadow-[var(--shadow-border)]"
             >
-              <span className="flex size-10 items-center justify-center rounded-xl bg-surface-2 text-accent">
-                <item.icon className="size-5" />
-              </span>
-              <span className="mt-4 block text-sm font-medium">{item.label}</span>
-              <span className="mt-1 block text-xs text-muted">{item.hint}</span>
-            </button>
+              {item.label}
+            </Link>
           ))}
         </div>
       </section>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_20rem]">
-        <section className="min-w-0">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-            <p className="text-xs text-muted">最近網宣</p>
-            <h2 className="mt-1 font-display text-xl">最近網宣</h2>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void navigate({ to: "/studio" })}
-            >
-              打開 Studio <ChevronRight className="size-4" />
-            </Button>
-          </div>
-          <ul className="-mx-4 mt-3 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:px-0">
-            {recent.map((project) => (
-              <li key={project.id} className="min-w-64 sm:min-w-0">
-                <ProjectCard
-                  project={project}
-                  brand={brands.find((b) => b.id === project.brandId)}
-                  urls={urls}
-                  compact
-                />
+      <section className="mt-10 grid gap-6 lg:grid-cols-2">
+        <div>
+          <h2 className="text-sm font-medium">近期活動</h2>
+          <ul className="mt-3 space-y-2">
+            {campaigns.map((camp) => (
+              <li key={camp.id}>
+                <Link
+                  to="/campaigns/$campaignId"
+                  params={{ campaignId: camp.id }}
+                  className="flex min-h-16 items-center justify-between rounded-2xl bg-surface px-4 shadow-[var(--shadow-border)]"
+                >
+                  <span>
+                    <span className="block text-sm font-medium">{camp.name}</span>
+                    <span className="text-xs text-muted">
+                      {formatMd(camp.date)} · {camp.location}
+                    </span>
+                  </span>
+                  <ArrowRight className="size-4 text-subtle" />
+                </Link>
               </li>
             ))}
           </ul>
-        </section>
+        </div>
+        <div>
+          <h2 className="text-sm font-medium">已排程</h2>
+          <ul className="mt-3 space-y-2">
+            {upcoming.map((item) => (
+              <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+                <p className="text-xs text-muted">
+                  {formatDate(item.scheduledAt, "M/d HH:mm", { locale: zhTW })} · {CONTENT_KIND_LABEL[item.contentKind]}
+                </p>
+                <p className="text-sm font-medium">{item.title}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
-        <aside className="space-y-3">
-          <Link
-            to="/calendar"
-            className="block rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-border-hover)]"
-          >
-            <div className="flex items-center gap-2">
-              <CalendarDays className="size-5 text-accent" />
-              <h2 className="font-display text-lg">接下來的內容節奏</h2>
-            </div>
-            <ol className="mt-4 space-y-4">
-              {upcoming.length ? upcoming.map((item) => (
-                <li key={item.id} className="grid grid-cols-[3.5rem_1fr] gap-2">
-                  <span className="text-xs font-medium text-accent">{item.plannedAt.slice(5, 10).replace("-", "/")}</span>
-                  <span>
-                    <span className="block text-sm font-medium">{item.title}</span>
-                    <span className="mt-0.5 block text-xs leading-5 text-muted">{item.type}｜{item.angle}</span>
-                  </span>
-                </li>
-              )) : (
-                <li className="text-sm text-muted">還沒有節奏。到排程依活動生成一版。</li>
-              )}
-            </ol>
-          </Link>
-          <Link
-            to="/instagram"
-            hash="learn"
-            className="block rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-border-hover)]"
-          >
-            <div className="flex items-center gap-2">
-              <MessageCircleMore className="size-5 text-accent" />
-              <h2 className="font-display text-lg">現場筆記</h2>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-muted">
-              貼出去之後記下誰來了、哪句 Hook 像淡江。寫進 Brand Memory，不是模擬讚數。
-            </p>
-          </Link>
-        </aside>
-      </div>
-
-      <CreativeBrainPanel onOpenAsset={() => void navigate({ to: "/assets" })} compact />
-
-      <section className="mt-8">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="text-xs text-muted">此裝置</p>
-            <h2 className="mt-1 font-display text-xl">最近素材</h2>
-          </div>
+      <section className="mt-10">
+        <div className="mb-3 flex items-end justify-between">
+          <h2 className="text-sm font-medium">最近創作</h2>
           <Button asChild variant="ghost" size="sm">
-            <Link to="/assets">素材庫 <ChevronRight className="size-4" /></Link>
+            <Link to="/create">全部</Link>
           </Button>
         </div>
-        <ul className="-mx-4 mt-3 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-6 sm:px-0">
+        {recentGen.length === 0 ? (
+          <EmptyState icon={Images} title="還沒有作品" description="從推薦創作或快速開始。" />
+        ) : (
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {recentGen.map((project) => (
+              <li key={project.id}>
+                <ProjectCard project={project} brand={brands.find((b) => b.id === project.brandId)} urls={urls} compact />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-sm font-medium">過去表現不錯</h2>
+        <p className="mt-2 text-xs text-muted">{createHint.rates}</p>
+        <ul className="mt-3 grid gap-2 sm:grid-cols-3">
+          {learned.winning.slice(0, 3).map((post) => (
+            <li key={post.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <p className="text-sm font-medium">{post.hook}</p>
+              <p className="mt-2 text-xs text-muted">
+                收藏 {post.saves} · 觸及 {post.reach} · {whyPostWorked(post)}
+              </p>
+              <Button
+                className="mt-3"
+                size="sm"
+                variant="secondary"
+                data-testid={post.id === learned.winning[0]?.id ? "winning-create" : undefined}
+                disabled={Boolean(winBusy)}
+                onClick={() => {
+                  setWinBusy(post.id);
+                  void createFromHit(hitFromIgPost(post))
+                    .then((ok) => {
+                      if (ok) void navigate({ to: "/create" });
+                    })
+                    .finally(() => setWinBusy(null));
+                }}
+              >
+                {winBusy === post.id ? "正在延續…" : "延續這篇再做"}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mt-10">
+        <div className="mb-3 flex items-end justify-between">
+          <h2 className="text-sm font-medium">最近素材</h2>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/assets">素材庫</Link>
+          </Button>
+        </div>
+        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-6">
           {assets.slice(0, 6).map((asset) => (
-            <li key={asset.id} className="min-w-32 overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)] sm:min-w-0">
-              <Link to="/assets" className="block">
-                <div className="flex aspect-square items-center justify-center bg-bg">
-                  {urls[asset.id] ? (
-                    <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" />
+            <li key={asset.id} className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
+              <Link to="/assets">
+                <div className="aspect-square bg-bg">
+                  {resolveAssetSrc(asset.id, urls, asset.seedSrc) ? (
+                    <img src={resolveAssetSrc(asset.id, urls, asset.seedSrc)} alt={asset.name} className="size-full object-cover" />
                   ) : (
-                    <Images className="size-5 text-subtle" />
+                    <div className="flex size-full items-center justify-center text-xs text-muted">載入中</div>
                   )}
                 </div>
-                <p className="truncate px-2 pt-2 text-xs font-medium">{asset.name}</p>
-                <p className="truncate px-2 pb-2 text-xs text-subtle">{categoryLabel(asset.category)}</p>
               </Link>
             </li>
           ))}
         </ul>
       </section>
+
+      <NewProjectDialog open={open} onOpenChange={setOpen} />
+      <CreateLaunchSheet open={createOpen} onOpenChange={setCreateOpen} />
     </main>
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-xl bg-surface-2 py-2">
-      <dt className="text-[10px] text-muted">{label}</dt>
-      <dd className="text-sm font-medium tabular-nums">{value.toLocaleString()}</dd>
-    </div>
-  );
-}
-
-function EmptyRow({ icon: Icon, text, action }: { icon: LucideIcon; text: string; action?: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-3 rounded-2xl bg-surface/70 px-4 py-4 text-sm text-muted shadow-[var(--shadow-border)]">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-subtle">
-        <Icon className="size-4" />
-      </span>
-      <span className="flex-1">{text}</span>
-      {action ? <span className="text-sm font-medium text-accent">{action}</span> : null}
-    </div>
-  );
+function sourceLabel(source: string) {
+  if (source === "drive") return "Google Drive";
+  if (source === "canva") return "Canva";
+  if (source === "instagram") return "Instagram";
+  if (source === "generated") return "AI Generated";
+  if (source === "campaign") return "活動";
+  if (source === "brand") return "Brand";
+  return "素材";
 }

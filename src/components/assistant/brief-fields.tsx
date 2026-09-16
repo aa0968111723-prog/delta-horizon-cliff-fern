@@ -44,7 +44,7 @@ export function BriefFields({ brief, onChange, compact }: Props) {
             const eventName = e.target.value;
             onChange({ eventName, product: brief.product || eventName });
           }}
-          placeholder="例如：09/24 浮游禪光"
+          placeholder="例如：浮游禪光"
         />
       </Field>
 

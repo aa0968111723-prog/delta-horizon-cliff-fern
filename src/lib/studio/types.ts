@@ -3,7 +3,9 @@ export type FormatId =
   | "feed-portrait"
   | "feed-landscape"
   | "story"
-  | "reels-cover";
+  | "reels-cover"
+  | "threads"
+  | "line";
 
 export type TemplateId = "editorial" | "product" | "offer" | "quote";
 
@@ -26,7 +28,22 @@ export type Align = "left" | "center" | "right";
 
 export type ColorRole = "primary" | "secondary" | "accent" | "background" | "ink";
 
-export type ProjectStatus = "idea" | "creating" | "complete" | "scheduled" | "published";
+export type ProjectStatus = "idea" | "creating" | "done" | "scheduled" | "published";
+
+export type ContentKind =
+  | "ig-post"
+  | "carousel"
+  | "story"
+  | "reels"
+  | "threads"
+  | "line"
+  | "poster"
+  | "recap"
+  | "member-story"
+  | "countdown"
+  | "qa"
+  | "poll"
+  | "knowledge";
 
 export type EditorTool = "select" | "text" | "rect" | "ellipse" | "line";
 
@@ -124,18 +141,11 @@ export type BrandKit = {
   imageStyle: ImageStyle;
   rules: BrandRules;
   boilerplate: BrandBoilerplate;
-  memory?: BrandMemory;
-  updatedAt: number;
-};
-
-export type BrandMemory = {
-  mission: string;
-  audienceSegments: string[];
-  campusContexts: string[];
-  seasonalMoments: string[];
-  contentPillars: string[];
-  signatureElements: string[];
-  learnedPatterns: string[];
+  mascot: string;
+  signatureLights: string;
+  likes: string[];
+  dislikes: string[];
+  clubIntro: string;
   updatedAt: number;
 };
 
@@ -155,7 +165,16 @@ export type AssetCategory =
   | "icon"
   | "logo"
   | "template"
-  | "history";
+  | "history"
+  | "mascot"
+  | "campus"
+  | "tamsui"
+  | "poster"
+  | "generated"
+  | "ig"
+  | "story"
+  | "reels"
+  | "archive";
 
 export type AssetSourceKind = "upload" | "seed" | "generated" | "google-drive" | "canva" | "instagram";
 
@@ -357,6 +376,8 @@ export type DeliverableFlags = {
   story: boolean;
   carousel: boolean;
   reels: boolean;
+  threads: boolean;
+  line: boolean;
 };
 
 export type CaptionVariant = {
@@ -459,6 +480,56 @@ export type CampaignPlan = {
   copyPack?: CopyPack;
   generatedAt: number;
   source: PlanSource;
+  visualDirections?: VisualDirection[];
+  threadsPost?: string;
+  lineCopy?: string;
+  reelsScript?: ReelsBeat[];
+  studentReview?: StudentReview;
+  citedSources?: CitedSource[];
+};
+
+export type VisualDirection = {
+  id: string;
+  title: string;
+  concept: string;
+  palette: string;
+  composition: string;
+  typeDirection: string;
+  imagePrompt: string;
+  headline: string;
+  subhead: string;
+};
+
+export type ReelsBeat = {
+  startSec: number;
+  endSec: number;
+  visual: string;
+  caption: string;
+  voiceover: string;
+  transition: string;
+  assetHint: string;
+};
+
+export type StudentReview = {
+  wouldStop: string;
+  understandable: string;
+  tooReligious: string;
+  tooSerious: string;
+  tooLiterary: string;
+  tooAi: string;
+  tooLong: string;
+  knowsWhat: string;
+  knowsWhenWhere: string;
+  wouldBringFriend: string;
+  knowsSignup: string;
+  notes: string[];
+  rewriteHook: string;
+};
+
+export type CitedSource = {
+  source: "drive" | "canva" | "instagram" | "generated" | "brand";
+  label: string;
+  detail: string;
 };
 
 export type PlanVersion = {
@@ -510,6 +581,10 @@ export type Project = {
   snapshots: Snapshot[];
   planVersions: PlanVersion[];
   exports: ExportVersion[];
+  campaignId?: string | null;
+  contentKind?: ContentKind;
+  scheduledAt?: number | null;
+  publishedAt?: number | null;
 };
 
 /* ------------------------------------------------------------------ */

@@ -183,9 +183,9 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="禪作所"
+        kicker="Creative Library"
         title="素材庫"
-        description="集中活動照片、社員、淡江校園、淡水、龜龜、三色光與歷屆網宣。每張都會標來源：本機、Drive、Canva、xAI 或 Instagram。沒有官方檔案時，不會匯入假的 Drive 圖。"
+        description="每一張都可以 AI 分析、打標、加入創作、做成限動或 Carousel。不是只做檔案管理。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="assets" />
@@ -260,8 +260,21 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
         </div>
       ) : null}
 
-      <div className="mt-6 flex min-w-0 flex-col gap-3 md:flex-row md:items-center">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜尋名稱、標籤、授權、來源" className="min-w-0 max-w-sm" />
+      <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center">
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜尋名稱、標籤、授權、來源" className="max-w-sm" />
+        <Select value={source} onValueChange={(v) => setSource(v as typeof source)}>
+          <SelectTrigger className="md:w-40">
+            <SelectValue placeholder="來源" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">全部來源</SelectItem>
+            {ASSET_SOURCES.map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={usageFilter} onValueChange={(v) => setUsageFilter(v as typeof usageFilter)}>
           <SelectTrigger className="min-h-11 md:w-40">
             <SelectValue placeholder="使用狀態" />

@@ -32,7 +32,11 @@ const brand: BrandKit = {
   imageStyle: { mood: "", lighting: "", paletteHint: "", composition: "", do: "", dont: "" },
   rules: { noCompetitorMarks: false, noWatermark: false, noLowRes: false, notes: "" },
   boilerplate: { cta: "到店手沖", disclaimer: "", hashtags: [], captionClose: "" },
-  memory: emptyBrandMemory(),
+  mascot: "",
+  signatureLights: "",
+  likes: [],
+  dislikes: [],
+  clubIntro: "",
   updatedAt: 1,
 };
 

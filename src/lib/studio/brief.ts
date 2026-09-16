@@ -12,7 +12,7 @@ import type {
 export const MAX_PLAN_VERSIONS = 12;
 
 export function emptyDeliverables(): DeliverableFlags {
-  return { post: true, story: false, carousel: false, reels: false };
+  return { post: true, story: false, carousel: false, reels: false, threads: false, line: false };
 }
 
 export function emptyBrief(): Brief {
@@ -58,12 +58,14 @@ export function briefTitle(brief: Brief) {
 
 export function formatsFromBrief(brief: Brief, current: FormatId): FormatId[] {
   const d = { ...emptyDeliverables(), ...brief.deliverables };
-  if (!d.post && !d.story && !d.carousel && !d.reels) d.post = true;
+  if (!d.post && !d.story && !d.carousel && !d.reels && !d.threads && !d.line) d.post = true;
   const feed: FormatId = current.startsWith("feed") ? current : "feed-portrait";
   const next: FormatId[] = [];
   if (d.post || d.carousel) next.push(feed);
   if (d.story) next.push("story");
   if (d.reels) next.push("reels-cover");
+  if (d.threads) next.push("threads");
+  if (d.line) next.push("line");
   return [...new Set(next)];
 }
 
@@ -134,6 +136,12 @@ export function migratePlan(raw?: Partial<CampaignPlan> | null): CampaignPlan | 
     copyPack: raw.copyPack,
     generatedAt: raw.generatedAt ?? Date.now(),
     source: raw.source === "mock" || raw.source === "live" ? raw.source : "live",
+    visualDirections: Array.isArray(raw.visualDirections) ? raw.visualDirections : undefined,
+    threadsPost: raw.threadsPost,
+    lineCopy: raw.lineCopy,
+    reelsScript: Array.isArray(raw.reelsScript) ? raw.reelsScript : undefined,
+    studentReview: raw.studentReview,
+    citedSources: Array.isArray(raw.citedSources) ? raw.citedSources : undefined,
   };
 }
 
@@ -172,7 +180,9 @@ export const DELIVERABLE_OPTIONS: { id: keyof DeliverableFlags; label: string; h
   { id: "post", label: "貼文", hint: "1:1 或 4:5 單張" },
   { id: "carousel", label: "輪播", hint: "六頁說完活動" },
   { id: "story", label: "限時動態", hint: "9:16 分鏡" },
-  { id: "reels", label: "Reels 封面", hint: "9:16 封面" },
+  { id: "reels", label: "Reels", hint: "封面與分鏡腳本" },
+  { id: "threads", label: "Threads", hint: "短文＋配圖" },
+  { id: "line", label: "LINE", hint: "社團群宣傳圖" },
 ];
 
 export const ASSET_NEED_LABEL: Record<AssetNeed["kind"], string> = {

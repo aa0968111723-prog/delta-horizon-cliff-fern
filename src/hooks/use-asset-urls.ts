@@ -39,3 +39,9 @@ export function useAssetUrls(ids: string[]): Record<string, string> {
 
   return urls;
 }
+
+export function resolveAssetSrc(id: string | null | undefined, urls: Record<string, string>, seedSrc?: string) {
+  if (seedSrc) return seedSrc;
+  if (!id) return "";
+  return urls[id] || "";
+}

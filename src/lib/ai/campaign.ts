@@ -1,6 +1,7 @@
 import { completeCarouselPages } from "@/lib/studio/carousel";
 import { createServerFn } from "@tanstack/react-start";
 import type { CampaignPlan, TemplateId } from "@/lib/studio/types";
+import { completeCopyVariants, systemPrompt } from "@/lib/zen/voice";
 import { buildMockPlan } from "./mock";
 import { BriefInputSchema, PlanJsonSchema, type BriefInput } from "./schema";
 
@@ -46,9 +47,12 @@ function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: Campaig
     subhead: parsed.subhead,
     body: parsed.body,
     cta: parsed.cta || "了解更多",
-    captions: parsed.captions.length
-      ? parsed.captions
-      : [{ style: "敘事", text: parsed.hook || parsed.concept || headline }],
+    captions: completeCopyVariants({
+      hook: parsed.hook || headline,
+      body: parsed.body || parsed.insight || parsed.hook || headline,
+      cta: parsed.cta || "了解更多",
+      variants: parsed.captions,
+    }),
     hashtags: parsed.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)),
     storyBeats: parsed.storyBeats,
     carouselPages: parsed.carouselPages,
@@ -58,6 +62,14 @@ function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: Campaig
     qaNotes: parsed.qaNotes,
     generatedAt: Date.now(),
     source,
+    visualDirections: parsed.visualDirections?.length
+      ? parsed.visualDirections.map((d, i) => ({ ...d, id: d.id || `dir_${i + 1}` }))
+      : undefined,
+    threadsPost: parsed.threadsPost,
+    lineCopy: parsed.lineCopy,
+    reelsScript: parsed.reelsScript,
+    studentReview: parsed.studentReview,
+    citedSources: parsed.citedSources,
   };
 }
 
@@ -104,60 +116,61 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
     data.wantPost ? "單張貼文" : null,
     data.wantCarousel ? "輪播" : null,
     data.wantStory ? "限時動態" : null,
-    data.wantReels ? "Reels 封面" : null,
+    data.wantReels ? "Reels" : null,
+    data.wantThreads ? "Threads" : null,
+    data.wantLine ? "LINE 宣傳圖" : null,
   ]
     .filter(Boolean)
     .join("、");
 
-  const prompt = `你是淡江大學禪學社唯一的 AI 創作夥伴。使用者一個人負責企劃、文案、設計與社群，請幫他快速完成真正能讓淡江學生停下來看的 Instagram 網宣。請只輸出 JSON，不要 markdown。
+  const prompt = `${systemPrompt("campaign", { dnaNotes: data.dnaNotes })}
 
-固定受眾不是抽象的「年輕人」或「Z 世代」，而是淡江大一新生、大二到大四學生、研究生、住宿生、通勤生、剛到淡水生活的人、社團新鮮人、想交朋友的人、課業或人際壓力大的學生，以及對未來迷惘或想認識自己、但對禪完全不了解的人。
-
-每次都要思考：這跟淡江學生現在的生活有什麼關係？目前是開學、期中、期末還是假期？淡水天氣、捷運、宿舍、課表與校園生活會不會影響內容？先用學生真的會有感的 Hook，再自然帶進活動。
-
-把「禪」優先轉譯成安定、專注、慢下來、整理情緒、陪伴、自我探索、喘口氣與在人際壓力中找到空間。不要宗教廣告、艱澀佛學、說教或過度正式。文案要像真的社團同學在發文：自然、偶爾口語、有生活感；不要每句都是金句，不要大量破折號、抽象詞、勵志話或過度工整。
+請只輸出 JSON。
 
 品牌：${data.brandName} ${data.handle}
-語氣：${data.voice || "專業、克制"}
-可說：${data.doSay || "具體、真實"}
-不可說：${data.dontSay || "誇大、叫賣"}
+語氣：${data.voice || "像社團的人在發文"}
+可說：${data.doSay || "生活、具體、淡江學生"}
+不可說：${data.dontSay || "誠摯邀請、說教"}
 禁用詞：${forbidden}
 固定標語：${data.slogans || "無"}
-常用 CTA：${data.preferredCtas || "無"}
-圖片風格：${data.imageStyle || "無"}
-Brand Memory：
-${data.brandMemory || "先說學生生活，再介紹活動；使用三色光與真實社員互動"}
-若記憶含校園情境、近期活動、Canva 風格、IG hashtags 或「現場：」筆記，必須寫進 hook、insight 與 hashtags。現場筆記裡覺得像淡江的 Hook 要優先沿用，「下次要記得」寫進 checklist。不可做成通用心靈雞湯或電商促銷，也不要發明讚數、觸及或觀看次數。
+常用 CTA：${data.preferredCtas || "晚上見／找一個朋友來"}
+圖片風格：${data.imageStyle || "夜色、留白、空氣感"}
+吉祥物與燈光：讀品牌記憶裡的龜龜、三色光。
 
 活動名稱：${data.eventName}
 時間：${data.schedule || "未填"}
-地點：${data.location || "未填"}
-活動內容：${data.product || data.eventName}
-參加誘因／報名方式：${data.offer || "無"}
-本次主要學生情境：${data.audience}
+地點：${data.location || "淡江大學淡水校園"}
+內容：${data.product || data.eventName}
+邀請：${data.offer || "無"}
+受眾：${data.audience || "淡江大學學生"}
 目的：${data.goal}
 特色：${data.features || "無"}
-希望風格：${data.style || "無"}
+希望風格：${data.style || "生活"}
 需要產出：${deliverables || "單張貼文"}
 補充：${data.notes || "無"}
+Creative Memory / 歷屆素材摘錄：
+${data.memoryNotes?.trim() || "無（仍須讀品牌記憶：龜龜、三色光、淡江學生語氣）"}
+citedSources 只能標你真正看到的 Drive / Canva / Instagram / Brand 來源，不要假裝讀過沒給的檔案。
 
 JSON 欄位：
 campaignName, concept, insight, hook, visualTheme, visualDirection,
 templateId(editorial|product|offer|quote), colorMood,
 eyebrow, headline, subhead, body, cta,
-captions[{style,text}] 2-3 則（繁中，適合 IG，不要 emoji 堆砌，最多一個表情），
-hashtags 8-12 個（含品牌名與精準詞），
-storyBeats 3 則限動分鏡（若不需要限動可給空陣列），
-carouselPages[{role:cover|problem|detail|proof|cta|close,headline,subhead,body,cta,visualNote,templateId}] ${data.wantCarousel ? "必須 6 頁，角色依序 cover, problem, detail, proof, cta, close" : "1 頁封面"},
+captions[{style,text}] 含 短版/一般版/感性版/學生版/生活版/幽默版 至少三則，
+hashtags 6-10 個（#淡江禪學社 #淡江 #淡水 可納入）,
+storyBeats 3-5 則，第一則必須是 Hook,
+carouselPages[{role:cover|problem|detail|proof|cta|close,headline,subhead,body,cta,visualNote,templateId}] ${data.wantCarousel ? "必須 6 頁；cover.headline 必須是 Hook 問句，不要活動名當第一句" : "1 頁封面"},
 assetNeeds[{kind:photo|people|background|logo|illustration,title,detail,required}],
-checklist 5-8 則發布前檢查,
-altText, qaNotes 4-6 則設計注意。qaNotes 必須包含「淡江學生視角」反向檢查：會不會停下來、看不看得懂、是否太宗教／太嚴肅／太文青／太 AI、是否知道活動內容與時間地點、是否會想找朋友一起來、是否知道怎麼報名。
+checklist, altText, qaNotes,
+threadsPost, lineCopy,
+reelsScript[{startSec,endSec,visual,caption,voiceover,transition,assetHint}] 5 段 0-20 秒,
+studentReview{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,tooLong,knowsWhat,knowsWhenWhere,wouldBringFriend,knowsSignup,notes,rewriteHook},
+visualDirections[{id,title,concept,palette,composition,typeDirection,imagePrompt,headline,subhead}] 必須 3 個方向,
+citedSources[{source:drive|canva|instagram|generated|brand,label,detail}]。
 
-headline 可含換行 \\n，最多兩行，每行不超過 10 個中文。
-eyebrow 用英文或短中文，不超過 22 字。
-cta 2-6 字。
-文案避免禁用詞，不要「限時瘋搶／錯過就沒有」，也不要以「淡江大學禪學社誠摯邀請您」開頭。
-concept 是宣傳核心概念（2-3 句）。visualTheme 是視覺主題。`;
+hook 必須像在講學生自己，禁止「誠摯邀請您」。
+headline 可含 \\n，最多兩行，每行不超過 10 字。
+cta 2-6 字。`;
 
   const res = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
@@ -167,13 +180,13 @@ concept 是宣傳核心概念（2-3 句）。visualTheme 是視覺主題。`;
     },
     body: JSON.stringify({
       model: "grok-4.5",
-      temperature: 0.6,
-      max_tokens: 4096,
+      temperature: 0.7,
+      max_tokens: 5000,
       response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content: "You are the single-user creative director for Tamkang University Zen Club. Ground every idea in real Tamkang student life, translate Zen into approachable everyday language, avoid generic AI copy, and reply with one JSON object only.",
+          content: "Reply with a single JSON object only. Traditional Chinese.",
         },
         { role: "user", content: prompt },
       ],

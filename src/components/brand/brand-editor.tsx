@@ -29,8 +29,6 @@ import { STUDIO_FONTS } from "@/lib/studio/fonts";
 import { uid } from "@/lib/studio/ids";
 import type { BrandColor, BrandKit, ColorRole, LogoUsage, LogoVariant } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
-import { useConnectionStore } from "@/stores/connection-store";
-import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { SwatchBook } from "lucide-react";
 
@@ -167,6 +165,21 @@ export function BrandEditor() {
 
       <StorageNotice />
 
+      {brands.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {brands.map((b) => (
+            <Button
+              key={b.id}
+              size="sm"
+              variant={b.id === brand.id ? "default" : "secondary"}
+              onClick={() => setActiveId(b.id)}
+            >
+              {b.name}
+            </Button>
+          ))}
+        </div>
+      )}
+
       <div
         className="overflow-hidden rounded-2xl p-5 shadow-[var(--shadow-border)]"
         style={{ background: bg?.hex ?? "#F4E6D4", color: primary?.hex ?? "#1A1814" }}
@@ -262,6 +275,17 @@ export function BrandEditor() {
         <Field label="品牌聲音">
           <Textarea value={brand.voice} onChange={(e) => patch("voice", e.target.value)} placeholder="語氣、節奏、像誰在說話" />
         </Field>
+        <Field label="社團理念">
+          <Textarea value={brand.clubIntro} onChange={(e) => patch("clubIntro", e.target.value)} placeholder="給學生一個可以慢下來的地方" />
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="吉祥物">
+            <Input value={brand.mascot} onChange={(e) => patch("mascot", e.target.value)} />
+          </Field>
+          <Field label="招牌視覺">
+            <Input value={brand.signatureLights} onChange={(e) => patch("signatureLights", e.target.value)} />
+          </Field>
+        </div>
       </section>
 
       <section

@@ -83,7 +83,7 @@ export function ExportCenter() {
       <PageHeader
         kicker="輸出中心"
         title="預覽與下載"
-        description="檢查安全區與文案，再輸出 Instagram 用的高畫質檔案與一人發佈包。這是本機下載，不是發文。"
+        description="檢查安全區與文案，再輸出 Instagram 用的高畫質檔案。每次下載會留下版本紀錄。"
         actions={
           <Button asChild variant="secondary">
             <Link to="/studio/$projectId" params={{ projectId: project.id }}>

@@ -80,7 +80,7 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
               id="proj-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：09/24 浮游禪光"
+            placeholder="例如：浮游禪光"
             />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

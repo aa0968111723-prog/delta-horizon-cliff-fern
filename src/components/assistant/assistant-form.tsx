@@ -29,8 +29,6 @@ import { emptyBrief, formatsFromBrief, migrateBrief } from "@/lib/studio/brief";
 import { FORMATS } from "@/lib/studio/formats";
 import type { Brief, FormatId, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
-import { useConnectionStore } from "@/stores/connection-store";
-import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
@@ -47,22 +45,6 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const setLastProjectId = useStudio((s) => s.setLastProjectId);
   const setAssistantOpen = useUi((s) => s.setAssistantOpen);
-  const creativePreset = useUi((s) => s.creativePreset);
-  const contentLinkId = useUi((s) => s.contentLinkId);
-  const creationDesk = useUi((s) => s.creationDesk);
-  const setCreationDesk = useUi((s) => s.setCreationDesk);
-  const clearCreativePreset = useUi((s) => s.clearCreativePreset);
-  const clearContentLink = useUi((s) => s.clearContentLink);
-  const linkProject = useCreative((s) => s.linkProject);
-  const campaigns = useCreative((s) => s.campaigns);
-  const activeCampaignId = useCreative((s) => s.activeCampaignId);
-  const outcomes = useCreative((s) => s.outcomes);
-  const assets = useStudio((s) => s.assets);
-  const styleReferences = useConnectionStore((s) => s.styleReferences);
-  const instagramHashtags = mergeHashtagMemory(
-    hashtagsFromOutcomes(outcomes),
-    hashtagsFromInstagramMemory(useConnectionStore((s) => s.instagramItems)),
-  );
 
   const existing = projectId ? projects.find((p) => p.id === projectId) : undefined;
   const [targetId, setTargetId] = useState<string>(() => (useUi.getState().creativePreset ? "new" : (existing?.id ?? "new")));
@@ -173,14 +155,7 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
     setError(null);
     try {
       const connected = status?.available ?? false;
-      const payload = toBriefInput(brief, brand, {
-        forceMock: forceMock || !connected,
-        assets,
-        campaigns,
-        styleReferences,
-        instagramHashtags,
-        outcomeHashtags: hashtagsFromOutcomes(outcomes),
-      });
+      const payload = toBriefInput(brief, brand, { forceMock: forceMock || !connected });
       const result = await generateCampaignPlan({ data: payload });
       if (!result.ok) {
         setError(result.error);

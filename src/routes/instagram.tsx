@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { InstagramCenter } from "@/components/instagram/instagram-center";
-import type { IgSurface } from "@/lib/studio/ig-surfaces";
 
 export type InstagramSearch = {
   project?: string;

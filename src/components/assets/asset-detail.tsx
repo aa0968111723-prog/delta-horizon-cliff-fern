@@ -2,6 +2,8 @@ import { BrainCircuit, WandSparkles } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { launchFromAsset } from "@/components/create/from-asset";
+import { createFromHit } from "@/components/create/from-hit";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,17 +15,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { analyzeCreativeImage, editCreativeImage, getMultimodalStatus } from "@/lib/ai/multimodal";
-import { describeImageAdapter, type ImageAiStatus } from "@/lib/ai/image-status";
-import { ImageServiceNotice } from "@/components/shared/image-service-notice";
-import { emptyBrandMemory } from "@/lib/studio/brand";
-import { applyVisualLesson } from "@/lib/creative/learning";
-import { base64ImageToBlob, prepareImageForAi, sourceBlob } from "@/lib/studio/ai-image-client";
-import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { ASSET_CATEGORIES, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import { kindFromCategory } from "@/lib/studio/assets";
-import { uid } from "@/lib/studio/ids";
-import type { AssetAnalysis, AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
+import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
+import { LAUNCH_ACTIONS, launchSuccessMessage } from "@/lib/zen/from-asset";
 import { useStudio } from "@/stores/studio-store";
 
 export function AssetDetailSheet({
@@ -45,30 +40,10 @@ export function AssetDetailSheet({
 }) {
   const navigate = useNavigate();
   const updateAsset = useStudio((s) => s.updateAsset);
-  const addAsset = useStudio((s) => s.addAsset);
-  const brand = useStudio((s) => s.brands[0]);
-  const updateBrand = useStudio((s) => s.updateBrand);
   const placeAsset = useStudio((s) => s.placeAsset);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
-  const [aiBusy, setAiBusy] = useState<"analyze" | "edit" | null>(null);
-  const [editInstruction, setEditInstruction] = useState("延伸成有夜晚校園感的 IG 主視覺，保留人物與自然互動，增加標題留白");
-  const [editRatio, setEditRatio] = useState<"4:5" | "1:1" | "9:16">("4:5");
-  const [imageStatus, setImageStatus] = useState<ImageAiStatus | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    getMultimodalStatus()
-      .then((result) => {
-        if (alive) setImageStatus(result);
-      })
-      .catch(() => {
-        if (alive) setImageStatus(describeImageAdapter(false));
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const [busy, setBusy] = useState<string | null>(null);
 
   if (!asset) return null;
   const current = asset;
@@ -133,110 +108,6 @@ export function AssetDetailSheet({
     toast.success(`已放入「${current.name}」`);
     onOpenChange(false);
     void navigate({ to: "/studio/$projectId", params: { projectId: lastProjectId } });
-  }
-
-  async function preparedSource() {
-    const blob = await sourceBlob(current.id, url);
-    return prepareImageForAi(blob);
-  }
-
-  function writeVisualMemory(analysis: AssetAnalysis) {
-    if (!brand) return;
-    const memory = brand.memory ?? emptyBrandMemory();
-    updateBrand(brand.id, {
-      memory: {
-        ...memory,
-        learnedPatterns: applyVisualLesson(memory.learnedPatterns, current.name, analysis),
-        updatedAt: Date.now(),
-      },
-    });
-  }
-
-  async function analyze() {
-    if (current.width === 0) {
-      toast.error("這張沒有原圖像素，不能分析，也不會寫入模擬結果。");
-      return;
-    }
-    if (imageStatus && !imageStatus.available) {
-      toast.error(imageStatus.analyzeBlockedMessage);
-      return;
-    }
-    setAiBusy("analyze");
-    try {
-      const prepared = await preparedSource();
-      const result = await analyzeCreativeImage({ data: { dataUrl: prepared.dataUrl } });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      updateAsset(current.id, {
-        analysis: result.analysis,
-        tags: [...new Set([...current.tags, ...result.analysis.suggestedTags])].slice(0, 20),
-      });
-      writeVisualMemory(result.analysis);
-      toast.success("已完成分析並寫入 Brand Memory");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "圖片分析失敗");
-    } finally {
-      setAiBusy(null);
-    }
-  }
-
-  async function edit() {
-    if (editInstruction.trim().length < 3) {
-      toast.error("先描述想怎麼延伸這張素材");
-      return;
-    }
-    if (imageStatus && !imageStatus.available) {
-      toast.error(imageStatus.generateBlockedMessage);
-      return;
-    }
-    setAiBusy("edit");
-    try {
-      const prepared = await preparedSource();
-      const result = await editCreativeImage({
-        data: { dataUrl: prepared.dataUrl, instruction: editInstruction, aspectRatio: editRatio },
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      const raw = await base64ImageToBlob(result.image.base64, result.image.mime);
-      const generated = await prepareImageForAi(raw);
-      const id = uid("asset_ai_edit");
-      await getAssetStorage().put(id, generated.blob);
-      addAsset({
-        id,
-        name: `${current.name}｜AI 延伸`,
-        kind: "image",
-        category: current.category,
-        mime: generated.mime,
-        width: generated.width,
-        height: generated.height,
-        tags: [...new Set([...current.tags, "AI 延伸", editRatio])].slice(0, 20),
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        source: "generated",
-        licenseNotes: `由 xAI Grok Imagine 參考「${current.name}」生成；原始來源與人物授權仍需一併確認。`,
-        licenseOwner: current.licenseOwner,
-        favorite: false,
-        lastUsedAt: null,
-        useCount: 0,
-        generationPrompt: editInstruction,
-        provenance: {
-          provider: "generated",
-          label: `AI 延伸自 ${current.name}`,
-          parentAssetId: current.id,
-          importedAt: Date.now(),
-        },
-      });
-      toast.success("延伸視覺已加入素材庫");
-      onCreated?.(id);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "圖片改版失敗");
-    } finally {
-      setAiBusy(null);
-    }
   }
 
   return (
@@ -445,18 +316,112 @@ export function AssetDetailSheet({
           <Input
             value={asset.licenseOwner}
             onChange={(e) => patch("licenseOwner", e.target.value)}
-            placeholder="例如：淡江禪學社、拍攝社員"
+            placeholder="例如：淡江禪學社、社員姓名"
           />
         </div>
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
-        <div className="flex flex-wrap gap-2 pb-4">
-          <Button onClick={place} disabled={!lastProjectId}>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            disabled={busy !== null}
+            onClick={async () => {
+              const ok = await createFromHit({
+                id: current.id,
+                source: current.source === "generated" ? "generated" : current.source === "drive" || current.source === "canva" || current.source === "instagram" ? current.source : "asset",
+                title: current.name,
+                subtitle: current.tags.join(" · ") || current.category,
+                thumbAssetId: current.id,
+                tags: current.tags,
+              });
+              if (ok) {
+                onOpenChange(false);
+                void navigate({ to: "/create" });
+              }
+            }}
+          >
+            加入創作
+          </Button>
+          <Button onClick={place} disabled={!lastProjectId || busy !== null}>
             放到目前畫布
           </Button>
-          <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
+          <Button
+            variant="secondary"
+            disabled={busy !== null}
+            onClick={async () => {
+              if (!url) {
+                toast.error("還沒有預覽可以分析。");
+                return;
+              }
+              try {
+                const dataUrl = url.startsWith("data:") ? url : await blobToDataUrl(url);
+                const { analyzeStudioImage } = await import("@/lib/ai/image");
+                const result = await analyzeStudioImage({
+                  data: { imageDataUrl: dataUrl, question: "幫這張素材打標，看適不適合淡江學生 IG。" },
+                });
+                if (!result.ok) {
+                  toast.error(result.error);
+                  return;
+                }
+                const tags = Array.from(
+                  new Set([
+                    ...current.tags,
+                    ...[result.analysis.color, result.analysis.brand, result.analysis.student]
+                      .join(" ")
+                      .split(/[、，,\s]+/)
+                      .map((t) => t.trim())
+                      .filter((t) => t.length >= 2 && t.length <= 12)
+                      .slice(0, 6),
+                  ]),
+                );
+                updateAsset(current.id, {
+                  tags,
+                  licenseNotes: [current.licenseNotes, result.analysis.content, `太宗教？${result.analysis.tooReligious}`, `太 AI？${result.analysis.tooAi}`]
+                    .filter(Boolean)
+                    .join("\n"),
+                });
+                toast.success("已寫入 AI 標籤");
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "分析失敗");
+              }
+            }}
+          >
+            AI 分析／打標
+          </Button>
+        </div>
+        <div>
+          <p className="text-xs text-muted">從這張開始</p>
+          <div className="mt-2 flex flex-wrap gap-2 pb-4">
+          {LAUNCH_ACTIONS.map((action) => (
+            <Button
+              key={action.id}
+              variant="secondary"
+              disabled={busy !== null}
+              onClick={async () => {
+                setBusy(action.id);
+                try {
+                  const result = await launchFromAsset({ asset: current, action: action.id });
+                  if (!result.ok) {
+                    toast.error(result.error);
+                    return;
+                  }
+                  toast.success(launchSuccessMessage(action.id));
+                  onOpenChange(false);
+                  void navigate({ to: "/instagram" });
+                } finally {
+                  setBusy(null);
+                }
+              }}
+            >
+              {busy === action.id ? "生成中…" : action.label}
+            </Button>
+          ))}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 pb-4">
+          <Button variant="secondary" disabled={busy !== null} onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}
           </Button>
-          <Button variant="outline" onClick={onDelete}>
+          <Button variant="outline" disabled={busy !== null} onClick={onDelete}>
             刪除
           </Button>
         </div>
@@ -465,11 +430,13 @@ export function AssetDetailSheet({
   );
 }
 
-function AnalysisFact({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="font-medium text-fg">{label}</p>
-      <p className="mt-0.5 text-muted">{value}</p>
-    </div>
-  );
+async function blobToDataUrl(url: string) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("讀取失敗"));
+    reader.readAsDataURL(blob);
+  });
 }

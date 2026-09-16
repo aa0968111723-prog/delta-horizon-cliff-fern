@@ -30,8 +30,6 @@ type UiState = {
   setSaveStatus: (status: SaveStatus) => void;
   setEditorPanel: (panel: EditorPanel | null) => void;
   setCarouselPreview: (open: boolean) => void;
-  setStylePrompt: (prompt: StylePrompt | null) => void;
-  setCreationDesk: (desk: CreationDesk) => void;
 };
 
 export const useUi = create<UiState>((set) => ({
@@ -54,6 +52,4 @@ export const useUi = create<UiState>((set) => ({
   setSaveStatus: (saveStatus) => set({ saveStatus }),
   setEditorPanel: (editorPanel) => set({ editorPanel }),
   setCarouselPreview: (carouselPreview) => set({ carouselPreview }),
-  setStylePrompt: (stylePrompt) => set({ stylePrompt }),
-  setCreationDesk: (creationDesk) => set({ creationDesk }),
 }));

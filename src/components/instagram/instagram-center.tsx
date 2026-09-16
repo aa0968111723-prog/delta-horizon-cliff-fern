@@ -1,293 +1,1163 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { format } from "date-fns";
+import { zhTW } from "date-fns/locale";
+import { Clapperboard, Images } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { BrandSubnav } from "@/components/brand/brand-subnav";
-import { IgPreview } from "@/components/instagram/ig-preview";
-import { ReelsStudio } from "@/components/instagram/reels-studio";
-import type { IgSurface } from "@/lib/studio/ig-surfaces";
-import { OutcomeJournal } from "@/components/learning/outcome-journal";
-import { CreationLoop } from "@/components/shared/creation-loop";
+import { applyVisualDirection } from "@/components/create/apply-visual";
+import { applyFormatSequence } from "@/components/create/apply-sequence";
+import { ConvertPanel } from "@/components/create/convert-panel";
+import { createFromHit } from "@/components/create/from-hit";
+import { openCanvaDraft } from "@/components/create/open-canva";
+import { openScheduledPreview } from "@/components/create/open-preview";
+import { DueSlotActions, DueSlotCard } from "@/components/instagram/due-slot";
+import { FormatScriptPanel } from "@/components/instagram/format-script";
+import { IgPostSheet } from "@/components/instagram/post-sheet";
+import { PublishIgButton } from "@/components/instagram/publish-button";
 import { PageHeader } from "@/components/shared/page-header";
-import { Badge } from "@/components/ui/badge";
+import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getInstagramInsightsStatus, getInstagramStatus, listInstagramMedia, startInstagramConnect } from "@/lib/connections/instagram";
-import { openExternalUrl } from "@/components/connections/connection-status";
-import { redirectToLoginIfRequired } from "@/lib/app-data";
-import type { ConnectorUiState, InstagramInsightsSnapshot } from "@/lib/connections/types";
-import { lessonsFromInsights } from "@/lib/creative/learning";
-import { emptyBrandMemory } from "@/lib/studio/brand";
-import { useConnectionStore } from "@/stores/connection-store";
+import { Textarea } from "@/components/ui/input";
+import { useAssetUrls, resolveAssetSrc } from "@/hooks/use-asset-urls";
+import { generateCopyPack } from "@/lib/ai/copy";
+import { syncInstagramMemory } from "@/lib/ai/oauth";
+import { ingestOfficialIgPosts } from "@/components/instagram/ingest-live";
+import { FORMATS } from "@/lib/studio/formats";
+import { pagesOf } from "@/lib/studio/layers";
+import { SEED_ASSETS } from "@/lib/studio/seed";
+import { canvaDraftNotes, canvaPresetForFormat } from "@/lib/zen/canva-draft";
+import type { FormatId } from "@/lib/studio/types";
+import { uid } from "@/lib/studio/ids";
+import { hitFromIgPost } from "@/lib/zen/from-hit";
+import { dnaPromptIdea, igDnaBlock, learnAfterPublish, learnFromPosts, nextCreateHint, recentPostedNotes } from "@/lib/zen/insights";
+import { IG_DNA } from "@/lib/zen/memory";
+import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
+import { COPY_STYLES, captionFromCopyStyle, completeCopyVariants, matchingCopyStyle } from "@/lib/zen/voice";
+import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatIdForContentKind, formatScript, packWithCaption, previewContentKind } from "@/lib/zen/convert";
+import { buildLayout } from "@/lib/studio/layout";
+import { isWaveScheduleItem, previewBindForSchedule, schedulePreviewAssetId, placeScheduleItems, dueScheduleItems, scheduleItemForPreview, wrapOverlayHeadline } from "@/lib/zen/schedule";
+import { cn } from "@/lib/utils";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
-export function InstagramCenter({
-  projectId,
-  surface,
-}: {
-  projectId?: string;
-  surface?: IgSurface;
-}) {
-  const items = useConnectionStore((state) => state.instagramItems);
-  const syncItems = useConnectionStore((state) => state.syncInstagramItems);
-  const username = useConnectionStore((state) => state.instagramUsername);
-  const lastProjectId = useStudio((state) => state.lastProjectId);
-  const brand = useStudio((state) => state.brands[0]);
-  const updateBrand = useStudio((state) => state.updateBrand);
-  const [status, setStatus] = useState<ConnectorUiState>("idle");
-  const [insightsNote, setInsightsNote] = useState("官方 Insights 尚未授權。這裡不會顯示模擬數據。");
-  const [insights, setInsights] = useState<InstagramInsightsSnapshot | null>(null);
-  const [canRequestInsights, setCanRequestInsights] = useState(false);
-  const [tab, setTab] = useState(() => {
-    if (typeof window !== "undefined") {
-      const hash = window.location.hash.replace("#", "");
-      if (["memory", "preview", "reels", "insights", "learn"].includes(hash)) return hash;
+type Tab = "grid" | "preview" | "calendar";
+
+const PREVIEW_FORMATS: FormatId[] = ["feed-portrait", "feed-square", "story", "reels-cover", "threads", "line"];
+
+export function InstagramCenter() {
+  const navigate = useNavigate();
+  const igPosts = useCreative((s) => s.igPosts);
+  const schedule = useCreative((s) => s.schedule);
+  const campaigns = useCreative((s) => s.campaigns);
+  const igView = useCreative((s) => s.igView);
+  const igFormat = useCreative((s) => s.igFormat);
+  const setIgView = useCreative((s) => s.setIgView);
+  const lastVisualAssetId = useCreative((s) => s.lastVisualAssetId);
+  const lastSequence = useCreative((s) => s.lastSequence);
+  const sequences = useCreative((s) => s.sequences);
+  const lastPack = useCreative((s) => s.lastPack);
+  const previewScheduleId = useCreative((s) => s.previewScheduleId);
+  const setPreviewSchedule = useCreative((s) => s.setPreviewSchedule);
+  const setIgFormat = useCreative((s) => s.setIgFormat);
+  const setIgPreview = useCreative((s) => s.setIgPreview);
+  const patchCampaign = useCreative((s) => s.patchCampaign);
+  const patchSchedule = useCreative((s) => s.patchSchedule);
+  const addIgPost = useCreative((s) => s.addIgPost);
+  const setConnection = useCreative((s) => s.setConnection);
+  const igStatus = useCreative((s) => s.connections.find((c) => c.id === "instagram")?.status);
+  const upsertSchedule = useCreative((s) => s.upsertSchedule);
+  const markPublished = useCreative((s) => s.markPublished);
+  const projects = useStudio((s) => s.projects);
+  const lastProjectId = useStudio((s) => s.lastProjectId);
+  const setLastProjectId = useStudio((s) => s.setLastProjectId);
+  const brands = useStudio((s) => s.brands);
+  const assets = useStudio((s) => s.assets);
+  const setCopy = useStudio((s) => s.setCopy);
+  const ensureArtboard = useStudio((s) => s.ensureArtboard);
+  const setActiveFormat = useStudio((s) => s.setActiveFormat);
+  const setSlide = useStudio((s) => s.setSlide);
+  const due = useMemo(() => dueScheduleItems(schedule, Date.now(), 6), [schedule]);
+  const dueIds = useMemo(() => new Set(due.map((item) => item.id)), [due]);
+  const upcoming = useMemo(
+    () =>
+      [...schedule]
+        .filter((item) => item.status !== "published")
+        .filter((item) => !dueIds.has(item.id))
+        .filter((item) => ["ig-post", "carousel", "story", "reels", "threads"].includes(item.contentKind))
+        .filter((item) => !isWaveScheduleItem(item))
+        .sort((a, b) => a.scheduledAt - b.scheduledAt),
+    [schedule, dueIds],
+  );
+  const previewIds = useMemo(() => {
+    const ids = [
+      ...assets.map((a) => a.id),
+      ...igPosts.map((p) => p.assetId),
+      ...due.map((item) => schedulePreviewAssetId(item, campaigns)).filter((id): id is string => Boolean(id)),
+      ...upcoming.map((item) => schedulePreviewAssetId(item, campaigns)).filter((id): id is string => Boolean(id)),
+      ...(lastVisualAssetId ? [lastVisualAssetId] : []),
+      ...(lastSequence?.assetIds ?? []),
+      ...sequences.flatMap((row) => row.assetIds),
+    ];
+    return [...new Set(ids)];
+  }, [assets, igPosts, due, upcoming, campaigns, lastVisualAssetId, lastSequence, sequences]);
+  const blobUrls = useAssetUrls(previewIds);
+  const urls = useMemo(() => {
+    const next = { ...blobUrls };
+    for (const asset of assets) {
+      if (!next[asset.id] && asset.seedSrc) next[asset.id] = asset.seedSrc;
     }
-    return projectId ? "preview" : "memory";
-  });
-  const [query, setQuery] = useState("");
-  const locationHash = useRouterState({ select: (state) => state.location.hash });
+    for (const seed of SEED_ASSETS) {
+      if (!next[seed.id] && seed.seedSrc) next[seed.id] = seed.seedSrc;
+    }
+    return next;
+  }, [blobUrls, assets]);
+  const [tab, setTab] = useState<Tab>(igView);
+  const [active, setActive] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [createBusy, setCreateBusy] = useState(false);
+  const [dnaBusy, setDnaBusy] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [beatBusy, setBeatBusy] = useState<string | null>(null);
+  const [canvaBusy, setCanvaBusy] = useState(false);
+  const [previewFormat, setPreviewFormat] = useState<FormatId>(igFormat);
+  const [caption, setCaption] = useState("");
+  const [copyStyle, setCopyStyle] = useState("一般版");
+  const post = igPosts.find((p) => p.id === active);
+  const brand = brands[0];
+  const learned = useMemo(() => learnFromPosts(igPosts), [igPosts]);
+  const createHint = useMemo(() => nextCreateHint(igPosts), [igPosts]);
+  const justLearned = igPosts.find((post) => post.id.startsWith("ig_studio_"));
+  const learnedLine = useMemo(() => (justLearned ? learnAfterPublish(igPosts) : ""), [justLearned, igPosts]);
+  const filmstrip = useMemo(() => {
+    if (previewFormat === "story") {
+      return sequences.find((row) => row.kind === "story") ?? (lastSequence?.kind === "story" ? lastSequence : null);
+    }
+    if (previewFormat === "reels-cover") {
+      return sequences.find((row) => row.kind === "reels") ?? (lastSequence?.kind === "reels" ? lastSequence : null);
+    }
+    if (previewFormat === "threads") {
+      return sequences.find((row) => row.kind === "threads") ?? (lastSequence?.kind === "threads" ? lastSequence : null);
+    }
+    if (previewFormat === "line") {
+      return sequences.find((row) => row.kind === "line") ?? (lastSequence?.kind === "line" ? lastSequence : null);
+    }
+    if (previewFormat === "feed-square") {
+      return sequences.find((row) => row.kind === "post") ?? (lastSequence?.kind === "post" ? lastSequence : null);
+    }
+    return (
+      sequences.find((row) => row.kind === "carousel") ??
+      sequences.find((row) => row.kind === "post") ??
+      lastSequence
+    );
+  }, [previewFormat, sequences, lastSequence]);
+  const previewKind = useMemo(() => {
+    const opened = schedule.find((item) => item.id === previewScheduleId);
+    if (opened) return opened.contentKind;
+    return previewContentKind(previewFormat, sequences);
+  }, [previewScheduleId, schedule, previewFormat, sequences]);
+  const openedSlot = useMemo(
+    () => schedule.find((item) => item.id === previewScheduleId),
+    [schedule, previewScheduleId],
+  );
+  const previewBind = useMemo(
+    () => (openedSlot ? previewBindForSchedule(openedSlot, campaigns) : null),
+    [openedSlot, campaigns],
+  );
+  const previewSlot = useMemo(
+    () =>
+      scheduleItemForPreview({
+        items: schedule,
+        previewScheduleId,
+        contentKind: previewKind,
+        projectId: filmstrip?.projectId ?? lastProjectId,
+        sequenceProjectId: filmstrip?.projectId,
+      }),
+    [schedule, previewScheduleId, previewKind, filmstrip?.projectId, lastProjectId],
+  );
+  const previewProject =
+    (previewSlot?.projectId ? projects.find((p) => p.id === previewSlot.projectId) : undefined) ??
+    (filmstrip ? projects.find((p) => p.id === filmstrip.projectId) : undefined) ??
+    projects.find((p) => p.id === lastProjectId) ??
+    projects.find((p) => p.activeFormatId === previewFormat) ??
+    projects.find((p) => pagesOf(p, previewFormat).length) ??
+    projects[0];
+  const previewPages = previewProject ? pagesOf(previewProject, previewFormat) : [];
+  const overlayBoard = useMemo(() => {
+    if (!previewBind?.overlay || !brand) return null;
+    return buildLayout(
+      previewFormat,
+      {
+        eyebrow: previewBind.campaignName ?? "",
+        headline: wrapOverlayHeadline(previewBind.headline),
+        subhead: previewBind.campaignName ?? "",
+        body: "",
+        cta: "",
+        handle: brand.handle,
+        caption: previewBind.caption,
+        hashtags: [],
+        altText: previewBind.headline,
+      },
+      brand,
+      "product",
+      { imageAssetId: previewBind.assetId ?? undefined },
+    );
+  }, [previewBind, brand, previewFormat]);
+  const alreadyOnCalendar = Boolean(previewSlot);
+  const previewCopyVariants = useMemo(
+    () => (lastPack ? completeCopyVariants(lastPack.copy) : []),
+    [lastPack],
+  );
+  const overlayPack = useMemo(
+    () => (lastPack ? packWithCaption(lastPack, caption) : null),
+    [lastPack, caption],
+  );
+  const previewScript = useMemo(() => {
+    if (!overlayPack) return null;
+    return formatScript(convertFromPlan(overlayPack.plan), previewFormat, previewProject?.contentKind);
+  }, [overlayPack, previewFormat, previewProject?.contentKind]);
+  const previewAssetId =
+    (previewBind?.overlay ? previewBind.assetId : null) ??
+    lastVisualAssetId ??
+    filmstrip?.assetIds[previewProject?.slideIndex ?? 0] ??
+    filmstrip?.assetIds[0] ??
+    previewPages[0]?.layers.find((layer) => layer.type === "image")?.assetId ??
+    previewPages[0]?.background.assetId ??
+    assets[0]?.id ??
+    null;
+  const previewImageSrc = resolveAssetSrc(
+    previewAssetId,
+    urls,
+    assets.find((asset) => asset.id === previewAssetId)?.seedSrc ??
+      SEED_ASSETS.find((asset) => asset.id === previewAssetId)?.seedSrc,
+  );
 
   useEffect(() => {
-    void (async () => {
-      const availability = await getInstagramStatus();
-      setCanRequestInsights(availability.available && availability.mode === "oauth" && availability.connected && !availability.capabilities.insights);
-      if (!availability.available) {
-        setStatus("unavailable");
-        return;
-      }
-      if (!availability.connected) {
-        setStatus("not_connected");
-        return;
-      }
-      const result = await listInstagramMedia({ data: {} });
+    setTab(igView);
+  }, [igView]);
+
+  useEffect(() => {
+    setPreviewFormat(igFormat);
+    if (igView !== "preview" || !lastProjectId || previewBind?.overlay) return;
+    ensureArtboard(lastProjectId, igFormat);
+    setActiveFormat(lastProjectId, igFormat);
+  }, [igFormat, lastProjectId, igView, previewBind?.overlay]);
+
+  useEffect(() => {
+    const opened = schedule.find((item) => item.id === previewScheduleId);
+    if (opened?.captionPreview && opened.contentKind === previewKind) {
+      setCaption(opened.captionPreview);
+      return;
+    }
+    if (previewProject) setCaption(previewProject.copy.caption || previewProject.copy.headline);
+  }, [previewScheduleId, schedule, previewKind, previewProject?.id, previewProject?.copy.caption, previewProject?.copy.headline]);
+
+  useEffect(() => {
+    if (!previewCopyVariants.length) return;
+    const matched = matchingCopyStyle(caption, previewCopyVariants);
+    if (matched) setCopyStyle(matched);
+  }, [caption, previewCopyVariants]);
+
+  useEffect(() => {
+    if (!previewSlot?.id || previewSlot.id === previewScheduleId) return;
+    if (!lastPack && !previewScheduleId) return;
+    setPreviewSchedule(previewSlot.id);
+  }, [previewSlot?.id, previewScheduleId, lastPack, setPreviewSchedule]);
+
+  function bindPreviewFormat(id: FormatId) {
+    setPreviewFormat(id);
+    setIgFormat(id);
+    if (previewBind?.overlay) {
+      setIgPreview(previewBind.assetId, id);
+      return;
+    }
+    const kind = previewContentKind(id, sequences);
+    const seqKind = kind === "ig-post" ? "post" : kind;
+    const match =
+      sequences.find((row) => row.kind === seqKind) ??
+      (id === "feed-portrait" ? sequences.find((row) => row.kind === "carousel") : undefined);
+    const slot = scheduleItemForPreview({
+      items: schedule,
+      previewScheduleId,
+      contentKind: kind,
+      projectId: match?.projectId ?? lastProjectId,
+      sequenceProjectId: match?.projectId,
+    });
+    if (slot) setPreviewSchedule(slot.id);
+    const projectId = slot?.projectId ?? match?.projectId ?? previewProject?.id;
+    if (match) {
+      useCreative.getState().setLastSequence(match);
+      setIgPreview(match.assetIds[0] ?? null, id);
+      setLastProjectId(match.projectId);
+      setSlide(match.projectId, 0);
+    } else if (slot) {
+      const assetId = schedulePreviewAssetId(slot, campaigns);
+      if (slot.projectId) setLastProjectId(slot.projectId);
+      setIgPreview(assetId, id);
+    }
+    if (projectId) {
+      ensureArtboard(projectId, id);
+      setActiveFormat(projectId, id);
+    }
+  }
+
+  async function analyze() {
+    if (!post) return;
+    setBusy(true);
+    try {
+      const result = await generateCopyPack({
+        data: {
+          idea: post.caption,
+          kind: post.mediaType === "reels" ? "reels" : post.mediaType === "carousel" ? "carousel" : "emotion",
+          dnaNotes: igDnaBlock(igPosts),
+        },
+      });
       if (!result.ok) {
-        setStatus(result.kind);
+        toast.error(result.error);
         return;
       }
-      syncItems(result.data);
-      setStatus("connected");
-      const nextInsights = await getInstagramInsightsStatus();
-      if (!nextInsights.ok) {
-        setInsights(null);
-        setInsightsNote(nextInsights.detail || nextInsights.message);
+      const review = result.pack.studentReview;
+      addIgPost({
+        ...post,
+        hook: result.pack.hook,
+        analysis: `Hook：${result.pack.hook}\n視覺／主題：看學生會不會停。${review.wouldStop}\n太宗教？${review.tooReligious} 太 AI？${review.tooAi} 太長？${review.tooLong}\n時間地點：${review.knowsWhenWhere}`,
+      });
+      toast.success("已寫入 IG 記憶");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createFromActive() {
+    if (!post) return;
+    setCreateBusy(true);
+    try {
+      const ok = await createFromHit(hitFromIgPost(post));
+      if (ok) {
+        setSheetOpen(false);
+        await navigate({ to: "/create" });
+      }
+    } finally {
+      setCreateBusy(false);
+    }
+  }
+
+  async function syncOfficial() {
+    setSyncBusy(true);
+    try {
+      const result = await syncInstagramMemory();
+      if (!result.ok) {
+        toast.message(result.error);
+        setConnection("instagram", {
+          status: result.connected ? "connected" : "disconnected",
+          detail: result.error,
+        });
         return;
       }
-      setInsights(nextInsights.data);
-      setInsightsNote("");
-    })();
-  }, [syncItems]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("ig") === "connected") {
-      toast.success("Instagram 已連接");
-      params.delete("ig");
-      window.history.replaceState({}, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
+      const hint = await ingestOfficialIgPosts(result.posts);
+      if (result.posts[0]) setActive(result.posts[0].id);
+      setConnection("instagram", {
+        status: "connected",
+        lastSyncAt: Date.now(),
+        detail: `已讀取 ${result.posts.length} 則官方貼文`,
+      });
+      toast.success(`已同步 ${result.posts.length} 則。${hint.line}`);
+    } finally {
+      setSyncBusy(false);
     }
-    if (params.get("ig") === "error") {
-      toast.error("Instagram 授權未完成");
-      params.delete("ig");
-      params.delete("reason");
-      window.history.replaceState({}, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
+  }
+
+  async function writeFromDna() {
+    setDnaBusy(true);
+    try {
+      const result = await generateCopyPack({
+        data: {
+          idea: dnaPromptIdea(igPosts),
+          kind: "emotion",
+          dnaNotes: igDnaBlock(igPosts),
+        },
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+    upsertSchedule({
+        id: uid("sch"),
+        title: result.pack.hook,
+        contentKind: "ig-post",
+        status: "idea",
+        scheduledAt: tonightAt(2),
+        publishedAt: null,
+        projectId: null,
+        campaignId: null,
+        captionPreview: result.pack.body,
+      });
+      toast.success("已用 IG DNA 寫出新文案，並放進日曆草稿");
+      await navigate({ to: "/create" });
+    } finally {
+      setDnaBusy(false);
     }
-    if (params.get("tab")) setTab(params.get("tab") || "memory");
-  }, []);
+  }
 
-  useEffect(() => {
-    const hash = locationHash.replace("#", "");
-    if (["memory", "preview", "reels", "insights", "learn"].includes(hash)) setTab(hash);
-  }, [locationHash]);
+  function persistCaption(next: string) {
+    if (previewProject && !previewBind?.overlay) {
+      ensureArtboard(previewProject.id, previewFormat);
+      setActiveFormat(previewProject.id, previewFormat);
+      setCopy(previewProject.id, { caption: next });
+    }
+    if (previewSlot && previewSlot.contentKind === previewKind) {
+      patchSchedule(previewSlot.id, { captionPreview: next });
+    }
+  }
 
-  const visible = useMemo(() => {
-    const needle = query.trim();
-    if (!needle) return items;
-    return items.filter((item) => `${item.title} ${item.snippet}`.includes(needle));
-  }, [items, query]);
+  function applyPreviewCopyStyle(style: string) {
+    if (!lastPack) return;
+    const next = captionFromCopyStyle(lastPack.copy, style);
+    setCopyStyle(style);
+    setCaption(next);
+    persistCaption(next);
+  }
+
+  function saveCaption() {
+    persistCaption(caption);
+    toast.success("已更新 Caption");
+  }
+
+  async function sendPreviewToCanva() {
+    const slide = previewProject?.slideIndex ?? 0;
+    const assetId =
+      lastVisualAssetId ??
+      filmstrip?.assetIds[slide] ??
+      filmstrip?.assetIds[0] ??
+      null;
+    const seedSrc = assets.find((a) => a.id === assetId)?.seedSrc;
+    const imageSrc = resolveAssetSrc(assetId, urls, seedSrc);
+    setCanvaBusy(true);
+    try {
+      await openCanvaDraft({
+        title: lastPack?.campaignName || previewProject?.name || "禪光",
+        hook: lastPack?.copy.hook || caption.split("\n")[0],
+        notes:
+          canvaDraftNotes({
+            hook: lastPack?.copy.hook,
+            body: caption,
+            cta: lastPack?.copy.cta,
+            hashtags: lastPack?.copy.hashtags,
+          }) || caption,
+        preset: canvaPresetForFormat(previewFormat),
+        imageSrc,
+      });
+    } finally {
+      setCanvaBusy(false);
+    }
+  }
+
+  function scheduleCurrent() {
+    if (!caption.trim()) {
+      toast.message("還沒有文案可以排。");
+      return;
+    }
+    const campaignId =
+      lastPack?.campaignName
+        ? campaigns.find((row) => row.name === lastPack.campaignName || lastPack.campaignName.includes(row.name))?.id ??
+          null
+        : null;
+    const [placed] = placeScheduleItems(schedule, [
+      {
+        id: uid("sch"),
+        title: (lastPack?.copy.hook || previewProject?.name || "今晚").slice(0, 48),
+        contentKind: previewProject?.contentKind ?? contentKindForFormat(previewFormat),
+        status: "scheduled",
+        scheduledAt: tonightAt(0),
+        publishedAt: null,
+        projectId: previewProject?.id ?? lastSequence?.projectId ?? null,
+        campaignId,
+        captionPreview: previewScript && previewScript.kind !== "post" ? previewScript.rows.map((row) => `${row.kicker} ${row.title}`).join("\n") : caption,
+        sequence: lastSequence && lastSequence.kind === (previewScript?.kind ?? "") ? lastSequence : undefined,
+      },
+    ]);
+    if (placed) upsertSchedule(placed);
+    if (campaignId && lastVisualAssetId) {
+      const campaign = campaigns.find((row) => row.id === campaignId);
+      if (campaign) {
+        patchCampaign(campaignId, {
+          relatedAssetIds: [lastVisualAssetId, ...campaign.relatedAssetIds.filter((id) => id !== lastVisualAssetId)].slice(0, 8),
+        });
+      }
+    }
+    toast.success("已排進日曆（避開已有的活動廣告夜）");
+    void navigate({ to: "/calendar" });
+  }
+
+  function rememberPreviewPublished() {
+    const campaignId =
+      lastPack?.campaignName
+        ? campaigns.find((row) => row.name === lastPack.campaignName || lastPack.campaignName.includes(row.name))?.id ??
+          null
+        : null;
+    const existing = previewSlot;
+    if (existing) {
+      if (caption.trim() && caption !== existing.captionPreview) {
+        patchSchedule(existing.id, { captionPreview: caption });
+      }
+      markPublished(existing.id);
+      const hint = nextCreateHint(useCreative.getState().igPosts);
+      toast.success(`已寫進過去 IG。${hint.line}`);
+      setTab("grid");
+      setIgView("grid");
+      return;
+    }
+    const id = uid("sch");
+    upsertSchedule({
+      id,
+      title: (lastPack?.copy.hook || previewProject?.name || "IG").slice(0, 48),
+      contentKind: previewProject?.contentKind ?? contentKindForFormat(previewFormat),
+      status: "scheduled",
+      scheduledAt: Date.now(),
+      publishedAt: null,
+      projectId: previewProject?.id ?? lastSequence?.projectId ?? null,
+      campaignId,
+      captionPreview: caption,
+      sequence: lastSequence,
+    });
+    markPublished(id);
+    const hint = nextCreateHint(useCreative.getState().igPosts);
+    toast.success(`已寫進過去 IG。${hint.line}`);
+    setTab("grid");
+    setIgView("grid");
+  }
+
+  async function makeAllVisuals() {
+    if (!lastPack || !previewScript) return;
+    const kind = previewScript.kind;
+    if (kind !== "carousel" && kind !== "story" && kind !== "reels") return;
+    setBeatBusy("all");
+    try {
+      const result = await applyFormatSequence({
+        pack: overlayPack ?? lastPack,
+        kind,
+        campaignId:
+          campaigns.find(
+            (campaign) => campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name),
+          )?.id ?? null,
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`已做成 ${result.labels.length} 張畫面`);
+    } finally {
+      setBeatBusy(null);
+    }
+  }
+
+  async function makeBeatVisual(beat: { id: string; title: string; kicker: string }) {
+    if (!lastPack) return;
+    setBeatBusy(beat.id);
+    try {
+      const source = overlayPack ?? lastPack;
+      const pack = {
+        ...source,
+        directions: source.directions?.map((dir, i) =>
+          i === 0 ? { ...dir, headline: beat.title, subhead: beat.kicker } : dir,
+        ),
+      };
+      const result = await applyVisualDirection({
+        pack,
+        formatId: previewFormat,
+        convertTarget: convertTargetForPreview(previewFormat, previewProject?.contentKind),
+        contentKind: previewProject?.contentKind,
+        caption: beat.title,
+        campaignId:
+          campaigns.find((campaign) => campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name))
+            ?.id ?? null,
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("已做成這一拍畫面");
+    } finally {
+      setBeatBusy(null);
+    }
+  }
 
   return (
-    <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full min-w-0 max-w-5xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker={username ? `@${username}` : "IG 內容記憶"}
-        title="Instagram"
-        description="回看已授權的貼文、預覽這則網宣的 Studio 畫面與文案。沒有連接時不會假裝有貼文或成效數字。"
-        actions={<BrandSubnav current="connections" />}
+        kicker="Instagram Center"
+        title="過去 IG"
+        description={`DNA：${IG_DNA.voice} Caption ${IG_DNA.captionLength}`}
       />
-
-      <div className="mt-4">
-        <CreationLoop current={tab === "preview" ? "preview" : tab === "reels" ? "image" : "preview"} />
+      <div className="mt-4 flex flex-wrap gap-2">
+        {([
+          ["grid", "Grid"],
+          ["preview", "Preview"],
+          ["calendar", "Calendar"],
+        ] as const).map(([id, label]) => (
+          <Button
+            key={id}
+            size="sm"
+            variant={tab === id ? "default" : "secondary"}
+            data-testid={`ig-tab-${id}`}
+            onClick={() => {
+              setTab(id);
+              setIgView(id);
+            }}
+          >
+            {label}
+          </Button>
+        ))}
       </div>
-
-      <Tabs
-        value={tab}
-        onValueChange={(next) => {
-          setTab(next);
-          window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}#${next}`);
-        }}
-        className="mt-6 min-w-0"
-      >
-        <div className="min-w-0 overflow-x-auto">
-          <TabsList className="h-auto min-h-11 w-max min-w-full flex-nowrap justify-start">
-            <TabsTrigger value="memory" className="min-h-11 shrink-0">記憶</TabsTrigger>
-            <TabsTrigger value="preview" className="min-h-11 shrink-0">預覽</TabsTrigger>
-            <TabsTrigger value="reels" className="min-h-11 shrink-0">Reels</TabsTrigger>
-            <TabsTrigger value="learn" className="min-h-11 shrink-0">筆記</TabsTrigger>
-            <TabsTrigger value="insights" className="min-h-11 shrink-0">成效</TabsTrigger>
-          </TabsList>
+      {tab === "grid" ? (
+      <section className="mt-6 rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-border)]">
+        <p className="text-xs text-muted">Zen Club IG DNA</p>
+        <p className="mt-2 text-sm">{IG_DNA.visual}</p>
+        <p className="mt-1 text-xs text-muted">
+          CTA {IG_DNA.cta.join("／")} · {IG_DNA.hashtags.join(" ")}
+        </p>
+        <p className="mt-3 text-xs text-muted">有效 Hook：{learned.winningHooks.join("／")}</p>
+        <p className="mt-1 text-xs text-muted">
+          問句收藏率 {(learned.questionSaveRate * 100).toFixed(1)}% · 公告 {(learned.announceSaveRate * 100).toFixed(1)}%
+          {learned.reelsSaveRate ? ` · Reels ${(learned.reelsSaveRate * 100).toFixed(1)}%` : ""}
+          {learned.carouselSaveRate ? ` · Carousel ${(learned.carouselSaveRate * 100).toFixed(1)}%` : ""}
+        </p>
+        <p className="mt-2 text-sm">{learned.whatWorks}</p>
+        <p className="mt-1 text-xs text-muted">{learned.whatFails}</p>
+        <p className="mt-2 text-sm">{recentPostedNotes(igPosts)}</p>
+        <p className="mt-2 text-sm" data-testid="ig-next-hint">
+          {createHint.line}
+        </p>
+        {justLearned ? (
+          <p className="mt-2 text-sm text-dusk" data-testid="ig-learned">
+            {learnedLine}
+          </p>
+        ) : null}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button size="sm" disabled={dnaBusy} onClick={() => void writeFromDna()}>
+            {dnaBusy ? "寫作中…" : "用這個 DNA 寫新文案"}
+          </Button>
+          <Button size="sm" variant="secondary" disabled={syncBusy} onClick={() => void syncOfficial()}>
+            {syncBusy ? "同步中…" : "同步官方內容"}
+          </Button>
         </div>
+        <p className="mt-2 text-xs text-muted">
+          {igStatus === "connected" ? "只讀 Meta 官方授權範圍內的貼文。" : "還沒連接時會提示，不會爬蟲或存帳密。"}
+        </p>
+      </section>
+      ) : null}
 
-        <TabsContent value="memory" className="mt-5">
-          {status === "unavailable" ? (
-            <EmptyNote
-              title="Instagram 尚未在此環境提供"
-              detail="沒有官方 OAuth 憑證或 MCP catalog。請到連接頁查看狀態，不會顯示模擬貼文。"
-            />
-          ) : status === "not_connected" || status === "login" ? (
-            <EmptyNote
-              title="尚未連接 Instagram"
-              detail="連接後才會出現過去貼文格。這裡不接受貼 Token。"
-              action={<Button asChild><Link to="/connections">去連接</Link></Button>}
-            />
-          ) : items.length ? (
-            <>
-              <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                className="mb-4 h-11"
-                placeholder="搜尋已同步的 Caption、hashtag"
-              />
-              {visible.length ? (
-                <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                  {visible.map((item) => (
-                    <li key={item.id} className="overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-border)]">
-                      <div className="flex aspect-square items-center justify-center bg-bg">
-                        {item.thumbnailUrl ? (
-                          <img src={item.thumbnailUrl} alt={item.title} className="size-full object-cover" />
-                        ) : (
-                          <span className="px-3 text-center text-xs text-muted">{item.mimeType}</span>
-                        )}
-                      </div>
-                      <div className="p-3">
-                        <p className="line-clamp-2 text-sm font-medium">{item.title}</p>
-                        <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted">{item.snippet || "沒有 Caption"}</p>
-                        {item.webUrl ? (
-                          <a href={item.webUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-accent">
-                            在 Instagram 開啟
-                          </a>
-                        ) : null}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <EmptyNote title="沒有符合的貼文" detail="只會搜尋已同步的真實內容，不會補假貼文。" />
-              )}
-            </>
-          ) : (
-            <EmptyNote title="還沒有 IG 內容記憶" detail={status === "checking" || status === "idle" ? "正在檢查授權…" : "已連接，但目前沒有可顯示的貼文。"} />
-          )}
-        </TabsContent>
-
-        <TabsContent value="preview" className="mt-5">
-          <IgPreview projectId={projectId ?? lastProjectId ?? undefined} surface={surface} />
-        </TabsContent>
-
-        <TabsContent value="reels" className="mt-5">
-          <ReelsStudio projectId={projectId ?? lastProjectId ?? undefined} />
-        </TabsContent>
-
-        <TabsContent value="learn" className="mt-5">
-          <OutcomeJournal />
-        </TabsContent>
-
-        <TabsContent value="insights" className="mt-5">
-          {insights?.rows.length ? (
-            <div className="rounded-3xl bg-surface p-6 shadow-[var(--shadow-border)] md:p-10">
-              <Badge variant="success">官方 Insights</Badge>
-              <h2 className="mt-3 font-display text-2xl">只顯示 Instagram 回傳的數字</h2>
-              <p className="mt-2 text-sm text-muted">期間：{insights.period}。沒有的指標不會補 0。</p>
-              <ul className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-                {insights.rows.map((row) => (
-                  <li key={row.metric} className="rounded-2xl bg-bg p-4">
-                    <p className="text-xs text-muted">{row.label}</p>
-                    <p className="mt-2 text-2xl font-semibold tabular-nums">{row.value.toLocaleString("zh-TW")}</p>
-                  </li>
-                ))}
-              </ul>
-              <Button
-                className="mt-5 min-h-11"
-                variant="secondary"
-                onClick={() => {
-                  if (!brand) return;
-                  const memory = brand.memory ?? emptyBrandMemory();
-                  updateBrand(brand.id, {
-                    memory: {
-                      ...memory,
-                      learnedPatterns: [
-                        ...lessonsFromInsights(insights.rows),
-                        ...memory.learnedPatterns,
-                      ].filter((item, index, list) => list.indexOf(item) === index).slice(0, 12),
-                      updatedAt: Date.now(),
-                    },
-                  });
-                  toast.success("已把官方 Insights 寫入 Brand Memory");
-                }}
-              >
-                寫入 Brand Memory
-              </Button>
+      {tab === "grid" ? (
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_18rem]">
+          <div>
+            <div className="grid grid-cols-3 gap-1">
+              {igPosts.map((item) => {
+                const seedSrc =
+                  assets.find((a) => a.id === item.assetId)?.seedSrc ??
+                  SEED_ASSETS.find((a) => a.id === item.assetId)?.seedSrc;
+                const src = item.mediaUrl || resolveAssetSrc(item.assetId, urls, seedSrc);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    data-testid="ig-grid-post"
+                    data-media-type={item.mediaType}
+                    onClick={() => {
+                      setActive(item.id);
+                      setSheetOpen(true);
+                    }}
+                    className={cn(
+                      "relative aspect-square min-h-11 overflow-hidden bg-surface",
+                      active === item.id && "ring-2 ring-accent",
+                    )}
+                  >
+                    {src ? (
+                      <img src={src} alt="" className="size-full object-cover" />
+                    ) : (
+                      <span className="flex size-full items-center justify-center text-xs text-muted">{item.mediaType}</span>
+                    )}
+                    {item.mediaType === "carousel" ? (
+                      <Images className="absolute top-1.5 right-1.5 size-4 text-bg drop-shadow" aria-hidden />
+                    ) : item.mediaType === "reels" ? (
+                      <Clapperboard className="absolute top-1.5 right-1.5 size-4 text-bg drop-shadow" aria-hidden />
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
-          ) : (
-            <div className="rounded-3xl bg-surface p-6 shadow-[var(--shadow-border)] md:p-10">
-              <Badge variant="default">未來狀態</Badge>
-              <h2 className="mt-3 font-display text-2xl">不會顯示模擬成效</h2>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-muted">{insightsNote}</p>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
-                沒有官方 Insights 時，不會用模擬數字來教你下次怎麼寫。改用社團自己的現場筆記。
-              </p>
-              <Button className="mt-5 min-h-11" variant="secondary" onClick={() => setTab("learn")}>
-                打開現場筆記
-              </Button>
-              {canRequestInsights ? (
+            {due.length > 0 ? (
+              <section className="mt-6" data-testid="ig-due">
+                <p className="text-sm font-medium">現在可以發</p>
+                <ul className="mt-2 space-y-3">
+                  {due.map((item) => {
+                    const assetId = schedulePreviewAssetId(item, campaigns);
+                    return (
+                      <DueSlotCard
+                        key={item.id}
+                        item={item}
+                        imageSrc={resolveAssetSrc(
+                          assetId,
+                          urls,
+                          assets.find((asset) => asset.id === assetId)?.seedSrc ??
+                            SEED_ASSETS.find((asset) => asset.id === assetId)?.seedSrc,
+                        )}
+                      />
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : null}
+            {upcoming.length > 0 ? (
+              <div className="mt-6">
+                <p className="text-sm font-medium">即將發布</p>
+                <div className="mt-2 grid grid-cols-3 gap-1">
+                  {upcoming.slice(0, 6).map((item) => {
+                    const assetId = schedulePreviewAssetId(item, campaigns);
+                    const seedSrc =
+                      assets.find((a) => a.id === assetId)?.seedSrc ??
+                      SEED_ASSETS.find((a) => a.id === assetId)?.seedSrc;
+                    const src = resolveAssetSrc(assetId, urls, seedSrc);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          openScheduledPreview(item);
+                          setTab("preview");
+                          setPreviewFormat(formatIdForContentKind(item.contentKind));
+                        }}
+                        className="relative aspect-square overflow-hidden bg-surface"
+                      >
+                        {src ? (
+                          <img src={src} alt="" className="size-full object-cover" />
+                        ) : (
+                          <span className="flex size-full items-center justify-center bg-surface text-xs text-muted">
+                            {CONTENT_KIND_LABEL[item.contentKind]}
+                          </span>
+                        )}
+                        <span className="absolute inset-x-0 bottom-0 bg-fg/55 px-2 py-1 text-left text-xs text-bg">
+                          {format(item.scheduledAt, "M/d", { locale: zhTW })}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+            <IgPostSheet
+              post={post ?? null}
+              src={
+                post
+                  ? post.mediaUrl ||
+                    resolveAssetSrc(
+                      post.assetId,
+                      urls,
+                      assets.find((a) => a.id === post.assetId)?.seedSrc ??
+                        SEED_ASSETS.find((a) => a.id === post.assetId)?.seedSrc,
+                    )
+                  : undefined
+              }
+              open={sheetOpen && Boolean(post)}
+              onOpenChange={setSheetOpen}
+              analyzeBusy={busy}
+              createBusy={createBusy}
+              onAnalyze={() => void analyze()}
+              onCreate={() => void createFromActive()}
+            />
+          </div>
+          <aside className="space-y-4">
+            <p className="text-sm font-medium">哪種 Hook 比較有效</p>
+            <ul className="space-y-2">
+              {learned.ranked.slice(0, 4).map((item) => (
+                <li key={item.id} className="rounded-2xl bg-surface px-3 py-2 shadow-[var(--shadow-border)]">
+                  <p className="text-xs text-muted">收藏 {item.saves} · 觸及 {item.reach}</p>
+                  <p className="text-sm">{item.hook}</p>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        </div>
+      ) : null}
+
+      {tab === "preview" ? (
+        <section className="mt-6 min-w-0 overflow-x-hidden">
+          <div className="flex min-w-0 flex-wrap gap-2">
+            {PREVIEW_FORMATS.map((id) => {
+              const meta = FORMATS.find((f) => f.id === id);
+              return (
                 <Button
-                  className="mt-5"
-                  onClick={() => void (async () => {
-                    const result = await startInstagramConnect({ data: { insights: true } });
-                    if (!result.ok) {
-                      if (result.loginRequired && result.loginUrl) {
-                        redirectToLoginIfRequired({
-                          ok: false,
-                          data: null,
-                          loginRequired: true,
-                          loginUrl: result.loginUrl,
-                        });
-                      }
-                      toast.error(result.message);
-                      return;
-                    }
-                    openExternalUrl(result.data.url);
-                  })()}
+                  key={id}
+                  size="sm"
+                  variant={previewFormat === id ? "default" : "secondary"}
+                  onClick={() => bindPreviewFormat(id)}
                 >
-                  向 Instagram 請求 Insights 權限
+                  {meta?.name ?? id}
                 </Button>
-              ) : status !== "connected" ? (
-                <Button className="mt-5" asChild>
-                  <Link to="/connections">去連接 Instagram</Link>
-                </Button>
+              );
+            })}
+          </div>
+          <div className="mt-4 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+            <div className="min-w-0 overflow-hidden rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-artboard)]">
+              {overlayBoard && brand ? (
+                <div data-testid="preview-slot-visual">
+                  <p className="mb-2 text-xs text-muted">
+                    {previewBind?.campaignName ?? "這則排程"}的畫面
+                  </p>
+                  <ArtboardView artboard={overlayBoard} brand={brand} urls={urls} width={280} />
+                </div>
+              ) : previewPages[previewProject?.slideIndex ?? 0] && brand ? (
+                <ArtboardView
+                  artboard={previewPages[previewProject?.slideIndex ?? 0]!}
+                  brand={brand}
+                  urls={urls}
+                  width={280}
+                />
+              ) : previewPages[0] && brand ? (
+                <ArtboardView artboard={previewPages[0]} brand={brand} urls={urls} width={280} />
+              ) : (
+                <p className="py-16 text-center text-xs text-muted">還沒有這個尺寸的預覽，先去創作一則。</p>
+              )}
+              {!previewBind?.overlay && filmstrip && filmstrip.assetIds.length > 1 ? (
+                <div className="mt-3 hidden w-full min-w-0 overflow-x-auto overscroll-x-contain lg:block">
+                  <SuiteFilmstrip
+                    filmstrip={filmstrip}
+                    urls={urls}
+                    assets={assets}
+                    activeId={lastVisualAssetId}
+                    onPick={(id, index) => {
+                      setIgPreview(id, previewFormat);
+                      if (filmstrip.projectId) setSlide(filmstrip.projectId, index);
+                    }}
+                  />
+                </div>
               ) : null}
             </div>
-          )}
-        </TabsContent>
-      </Tabs>
+            <div className="order-first min-w-0 space-y-3 lg:order-none">
+              {!previewBind?.overlay && lastPack && lastVisualAssetId && lastSequence ? (
+                <div className="min-w-0 overflow-hidden rounded-2xl bg-bg p-3" data-testid="preview-after-suite">
+                  <div className="flex min-w-0 gap-3">
+                    {previewImageSrc ? (
+                      <img
+                        src={previewImageSrc}
+                        alt=""
+                        data-testid="preview-suite-thumb"
+                        className="h-28 w-[5.6rem] shrink-0 rounded-xl object-cover lg:hidden"
+                      />
+                    ) : null}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">剛做成整套，已排進日曆</p>
+                      <p className="mt-1 text-xs text-muted">
+                        這張就是目前畫面。需要時送到 Canva，或直接發到 IG。
+                      </p>
+                      {previewSlot ? (
+                        <p className="mt-1 text-xs text-muted" data-testid="preview-slot-kind">
+                          這則會發成{CONTENT_KIND_LABEL[previewSlot.contentKind]}
+                          {previewSlot.status === "published" ? " · 已發布" : ""}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex min-w-0 flex-col gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      data-testid="preview-canva"
+                      disabled={canvaBusy}
+                      onClick={() => void sendPreviewToCanva()}
+                    >
+                      {canvaBusy ? "送出中…" : "送到 Canva 微調"}
+                    </Button>
+                    <PublishIgButton
+                      caption={caption}
+                      imageSrc={previewImageSrc}
+                      onPublished={() => rememberPreviewPublished()}
+                    />
+                    {alreadyOnCalendar ? (
+                      <Button size="sm" variant="ghost" asChild>
+                        <Link to="/calendar">已排進日曆</Link>
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="secondary" onClick={scheduleCurrent} disabled={!caption.trim()}>
+                        排進日曆
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={rememberPreviewPublished} disabled={!caption.trim()}>
+                      寫進過去 IG
+                    </Button>
+                  </div>
+                  {filmstrip && filmstrip.assetIds.length > 1 ? (
+                    <div className="mt-3 w-full min-w-0 overflow-x-auto overscroll-x-contain lg:hidden">
+                      <SuiteFilmstrip
+                        filmstrip={filmstrip}
+                        urls={urls}
+                        assets={assets}
+                        activeId={lastVisualAssetId}
+                        onPick={(id, index) => {
+                          setIgPreview(id, previewFormat);
+                          if (filmstrip.projectId) setSlide(filmstrip.projectId, index);
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {previewBind?.overlay ? (
+                <div className="min-w-0 overflow-hidden rounded-2xl bg-bg p-3" data-testid="preview-slot-path">
+                  <p className="text-sm font-medium">這則排程的畫面</p>
+                  <p className="mt-1 text-xs text-muted">
+                    這張就是{previewBind.campaignName ?? "這則"}的主視覺，不是上一檔活動。
+                  </p>
+                  {previewSlot ? (
+                    <p className="mt-1 text-xs text-muted" data-testid="preview-slot-kind">
+                      這則會發成{CONTENT_KIND_LABEL[previewSlot.contentKind]}
+                      {previewSlot.status === "published" ? " · 已發布" : ""}
+                    </p>
+                  ) : null}
+                  <div className="mt-3 flex min-w-0 flex-col gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      data-testid="preview-canva"
+                      disabled={canvaBusy}
+                      onClick={() => void sendPreviewToCanva()}
+                    >
+                      {canvaBusy ? "送出中…" : "送到 Canva 微調"}
+                    </Button>
+                    <PublishIgButton
+                      caption={caption}
+                      imageSrc={previewImageSrc}
+                      onPublished={() => rememberPreviewPublished()}
+                    />
+                    {alreadyOnCalendar ? (
+                      <Button size="sm" variant="ghost" asChild>
+                        <Link to="/calendar">已排進日曆</Link>
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="secondary" onClick={scheduleCurrent} disabled={!caption.trim()}>
+                        排進日曆
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={rememberPreviewPublished} disabled={!caption.trim()}>
+                      寫進過去 IG
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+              <p className="text-sm font-medium">Caption</p>
+              {previewCopyVariants.length && !previewBind?.overlay ? (
+                <div className="flex min-w-0 flex-wrap gap-2" data-testid="preview-copy-styles">
+                  {previewCopyVariants.map((variant) => {
+                    const styleId = COPY_STYLES.find((row) => row.label === variant.style)?.id ?? variant.style;
+                    return (
+                      <button
+                        key={variant.style}
+                        type="button"
+                        data-testid={`preview-copy-style-${styleId}`}
+                        onClick={() => applyPreviewCopyStyle(variant.style)}
+                        className={`min-h-11 rounded-full px-3 py-2 text-xs ${
+                          copyStyle === variant.style ? "bg-accent text-accent-fg" : "bg-bg"
+                        }`}
+                      >
+                        {variant.style}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+              <Textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                rows={4}
+                data-testid="preview-caption"
+                className="min-w-0 md:min-h-40"
+              />
+              <p className="break-words text-xs text-muted">{IG_DNA.hashtags.join(" ")}</p>
+              <Button size="sm" onClick={saveCaption} disabled={!previewProject && !previewSlot}>
+                更新文案
+              </Button>
+              {lastPack && !previewBind?.overlay ? (
+                <>
+                  <div className="rounded-2xl bg-bg p-3" data-testid="preview-student-review">
+                    <p className="text-xs text-muted">淡江學生視角</p>
+                    <p className="mt-1 text-sm">
+                      停下？{lastPack.copy.studentReview.wouldStop} · 太宗教？{lastPack.copy.studentReview.tooReligious}{" "}
+                      · 太 AI？{lastPack.copy.studentReview.tooAi} · 太長？{lastPack.copy.studentReview.tooLong}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      看得懂？{lastPack.copy.studentReview.understandable} · 時間地點？
+                      {lastPack.copy.studentReview.knowsWhenWhere} · 找朋友？{lastPack.copy.studentReview.wouldBringFriend}{" "}
+                      · 報名？{lastPack.copy.studentReview.knowsSignup}
+                    </p>
+                    {Array.isArray(lastPack.copy.studentReview.notes) && lastPack.copy.studentReview.notes.length ? (
+                      <ul className="mt-2 space-y-1 text-xs text-muted">
+                        {lastPack.copy.studentReview.notes.slice(0, 4).map((line, i) => (
+                          <li key={`${line}-${i}`}>{line}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">一篇做成其他格式</p>
+                    <p className="mt-1 text-xs text-muted">用上面這則文案做成其他格式，並排進日曆</p>
+                    <div className="mt-2">
+                      <ConvertPanel
+                        compact
+                        stay
+                        pack={lastPack}
+                        caption={caption}
+                        campaignId={
+                          campaigns.find(
+                            (campaign) =>
+                              campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name),
+                          )?.id ?? null
+                        }
+                        onConverted={({ caption: next }) => {
+                          setCaption(next);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : null}
+              {((!lastPack || !lastVisualAssetId || !lastSequence) && !previewBind?.overlay) ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    data-testid="preview-canva"
+                    disabled={canvaBusy}
+                    onClick={() => void sendPreviewToCanva()}
+                  >
+                    {canvaBusy ? "送出中…" : "送到 Canva 微調"}
+                  </Button>
+                  {alreadyOnCalendar ? (
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link to="/calendar">已排進日曆</Link>
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="secondary" onClick={scheduleCurrent} disabled={!caption.trim()}>
+                      排進日曆
+                    </Button>
+                  )}
+                  <PublishIgButton
+                    caption={caption}
+                    imageSrc={previewImageSrc}
+                    onPublished={() => rememberPreviewPublished()}
+                  />
+                  <Button size="sm" variant="ghost" onClick={rememberPreviewPublished} disabled={!caption.trim()}>
+                    寫進過去 IG
+                  </Button>
+                </>
+              ) : null}
+              {previewScript && !previewBind?.overlay ? (
+                <FormatScriptPanel
+                  script={previewScript}
+                  busyId={beatBusy}
+                  onMakeVisual={(beat) => makeBeatVisual(beat)}
+                  onMakeAll={() => void makeAllVisuals()}
+                />
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {tab === "calendar" ? (
+        <section className="mt-6">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium">IG 排程</p>
+            <Button size="sm" variant="ghost" asChild>
+              <Link to="/calendar">打開完整日曆</Link>
+            </Button>
+          </div>
+          <ul className="mt-3 space-y-2">
+            {due.map((item) => {
+              const assetId = schedulePreviewAssetId(item, campaigns);
+              return (
+                <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+                  <p className="text-xs text-muted">
+                    {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })} · {CONTENT_KIND_LABEL[item.contentKind]} ·
+                    現在可以發
+                  </p>
+                  <p className="text-sm">{item.title}</p>
+                  <DueSlotActions
+                    item={item}
+                    imageSrc={resolveAssetSrc(
+                      assetId,
+                      urls,
+                      assets.find((asset) => asset.id === assetId)?.seedSrc,
+                    )}
+                  />
+                </li>
+              );
+            })}
+            {upcoming.map((item) => (
+              <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+                <p className="text-xs text-muted">
+                  {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })} · {CONTENT_KIND_LABEL[item.contentKind]}
+                </p>
+                <p className="text-sm">{item.title}</p>
+                <div className="mt-2">
+                  <PublishIgButton
+                    caption={item.captionPreview}
+                    imageSrc={resolveAssetSrc(
+                      schedulePreviewAssetId(item, campaigns),
+                      urls,
+                      assets.find((asset) => asset.id === schedulePreviewAssetId(item, campaigns))?.seedSrc,
+                    )}
+                    onPublished={() => {
+                      markPublished(item.id);
+                      toast.success("已寫進過去 IG，下次生成會參考這則");
+                    }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </main>
   );
 }
 
-function EmptyNote({ title, detail, action }: { title: string; detail: string; action?: React.ReactNode }) {
+function SuiteFilmstrip({
+  filmstrip,
+  urls,
+  assets,
+  activeId,
+  onPick,
+}: {
+  filmstrip: { assetIds: string[]; labels: string[]; projectId: string };
+  urls: Record<string, string>;
+  assets: { id: string; seedSrc?: string }[];
+  activeId: string | null;
+  onPick: (id: string, index: number) => void;
+}) {
   return (
-    <div className="rounded-3xl bg-surface px-6 py-12 text-center shadow-[var(--shadow-border)]">
-      <p className="font-medium">{title}</p>
-      <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted">{detail}</p>
-      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
+    <div className="flex w-max max-w-none gap-2 pb-1">
+      {filmstrip.assetIds.map((id, index) => {
+        const seedSrc = assets.find((asset) => asset.id === id)?.seedSrc;
+        const src = resolveAssetSrc(id, urls, seedSrc);
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onPick(id, index)}
+            className={cn(
+              "h-20 w-16 shrink-0 overflow-hidden rounded-xl bg-bg",
+              activeId === id && "ring-2 ring-accent",
+            )}
+          >
+            {src ? (
+              <img src={src} alt="" className="size-full object-cover" />
+            ) : (
+              <span className="flex size-full items-center justify-center px-1 text-xs text-muted">
+                {filmstrip.labels[index] ?? index + 1}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

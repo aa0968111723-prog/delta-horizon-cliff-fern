@@ -19,12 +19,12 @@ export const CAROUSEL_SEQUENCE: {
   label: string;
   hint: string;
 }[] = [
-  { role: "cover", templateId: "product", eyebrow: "今晚", label: "封面", hint: "主視覺與標題" },
-  { role: "problem", templateId: "quote", eyebrow: "最近", label: "痛點", hint: "為什麼現在要看" },
-  { role: "detail", templateId: "editorial", eyebrow: "這次", label: "重點", hint: "內容與時間地點" },
-  { role: "proof", templateId: "product", eyebrow: "現場", label: "現場", hint: "真實同學或活動空間" },
-  { role: "cta", templateId: "offer", eyebrow: "來坐", label: "行動", hint: "時間地點與參加方式" },
-  { role: "close", templateId: "quote", eyebrow: "記得", label: "結尾", hint: "一句話收束" },
+  { role: "cover", templateId: "quote", eyebrow: "COVER", label: "封面", hint: "Hook 先行，活動名可小" },
+  { role: "problem", templateId: "quote", eyebrow: "ISSUE", label: "痛點", hint: "為什麼現在要看" },
+  { role: "detail", templateId: "editorial", eyebrow: "FOCUS", label: "重點", hint: "內容與規格" },
+  { role: "proof", templateId: "product", eyebrow: "PROOF", label: "案例", hint: "現場或證明" },
+  { role: "cta", templateId: "offer", eyebrow: "NOW", label: "行動", hint: "時間地點 CTA" },
+  { role: "close", templateId: "quote", eyebrow: "NOTE", label: "結尾", hint: "一句話收束" },
 ];
 
 export const CAROUSEL_ROLES: CarouselPageRole[] = CAROUSEL_SEQUENCE.map((item) => item.role);
@@ -38,7 +38,14 @@ export const PAGE_ROLE_LABEL: Record<CarouselPageRole, string> = {
   close: "結尾",
 };
 
-export const ADAPT_FORMATS: FormatId[] = ["feed-square", "feed-portrait", "story", "reels-cover"];
+export const ADAPT_FORMATS: FormatId[] = [
+  "feed-square",
+  "feed-portrait",
+  "story",
+  "reels-cover",
+  "threads",
+  "line",
+];
 
 export function isCarouselRole(value: unknown): value is CarouselPageRole {
   return typeof value === "string" && (CAROUSEL_ROLES as string[]).includes(value);
@@ -56,7 +63,7 @@ export function roleEyebrow(role?: CarouselPageRole, coverEyebrow = ""): string 
 export function typeScaleFor(formatId: FormatId): number {
   if (formatId === "story" || formatId === "reels-cover") return 1.2;
   if (formatId === "feed-landscape") return 0.62;
-  if (formatId === "feed-square") return 0.94;
+  if (formatId === "feed-square" || formatId === "threads" || formatId === "line") return 0.94;
   return 1;
 }
 
@@ -184,7 +191,7 @@ export function completeCarouselPages(
       };
     }
     const defaults: Record<CarouselPageRole, Pick<CarouselPagePlan, "headline" | "subhead" | "body">> = {
-      cover: { headline: fallback.headline, subhead: fallback.subhead, body: fallback.hook || fallback.body },
+      cover: { headline: fallback.hook || fallback.headline, subhead: fallback.headline, body: fallback.hook || fallback.body },
       problem: {
         headline: "為什麼現在看",
         subhead: fallback.insight || fallback.subhead,

@@ -1,214 +1,349 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { buildCampaignRhythm } from "@/lib/creative/rhythm";
-import { SEED_PROJECT_ID } from "@/lib/studio/seed-zen";
+import type { FormatId } from "@/lib/studio/types";
+import { uid } from "@/lib/studio/ids";
+import { SEED_CAMPUS_ID, SEED_CUP_ID, SEED_DRAFT_ID, SEED_LIGHT_ID, SEED_PROJECT_ID } from "@/lib/studio/seed";
+import { SEED_CAMPAIGN_ID, SEED_CONNECTIONS, SEED_IG_POSTS, SEED_MEMORY, SEED_TEA_ID } from "@/lib/zen/memory";
+import { emptyCampaign, mergeCampaignSchedule, preferSuiteSchedule, scheduleItemsFromCampaign, spreadSchedule, suggestWaves } from "@/lib/zen/schedule";
+import { publishedToMemory } from "@/lib/zen/publish-memory";
 import type {
-  Campaign,
-  CampaignInput,
-  ContentItem,
-  ContentStatus,
-  OutcomeInput,
-  PostOutcome,
-} from "@/lib/creative/types";
+  CampaignWave,
+  ClubCampaign,
+  ConnectionId,
+  ConnectionState,
+  CreateIntent,
+  CreativePack,
+  IgMemoryPost,
+  MemoryItem,
+  ScheduleItem,
+  VisualSequence,
+} from "@/lib/zen/types";
 
-const SEED_CAMPAIGN: Campaign = {
-  id: "campaign_floating_zen_light",
-  name: "09/24 浮游禪光",
-  type: "社課",
-  eventDate: "2026-09-24",
-  eventTime: "19:00–21:00",
-  location: "淡江大學校園",
-  oneLiner: "一個可以慢下來、整理最近心情，也能自在認識新朋友的晚上。",
-  description: "不需要懂禪，也不需要準備答案。一起坐坐、聊聊，或只是安靜待著。",
-  theme: "在忙亂裡，留一點空間給自己",
-  studentPain: "剛開學，課表、通勤、宿舍與新關係一起湧進來，連休息都還在想下一件事。",
-  cta: "保留這個晚上",
-  registrationUrl: "",
-  assetIds: [],
-  createdAt: Date.parse("2026-09-16T00:00:00+08:00"),
-  updatedAt: Date.parse("2026-09-16T00:00:00+08:00"),
-};
+const STORAGE_KEY = "tkuzc-creative-v1";
+
+function seedCampaigns(): ClubCampaign[] {
+  const floating = emptyCampaign({
+    id: SEED_CAMPAIGN_ID,
+    name: "浮游禪光",
+    type: "light",
+    date: "2026-09-24",
+    time: "19:30",
+    location: "淡江大學淡水校園",
+    tagline: "最近是不是很久沒有好好坐下來？",
+    description: "開學後的晚上，把燈放下來。不是講座，是一個可以坐著的夜晚。",
+    theme: "夜燈、三色光、慢下來",
+    studentPain: "行程被填滿，連休息都有罪惡感。",
+    cta: "晚上見",
+    signupUrl: "",
+    coverAssetId: SEED_LIGHT_ID,
+    relatedAssetIds: [SEED_LIGHT_ID, SEED_CUP_ID],
+    projectIds: [SEED_PROJECT_ID],
+    createdAt: Date.parse("2026-09-08T12:00:00+08:00"),
+    updatedAt: Date.parse("2026-09-14T18:00:00+08:00"),
+  });
+  floating.waves = suggestWaves({ date: floating.date, type: floating.type, name: floating.name });
+  floating.waves = floating.waves.map((w) =>
+    w.kind === "key-visual" ? { ...w, projectId: SEED_PROJECT_ID, status: "done" } : w,
+  );
+
+  const tea = emptyCampaign({
+    id: SEED_TEA_ID,
+    name: "開學茶會",
+    type: "tea",
+    date: "2026-09-19",
+    time: "19:00",
+    location: "淡江大學淡水校園",
+    tagline: "來坐一下，不用先懂禪。",
+    description: "給新生與想認識人的舊生。茶、聊天、可以不說話。",
+    theme: "開學、認識、茶",
+    studentPain: "剛到淡水，還沒有地方可以自然出現。",
+    cta: "找一個朋友來",
+    coverAssetId: SEED_CUP_ID,
+    relatedAssetIds: [SEED_CUP_ID, SEED_CAMPUS_ID],
+    projectIds: [SEED_DRAFT_ID],
+    createdAt: Date.parse("2026-09-06T12:00:00+08:00"),
+    updatedAt: Date.parse("2026-09-12T10:00:00+08:00"),
+  });
+  tea.waves = suggestWaves({ date: tea.date, type: tea.type, name: tea.name });
+  return [floating, tea];
+}
+
+function seedSchedule(campaigns: ClubCampaign[]): ScheduleItem[] {
+  return spreadSchedule(preferSuiteSchedule(campaigns.flatMap((camp) => scheduleItemsFromCampaign(camp))));
+}
+
+type IgView = "grid" | "preview" | "calendar";
 
 type CreativeState = {
   hydrated: boolean;
-  campaigns: Campaign[];
-  contentItems: ContentItem[];
-  outcomes: PostOutcome[];
-  activeCampaignId: string;
-  setHydrated: (hydrated: boolean) => void;
-  setActiveCampaignId: (id: string) => void;
-  createCampaign: (input: CampaignInput) => Campaign;
-  updateCampaign: (id: string, patch: Partial<Campaign>) => void;
-  generateRhythm: (campaignId: string) => ContentItem[];
-  setContentStatus: (id: string, status: ContentStatus) => void;
-  rescheduleContent: (id: string, plannedAt: string) => void;
-  linkProject: (id: string, projectId: string) => void;
-  addOutcome: (input: OutcomeInput) => PostOutcome;
-  removeOutcome: (id: string) => void;
+  campaigns: ClubCampaign[];
+  schedule: ScheduleItem[];
+  igPosts: IgMemoryPost[];
+  memory: MemoryItem[];
+  connections: ConnectionState[];
+  lastPack: CreativePack | null;
+  lastVisualAssetId: string | null;
+  lastSequence: VisualSequence | null;
+  sequences: VisualSequence[];
+  igView: IgView;
+  igFormat: FormatId;
+  previewScheduleId: string | null;
+  searchQuery: string;
+  createIntent: CreateIntent | null;
+  driveFolderQuery: string;
+  setHydrated: (v: boolean) => void;
+  setSearchQuery: (q: string) => void;
+  setCreateIntent: (intent: CreateIntent | null) => void;
+  consumeCreateIntent: () => CreateIntent | null;
+  setDriveFolderQuery: (q: string) => void;
+  setLastPack: (pack: CreativePack | null) => void;
+  setLastSequence: (sequence: VisualSequence | null) => void;
+  setIgView: (igView: IgView) => void;
+  setIgFormat: (igFormat: FormatId) => void;
+  setIgPreview: (assetId: string | null, formatId?: FormatId) => void;
+  setPreviewSchedule: (id: string | null) => void;
+  upsertCampaign: (campaign: ClubCampaign) => void;
+  patchCampaign: (id: string, patch: Partial<ClubCampaign>) => void;
+  removeCampaign: (id: string) => void;
+  attachProject: (campaignId: string, projectId: string) => void;
+  upsertSchedule: (item: ScheduleItem) => void;
+  markPublished: (id: string) => void;
+  moveSchedule: (id: string, scheduledAt: number) => void;
+  patchSchedule: (id: string, patch: Partial<ScheduleItem>) => void;
+  duplicateSchedule: (id: string) => ScheduleItem | null;
+  removeSchedule: (id: string) => void;
+  setConnection: (id: ConnectionId, patch: Partial<ConnectionState>) => void;
+  addMemory: (item: MemoryItem) => void;
+  addIgPost: (post: IgMemoryPost) => void;
+  patchWave: (campaignId: string, waveId: string, patch: Partial<CampaignWave>) => void;
 };
 
-function uid(prefix: string) {
-  return `${prefix}_${crypto.randomUUID()}`;
-}
-
-function linkSeedWork(items: ContentItem[]): ContentItem[] {
-  return items.map((item) => {
-    if (item.campaignId !== SEED_CAMPAIGN.id || item.projectId) return item;
-    return {
-      ...item,
-      projectId: SEED_PROJECT_ID,
-      status: item.status === "idea" ? "creating" : item.status,
-    };
-  });
-}
-
-const seedItems = linkSeedWork(
-  buildCampaignRhythm(
-    SEED_CAMPAIGN,
-    new Date("2026-09-16T00:00:00+08:00"),
-  ),
-);
+const initialCampaigns = seedCampaigns();
 
 export const useCreative = create<CreativeState>()(
   persist(
     (set, get) => ({
       hydrated: false,
-      campaigns: [SEED_CAMPAIGN],
-      contentItems: seedItems,
-      outcomes: [],
-      activeCampaignId: SEED_CAMPAIGN.id,
-      setHydrated: (hydrated) => set({ hydrated }),
-      setActiveCampaignId: (id) => set({ activeCampaignId: id }),
-      createCampaign: (input) => {
-        const now = Date.now();
-        const campaign: Campaign = {
-          ...input,
-          id: uid("campaign"),
-          assetIds: [],
-          createdAt: now,
-          updatedAt: now,
-        };
-        const items = buildCampaignRhythm(campaign);
-        set((state) => ({
-          campaigns: [campaign, ...state.campaigns],
-          activeCampaignId: campaign.id,
-          contentItems: [...state.contentItems, ...items],
-        }));
-        return campaign;
+      campaigns: initialCampaigns,
+      schedule: seedSchedule(initialCampaigns),
+      igPosts: SEED_IG_POSTS,
+      memory: SEED_MEMORY,
+      connections: SEED_CONNECTIONS,
+      lastPack: null,
+      lastVisualAssetId: null,
+      lastSequence: null,
+      sequences: [],
+      igView: "grid",
+      igFormat: "feed-portrait",
+      previewScheduleId: null,
+      searchQuery: "",
+      createIntent: null,
+      driveFolderQuery: "淡江禪學社",
+      setHydrated: (v) => set({ hydrated: v }),
+      setSearchQuery: (searchQuery) => set({ searchQuery }),
+      setCreateIntent: (createIntent) =>
+        set({
+          createIntent,
+          searchQuery: createIntent?.idea ?? "",
+        }),
+      consumeCreateIntent: () => {
+        const intent = get().createIntent;
+        const q = get().searchQuery.trim();
+        if (intent) {
+          set({ createIntent: null, searchQuery: "" });
+          return intent;
+        }
+        if (q) {
+          set({ searchQuery: "" });
+          return { idea: q, kind: "emotion", autoGenerate: true };
+        }
+        return null;
       },
-      updateCampaign: (id, patch) =>
-        set((state) => ({
-          campaigns: state.campaigns.map((campaign) =>
+      setDriveFolderQuery: (driveFolderQuery) => set({ driveFolderQuery }),
+      setLastPack: (lastPack) => set({ lastPack }),
+      setLastSequence: (lastSequence) =>
+        set((s) => ({
+          lastSequence,
+          sequences: lastSequence
+            ? [lastSequence, ...s.sequences.filter((row) => row.kind !== lastSequence.kind)].slice(0, 8)
+            : s.sequences,
+        })),
+      setIgView: (igView) => set({ igView }),
+      setIgFormat: (igFormat) => set({ igFormat }),
+      setIgPreview: (assetId, formatId) =>
+        set({
+          lastVisualAssetId: assetId,
+          igView: assetId ? "preview" : "grid",
+          ...(formatId ? { igFormat: formatId } : {}),
+        }),
+      setPreviewSchedule: (previewScheduleId) => set({ previewScheduleId }),
+      upsertCampaign: (campaign) =>
+        set((s) => {
+          const exists = s.campaigns.some((c) => c.id === campaign.id);
+          const campaigns = exists
+            ? s.campaigns.map((c) => (c.id === campaign.id ? campaign : c))
+            : [campaign, ...s.campaigns];
+          const extra = scheduleItemsFromCampaign(campaign);
+          return { campaigns, schedule: mergeCampaignSchedule(s.schedule, extra) };
+        }),
+      patchCampaign: (id, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((campaign) =>
             campaign.id === id ? { ...campaign, ...patch, updatedAt: Date.now() } : campaign,
           ),
         })),
-      generateRhythm: (campaignId) => {
-        const campaign = get().campaigns.find((item) => item.id === campaignId);
-        if (!campaign) return [];
-        const existing = get().contentItems.filter((item) => item.campaignId === campaignId);
-        const previous = new Map(existing.map((item) => [item.id, item]));
-        const generated = buildCampaignRhythm(campaign).map((item) => {
-          const saved = previous.get(item.id);
-          return saved
-            ? {
-                ...item,
-                status: saved.status,
-                publishedAt: saved.publishedAt,
-                projectId: saved.projectId,
-                createdAt: saved.createdAt,
-              }
-            : item;
+      removeCampaign: (id) =>
+        set((s) => ({
+          campaigns: s.campaigns.filter((c) => c.id !== id),
+          schedule: s.schedule.filter((item) => item.campaignId !== id),
+        })),
+      attachProject: (campaignId, projectId) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) =>
+            c.id === campaignId && !c.projectIds.includes(projectId)
+              ? { ...c, projectIds: [...c.projectIds, projectId], updatedAt: Date.now() }
+              : c,
+          ),
+        })),
+      upsertSchedule: (item) =>
+        set((s) => {
+          const exists = s.schedule.some((row) => row.id === item.id);
+          const next = exists ? s.schedule.map((row) => (row.id === item.id ? item : row)) : [item, ...s.schedule];
+          return { schedule: preferSuiteSchedule(next) };
+        }),
+      markPublished: (id) => {
+        const item = get().schedule.find((row) => row.id === id);
+        if (!item) return;
+        const publishedAt = Date.now();
+        const next: ScheduleItem = { ...item, status: "published", publishedAt };
+        const { post, memory } = publishedToMemory({
+          item: next,
+          campaigns: get().campaigns,
+          now: publishedAt,
         });
-        set((state) => ({
-          contentItems: [
-            ...state.contentItems.filter((item) => item.campaignId !== campaignId),
-            ...generated,
-          ],
+        set((s) => ({
+          schedule: s.schedule.map((row) => (row.id === id ? next : row)),
+          igPosts: [post, ...s.igPosts.filter((row) => row.id !== post.id)],
+          memory: [memory, ...s.memory.filter((row) => row.id !== memory.id)],
         }));
-        return generated;
       },
-      setContentStatus: (id, status) =>
-        set((state) => ({
-          contentItems: state.contentItems.map((item) =>
-            item.id === id
+      moveSchedule: (id, scheduledAt) =>
+        set((s) => ({
+          schedule: s.schedule.map((row) => (row.id === id ? { ...row, scheduledAt, status: row.status === "published" ? row.status : "scheduled" } : row)),
+        })),
+      patchSchedule: (id, patch) =>
+        set((s) => ({
+          schedule: s.schedule.map((row) => (row.id === id ? { ...row, ...patch } : row)),
+        })),
+      duplicateSchedule: (id) => {
+        const item = get().schedule.find((row) => row.id === id);
+        if (!item) return null;
+        const copy: ScheduleItem = {
+          ...item,
+          id: uid("sch"),
+          title: item.title.includes("（複本）") ? item.title : `${item.title}（複本）`,
+          status: "idea",
+          scheduledAt: item.scheduledAt + 86_400_000,
+          publishedAt: null,
+        };
+        get().upsertSchedule(copy);
+        return copy;
+      },
+      removeSchedule: (id) => set((s) => ({ schedule: s.schedule.filter((row) => row.id !== id) })),
+      setConnection: (id, patch) =>
+        set((s) => ({
+          connections: s.connections.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+        })),
+      addMemory: (item) => set((s) => ({ memory: [item, ...s.memory.filter((m) => m.id !== item.id)] })),
+      addIgPost: (post) => set((s) => ({ igPosts: [post, ...s.igPosts.filter((p) => p.id !== post.id)] })),
+      patchWave: (campaignId, waveId, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) =>
+            c.id === campaignId
+              ? {
+                  ...c,
+                  updatedAt: Date.now(),
+                  waves: c.waves.map((w) => (w.id === waveId ? { ...w, ...patch } : w)),
+                }
+              : c,
+          ),
+          schedule: s.schedule.map((item) =>
+            item.id === `sch_${waveId}`
               ? {
                   ...item,
-                  status,
-                  publishedAt: status === "published" ? new Date().toISOString() : item.publishedAt,
-                  updatedAt: Date.now(),
+                  title: patch.title ?? item.title,
+                  status: patch.status ?? item.status,
+                  scheduledAt: patch.scheduledAt ?? item.scheduledAt,
+                  projectId: patch.projectId === undefined ? item.projectId : patch.projectId,
+                  captionPreview: patch.copyPreview ?? item.captionPreview,
                 }
               : item,
           ),
         })),
-      rescheduleContent: (id, plannedAt) =>
-        set((state) => ({
-          contentItems: state.contentItems.map((item) =>
-            item.id === id ? { ...item, plannedAt, updatedAt: Date.now() } : item,
-          ),
-        })),
-      linkProject: (id, projectId) =>
-        set((state) => ({
-          contentItems: state.contentItems.map((item) =>
-            item.id === id
-              ? { ...item, projectId, status: "creating", updatedAt: Date.now() }
-              : item,
-          ),
-        })),
-      addOutcome: (input) => {
-        const outcome: PostOutcome = {
-          ...input,
-          hashtags: input.hashtags ?? [],
-          id: uid("outcome"),
-          createdAt: Date.now(),
-        };
-        set((state) => ({ outcomes: [outcome, ...state.outcomes].slice(0, 40) }));
-        return outcome;
-      },
-      removeOutcome: (id) =>
-        set((state) => ({
-          outcomes: state.outcomes.filter((item) => item.id !== id),
-        })),
     }),
     {
-      name: "zen-creative-brain-v1",
-      version: 6,
+      name: STORAGE_KEY,
       skipHydration: true,
+      version: 7,
       migrate: (persisted) => {
-        const state = persisted as {
-          campaigns?: Campaign[];
-          contentItems?: ContentItem[];
-          outcomes?: PostOutcome[];
-          activeCampaignId?: string;
+        const row = (persisted ?? {}) as {
+          campaigns: ClubCampaign[];
+          schedule: ScheduleItem[];
+          igPosts: IgMemoryPost[];
+          memory: MemoryItem[];
+          connections: ConnectionState[];
+          lastPack: CreativePack | null;
+          lastVisualAssetId?: string | null;
+          lastSequence?: VisualSequence | null;
+          sequences?: VisualSequence[];
+          igView?: IgView;
+          igFormat?: FormatId;
+          driveFolderQuery?: string;
         };
-        const campaigns = state.campaigns?.length ? state.campaigns : [SEED_CAMPAIGN];
-        const contentItems = linkSeedWork(
-          state.contentItems?.length
-            ? state.contentItems
-            : campaigns.flatMap((campaign) => buildCampaignRhythm(campaign)),
-        );
+        const igView: IgView = row.igView === "preview" || row.igView === "calendar" ? row.igView : "grid";
+        const igFormat: FormatId =
+          row.igFormat === "story" ||
+          row.igFormat === "reels-cover" ||
+          row.igFormat === "threads" ||
+          row.igFormat === "line" ||
+          row.igFormat === "feed-square"
+            ? row.igFormat
+            : "feed-portrait";
+        const lastSequence = row.lastSequence ?? null;
+        const sequences = row.sequences?.length
+          ? row.sequences
+          : lastSequence
+            ? [lastSequence]
+            : [];
         return {
-          campaigns,
-          contentItems,
-          outcomes: (state.outcomes ?? []).map((item) => ({
-            ...item,
-            hashtags: item.hashtags ?? [],
-          })),
-          activeCampaignId: state.activeCampaignId ?? campaigns[0]?.id ?? SEED_CAMPAIGN.id,
+          campaigns: row.campaigns,
+          schedule: spreadSchedule(preferSuiteSchedule(row.schedule ?? [])),
+          igPosts: row.igPosts,
+          memory: row.memory,
+          connections: row.connections,
+          lastPack: row.lastPack ?? null,
+          lastVisualAssetId: row.lastVisualAssetId ?? null,
+          lastSequence,
+          sequences,
+          igView,
+          igFormat,
+          driveFolderQuery: row.driveFolderQuery || "淡江禪學社",
         };
       },
-      partialize: (state) => ({
-        campaigns: state.campaigns,
-        contentItems: state.contentItems,
-        outcomes: state.outcomes,
-        activeCampaignId: state.activeCampaignId,
+      partialize: (s) => ({
+        campaigns: s.campaigns,
+        schedule: s.schedule,
+        igPosts: s.igPosts,
+        memory: s.memory,
+        connections: s.connections,
+        lastPack: s.lastPack,
+        lastVisualAssetId: s.lastVisualAssetId,
+        lastSequence: s.lastSequence,
+        sequences: s.sequences,
+        igView: s.igView,
+        igFormat: s.igFormat,
+        driveFolderQuery: s.driveFolderQuery,
       }),
-      onRehydrateStorage: () => (state) => {
-        if (!state?.campaigns.length) return;
-        if (state.contentItems.length) return;
-        useCreative.setState({
-          contentItems: linkSeedWork(state.campaigns.flatMap((campaign) => buildCampaignRhythm(campaign))),
-        });
-      },
     },
   ),
 );

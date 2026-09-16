@@ -36,7 +36,12 @@ test("buildMockPlan is structured Traditional Chinese and marked mock", () => {
   assert.ok(plan.visualTheme.length > 4);
   assert.ok(plan.headline.length > 0);
   assert.ok(plan.cta.length >= 2);
-  assert.ok(plan.captions[0]?.text.includes("週六下午"));
+  assert.ok(plan.captions.some((caption) => caption.text.includes("週六下午")));
+  assert.equal(plan.captions.length, 6);
+  assert.deepEqual(
+    plan.captions.map((caption) => caption.style),
+    ["短版", "一般版", "感性版", "學生版", "生活版", "幽默版"],
+  );
   assert.ok(plan.hashtags.some((tag) => tag.includes("日食")));
   assert.equal(plan.carouselPages.length, 6);
   assert.deepEqual(
@@ -47,6 +52,29 @@ test("buildMockPlan is structured Traditional Chinese and marked mock", () => {
   assert.ok(plan.checklist.length >= 4);
   assert.equal(plan.storyBeats.length, 3);
   assert.equal(plan.templateId, "product");
+});
+
+test("zen mock carousel cover is the student hook", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "浮游禪光",
+    brandName: "淡江大學禪學社",
+    audience: "淡江大學學生",
+  });
+  assert.match(plan.carouselPages[0]!.headline.replace(/\n/g, ""), /坐好|最近/);
+  assert.match(plan.storyBeats[0] ?? "", /坐好|最近/);
+});
+
+test("buildMockPlan cites Creative Memory notes", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "浮游禪光",
+    brandName: "淡江大學禪學社",
+    audience: "淡江大學學生",
+    memoryNotes: "Google Drive / 2025 茶會：晚上同學圍坐",
+  });
+  assert.match(plan.insight, /歷屆素材/);
+  assert.equal(plan.citedSources?.[0]?.source, "drive");
 });
 
 test("buildMockPlan strips forbidden words", () => {

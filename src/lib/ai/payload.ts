@@ -1,19 +1,16 @@
-import { migrateBrief } from "../studio/brief.ts";
-import type { AssetMeta, BrandKit, Brief } from "../studio/types.ts";
-import { buildCreativeMemoryContext } from "../creative/memory.ts";
-import type { Campaign } from "../creative/types.ts";
-import type { BriefInput } from "./schema.ts";
+import { migrateBrief } from "@/lib/studio/brief";
+import type { BrandKit, Brief, CitedSource } from "@/lib/studio/types";
+import type { BriefInput } from "./schema";
 
 export function toBriefInput(
   brief: Brief,
   brand: BrandKit,
   extra?: {
     forceMock?: boolean;
-    assets?: AssetMeta[];
-    campaigns?: Campaign[];
-    styleReferences?: { provider: string; collection: string; title: string; notes: string }[];
-    instagramHashtags?: string[];
-    outcomeHashtags?: string[];
+    dnaNotes?: string;
+    memoryNotes?: string;
+    foundCount?: number;
+    citedSources?: CitedSource[];
   },
 ): BriefInput {
   const b = migrateBrief(brief);
@@ -35,6 +32,8 @@ export function toBriefInput(
     wantStory: d.story,
     wantCarousel: d.carousel,
     wantReels: d.reels,
+    wantThreads: d.threads,
+    wantLine: d.line,
     brandName: brand.name,
     handle: brand.handle,
     voice: brand.voice,
@@ -55,5 +54,9 @@ export function toBriefInput(
       outcomeHashtags: extra?.outcomeHashtags,
     }),
     ...(extra?.forceMock ? { forceMock: true } : {}),
+    ...(extra?.dnaNotes ? { dnaNotes: extra.dnaNotes } : {}),
+    ...(extra?.memoryNotes ? { memoryNotes: extra.memoryNotes } : {}),
+    ...(typeof extra?.foundCount === "number" ? { foundCount: extra.foundCount } : {}),
+    ...(extra?.citedSources?.length ? { citedSources: extra.citedSources } : {}),
   };
 }

@@ -11,16 +11,14 @@ export const STATUS_META: Record<
   published: { label: "已發布", tone: "success" },
 };
 
-const CURRENT: ProjectStatus[] = ["idea", "creating", "complete", "scheduled", "published"];
-
-export function isProjectStatus(value: string | undefined): value is ProjectStatus {
-  return Boolean(value && CURRENT.includes(value as ProjectStatus));
+export function migrateStatus(raw?: string | null): ProjectStatus {
+  if (raw === "idea" || raw === "creating" || raw === "done" || raw === "scheduled" || raw === "published") {
+    return raw;
+  }
+  if (raw === "draft") return "creating";
+  if (raw === "ready") return "done";
+  if (raw === "exported") return "published";
+  return "creating";
 }
 
-/** Map pre-禪作所 persist values without inventing a published IG post. */
-export function migrateProjectStatus(status: string | undefined, hasPlan: boolean): ProjectStatus {
-  if (isProjectStatus(status)) return status;
-  if (status === "draft") return hasPlan ? "creating" : "idea";
-  if (status === "ready" || status === "exported") return "complete";
-  return hasPlan ? "complete" : "idea";
-}
+export const STATUS_FLOW: ProjectStatus[] = ["idea", "creating", "done", "scheduled", "published"];

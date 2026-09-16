@@ -15,15 +15,24 @@ import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as BrandRouteImport } from './routes/brand'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as CampaignsRouteImport } from './routes/campaigns'
-import { Route as ConnectionsRouteImport } from './routes/connections'
+import { Route as ConnectRouteImport } from './routes/connect'
+import { Route as CreateRouteImport } from './routes/create'
 import { Route as ExportRouteImport } from './routes/export'
+import { Route as InspireRouteImport } from './routes/inspire'
 import { Route as InstagramRouteImport } from './routes/instagram'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
+import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
+import { Route as CreateIndexRouteImport } from './routes/create.index'
+import { Route as CreateImageRouteImport } from './routes/create.image'
 import { Route as StudioIndexRouteImport } from './routes/studio.index'
 import { Route as StudioProjectIdRouteImport } from './routes/studio.$projectId'
-import { Route as ApiCanvaCallbackRouteImport } from './routes/api/canva/callback'
-import { Route as ApiInstagramCallbackRouteImport } from './routes/api/instagram/callback'
+import { Route as ApiIgMediaIdRouteImport } from './routes/api/ig-media.$id'
+import { Route as ApiOauthCanvaCallbackRouteImport } from './routes/api/oauth.canva.callback'
+import { Route as ApiOauthCanvaStartRouteImport } from './routes/api/oauth.canva.start'
+import { Route as ApiOauthInstagramCallbackRouteImport } from './routes/api/oauth.instagram.callback'
+import { Route as ApiOauthInstagramStartRouteImport } from './routes/api/oauth.instagram.start'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -55,14 +64,19 @@ const CampaignsRoute = CampaignsRouteImport.update({
   path: '/campaigns',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ConnectionsRoute = ConnectionsRouteImport.update({
-  id: '/connections',
-  path: '/connections',
+const ConnectRoute = ConnectRouteImport.update({
+  id: '/connect',
+  path: '/connect',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExportRoute = ExportRouteImport.update({
   id: '/export',
   path: '/export',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InspireRoute = InspireRouteImport.update({
+  id: '/inspire',
+  path: '/inspire',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InstagramRoute = InstagramRouteImport.update({
@@ -80,6 +94,26 @@ const StudioRoute = StudioRouteImport.update({
   path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CampaignsIndexRoute = CampaignsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CampaignsRoute,
+} as any)
+const CampaignsCampaignIdRoute = CampaignsCampaignIdRouteImport.update({
+  id: '/$campaignId',
+  path: '/$campaignId',
+  getParentRoute: () => CampaignsRoute,
+} as any)
+const CreateIndexRoute = CreateIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CreateRoute,
+} as any)
+const CreateImageRoute = CreateImageRouteImport.update({
+  id: '/image',
+  path: '/image',
+  getParentRoute: () => CreateRoute,
+} as any)
 const StudioIndexRoute = StudioIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -90,14 +124,30 @@ const StudioProjectIdRoute = StudioProjectIdRouteImport.update({
   path: '/$projectId',
   getParentRoute: () => StudioRoute,
 } as any)
-const ApiCanvaCallbackRoute = ApiCanvaCallbackRouteImport.update({
-  id: '/api/canva/callback',
-  path: '/api/canva/callback',
+const ApiIgMediaIdRoute = ApiIgMediaIdRouteImport.update({
+  id: '/api/ig-media/$id',
+  path: '/api/ig-media/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiInstagramCallbackRoute = ApiInstagramCallbackRouteImport.update({
-  id: '/api/instagram/callback',
-  path: '/api/instagram/callback',
+const ApiOauthCanvaCallbackRoute = ApiOauthCanvaCallbackRouteImport.update({
+  id: '/api/oauth/canva/callback',
+  path: '/api/oauth/canva/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOauthCanvaStartRoute = ApiOauthCanvaStartRouteImport.update({
+  id: '/api/oauth/canva/start',
+  path: '/api/oauth/canva/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOauthInstagramCallbackRoute =
+  ApiOauthInstagramCallbackRouteImport.update({
+    id: '/api/oauth/instagram/callback',
+    path: '/api/oauth/instagram/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiOauthInstagramStartRoute = ApiOauthInstagramStartRouteImport.update({
+  id: '/api/oauth/instagram/start',
+  path: '/api/oauth/instagram/start',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -107,16 +157,25 @@ export interface FileRoutesByFullPath {
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
   '/calendar': typeof CalendarRoute
-  '/campaigns': typeof CampaignsRoute
-  '/connections': typeof ConnectionsRoute
+  '/campaigns': typeof CampaignsRouteWithChildren
+  '/connect': typeof ConnectRoute
+  '/create': typeof CreateRouteWithChildren
   '/export': typeof ExportRoute
+  '/inspire': typeof InspireRoute
   '/instagram': typeof InstagramRoute
   '/search': typeof SearchRoute
   '/studio': typeof StudioRouteWithChildren
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
+  '/create/image': typeof CreateImageRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns/': typeof CampaignsIndexRoute
+  '/create/': typeof CreateIndexRoute
   '/studio/': typeof StudioIndexRoute
-  '/api/canva/callback': typeof ApiCanvaCallbackRoute
-  '/api/instagram/callback': typeof ApiInstagramCallbackRoute
+  '/api/ig-media/$id': typeof ApiIgMediaIdRoute
+  '/api/oauth/canva/callback': typeof ApiOauthCanvaCallbackRoute
+  '/api/oauth/canva/start': typeof ApiOauthCanvaStartRoute
+  '/api/oauth/instagram/callback': typeof ApiOauthInstagramCallbackRoute
+  '/api/oauth/instagram/start': typeof ApiOauthInstagramStartRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -124,14 +183,21 @@ export interface FileRoutesByTo {
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
   '/calendar': typeof CalendarRoute
-  '/campaigns': typeof CampaignsRoute
-  '/connections': typeof ConnectionsRoute
+  '/connect': typeof ConnectRoute
   '/export': typeof ExportRoute
+  '/inspire': typeof InspireRoute
   '/instagram': typeof InstagramRoute
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
+  '/create/image': typeof CreateImageRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns': typeof CampaignsIndexRoute
+  '/create': typeof CreateIndexRoute
   '/studio': typeof StudioIndexRoute
-  '/api/canva/callback': typeof ApiCanvaCallbackRoute
-  '/api/instagram/callback': typeof ApiInstagramCallbackRoute
+  '/api/ig-media/$id': typeof ApiIgMediaIdRoute
+  '/api/oauth/canva/callback': typeof ApiOauthCanvaCallbackRoute
+  '/api/oauth/canva/start': typeof ApiOauthCanvaStartRoute
+  '/api/oauth/instagram/callback': typeof ApiOauthInstagramCallbackRoute
+  '/api/oauth/instagram/start': typeof ApiOauthInstagramStartRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -140,16 +206,25 @@ export interface FileRoutesById {
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
   '/calendar': typeof CalendarRoute
-  '/campaigns': typeof CampaignsRoute
-  '/connections': typeof ConnectionsRoute
+  '/campaigns': typeof CampaignsRouteWithChildren
+  '/connect': typeof ConnectRoute
+  '/create': typeof CreateRouteWithChildren
   '/export': typeof ExportRoute
+  '/inspire': typeof InspireRoute
   '/instagram': typeof InstagramRoute
   '/search': typeof SearchRoute
   '/studio': typeof StudioRouteWithChildren
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
+  '/create/image': typeof CreateImageRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns/': typeof CampaignsIndexRoute
+  '/create/': typeof CreateIndexRoute
   '/studio/': typeof StudioIndexRoute
-  '/api/canva/callback': typeof ApiCanvaCallbackRoute
-  '/api/instagram/callback': typeof ApiInstagramCallbackRoute
+  '/api/ig-media/$id': typeof ApiIgMediaIdRoute
+  '/api/oauth/canva/callback': typeof ApiOauthCanvaCallbackRoute
+  '/api/oauth/canva/start': typeof ApiOauthCanvaStartRoute
+  '/api/oauth/instagram/callback': typeof ApiOauthInstagramCallbackRoute
+  '/api/oauth/instagram/start': typeof ApiOauthInstagramStartRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -160,15 +235,24 @@ export interface FileRouteTypes {
     | '/brand'
     | '/calendar'
     | '/campaigns'
-    | '/connections'
+    | '/connect'
+    | '/create'
     | '/export'
+    | '/inspire'
     | '/instagram'
     | '/search'
     | '/studio'
+    | '/campaigns/$campaignId'
+    | '/create/image'
     | '/studio/$projectId'
+    | '/campaigns/'
+    | '/create/'
     | '/studio/'
-    | '/api/canva/callback'
-    | '/api/instagram/callback'
+    | '/api/ig-media/$id'
+    | '/api/oauth/canva/callback'
+    | '/api/oauth/canva/start'
+    | '/api/oauth/instagram/callback'
+    | '/api/oauth/instagram/start'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -176,14 +260,21 @@ export interface FileRouteTypes {
     | '/assistant'
     | '/brand'
     | '/calendar'
-    | '/campaigns'
-    | '/connections'
+    | '/connect'
     | '/export'
+    | '/inspire'
     | '/instagram'
+    | '/campaigns/$campaignId'
+    | '/create/image'
     | '/studio/$projectId'
+    | '/campaigns'
+    | '/create'
     | '/studio'
-    | '/api/canva/callback'
-    | '/api/instagram/callback'
+    | '/api/ig-media/$id'
+    | '/api/oauth/canva/callback'
+    | '/api/oauth/canva/start'
+    | '/api/oauth/instagram/callback'
+    | '/api/oauth/instagram/start'
   id:
     | '__root__'
     | '/'
@@ -192,15 +283,24 @@ export interface FileRouteTypes {
     | '/brand'
     | '/calendar'
     | '/campaigns'
-    | '/connections'
+    | '/connect'
+    | '/create'
     | '/export'
+    | '/inspire'
     | '/instagram'
     | '/search'
     | '/studio'
+    | '/campaigns/$campaignId'
+    | '/create/image'
     | '/studio/$projectId'
+    | '/campaigns/'
+    | '/create/'
     | '/studio/'
-    | '/api/canva/callback'
-    | '/api/instagram/callback'
+    | '/api/ig-media/$id'
+    | '/api/oauth/canva/callback'
+    | '/api/oauth/canva/start'
+    | '/api/oauth/instagram/callback'
+    | '/api/oauth/instagram/start'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -209,14 +309,19 @@ export interface RootRouteChildren {
   AssistantRoute: typeof AssistantRoute
   BrandRoute: typeof BrandRoute
   CalendarRoute: typeof CalendarRoute
-  CampaignsRoute: typeof CampaignsRoute
-  ConnectionsRoute: typeof ConnectionsRoute
+  CampaignsRoute: typeof CampaignsRouteWithChildren
+  ConnectRoute: typeof ConnectRoute
+  CreateRoute: typeof CreateRouteWithChildren
   ExportRoute: typeof ExportRoute
+  InspireRoute: typeof InspireRoute
   InstagramRoute: typeof InstagramRoute
   SearchRoute: typeof SearchRoute
   StudioRoute: typeof StudioRouteWithChildren
-  ApiCanvaCallbackRoute: typeof ApiCanvaCallbackRoute
-  ApiInstagramCallbackRoute: typeof ApiInstagramCallbackRoute
+  ApiIgMediaIdRoute: typeof ApiIgMediaIdRoute
+  ApiOauthCanvaCallbackRoute: typeof ApiOauthCanvaCallbackRoute
+  ApiOauthCanvaStartRoute: typeof ApiOauthCanvaStartRoute
+  ApiOauthInstagramCallbackRoute: typeof ApiOauthInstagramCallbackRoute
+  ApiOauthInstagramStartRoute: typeof ApiOauthInstagramStartRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -263,11 +368,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CampaignsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/connections': {
-      id: '/connections'
-      path: '/connections'
-      fullPath: '/connections'
-      preLoaderRoute: typeof ConnectionsRouteImport
+    '/connect': {
+      id: '/connect'
+      path: '/connect'
+      fullPath: '/connect'
+      preLoaderRoute: typeof ConnectRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/export': {
@@ -275,6 +380,13 @@ declare module '@tanstack/react-router' {
       path: '/export'
       fullPath: '/export'
       preLoaderRoute: typeof ExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inspire': {
+      id: '/inspire'
+      path: '/inspire'
+      fullPath: '/inspire'
+      preLoaderRoute: typeof InspireRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/instagram': {
@@ -298,6 +410,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/campaigns/': {
+      id: '/campaigns/'
+      path: '/'
+      fullPath: '/campaigns/'
+      preLoaderRoute: typeof CampaignsIndexRouteImport
+      parentRoute: typeof CampaignsRoute
+    }
+    '/campaigns/$campaignId': {
+      id: '/campaigns/$campaignId'
+      path: '/$campaignId'
+      fullPath: '/campaigns/$campaignId'
+      preLoaderRoute: typeof CampaignsCampaignIdRouteImport
+      parentRoute: typeof CampaignsRoute
+    }
+    '/create/': {
+      id: '/create/'
+      path: '/'
+      fullPath: '/create/'
+      preLoaderRoute: typeof CreateIndexRouteImport
+      parentRoute: typeof CreateRoute
+    }
+    '/create/image': {
+      id: '/create/image'
+      path: '/image'
+      fullPath: '/create/image'
+      preLoaderRoute: typeof CreateImageRouteImport
+      parentRoute: typeof CreateRoute
+    }
     '/studio/': {
       id: '/studio/'
       path: '/'
@@ -312,22 +452,70 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioProjectIdRouteImport
       parentRoute: typeof StudioRoute
     }
-    '/api/canva/callback': {
-      id: '/api/canva/callback'
-      path: '/api/canva/callback'
-      fullPath: '/api/canva/callback'
-      preLoaderRoute: typeof ApiCanvaCallbackRouteImport
+    '/api/ig-media/$id': {
+      id: '/api/ig-media/$id'
+      path: '/api/ig-media/$id'
+      fullPath: '/api/ig-media/$id'
+      preLoaderRoute: typeof ApiIgMediaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/instagram/callback': {
-      id: '/api/instagram/callback'
-      path: '/api/instagram/callback'
-      fullPath: '/api/instagram/callback'
-      preLoaderRoute: typeof ApiInstagramCallbackRouteImport
+    '/api/oauth/canva/callback': {
+      id: '/api/oauth/canva/callback'
+      path: '/api/oauth/canva/callback'
+      fullPath: '/api/oauth/canva/callback'
+      preLoaderRoute: typeof ApiOauthCanvaCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/canva/start': {
+      id: '/api/oauth/canva/start'
+      path: '/api/oauth/canva/start'
+      fullPath: '/api/oauth/canva/start'
+      preLoaderRoute: typeof ApiOauthCanvaStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/instagram/callback': {
+      id: '/api/oauth/instagram/callback'
+      path: '/api/oauth/instagram/callback'
+      fullPath: '/api/oauth/instagram/callback'
+      preLoaderRoute: typeof ApiOauthInstagramCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/instagram/start': {
+      id: '/api/oauth/instagram/start'
+      path: '/api/oauth/instagram/start'
+      fullPath: '/api/oauth/instagram/start'
+      preLoaderRoute: typeof ApiOauthInstagramStartRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
+
+interface CampaignsRouteChildren {
+  CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRoute
+  CampaignsIndexRoute: typeof CampaignsIndexRoute
+}
+
+const CampaignsRouteChildren: CampaignsRouteChildren = {
+  CampaignsCampaignIdRoute: CampaignsCampaignIdRoute,
+  CampaignsIndexRoute: CampaignsIndexRoute,
+}
+
+const CampaignsRouteWithChildren = CampaignsRoute._addFileChildren(
+  CampaignsRouteChildren,
+)
+
+interface CreateRouteChildren {
+  CreateImageRoute: typeof CreateImageRoute
+  CreateIndexRoute: typeof CreateIndexRoute
+}
+
+const CreateRouteChildren: CreateRouteChildren = {
+  CreateImageRoute: CreateImageRoute,
+  CreateIndexRoute: CreateIndexRoute,
+}
+
+const CreateRouteWithChildren =
+  CreateRoute._addFileChildren(CreateRouteChildren)
 
 interface StudioRouteChildren {
   StudioProjectIdRoute: typeof StudioProjectIdRoute
@@ -348,14 +536,19 @@ const rootRouteChildren: RootRouteChildren = {
   AssistantRoute: AssistantRoute,
   BrandRoute: BrandRoute,
   CalendarRoute: CalendarRoute,
-  CampaignsRoute: CampaignsRoute,
-  ConnectionsRoute: ConnectionsRoute,
+  CampaignsRoute: CampaignsRouteWithChildren,
+  ConnectRoute: ConnectRoute,
+  CreateRoute: CreateRouteWithChildren,
   ExportRoute: ExportRoute,
+  InspireRoute: InspireRoute,
   InstagramRoute: InstagramRoute,
   SearchRoute: SearchRoute,
   StudioRoute: StudioRouteWithChildren,
-  ApiCanvaCallbackRoute: ApiCanvaCallbackRoute,
-  ApiInstagramCallbackRoute: ApiInstagramCallbackRoute,
+  ApiIgMediaIdRoute: ApiIgMediaIdRoute,
+  ApiOauthCanvaCallbackRoute: ApiOauthCanvaCallbackRoute,
+  ApiOauthCanvaStartRoute: ApiOauthCanvaStartRoute,
+  ApiOauthInstagramCallbackRoute: ApiOauthInstagramCallbackRoute,
+  ApiOauthInstagramStartRoute: ApiOauthInstagramStartRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

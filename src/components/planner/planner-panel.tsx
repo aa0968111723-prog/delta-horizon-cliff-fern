@@ -7,22 +7,14 @@ import { Button } from "@/components/ui/button";
 import { CreationLoop } from "@/components/shared/creation-loop";
 import { describeAdapter, generateCampaignPlan, getCampaignAiStatus, type AiStatus } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
-import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
-import { hashtagsFromOutcomes } from "@/lib/creative/learning";
 import { migrateBrief } from "@/lib/studio/brief";
 import type { BrandKit, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
-import { useConnectionStore } from "@/stores/connection-store";
-import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
 export function PlannerPanel({ project, brand }: { project: Project; brand: BrandKit }) {
   const updateProject = useStudio((s) => s.updateProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
-  const assets = useStudio((s) => s.assets);
-  const campaigns = useCreative((s) => s.campaigns);
-  const styleReferences = useConnectionStore((s) => s.styleReferences);
-  const instagramHashtags = hashtagsFromInstagramMemory(useConnectionStore((s) => s.instagramItems));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<AiStatus | null>(null);
@@ -57,14 +49,7 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
     try {
       const connected = status?.available ?? false;
       const result = await generateCampaignPlan({
-        data: toBriefInput(brief, brand, {
-          forceMock: forceMock || !connected,
-          assets,
-          campaigns,
-          styleReferences,
-          instagramHashtags,
-          outcomeHashtags: hashtagsFromOutcomes(useCreative.getState().outcomes),
-        }),
+        data: toBriefInput(brief, brand, { forceMock: forceMock || !connected }),
       });
       if (!result.ok) {
         setError(result.error);

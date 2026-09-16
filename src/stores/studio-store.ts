@@ -3,7 +3,6 @@ import { persist } from "zustand/middleware";
 import { buildCampaignBoards, copyForCarouselPage } from "@/lib/ai/apply";
 import { adaptArtboard, adaptPages, copyFromArtboard } from "@/lib/studio/adapt";
 import { migrateAsset, fitPlacedAsset } from "@/lib/studio/assets";
-import { hasPlaceablePixels } from "@/lib/studio/drive-import";
 import { createEmptyBrand, migrateBrand } from "@/lib/studio/brand";
 import { MAX_PLAN_VERSIONS, migrateBrief, migratePlan, migratePlanVersions } from "@/lib/studio/brief";
 import {
@@ -19,6 +18,7 @@ import { alignBox } from "@/lib/studio/geometry";
 import { uid } from "@/lib/studio/ids";
 import { applyBrandToProject } from "@/lib/studio/apply-brand";
 import { applyCopyToArtboard, buildLayout, extractImageAssetId } from "@/lib/studio/layout";
+import { migrateStatus } from "@/lib/studio/status";
 import { inspectProject } from "@/lib/studio/quality";
 import { applyQaFixToPages } from "@/lib/studio/quality-fix";
 import {
@@ -32,16 +32,7 @@ import {
   normalizeArtboard,
   pagesOf,
 } from "@/lib/studio/layers";
-import { migrateProjectStatus } from "@/lib/studio/status";
-import {
-  SEED_ASSETS,
-  SEED_BRAND,
-  SEED_BRAND_ID,
-  SEED_DRAFT_ID,
-  SEED_PROJECT_ID,
-  createSeedDraft,
-  createSeedProject,
-} from "@/lib/studio/seed-zen";
+import { SEED_ASSETS, SEED_BRAND, SEED_BRAND_ID, SEED_PROJECT_ID, createSeedDraft, createSeedProject } from "@/lib/studio/seed";
 import { templateById } from "@/lib/studio/templates";
 import type {
   AlignMode,
@@ -65,7 +56,7 @@ import type {
   TemplateId,
 } from "@/lib/studio/types";
 
-const STORAGE_KEY = "tku-zen-studio-v1";
+const STORAGE_KEY = "tkuzc-studio-v1";
 const AUTO_SNAP_MS = 20000;
 
 type EditorState = {
@@ -176,7 +167,6 @@ function historyKey(projectId: string, formatId: FormatId) {
 }
 
 function migrateBrandRecord(raw: BrandKit): BrandKit {
-  if (raw.id === SEED_BRAND_ID && raw.name === "日食咖啡") return clone(SEED_BRAND);
   const next = migrateBrand(raw);
   if (next.id !== SEED_BRAND_ID) return next;
   return {
@@ -186,7 +176,11 @@ function migrateBrandRecord(raw: BrandKit): BrandKit {
     logos: next.logos.length ? next.logos : SEED_BRAND.logos,
     imageStyle: next.imageStyle.mood ? next.imageStyle : SEED_BRAND.imageStyle,
     rules: next.rules.notes ? next.rules : { ...SEED_BRAND.rules, ...next.rules },
-    memory: next.memory?.mission ? next.memory : SEED_BRAND.memory,
+    mascot: next.mascot || SEED_BRAND.mascot,
+    signatureLights: next.signatureLights || SEED_BRAND.signatureLights,
+    clubIntro: next.clubIntro || SEED_BRAND.clubIntro,
+    likes: next.likes.length ? next.likes : SEED_BRAND.likes,
+    dislikes: next.dislikes.length ? next.dislikes : SEED_BRAND.dislikes,
   };
 }
 
@@ -196,6 +190,7 @@ function migrateAssetRecord(raw: AssetMeta): AssetMeta {
   if (!seed) return next;
   return {
     ...next,
+    seedSrc: next.seedSrc || seed.seedSrc,
     category: raw.category ?? seed.category,
     tags: next.tags.length ? next.tags : seed.tags,
     licenseNotes: next.licenseNotes || seed.licenseNotes,
@@ -227,8 +222,12 @@ function migrateProject(raw: Project): Project {
   const plan = migratePlan(raw.plan);
   return {
     ...raw,
-    status: migrateProjectStatus(raw.status, Boolean(plan)),
+    status: migrateStatus(raw.status ?? (plan ? "done" : "creating")),
     exports: raw.exports ?? [],
+    campaignId: raw.campaignId ?? null,
+    contentKind: raw.contentKind,
+    scheduledAt: raw.scheduledAt ?? null,
+    publishedAt: raw.publishedAt ?? null,
     artboards,
     slides,
     slideIndex,
@@ -505,7 +504,7 @@ export const useStudio = create<StudioState>()(
           brandId,
           templateId: tpl,
           activeFormatId: formatId,
-          status: "idea",
+          status: "creating",
           brief: migrateBrief(brief),
           copy,
           plan: null,
@@ -535,7 +534,7 @@ export const useStudio = create<StudioState>()(
           brandId,
           templateId,
           activeFormatId: starter.formatId,
-          status: "idea",
+          status: "creating",
           brief: migrateBrief(starter.brief),
           copy,
           plan: null,
@@ -579,7 +578,7 @@ export const useStudio = create<StudioState>()(
           artboards: boards.artboards,
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
-          status: "creating" as const,
+          status: "done" as const,
           planVersions: [version, ...(p.planVersions ?? [])].slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, nextPlan.source === "mock" ? "本機草案" : "AI 企劃", "manual");
@@ -603,7 +602,7 @@ export const useStudio = create<StudioState>()(
           artboards: boards.artboards,
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
-          status: "creating" as const,
+          status: "done" as const,
           planVersions: [version, p.planVersions.filter((v) => v.id !== versionId)].flat().slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, `還原 ${version.name}`, "manual");
@@ -674,7 +673,7 @@ export const useStudio = create<StudioState>()(
           name: `${src.name} 副本`,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          status: "idea",
+          status: "creating",
           exports: [],
         };
         set((s) => ({ projects: [copy, ...s.projects], lastProjectId: copy.id }));
@@ -683,7 +682,7 @@ export const useStudio = create<StudioState>()(
       recordExport: (id, version) =>
         get().updateProject(id, (p) => ({
           ...p,
-          status: "complete",
+          status: "published",
           exports: [version, ...p.exports].slice(0, 20),
         })),
       ensureArtboard: (projectId, formatId) => {
@@ -1206,12 +1205,7 @@ export const useStudio = create<StudioState>()(
           (brand) => brand.id === SEED_BRAND_ID && brand.name === "日食咖啡",
         ) ?? false;
         const brands = (p.brands ?? current.brands).map(migrateBrandRecord);
-        const assets = (p.assets ?? current.assets)
-          .filter((asset) => !legacySeed || !["asset_cup", "asset_beans", "asset_nisshoku_logo"].includes(asset.id))
-          .map(migrateAssetRecord);
-        if (legacySeed && !assets.some((asset) => asset.id === SEED_ASSETS[0]?.id)) {
-          assets.unshift(...SEED_ASSETS);
-        }
+        const assets = (p.assets ?? current.assets).map(migrateAssetRecord);
         const projects = (p.projects ?? current.projects).map(migrateProject);
         const campaigns = (p.campaigns ?? current.campaigns).map((c) => {
           const next = migrateCampaign(c);
@@ -1253,16 +1247,8 @@ export const useStudio = create<StudioState>()(
           contents?: ContentItem[];
           lastProjectId?: string | null;
         };
-        const legacySeed = state.brands?.some(
-          (brand) => brand.id === SEED_BRAND_ID && brand.name === "日食咖啡",
-        ) ?? false;
         const brands = (state.brands ?? []).map(migrateBrandRecord);
-        const assets = (state.assets ?? [])
-          .filter((asset) => !legacySeed || !["asset_cup", "asset_beans", "asset_nisshoku_logo"].includes(asset.id))
-          .map(migrateAssetRecord);
-        if (legacySeed && !assets.some((asset) => asset.id === SEED_ASSETS[0]?.id)) {
-          assets.unshift(...SEED_ASSETS);
-        }
+        const assets = (state.assets ?? []).map(migrateAssetRecord);
         const projects = (state.projects ?? []).map(migrateProject);
         return {
           brands,

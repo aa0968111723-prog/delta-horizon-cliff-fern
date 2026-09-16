@@ -33,7 +33,7 @@ test("formatsFromBrief picks feed, story and reels from flags", () => {
   const brief = migrateBrief({
     eventName: "活動",
     audience: "客人",
-    deliverables: { post: false, story: true, carousel: true, reels: true },
+    deliverables: { post: false, story: true, carousel: true, reels: true, threads: false, line: false },
   });
   assert.deepEqual(formatsFromBrief(brief, "feed-square"), ["feed-square", "story", "reels-cover"]);
 });
