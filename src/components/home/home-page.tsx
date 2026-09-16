@@ -244,6 +244,28 @@ export function HomePage() {
         )}
       </section>
 
+      {pendingFeel ? (
+        <section className="mt-10 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]" data-testid="home-awaiting-feel">
+          <SectionHeader title="剛發布" hint="標記學生會不會停，下次生成會學" />
+          <p className="text-sm">「{hookLine(pendingFeel.caption)}」</p>
+          <p className="mt-1 text-xs text-muted">{pendingFeel.date} · 還沒有效數，先靠你看</p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {(["strong", "ok", "weak"] as PostFeel[]).map((feel) => (
+              <Button
+                key={feel}
+                size="sm"
+                className="min-h-11"
+                variant="secondary"
+                data-testid={feel === "strong" ? "home-rate-strong" : undefined}
+                onClick={() => rateIgMemory(pendingFeel.id, feel)}
+              >
+                {feelLabel(feel)}
+              </Button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="mt-10">
         <SectionHeader title="最近 AI 生成" />
         {generatedLooks.length ? (
@@ -276,28 +298,6 @@ export function HomePage() {
           ))}
         </ul>
       </section>
-
-      {pendingFeel ? (
-        <section className="mt-10 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]" data-testid="home-awaiting-feel">
-          <SectionHeader title="剛發布" hint="標記學生會不會停，下次生成會學" />
-          <p className="text-sm">「{hookLine(pendingFeel.caption)}」</p>
-          <p className="mt-1 text-xs text-muted">{pendingFeel.date} · 還沒有效數，先靠你看</p>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {(["strong", "ok", "weak"] as PostFeel[]).map((feel) => (
-              <Button
-                key={feel}
-                size="sm"
-                className="min-h-11"
-                variant="secondary"
-                data-testid={feel === "strong" ? "home-rate-strong" : undefined}
-                onClick={() => rateIgMemory(pendingFeel.id, feel)}
-              >
-                {feelLabel(feel)}
-              </Button>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       {strong ? (
         <section className="mt-10 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]" data-testid="home-learned">
