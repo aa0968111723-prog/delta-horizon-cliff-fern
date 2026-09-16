@@ -347,7 +347,7 @@ export function ImageUnderstanding({
             <p className="text-sm text-muted">
               {busy
                 ? "正在用本機規則看這張適不適合淡江學生…"
-                : "選好圖就會先用本機規則看適不適合淡江學生。也可以直接做成限動、輪播或 Reels 封面。"}
+                : "選好圖就會先用本機規則看適不適合淡江學生。做成限動、輪播或 Reels 封面時，會依 9:16 或 4:5 重構構圖。"}
             </p>
           )}
         </div>
@@ -357,6 +357,9 @@ export function ImageUnderstanding({
         <div className="mt-4 space-y-4">
           <div>
             <p className="text-xs text-muted">用這張圖直接開始</p>
+            <p className="mt-1 text-xs text-subtle">
+              限動與 Reels 封面會排成 Story 9:16，輪播排成 IG 4:5。只改構圖比例與留白，不是 AI 生成的畫面。
+            </p>
             <div className="mt-1.5 flex flex-wrap gap-2">
               {onGenerateCopy ? (
                 <Button
@@ -382,6 +385,7 @@ export function ImageUnderstanding({
                       key={item.id}
                       size="sm"
                       aria-label={item.label}
+                      data-testid={`make-kind-${item.id}`}
                       disabled={making !== null}
                       onClick={() => void make(item.id)}
                     >

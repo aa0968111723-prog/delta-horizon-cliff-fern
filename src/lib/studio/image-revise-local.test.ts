@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { coverRect, frameForPreset, presetForRatio, RATIO_PX } from "./image-revise-local.ts";
+import { alreadyFramedForRatio, coverRect, frameForPreset, presetForRatio, RATIO_PX } from "./image-revise-local.ts";
 
 test("coverRect fills the frame without stretching", () => {
   const tall = coverRect(1080, 1350, 1080, 1080);
@@ -39,4 +39,12 @@ test("presetForRatio maps story to the headline band and squares to more air", (
   assert.equal(presetForRatio("1:1"), "more-air");
   assert.equal(presetForRatio("1.91:1"), "more-air");
   assert.equal(presetForRatio("4:5"), "tku-life");
+});
+
+test("alreadyFramedForRatio only accepts the matching canvas size and tag", () => {
+  const story = { tags: ["本機素材", "9:16"], width: 1080, height: 1920 };
+  assert.equal(alreadyFramedForRatio(story, "9:16"), true);
+  assert.equal(alreadyFramedForRatio(story, "4:5"), false);
+  assert.equal(alreadyFramedForRatio({ tags: ["9:16"], width: 1080, height: 1350 }, "9:16"), false);
+  assert.equal(alreadyFramedForRatio(undefined, "9:16"), false);
 });

@@ -343,6 +343,9 @@ export function ArtboardView({
 
   return (
     <div
+      data-testid={interactive ? "artboard" : undefined}
+      data-ratio={format.ratio}
+      data-format={artboard.formatId}
       className="relative overflow-hidden bg-surface"
       style={{
         width,

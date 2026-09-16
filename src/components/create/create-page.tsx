@@ -30,6 +30,9 @@ import { generateIgCopy, getZenAiStatus, reviewAsStudent, generateReelsScript } 
 import { generateVisualDirections, type VisualDirection } from "@/lib/ai/image-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
 import { saveDataUrlAsAsset } from "@/lib/studio/generated-image";
+import { alreadyFramedForRatio } from "@/lib/studio/image-revise-local";
+import { localVisualRatioLine, visualRatioLabel } from "@/lib/studio/local-visual";
+import { frameAndSaveLocalVisual } from "@/lib/studio/local-visual-frame";
 import { sourceFromAsset, sourceFromExtend } from "@/lib/studio/sources";
 import { CONTENT_KIND_META, CONTENT_KIND_ORDER, contentKindLabel, deliverablesForKind, kindUsesPagedLayout } from "@/lib/studio/status";
 import {
@@ -526,21 +529,44 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     if (!brand) return;
     try {
       const summary = payload.summary || payload.caption || "從一張圖片開始";
+      const ratio = defaultImageRatio(payload.kind);
+      const ratioLabel = visualRatioLabel(ratio);
+      const name = (payload.caption || summary).slice(0, 18) || "從圖片開始";
       let assetId = payload.assetId;
+      const existing = assetId
+        ? useStudio.getState().assets.find((item) => item.id === assetId)
+        : undefined;
+      let framedNote: string | null = alreadyFramedForRatio(existing, ratio)
+        ? localVisualRatioLine(ratioLabel)
+        : null;
+      if (!framedNote) {
+        try {
+          const framed = await frameAndSaveLocalVisual({
+            sourceUrl: payload.preview,
+            name: `${name} · ${ratio}`,
+            tags: ["圖片理解", contentKindLabel(payload.kind)],
+            ratio,
+          });
+          addAsset(framed.meta);
+          assetId = framed.meta.id;
+          framedNote = localVisualRatioLine(ratioLabel);
+        } catch {
+          // 排不成比例時，仍用原圖做成內容
+        }
+      }
       if (!assetId) {
-        const meta = await saveDataUrlAsAsset({
+        const uploaded = await saveDataUrlAsAsset({
           dataUrl: payload.preview,
-          name: (payload.caption || summary).slice(0, 18) || "圖片理解",
+          name,
           tags: ["圖片理解"],
           source: "upload",
           notes: summary,
         });
-        addAsset(meta);
-        assetId = meta.id;
+        addAsset(uploaded);
+        assetId = uploaded.id;
       }
       const asset = useStudio.getState().assets.find((item) => item.id === assetId);
       const meta = CONTENT_KIND_META[payload.kind];
-      const name = (payload.caption || summary).slice(0, 18) || "從圖片開始";
       const project = createProject({
         name,
         brandId: brand.id,
@@ -569,18 +595,25 @@ export function CreatePage({ search }: { search: CreateSearch }) {
         sources: [
           ...(campaign ? [{ kind: "local" as const, label: `活動 / ${campaign.name}`, detail: "活動資訊" }] : []),
           asset
-            ? sourceFromAsset(asset, "圖片理解")
+            ? sourceFromAsset(asset, framedNote ?? "圖片理解")
             : { kind: "local" as const, label: "圖片理解", detail: summary },
+          ...(framedNote
+            ? [{ kind: "local" as const, label: framedNote, detail: "本機改版，不是 AI 生成的畫面" }]
+            : []),
         ],
       });
-      applyVisualToPack(project.id, assetId);
       if (payload.caption) {
         setCopy(project.id, { headline: payload.caption.slice(0, 24), caption: payload.caption });
       }
       if (kindUsesPagedLayout(payload.kind)) {
         layoutFromKind(project.id, payload.kind);
       }
-      toast.success(`已做成${contentKindLabel(payload.kind)}`);
+      applyVisualToPack(project.id, assetId);
+      toast.success(
+        framedNote
+          ? `已做成${contentKindLabel(payload.kind)}，${framedNote}`
+          : `已做成${contentKindLabel(payload.kind)}`,
+      );
       void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
     } catch {
       toast.error("做成內容時出錯了，再試一次。");

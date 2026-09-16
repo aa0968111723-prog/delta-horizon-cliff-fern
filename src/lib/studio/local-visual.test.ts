@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { localVisualNote, localVisualRatioLine, matchLocalVisualAsset, nextLocalVisualAsset } from "./local-visual.ts";
+import {
+  localVisualNote,
+  localVisualRatioLine,
+  matchLocalVisualAsset,
+  nextLocalVisualAsset,
+  visualRatioLabel,
+} from "./local-visual.ts";
 import type { AssetMeta } from "./types.ts";
 
 const SEED_DUSK_ID = "asset_tamsui_dusk";
@@ -83,4 +89,8 @@ test("local notes name the chosen ratio without claiming AI pixels", () => {
   assert.match(localVisualNote("Story 9:16"), /排成 Story 9:16/);
   assert.match(localVisualNote("Story 9:16"), /不是 AI 生成的畫面/);
   assert.equal(localVisualRatioLine("Story 9:16"), "已排成 Story 9:16（只改構圖比例與留白）");
+  assert.equal(visualRatioLabel("9:16"), "Story 9:16");
+  assert.equal(visualRatioLabel("4:5"), "IG 4:5");
+  assert.equal(visualRatioLabel("1:1"), "IG 1:1");
+  assert.equal(visualRatioLabel("1.91:1"), "LINE / 連結");
 });

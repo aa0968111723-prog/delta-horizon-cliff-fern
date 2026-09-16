@@ -380,15 +380,22 @@ try {
   await expectText("用這張寫文案", "用這張寫文案");
   await expectText("改這張圖", "改這張圖");
   await expectText("改版預設", "更像淡江生活");
+  await expectText("做成限動會排成 9:16", "限動與 Reels 封面會排成 Story 9:16");
   await page
     .locator("section")
     .filter({ hasText: "圖片理解" })
-    .getByRole("button", { name: "做成限動" })
+    .getByTestId("make-kind-story")
     .evaluate((el) => (el instanceof HTMLElement ? el.click() : undefined));
-  await page.waitForURL(/\/studio\//, { timeout: 15000 });
+  await page.waitForURL(/\/studio\//, { timeout: 25000 });
   await page.waitForLoadState("networkidle");
-  await page.waitForSelector("text=這則用到的來源", { timeout: 10000 });
+  await page.waitForSelector("text=這則用到的來源", { timeout: 15000 });
   await expectText("做成限動來源", "這則用到的來源");
+  await expectText("做成限動已排成比例", "已排成 Story 9:16");
+  await page.waitForSelector('[data-testid="artboard"]', { timeout: 15000 });
+  const storyRatio = await page.getByTestId("artboard").first().getAttribute("data-ratio");
+  record("做成限動畫布比例", storyRatio === "9:16", `畫布是 ${storyRatio ?? "沒有比例"}`);
+  const storyFormat = await page.getByTestId("artboard").first().getAttribute("data-format");
+  record("做成限動畫布格式", storyFormat === "story", `格式是 ${storyFormat ?? "沒有格式"}`);
   await page.screenshot({ path: `${prefix}-from-image.png` });
 
   await page.goto(`${base}/instagram`, { waitUntil: "networkidle" });

@@ -77,3 +77,11 @@ export function localVisualNote(ratioLabel: string): string {
 export function localVisualRatioLine(ratioLabel: string): string {
   return `已排成 ${ratioLabel}（只改構圖比例與留白）`;
 }
+
+/** 跟生成卡片上的比例標籤對齊，讓來源列也能寫「已排成 Story 9:16」。 */
+export function visualRatioLabel(ratio: string): string {
+  if (ratio === "9:16") return "Story 9:16";
+  if (ratio === "1:1") return "IG 1:1";
+  if (ratio === "1.91:1") return "LINE / 連結";
+  return "IG 4:5";
+}

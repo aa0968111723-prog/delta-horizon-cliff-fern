@@ -21,6 +21,17 @@ export const RATIO_PX: Record<ReviseRatio, { w: number; h: number }> = {
   "1.91:1": { w: 1200, h: 628 },
 };
 
+/** 素材已經是目標 IG 尺寸時，做成限動／輪播不必再墊一層紙白。 */
+export function alreadyFramedForRatio(
+  asset: { tags: string[]; width: number; height: number } | undefined,
+  ratio: ReviseRatio,
+): boolean {
+  if (!asset) return false;
+  if (!asset.tags.includes(ratio)) return false;
+  const size = RATIO_PX[ratio];
+  return asset.width === size.w && asset.height === size.h;
+}
+
 /** 本機排版用的改版預設：限動留中間標題帶，方圖與橫式多留白。 */
 export function presetForRatio(ratio: ReviseRatio): string {
   if (ratio === "9:16") return "story-space";
