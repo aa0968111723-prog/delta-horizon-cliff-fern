@@ -15,8 +15,9 @@ import { formatBrandMemory } from "@/lib/studio/brand";
 import { buildIgDna, buildIgInsights, formatIgInsights, formatIgReading, igHistoryCaptions } from "@/lib/studio/ig-dna";
 import { clipSeed } from "@/lib/studio/sources";
 import { contentKindLabel } from "@/lib/studio/status";
-import { igFeedPostCount, igHighlights, isHighlightKind } from "@/lib/studio/ig-profile";
+import { igFeedPostCount, igHighlights, isHighlightKind, storyPreviewProjects } from "@/lib/studio/ig-profile";
 import { IgFeedPreview } from "@/components/instagram/ig-feed-preview";
+import { IgStoryPreview } from "@/components/instagram/ig-story-preview";
 import { cn } from "@/lib/utils";
 import { CLUB_HANDLE, CLUB_INTRO_SHORT, CLUB_NAME } from "@/lib/zen/club";
 import { useStudio } from "@/stores/studio-store";
@@ -39,7 +40,7 @@ export function InstagramCenter() {
   const igPosts = useMemo(() => remoteItems.filter((item) => item.provider === "instagram"), [remoteItems]);
   const urls = useAssetUrls(assets.map((a) => a.id));
   const [tab, setTab] = useState<Tab>("grid");
-  const [gridView, setGridView] = useState<"grid" | "feed">("grid");
+  const [gridView, setGridView] = useState<"grid" | "feed" | "story">("grid");
   const [connection, setConnection] = useState<ConnectionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [readingBusy, setReadingBusy] = useState(false);
@@ -75,6 +76,7 @@ export function InstagramCenter() {
     const posts = feed.filter((project) => !isHighlightKind(project.contentKind));
     return posts.length ? posts : feed;
   }, [feed]);
+  const phoneStories = useMemo(() => storyPreviewProjects(feed), [feed]);
   const connected = connection?.state === "connected";
   const reading = brand?.memory.igReading;
   const readingText = formatIgReading(reading);
@@ -228,6 +230,16 @@ export function InstagramCenter() {
                 >
                   貼文
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setGridView("story")}
+                  className={cn(
+                    "min-h-9 rounded-full px-3 text-xs",
+                    gridView === "story" ? "bg-accent text-accent-fg" : "text-muted",
+                  )}
+                >
+                  限動
+                </button>
               </div>
             }
           />
@@ -267,8 +279,10 @@ export function InstagramCenter() {
                 );
               })}
             </ul>
-          ) : (
+          ) : gridView === "feed" ? (
             <IgFeedPreview projects={phoneFeed} brand={brand} urls={urls} />
+          ) : (
+            <IgStoryPreview projects={phoneStories} brand={brand} urls={urls} />
           )}
         </section>
       ) : null}

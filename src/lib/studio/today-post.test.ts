@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readyPostLabel, readyToPost } from "./today-post.ts";
+import { readyPostLabel, readyToPost, unscheduledDone } from "./today-post.ts";
 import type { Brief, CopyDeck, Project } from "./types.ts";
 
 function brief(): Brief {
@@ -91,4 +91,17 @@ test("readyToPost surfaces overdue scheduled posts so they are not forgotten", (
   );
   assert.equal(rows[0]?.project.id, "missed");
   assert.equal(rows[0]?.reason, "today");
+});
+
+test("unscheduledDone lists finished work that is not on the calendar yet", () => {
+  const rows = unscheduledDone([
+    project({ id: "done", status: "done", updatedAt: 2 }),
+    project({ id: "old", status: "done", updatedAt: 1 }),
+    project({ id: "set", status: "done", scheduledAt: 9 }),
+    project({ id: "idea", status: "idea" }),
+  ]);
+  assert.deepEqual(
+    rows.map((row) => row.id),
+    ["done", "old"],
+  );
 });

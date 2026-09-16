@@ -34,3 +34,11 @@ export function readyToPost(projects: Project[], now = Date.now()): ReadyPost[] 
 export function readyPostLabel(reason: ReadyPostReason): string {
   return reason === "today" ? "今天要發" : "可以發了";
 }
+
+/** 完成了但還沒排進日曆。排程頁「完成了、還沒排」用這個。 */
+export function unscheduledDone(projects: Project[]): Project[] {
+  return projects
+    .filter((project) => project.status === "done" && project.scheduledAt == null)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 3);
+}

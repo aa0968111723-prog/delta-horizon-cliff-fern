@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { igFeedPostCount, igHighlights, isHighlightKind } from "./ig-profile.ts";
+import { igFeedPostCount, igHighlights, isHighlightKind, storyPreviewProjects } from "./ig-profile.ts";
 
 const copy = {
   eyebrow: "",
@@ -31,6 +31,18 @@ test("isHighlightKind keeps stories off the feed grid count", () => {
   assert.equal(isHighlightKind("story"), true);
   assert.equal(isHighlightKind("reels"), true);
   assert.equal(isHighlightKind("ig-post"), false);
+});
+
+test("storyPreviewProjects skips ideas and feed posts", () => {
+  const rows = storyPreviewProjects([
+    { status: "done" as const, contentKind: "story" as const },
+    { status: "idea" as const, contentKind: "story" as const },
+    { status: "making" as const, contentKind: "reels" as const },
+    { status: "done" as const, contentKind: "ig-post" as const },
+  ]);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0]?.contentKind, "story");
+  assert.equal(rows[1]?.contentKind, "reels");
 });
 
 test("igFeedPostCount skips ideas and highlight kinds", () => {

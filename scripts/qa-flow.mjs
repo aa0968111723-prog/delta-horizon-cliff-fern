@@ -174,6 +174,8 @@ try {
 
   await page.goto(`${base}/calendar`, { waitUntil: "networkidle" });
   await expectText("日曆可改節奏", "還沒建立");
+  await expectText("日曆還沒排", "完成了、還沒排");
+  await expectText("日曆帶走文案", "複製並下載");
   await page.getByRole("button", { name: "依宣傳節奏排程" }).evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );
@@ -244,11 +246,21 @@ try {
   await expectText("IG 個人頁", "追蹤者");
   await expectText("IG 網格切換", "網格");
   await expectText("IG 貼文切換", "貼文");
+  await expectText("IG 限動切換", "限動");
   await page.getByRole("button", { name: "貼文" }).evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );
   await expectText("IG 動態預覽", "動態預覽");
+  await expectText("IG 輪播翻頁", "下一頁");
+  await page.getByRole("button", { name: "下一頁" }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
   await page.screenshot({ path: `${prefix}-ig-feed.png` });
+  await page.getByRole("button", { name: "限動" }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await expectText("IG 限動預覽", "限動預覽");
+  await page.screenshot({ path: `${prefix}-ig-story.png` });
   await page.getByRole("button", { name: "IG DNA" }).evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );

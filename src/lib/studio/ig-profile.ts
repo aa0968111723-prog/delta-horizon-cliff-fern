@@ -33,3 +33,8 @@ export function igFeedPostCount(projects: Array<Pick<Project, "status" | "conten
 export function isHighlightKind(kind: ContentKind): boolean {
   return HIGHLIGHT_KINDS.has(kind);
 }
+
+/** 限動／Reels 直式預覽：跳過還只是想法的。 */
+export function storyPreviewProjects<T extends Pick<Project, "status" | "contentKind">>(projects: T[]): T[] {
+  return projects.filter((project) => project.status !== "idea" && HIGHLIGHT_KINDS.has(project.contentKind));
+}

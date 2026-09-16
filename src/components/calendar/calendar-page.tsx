@@ -15,12 +15,14 @@ import { zhTW } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, Sparkles, Tent } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/shared/page-header";
+import { PostPackBar } from "@/components/create/post-pack";
+import { PageHeader, SectionHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { campaignDateMs, waveDateMs } from "@/lib/studio/campaign";
 import { suggestSchedule, offsetDaysFromEventDate } from "@/lib/studio/schedule";
 import { contentKindLabel } from "@/lib/studio/status";
+import { unscheduledDone } from "@/lib/studio/today-post";
 import type { Campaign, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
@@ -52,6 +54,7 @@ export function CalendarPage() {
   const setSchedule = useStudio((s) => s.setSchedule);
   const applySchedule = useStudio((s) => s.applySchedule);
   const updateWave = useStudio((s) => s.updateWave);
+  const waiting = useMemo(() => unscheduledDone(projects), [projects]);
   const [cursor, setCursor] = useState(() => new Date());
   const [view, setView] = useState<View>(initialView);
   const [drag, setDrag] = useState<MoveTarget | null>(null);
@@ -200,6 +203,36 @@ export function CalendarPage() {
             取消
           </button>
         </p>
+      ) : null}
+
+      {waiting.length ? (
+        <section className="mt-6">
+          <SectionHeader title="完成了、還沒排" hint="複製文案、下載圖就能發；也可以排進日曆" />
+          <ul className="grid gap-3 lg:grid-cols-2">
+            {waiting.map((project) => (
+              <li key={project.id} className="min-w-0 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
+                <div className="flex items-start justify-between gap-2">
+                  <Link
+                    to="/studio/$projectId"
+                    params={{ projectId: project.id }}
+                    className="min-w-0"
+                  >
+                    <span className="block truncate text-sm font-medium">{project.name}</span>
+                    <span className="block truncate text-xs text-muted">{contentKindLabel(project.contentKind)}</span>
+                  </Link>
+                  <StatusBadge status={project.status} />
+                </div>
+                <PostPackBar
+                  copy={project.copy}
+                  kind={project.contentKind}
+                  projectId={project.id}
+                  variant="compact"
+                  className="mt-3 pt-2"
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       {view !== "agenda" ? (
@@ -426,6 +459,7 @@ function AgendaList({
       {items.map((item) => (
         <li key={keyOf(item)} className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
           {item.type === "content" ? (
+            <>
             <div className="flex items-center gap-3">
               <label className="w-16 shrink-0 text-xs tabular-nums text-muted">
                 <span className="block">{format(item.at, "M/d")}</span>
@@ -453,6 +487,16 @@ function AgendaList({
               </Link>
               <StatusBadge status={item.project.status} />
             </div>
+            {item.project.status === "scheduled" || item.project.status === "done" ? (
+              <PostPackBar
+                copy={item.project.copy}
+                kind={item.project.contentKind}
+                projectId={item.project.id}
+                variant="compact"
+                className="mt-3"
+              />
+            ) : null}
+            </>
           ) : item.type === "event" ? (
             <Link
               to="/campaigns/$campaignId"
