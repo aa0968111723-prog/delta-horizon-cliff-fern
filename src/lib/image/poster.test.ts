@@ -27,7 +27,7 @@ test("variations map to poster moods without inventing religious art", () => {
   assert.equal(moodFromVariation(undefined), "sit");
 });
 
-test("story posters use 9:16 viewBox", () => {
+test("story posters center copy on 9:16", () => {
   const svg = composePosterSvg({
     hook: "明天這個點，燈會先亮。",
     eventName: "浮游禪光",
@@ -35,4 +35,6 @@ test("story posters use 9:16 viewBox", () => {
     height: 1920,
   });
   assert.match(svg, /viewBox="0 0 1080 1920"/);
+  assert.match(svg, /x="540"/);
+  assert.match(svg, /height="1920"/);
 });

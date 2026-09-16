@@ -10,14 +10,15 @@ import { takeAutoRun } from "@/lib/create/handoff";
 import { applyStudentReviewToPlan } from "@/lib/copy/review";
 import { toBriefInput } from "@/lib/ai/payload";
 import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, notesFromHits, summarizeFound } from "@/lib/club/compose";
-import { formatIdFromKind, lastPackFromPlan, withPackKind } from "@/lib/club/last-pack";
+import { formatIdFromKind, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, withPackKind } from "@/lib/club/last-pack";
 import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
 import { convertedScheduleInput, matchingScheduleRow } from "@/lib/club/schedule";
-import { CONVERT_TARGETS, convertPlan } from "@/lib/convert/pack";
+import { CONVERT_TARGETS, allConvertedPacks, convertPlan } from "@/lib/convert/pack";
 import { createCanvaFromPlan } from "@/lib/connections/oauth";
 import { folderSearchInput } from "@/lib/connections/presets";
 import { generateStudioImage } from "@/lib/image/studio";
+import { moodFromVariation, posterDataUrl } from "@/lib/image/poster";
 import { createGeneratedAsset } from "@/lib/studio/assets";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { formatById } from "@/lib/studio/formats";
@@ -58,6 +59,7 @@ export function IdeaFlow({
   const updateProject = useStudio((s) => s.updateProject);
   const folder = useCreative((s) => s.folder);
   const igPosts = useCreative((s) => s.igPosts);
+  const lastPackState = useCreative((s) => s.lastPack);
 
   const [idea, setIdea] = useState(seedIdea || "下週有一場茶會");
   const [phase, setPhase] = useState<Phase>("idea");
@@ -80,7 +82,7 @@ export function IdeaFlow({
         page.layers.flatMap((layer) => (layer.type === "image" || layer.type === "logo" ? [layer.assetId ?? ""] : [])),
       )
     : [];
-  const urls = useAssetUrls(assetIds);
+  const urls = useAssetUrls([...assetIds, ...packAssetIds(lastPackState)]);
 
   useEffect(() => {
     if (seedIdea) setIdea(seedIdea);
@@ -96,6 +98,7 @@ export function IdeaFlow({
 
   const converted = plan ? convertPlan(plan, packKind) : null;
   const thumb = heroUrl || hits[0]?.thumb || "/seed/tea.svg";
+  const previewSrc = lastPackState ? lastPackPreviewSrc(lastPackState, urls) : thumb;
 
   async function research(raw = idea, autoPack = Boolean(seedAutoRun)) {
     if (!brand) {
@@ -182,7 +185,19 @@ export function IdeaFlow({
     setProjectId(projectNext.id);
     setCampaignId(campaign.id);
     setPhase("pack");
-    const heroAssetId = await paintHero(direction, nextPlan, raw);
+    const packs = allConvertedPacks(nextPlan);
+    const formatAssetIds: Partial<Record<ContentKind, string>> = {};
+    const heroAssetId = await paintHero(direction, nextPlan, raw, packKind);
+    if (heroAssetId) formatAssetIds[packKind] = heroAssetId;
+    for (const target of CONVERT_TARGETS) {
+      if (target.id === packKind) continue;
+      if (heroAssetId && formatIdFromKind(target.id) === formatIdFromKind(packKind)) {
+        formatAssetIds[target.id] = heroAssetId;
+        continue;
+      }
+      const id = await composeKindHero(direction, nextPlan, raw, target.id);
+      if (id) formatAssetIds[target.id] = id;
+    }
     const scheduled = Boolean(nextPlan.waves?.length);
     updateProject(projectNext.id, {
       campaignId: campaign.id,
@@ -196,7 +211,9 @@ export function IdeaFlow({
         eventName: parsed.eventName,
         plan: nextPlan,
         kind: packKind,
-        converted: convertPlan(nextPlan, packKind).items,
+        converted: packs[packKind],
+        packs,
+        formatAssetIds,
         directionName: direction.name,
         heroAssetId,
         heroThumb: currentHits[0]?.thumb,
@@ -279,19 +296,17 @@ export function IdeaFlow({
     }
   }
 
-  async function paintHero(direction: CreativeDirection, currentPlan = plan, raw = idea) {
-    const format = formatById(formatIdFromKind(packKind));
-    const result = await generateStudioImage({
-      data: {
-        prompt: direction.imagePrompt,
-        headline: direction.headline || currentPlan?.hook,
-        eventName: parseIdea(raw).eventName,
-        formatId: format.id,
-      },
+  async function composeKindHero(direction: CreativeDirection, currentPlan = plan, raw = idea, kind = packKind) {
+    if (!currentPlan) return null;
+    const format = formatById(formatIdFromKind(kind));
+    const variation = kind === "story" ? "mood" : kind === "reels" ? "style" : kind === "threads" || kind === "line" ? "text" : "regen";
+    const url = posterDataUrl({
+      hook: direction.headline || currentPlan.hook,
+      eventName: parseIdea(raw).eventName,
+      mood: moodFromVariation(variation),
+      width: format.width,
+      height: format.height,
     });
-    const url = result.urls[0];
-    if (!url) return null;
-    setHeroUrl(url);
     const res = await fetch(url);
     const blob = await res.blob();
     const id = uid("asset");
@@ -299,12 +314,44 @@ export function IdeaFlow({
     addAsset(
       createGeneratedAsset({
         id,
-        name: `${direction.name} · ${parseIdea(raw).eventName}`,
+        name: `${direction.name} · ${parseIdea(raw).eventName} · ${format.short}`,
+        mime: blob.type || "image/svg+xml",
+        width: format.width,
+        height: format.height,
+        category: kind === "reels" ? "reels-asset" : kind === "story" ? "story-asset" : "poster",
+        tags: ["AI生成", direction.name, parseIdea(raw).eventName, kind],
+      }),
+    );
+    return id;
+  }
+
+  async function paintHero(direction: CreativeDirection, currentPlan = plan, raw = idea, kind = packKind) {
+    const format = formatById(formatIdFromKind(kind));
+    const result = await generateStudioImage({
+      data: {
+        prompt: direction.imagePrompt,
+        headline: direction.headline || currentPlan?.hook,
+        eventName: parseIdea(raw).eventName,
+        formatId: format.id,
+        variation: kind === "story" ? "mood" : kind === "reels" ? "style" : kind === "threads" || kind === "line" ? "text" : "regen",
+      },
+    });
+    const url = result.urls[0];
+    if (!url) return null;
+    if (kind === packKind) setHeroUrl(url);
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const id = uid("asset");
+    await getAssetStorage().put(id, blob);
+    addAsset(
+      createGeneratedAsset({
+        id,
+        name: `${direction.name} · ${parseIdea(raw).eventName} · ${format.short}`,
         mime: blob.type || "image/png",
         width: format.width,
         height: format.height,
         category: "poster",
-        tags: ["AI生成", direction.name, parseIdea(raw).eventName],
+        tags: ["AI生成", direction.name, parseIdea(raw).eventName, kind],
       }),
     );
     return id;
@@ -317,7 +364,12 @@ export function IdeaFlow({
       const heroAssetId = await paintHero(picked);
       const current = useCreative.getState().lastPack;
       if (current && heroAssetId) {
-        setLastPack({ ...current, heroAssetId, updatedAt: Date.now() });
+        setLastPack({
+          ...current,
+          heroAssetId,
+          formatAssetIds: { ...current.formatAssetIds, [packKind]: heroAssetId },
+          updatedAt: Date.now(),
+        });
       }
       toast.success("主視覺已存進素材庫 · 來源：AI Generated");
     } finally {
@@ -438,7 +490,7 @@ export function IdeaFlow({
           <div className="rounded-3xl bg-bg p-4" data-testid="idea-preview">
             <FormatPreview
               kind={packKind}
-              src={heroUrl || thumb}
+              src={previewSrc}
               hook={plan.hook}
               handle={brand?.handle ?? "@tku.zen"}
               items={converted?.items ?? []}
@@ -512,6 +564,8 @@ export function IdeaFlow({
                         plan: reviewed.plan,
                         kind: packKind,
                         converted: convertPlan(reviewed.plan, packKind).items,
+                        packs: allConvertedPacks(reviewed.plan),
+                        formatAssetIds: current?.formatAssetIds,
                         directionName: picked?.name ?? current?.directionName,
                         heroAssetId: current?.heroAssetId,
                         heroThumb: current?.heroThumb,

@@ -9,7 +9,7 @@ export type ConvertedPack = {
 export function convertPlan(plan: CampaignPlan, kind: ContentKind): ConvertedPack {
   const hook = plan.hook || plan.headline;
   if (kind === "carousel") {
-    const pages = plan.carouselPages.length
+    const pages = plan.carouselPages?.length
       ? plan.carouselPages
       : [
           { headline: hook, subhead: "", body: plan.insight, visualNote: "Hook" },
@@ -29,7 +29,7 @@ export function convertPlan(plan: CampaignPlan, kind: ContentKind): ConvertedPac
     };
   }
   if (kind === "story") {
-    const beats = plan.storyBeats.length ? plan.storyBeats : [hook, plan.campaignName, plan.cta];
+    const beats = plan.storyBeats?.length ? plan.storyBeats : [hook, plan.campaignName, plan.cta];
     return {
       kind,
       title: "Story 3–5 張",
@@ -107,3 +107,9 @@ export const CONVERT_TARGETS: { id: ContentKind; label: string }[] = [
   { id: "line", label: "LINE" },
   { id: "reels", label: "Reels Script" },
 ];
+
+export function allConvertedPacks(plan: CampaignPlan): Partial<Record<ContentKind, ConvertedPack["items"]>> {
+  return Object.fromEntries(CONVERT_TARGETS.map((item) => [item.id, convertPlan(plan, item.id).items])) as Partial<
+    Record<ContentKind, ConvertedPack["items"]>
+  >;
+}

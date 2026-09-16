@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { type LastPack } from "@/lib/club/last-pack";
+import { type LastPack, persistablePack } from "@/lib/club/last-pack";
 import { FEATURED_EVENT } from "@/lib/club/memory";
 import { buildCampaignRhythm, scheduleDraftsFromCampaign } from "@/lib/club/schedule";
 import { uid } from "@/lib/studio/ids";
@@ -300,7 +300,7 @@ export const useCreative = create<CreativeState>()(
           return { igPosts: [...byId.values()].sort((a, b) => b.takenAt - a.takenAt) };
         }),
       setLastSearch: (lastSearch) => set({ lastSearch }),
-      setLastPack: (lastPack) => set({ lastPack }),
+      setLastPack: (lastPack) => set({ lastPack: persistablePack(lastPack) }),
     }),
     {
       name: "zen-creative-v1",
@@ -312,7 +312,7 @@ export const useCreative = create<CreativeState>()(
         igPosts: s.igPosts,
         folder: s.folder,
         lastSearch: s.lastSearch,
-        lastPack: s.lastPack,
+        lastPack: persistablePack(s.lastPack),
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<CreativeState>;
@@ -340,6 +340,8 @@ export const useCreative = create<CreativeState>()(
                 }),
                 ...p.lastPack,
                 converted: p.lastPack.converted ?? current.lastPack?.converted ?? [],
+                packs: p.lastPack.packs ?? current.lastPack?.packs ?? {},
+                formatAssetIds: p.lastPack.formatAssetIds ?? current.lastPack?.formatAssetIds ?? {},
               }
             : current.lastPack ?? null,
         };

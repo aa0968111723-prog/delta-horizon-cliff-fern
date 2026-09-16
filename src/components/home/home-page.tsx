@@ -9,7 +9,7 @@ import { SectionHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { IgThumb } from "@/components/create/ig-thumb";
-import { lastPackPreviewSrc } from "@/lib/club/last-pack";
+import { lastPackPreviewSrc, packAssetIds } from "@/lib/club/last-pack";
 import { lessonsFromIg, nextCreateIdeaFromLessons } from "@/lib/club/insights";
 import { FEATURED_EVENT, featuredCampaignIdea } from "@/lib/club/memory";
 import { handoffFromQuickStart, QUICK_STARTS } from "@/lib/club/quick-starts";
@@ -36,7 +36,7 @@ export function HomePage() {
   const ctx = studentContext();
   const featured = campaigns.find((c) => c.id === FEATURED_EVENT.id) ?? campaigns[0];
 
-  const urls = useAssetUrls([...assets.map((a) => a.id), lastPack?.heroAssetId ?? ""]);
+  const urls = useAssetUrls([...assets.map((a) => a.id), ...packAssetIds(lastPack)]);
   const recent = useMemo(() => [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6), [projects]);
   const upcoming = [...schedule].sort((a, b) => a.plannedAt - b.plannedAt).filter((row) => row.status !== "published").slice(0, 4);
   const strong = [...igPosts].sort((a, b) => (b.metrics?.saves ?? 0) - (a.metrics?.saves ?? 0))[0];

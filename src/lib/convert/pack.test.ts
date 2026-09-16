@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { convertPlan } from "./pack.ts";
+import { convertPlan, allConvertedPacks } from "./pack.ts";
 import { buildZenMockPlan } from "../club/mock-plan.ts";
 
 const plan = buildZenMockPlan({
@@ -41,7 +41,11 @@ test("convert to reels keeps timed beats", () => {
   assert.ok(pack.items.some((item) => item.heading.includes("17")));
 });
 
-test("convert to threads and line", () => {
-  assert.ok(convertPlan(plan, "threads").items[0].body.length > 8);
-  assert.equal(convertPlan(plan, "line").title, "LINE");
+test("allConvertedPacks keeps every IG size for one pack", () => {
+  const packs = allConvertedPacks(plan);
+  assert.ok((packs.story?.length ?? 0) >= 3);
+  assert.ok((packs.reels?.length ?? 0) >= 5);
+  assert.ok((packs.carousel?.length ?? 0) >= 5);
+  assert.ok((packs.threads?.[0]?.body.length ?? 0) > 8);
+  assert.ok((packs.line?.[0]?.body.length ?? 0) > 4);
 });

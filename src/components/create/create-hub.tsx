@@ -28,7 +28,7 @@ import { useStudio } from "@/stores/studio-store";
 import { useCreative } from "@/stores/creative-store";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { lessonPrompt } from "@/lib/club/insights";
-import { kindFromFormat, lastPackFromPlan, lastPackPreviewSrc, withPackKind } from "@/lib/club/last-pack";
+import { kindFromFormat, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, withPackKind } from "@/lib/club/last-pack";
 import { convertedScheduleInput, matchingScheduleRow } from "@/lib/club/schedule";
 import type { ContentKind, CreativeDirection, FormatId } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -531,7 +531,7 @@ function ConvertStudio({
   const navigate = useNavigate();
   const project = projects.find((p) => p.id === lastProjectId);
   const [kind, setKind] = useState<ContentKind>(seedKind || "carousel");
-  const urls = useAssetUrls(lastPack?.heroAssetId ? [lastPack.heroAssetId] : []);
+  const urls = useAssetUrls(packAssetIds(lastPack));
 
   useEffect(() => {
     if (seedKind) setKind(seedKind);
@@ -552,7 +552,7 @@ function ConvertStudio({
 
   const plan = project.plan;
   const converted = convertPlan(plan, kind);
-  const previewSrc = lastPack ? lastPackPreviewSrc(lastPack, urls) : "/seed/tea.svg";
+  const previewSrc = lastPack ? lastPackPreviewSrc(lastPack, urls, kind) : "/seed/tea.svg";
 
   function pickKind(next: ContentKind) {
     setKind(next);

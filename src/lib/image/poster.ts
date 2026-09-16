@@ -37,6 +37,11 @@ export function composePosterSvg(input: {
 }) {
   const width = input.width ?? 1080;
   const height = input.height ?? 1350;
+  const cx = width / 2;
+  const glowY = height * 0.26;
+  const sitY = Math.min(height * 0.62, height - 420);
+  const cardH = Math.min(300, Math.max(220, height * 0.22));
+  const cardY = height - cardH - Math.min(130, height * 0.07);
   const mood = input.mood ?? "sit";
   const lines = clipLines(input.hook, 12, 2);
   const meta = [input.eventName, input.schedule, input.location].filter(Boolean).join(" · ");
@@ -45,16 +50,16 @@ export function composePosterSvg(input: {
   const paper = mood === "night" || mood === "lights" ? "rgba(246,241,232,.92)" : "#FFFCF8";
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${xmlText(lines.join(" "))}">
   <rect width="${width}" height="${height}" fill="${bg}"/>
-  <circle cx="${mood === "friends" ? 280 : 220}" cy="420" r="240" fill="#7EB8C9" opacity="${mood === "lights" ? ".7" : ".35"}"/>
-  <circle cx="540" cy="340" r="210" fill="#E0B07A" opacity="${mood === "lights" ? ".62" : ".32"}"/>
-  <circle cx="860" cy="460" r="250" fill="#D9A3A3" opacity="${mood === "lights" ? ".58" : ".3"}"/>
-  ${mood === "sit" || mood === "friends" ? `<ellipse cx="540" cy="980" rx="320" ry="70" fill="#E7DCC8"/><ellipse cx="540" cy="820" rx="200" ry="72" fill="#2F5F56"/><ellipse cx="540" cy="792" rx="148" ry="42" fill="#F6F1E8"/>` : ""}
-  ${mood === "night" ? `<rect y="760" width="${width}" height="590" fill="#2F5F56"/><path d="M0 820 C 200 740, 400 900, 540 820 S 900 740, 1080 820 L 1080 1350 L 0 1350 Z" fill="#3F7A6E"/>` : ""}
-  ${mood === "friends" ? `<circle cx="430" cy="760" r="54" fill="#2F5F56"/><circle cx="650" cy="760" r="54" fill="#2F5F56"/><circle cx="418" cy="748" r="8" fill="#F6F1E8"/><circle cx="662" cy="748" r="8" fill="#F6F1E8"/>` : ""}
-  <rect x="72" y="${height - 430}" width="${width - 144}" height="300" rx="36" fill="${paper}"/>
-  <text x="540" y="${height - 300}" text-anchor="middle" font-family="Noto Serif TC, Georgia, serif" font-size="64" fill="#1C2422">${xmlText(lines[0] ?? "")}</text>
-  ${lines[1] ? `<text x="540" y="${height - 220}" text-anchor="middle" font-family="Noto Serif TC, Georgia, serif" font-size="64" fill="#1C2422">${xmlText(lines[1])}</text>` : ""}
-  <text x="540" y="${height - 150}" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="28" fill="#2F5F56">${xmlText(meta || "人到了就好")}</text>
+  <circle cx="${mood === "friends" ? width * 0.26 : width * 0.2}" cy="${glowY + 80}" r="${width * 0.22}" fill="#7EB8C9" opacity="${mood === "lights" ? ".7" : ".35"}"/>
+  <circle cx="${cx}" cy="${glowY}" r="${width * 0.2}" fill="#E0B07A" opacity="${mood === "lights" ? ".62" : ".32"}"/>
+  <circle cx="${width * 0.8}" cy="${glowY + 120}" r="${width * 0.23}" fill="#D9A3A3" opacity="${mood === "lights" ? ".58" : ".3"}"/>
+  ${mood === "sit" || mood === "friends" ? `<ellipse cx="${cx}" cy="${sitY + 160}" rx="${width * 0.3}" ry="${height * 0.05}" fill="#E7DCC8"/><ellipse cx="${cx}" cy="${sitY}" rx="${width * 0.18}" ry="${height * 0.05}" fill="#2F5F56"/><ellipse cx="${cx}" cy="${sitY - 28}" rx="${width * 0.14}" ry="${height * 0.03}" fill="#F6F1E8"/>` : ""}
+  ${mood === "night" ? `<rect y="${height * 0.4}" width="${width}" height="${height * 0.6}" fill="#2F5F56"/><path d="M0 ${height * 0.43} C ${width * 0.18} ${height * 0.38}, ${width * 0.37} ${height * 0.47}, ${cx} ${height * 0.43} S ${width * 0.83} ${height * 0.38}, ${width} ${height * 0.43} L ${width} ${height} L 0 ${height} Z" fill="#3F7A6E"/>` : ""}
+  ${mood === "friends" ? `<circle cx="${cx - 110}" cy="${sitY - 60}" r="54" fill="#2F5F56"/><circle cx="${cx + 110}" cy="${sitY - 60}" r="54" fill="#2F5F56"/><circle cx="${cx - 122}" cy="${sitY - 72}" r="8" fill="#F6F1E8"/><circle cx="${cx + 122}" cy="${sitY - 72}" r="8" fill="#F6F1E8"/>` : ""}
+  <rect x="72" y="${cardY}" width="${width - 144}" height="${cardH}" rx="36" fill="${paper}"/>
+  <text x="${cx}" y="${cardY + cardH * 0.42}" text-anchor="middle" font-family="Noto Serif TC, Georgia, serif" font-size="64" fill="#1C2422">${xmlText(lines[0] ?? "")}</text>
+  ${lines[1] ? `<text x="${cx}" y="${cardY + cardH * 0.68}" text-anchor="middle" font-family="Noto Serif TC, Georgia, serif" font-size="64" fill="#1C2422">${xmlText(lines[1])}</text>` : ""}
+  <text x="${cx}" y="${cardY + cardH * 0.88}" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="28" fill="#2F5F56">${xmlText(meta || "人到了就好")}</text>
   <circle cx="140" cy="120" r="18" fill="#7EB8C9"/><circle cx="190" cy="120" r="18" fill="#E0B07A"/><circle cx="240" cy="120" r="18" fill="#D9A3A3"/>
   <text x="90" y="80" font-family="Noto Sans TC, sans-serif" font-size="22" fill="${fg}" opacity=".7">淡江禪學社</text>
 </svg>`;

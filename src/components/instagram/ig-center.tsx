@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { FormatPreview } from "@/components/create/format-preview";
 import { IgThumb } from "@/components/create/ig-thumb";
 import { IG_DNA } from "@/lib/club/memory";
-import { lastPackPreviewSrc } from "@/lib/club/last-pack";
+import { lastPackPreviewSrc, packAssetIds, withPackKind } from "@/lib/club/last-pack";
+import { CONVERT_TARGETS } from "@/lib/convert/pack";
 import { lessonsFromIg } from "@/lib/club/insights";
 import { writeHandoff } from "@/lib/create/handoff";
 import { listConnectedMedia } from "@/lib/connections/oauth";
@@ -18,9 +19,10 @@ export function InstagramCenter() {
   const posts = useCreative((s) => s.igPosts);
   const ingestIg = useCreative((s) => s.ingestIg);
   const lastPack = useCreative((s) => s.lastPack);
+  const setLastPack = useCreative((s) => s.setLastPack);
   const [active, setActive] = useState<IgMemoryPost | null>(null);
   const [live, setLive] = useState<IgMemoryPost[]>([]);
-  const urls = useAssetUrls(lastPack?.heroAssetId ? [lastPack.heroAssetId] : []);
+  const urls = useAssetUrls(packAssetIds(lastPack));
   const draftThumb = lastPack ? lastPackPreviewSrc(lastPack, urls) : "";
 
   useEffect(() => {
@@ -98,11 +100,24 @@ export function InstagramCenter() {
           <h2 className="text-sm font-medium">IG Preview</h2>
           {lastPack ? (
             <div className="mt-4" data-testid="ig-preview">
+              <div className="mb-3 flex flex-wrap gap-1">
+                {CONVERT_TARGETS.map((item) => (
+                  <Button
+                    key={item.id}
+                    size="sm"
+                    variant={lastPack.kind === item.id ? "default" : "secondary"}
+                    data-testid={`ig-preview-kind-${item.id}`}
+                    onClick={() => setLastPack(withPackKind(lastPack, item.id))}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </div>
               <FormatPreview
                 kind={lastPack.kind}
-                src={draftThumb}
+                src={lastPackPreviewSrc(lastPack, urls)}
                 hook={lastPack.hook}
-                items={lastPack.converted ?? []}
+                items={lastPack.converted ?? lastPack.packs?.[lastPack.kind] ?? []}
               />
               <p className="mt-3 text-sm font-medium">{lastPack.hook}</p>
               <p className="mt-1 whitespace-pre-wrap text-xs text-muted">{lastPack.caption.slice(0, 160)}</p>

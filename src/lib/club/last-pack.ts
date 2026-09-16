@@ -12,6 +12,8 @@ export type LastPack = {
   heroThumb: string;
   kind: ContentKind;
   converted: ConvertedPack["items"];
+  packs?: Partial<Record<ContentKind, ConvertedPack["items"]>>;
+  formatAssetIds?: Partial<Record<ContentKind, string>>;
   directionName?: string;
   updatedAt: number;
 };
@@ -49,14 +51,21 @@ export function lastPackFromPlan(input: {
   projectId: string;
   campaignId: string;
   eventName: string;
-  plan: Pick<CampaignPlan, "hook" | "captions" | "hashtags">;
+  plan: Pick<CampaignPlan, "hook" | "captions" | "hashtags"> & Partial<CampaignPlan>;
   kind?: ContentKind;
   converted?: ConvertedPack["items"];
+  packs?: Partial<Record<ContentKind, ConvertedPack["items"]>>;
+  formatAssetIds?: Partial<Record<ContentKind, string>>;
   directionName?: string;
   heroAssetId?: string | null;
   heroThumb?: string;
   updatedAt?: number;
 }): LastPack {
+  const kind = input.kind ?? "ig-post";
+  const packs = input.packs ?? {};
+  const converted = input.converted ?? packs[kind] ?? [];
+  const formatAssetIds = input.formatAssetIds ?? {};
+  const heroThumb = input.heroThumb?.startsWith("data:") ? fallbackHeroThumb(input.eventName) : input.heroThumb;
   return {
     projectId: input.projectId,
     campaignId: input.campaignId,
@@ -64,25 +73,46 @@ export function lastPackFromPlan(input: {
     hook: input.plan.hook,
     caption: input.plan.captions[0]?.text ?? input.plan.hook,
     hashtags: input.plan.hashtags ?? [],
-    heroAssetId: input.heroAssetId ?? null,
-    heroThumb: input.heroThumb || fallbackHeroThumb(input.eventName),
-    kind: input.kind ?? "ig-post",
-    converted: input.converted ?? [],
+    heroAssetId: formatAssetIds[kind] ?? input.heroAssetId ?? null,
+    heroThumb: heroThumb || fallbackHeroThumb(input.eventName),
+    kind,
+    converted,
+    packs,
+    formatAssetIds,
     directionName: input.directionName,
     updatedAt: input.updatedAt ?? Date.now(),
   };
 }
 
 export function withPackKind(pack: LastPack, kind: ContentKind, converted?: ConvertedPack["items"]): LastPack {
+  const items = converted ?? pack.packs?.[kind] ?? pack.converted;
   return {
     ...pack,
     kind,
-    converted: converted ?? pack.converted,
+    converted: items,
+    packs: { ...pack.packs, [kind]: items },
+    heroAssetId: pack.formatAssetIds?.[kind] ?? pack.heroAssetId,
     updatedAt: Date.now(),
   };
 }
 
-export function lastPackPreviewSrc(pack: LastPack, assetUrls: Record<string, string>) {
-  if (pack.heroAssetId && assetUrls[pack.heroAssetId]) return assetUrls[pack.heroAssetId];
+export function lastPackPreviewSrc(pack: LastPack, assetUrls: Record<string, string>, kind = pack.kind) {
+  const assetId = pack.formatAssetIds?.[kind] ?? pack.heroAssetId;
+  if (assetId && assetUrls[assetId]) return assetUrls[assetId];
   return pack.heroThumb || fallbackHeroThumb(pack.eventName);
+}
+
+export function packAssetIds(pack: LastPack | null) {
+  if (!pack) return [];
+  return [pack.heroAssetId, ...Object.values(pack.formatAssetIds ?? {})].filter((id): id is string => Boolean(id));
+}
+
+export function persistablePack(pack: LastPack | null): LastPack | null {
+  if (!pack) return null;
+  return {
+    ...pack,
+    heroThumb: pack.heroThumb?.startsWith("data:") ? fallbackHeroThumb(pack.eventName) : pack.heroThumb,
+    packs: pack.packs ?? {},
+    formatAssetIds: pack.formatAssetIds ?? {},
+  };
 }
