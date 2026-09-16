@@ -50,7 +50,9 @@ export function HomePage() {
     [q, memory, assets, campaigns, igPosts, projects],
   );
 
-  const scheduled = calendarFrom(campaigns, projects).filter((item) => item.date >= format(new Date(), "yyyy-MM-dd"));
+  const scheduled = calendarFrom(campaigns, projects).filter(
+    (item) => item.date >= format(new Date(), "yyyy-MM-dd") && item.status !== "published",
+  );
   const recent = [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6);
   const strong = [...igPosts].sort((a, b) => (b.saves ?? 0) - (a.saves ?? 0)).slice(0, 3);
   const dna = clubDnaFromMemory({ igPosts, memory });

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { suggestWaves, isoFromMs } from "@/lib/creative/schedule";
+import { applyMarkPublished } from "@/lib/creative/publish-flow";
 import {
   SEED_CAMPAIGNS,
   SEED_CONNECTIONS,
@@ -18,7 +19,7 @@ import type {
   MemoryItem,
 } from "@/lib/creative/types";
 import { uid } from "@/lib/studio/ids";
-import type { Project, ProjectStatus } from "@/lib/studio/types";
+import type { ContentKind, Project, ProjectStatus } from "@/lib/studio/types";
 import { CAMPAIGN_TYPES, type CampaignType } from "@/lib/creative/types";
 
 export { CAMPAIGN_TYPES };
@@ -44,6 +45,15 @@ type CreativeState = {
   ingestIgPosts: (posts: IgMemoryPost[]) => void;
   analyzeIg: (id: string, analysis: IgMemoryPost["analysis"]) => void;
   addInspiration: (item: Inspiration) => void;
+  markPublished: (opts: {
+    campaignId?: string;
+    waveId?: string;
+    projectId?: string;
+    title?: string;
+    caption?: string;
+    kind?: ContentKind;
+    assetIds?: string[];
+  }) => IgMemoryPost | null;
 };
 
 function emptyCampaign(name: string): ClubCampaign {
@@ -93,6 +103,7 @@ export function calendarFrom(campaigns: ClubCampaign[], projects: Project[]): Ca
         campaignId: campaign.id,
         waveId: wave.id,
         projectId: wave.projectId ?? undefined,
+        publishedAt: wave.publishedAt ?? undefined,
       });
     }
   }
@@ -107,6 +118,7 @@ export function calendarFrom(campaigns: ClubCampaign[], projects: Project[]): Ca
       status: project.status,
       projectId: project.id,
       campaignId: project.campaignId ?? undefined,
+      publishedAt: project.publishedAt ?? undefined,
     });
   }
   return items.sort((a, b) => a.date.localeCompare(b.date));
@@ -176,6 +188,7 @@ export const useCreative = create<CreativeState>()(
           id: uid("wave"),
           status: "idea" as const,
           projectId: null,
+          publishedAt: null,
           scheduledAt: (wave.scheduledAt ?? Date.now()) + 86400000,
           topic: `${wave.topic}（延伸）`,
         };
@@ -203,6 +216,16 @@ export const useCreative = create<CreativeState>()(
         set((s) => ({
           inspirations: [item, ...s.inspirations.filter((row) => row.id !== item.id)].slice(0, 24),
         })),
+      markPublished: (opts) => {
+        const result = applyMarkPublished({
+          campaigns: get().campaigns,
+          ...opts,
+        });
+        if (!result) return null;
+        set({ campaigns: result.campaigns });
+        get().ingestIgPosts([result.post]);
+        return result.post;
+      },
     }),
     {
       name: "tkz-creative-v1",

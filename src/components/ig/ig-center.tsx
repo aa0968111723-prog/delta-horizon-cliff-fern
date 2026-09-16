@@ -3,6 +3,7 @@ import { zhTW } from "date-fns/locale";
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { mockStudentSim } from "@/lib/ai/pack-mock";
@@ -25,6 +26,10 @@ export function IgCenter() {
   const [activeId, setActiveId] = useState<string | null>(igPosts[0]?.id ?? null);
   const active = igPosts.find((p) => p.id === activeId);
   const gridProjects = useMemo(() => projects.filter((p) => p.status !== "idea").slice(0, 5), [projects]);
+  const queue = useMemo(
+    () => projects.filter((p) => p.status === "scheduled" || p.status === "done"),
+    [projects],
+  );
   const memory = useCreative((s) => s.memory);
   const dna = clubDnaFromMemory({ igPosts, memory });
   const insights = clubInsightsFromPosts(igPosts);
@@ -56,6 +61,29 @@ export function IgCenter() {
       <p className="text-xs tracking-[0.18em] text-muted uppercase">Instagram Center</p>
       <h1 className="mt-1 font-display text-3xl">貼文長得像自己的帳號</h1>
       <p className="mt-2 text-sm text-muted">Grid、Caption、歷史、DNA。連接官方 API 後會讀真實貼文；現在先用社團 Content Memory。</p>
+
+      {queue.length ? (
+        <section className="mt-8 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+          <h2 className="text-sm font-medium">準備發布</h2>
+          <p className="mt-1 text-xs text-muted">下載檔案不算發布。標記後會進 Content Memory，下次生成會參考。</p>
+          <ul className="mt-3 space-y-3">
+            {queue.map((project) => (
+              <li key={project.id} className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm">{project.name}</p>
+                  <p className="text-xs text-muted">{project.contentKind}</p>
+                </div>
+                <PublishButton
+                  projectId={project.id}
+                  campaignId={project.campaignId ?? undefined}
+                  title={project.name}
+                  variant="secondary"
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <h2 className="mt-8 text-sm font-medium">Feed Preview</h2>
       <div className="mt-3 grid grid-cols-3 gap-1 overflow-hidden rounded-2xl">

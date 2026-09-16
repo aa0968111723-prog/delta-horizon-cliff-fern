@@ -67,6 +67,7 @@ export const SEED_CAMPAIGNS: ClubCampaign[] = [
         contentKind: "ig-post",
         projectId: null,
         scheduledAt: Date.parse("2026-09-14T20:00:00+08:00"),
+        publishedAt: Date.parse("2026-09-14T20:12:00+08:00"),
         status: "published",
       },
       {

@@ -2,6 +2,7 @@ import { addDays, format, startOfMonth, startOfWeek } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { contentKindLabel } from "@/lib/studio/content";
 import { STATUS_META } from "@/lib/studio/status";
@@ -189,6 +190,14 @@ export function CalendarPage() {
                         <Button size="sm" variant="ghost" onClick={() => extend(item)}>
                           AI 延伸
                         </Button>
+                        {item.kind !== "event" && item.status !== "published" ? (
+                          <PublishButton
+                            campaignId={item.campaignId}
+                            waveId={item.waveId}
+                            projectId={item.projectId}
+                            title={item.title}
+                          />
+                        ) : null}
                       </div>
                     </div>
                   ))}
@@ -239,6 +248,7 @@ function AgendaRow({
       <p className="text-sm">{item.title}</p>
       <p className="text-xs text-subtle">
         {item.kind === "event" ? "活動" : contentKindLabel(item.kind)} · {STATUS_META[item.status].label}
+        {item.publishedAt ? ` · 實際發布 ${format(item.publishedAt, "M/d HH:mm", { locale: zhTW })}` : ""}
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
         <Button size="sm" variant="ghost" onClick={onExtend}>
@@ -253,6 +263,14 @@ function AgendaRow({
               編輯
             </Link>
           </Button>
+        ) : null}
+        {item.kind !== "event" && item.status !== "published" ? (
+          <PublishButton
+            campaignId={item.campaignId}
+            waveId={item.waveId}
+            projectId={item.projectId}
+            title={item.title}
+          />
         ) : null}
       </div>
     </li>

@@ -25,4 +25,5 @@ test("tea campaign waves mix life and promo instead of stacking ads", () => {
   assert.ok(intents.includes("當天"));
   assert.ok(intents.includes("回顧"));
   assert.ok(waves.every((w) => w.scheduledAt));
+  assert.ok(waves.every((w) => w.publishedAt == null));
 });

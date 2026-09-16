@@ -597,8 +597,6 @@ export const useStudio = create<StudioState>()(
       recordExport: (id, version) =>
         get().updateProject(id, (p) => ({
           ...p,
-          status: "published",
-          publishedAt: Date.now(),
           exports: [version, ...p.exports].slice(0, 20),
         })),
       ensureArtboard: (projectId, formatId) => {

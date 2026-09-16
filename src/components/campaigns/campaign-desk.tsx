@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { daysUntil } from "@/lib/club/season";
 import { contentKindLabel } from "@/lib/studio/content";
@@ -91,6 +92,18 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
                 >
                   生成這一波
                 </button>
+              )}
+              {wave.status !== "published" ? (
+                <div className="mt-2">
+                  <PublishButton
+                    campaignId={campaign.id}
+                    waveId={wave.id}
+                    projectId={wave.projectId ?? project?.id}
+                    title={`${wave.intent} · ${wave.topic}`}
+                  />
+                </div>
+              ) : (
+                <p className="mt-1 text-xs text-subtle">已進 Content Memory</p>
               )}
             </li>
           );

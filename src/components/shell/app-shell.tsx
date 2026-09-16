@@ -18,8 +18,8 @@ import { useUi } from "@/stores/ui-store";
 
 const NAV: { to: string; label: string; icon: LucideIcon; match: string }[] = [
   { to: "/", label: "首頁", icon: Sparkles, match: "home" },
-  { to: "/create", label: "創作", icon: Plus, match: "create" },
   { to: "/calendar", label: "排程", icon: CalendarDays, match: "calendar" },
+  { to: "/create", label: "創作", icon: Plus, match: "create" },
   { to: "/assets", label: "素材", icon: Images, match: "assets" },
   { to: "/ig", label: "IG", icon: Instagram, match: "ig" },
 ];

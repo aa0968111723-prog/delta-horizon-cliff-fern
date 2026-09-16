@@ -2,6 +2,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CreativeHits } from "@/components/search/creative-hits";
+import { ReelsDesk, StoryStrip } from "@/components/create/kit-visuals";
+import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { convertContent } from "@/lib/ai/convert";
@@ -20,7 +22,7 @@ import { createGeneratedAsset } from "@/lib/studio/assets";
 import { emptyBrief } from "@/lib/studio/brief";
 import { uid } from "@/lib/studio/ids";
 import { COPY_TONES } from "@/lib/studio/content";
-import type { CreativeDirection } from "@/lib/studio/types";
+import type { CreativeDirection, ReelsBeat, StoryFrame } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -81,6 +83,7 @@ export function CreateStudio({
   const [tone, setTone] = useState<CopyBlock["tone"]>("student");
   const [vision, setVision] = useState<VisionReport | null>(null);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [reelsCoverSrc, setReelsCoverSrc] = useState<string | null>(null);
   const [directions, setDirections] = useState<CreativeDirection[]>([]);
   const [aspect, setAspect] = useState<(typeof ASPECTS)[number]["id"]>("4:5");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -197,15 +200,17 @@ export function CreateStudio({
     }
   }
 
-  async function runImage(prompt: string) {
+  async function runImage(prompt: string, ratio: (typeof ASPECTS)[number]["id"] = aspect) {
     setBusy(true);
     try {
-      const result = await generateStudioImage({ data: { prompt, topic: query, aspect } });
+      if (ratio !== aspect) setAspect(ratio);
+      const result = await generateStudioImage({ data: { prompt, topic: query, aspect: ratio } });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
       setImageSrc(result.src);
+      if (ratio === "9:16") setReelsCoverSrc(result.src);
       const id = uid("asset");
       const blob = await (await fetch(result.src)).blob();
       await getAssetStorage().put(id, blob);
@@ -214,12 +219,12 @@ export function CreateStudio({
           id,
           name: query.slice(0, 18) || "AI 主視覺",
           mime: blob.type || "image/png",
-          width: aspect === "9:16" ? 1080 : 1080,
-          height: aspect === "9:16" ? 1920 : aspect === "1:1" ? 1080 : 1350,
+          width: ratio === "9:16" ? 1080 : 1080,
+          height: ratio === "9:16" ? 1920 : ratio === "1:1" ? 1080 : 1350,
           category: "poster",
         }),
       );
-      toast.success("主視覺已進素材庫");
+      toast.success(ratio === "9:16" ? "Reels 封面已進素材庫" : "主視覺已進素材庫");
     } finally {
       setBusy(false);
     }
@@ -521,7 +526,17 @@ export function CreateStudio({
             handle="@tkuzen"
           />
 
-          <PackKit pack={pack} />
+          <PackKit
+            pack={pack}
+            coverSrc={reelsCoverSrc}
+            busy={busy}
+            onCover={() =>
+              void runImage(
+                activeDir?.imagePrompt || pack.conversions.reels[0]?.visual || query,
+                "9:16",
+              )
+            }
+          />
 
           <div>
             <h2 className="text-sm font-medium">再轉一版</h2>
@@ -551,6 +566,16 @@ export function CreateStudio({
             <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => void navigate({ to: "/inspire" })}>
               靈感研究
             </Button>
+            {campaign ? (
+              <PublishButton
+                campaignId={campaign.id}
+                title={pack.plan.campaignName}
+                caption={copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook}
+                variant="secondary"
+                size="default"
+                className="rounded-full"
+              />
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -614,7 +639,17 @@ function IgPhonePreview({
   );
 }
 
-function PackKit({ pack }: { pack: CreativePack }) {
+function PackKit({
+  pack,
+  coverSrc,
+  busy,
+  onCover,
+}: {
+  pack: CreativePack;
+  coverSrc: string | null;
+  busy: boolean;
+  onCover: () => void;
+}) {
   return (
     <div className="space-y-4">
       <h2 className="text-sm font-medium">整套網宣</h2>
@@ -631,19 +666,7 @@ function PackKit({ pack }: { pack: CreativePack }) {
           ))}
         </ol>
       </div>
-      <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-        <p className="text-xs tracking-[0.14em] text-muted uppercase">Story</p>
-        <ol className="mt-2 space-y-2">
-          {pack.conversions.story.map((frame, index) => (
-            <li key={`${frame.headline}-${index}`} className="text-sm">
-              <p className="font-medium">{frame.headline}</p>
-              <p className="text-xs text-muted">
-                {frame.body} · 畫面：{frame.visualNote}
-              </p>
-            </li>
-          ))}
-        </ol>
-      </div>
+      <StoryStrip frames={pack.conversions.story} />
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
           <p className="text-xs tracking-[0.14em] text-muted uppercase">Threads</p>
@@ -654,21 +677,7 @@ function PackKit({ pack }: { pack: CreativePack }) {
           <pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{pack.conversions.line}</pre>
         </div>
       </div>
-      <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-        <p className="text-xs tracking-[0.14em] text-muted uppercase">Reels 腳本</p>
-        <ol className="mt-2 space-y-3">
-          {pack.conversions.reels.map((beat) => (
-            <li key={`${beat.start}-${beat.end}`} className="text-sm">
-              <p className="font-medium">
-                {beat.start}–{beat.end} {beat.caption}
-              </p>
-              <p className="text-xs text-muted">畫面：{beat.visual}</p>
-              <p className="text-xs text-muted">旁白：{beat.voice}</p>
-              <p className="text-xs text-subtle">轉場：{beat.transition} · 素材：{beat.assetHint}</p>
-            </li>
-          ))}
-        </ol>
-      </div>
+      <ReelsDesk beats={pack.conversions.reels} coverSrc={coverSrc} busy={busy} onCover={onCover} />
     </div>
   );
 }
@@ -676,6 +685,8 @@ function PackKit({ pack }: { pack: CreativePack }) {
 function ConvertPreview({ title, hook, when, where }: { title: string; hook: string; when?: string; where?: string }) {
   const [open, setOpen] = useState<string | null>(null);
   const [text, setText] = useState("");
+  const [story, setStory] = useState<StoryFrame[] | null>(null);
+  const [reels, setReels] = useState<ReelsBeat[] | null>(null);
   const labels: Record<string, string> = {
     carousel: "轉 Carousel",
     story: "轉 Story",
@@ -687,11 +698,12 @@ function ConvertPreview({ title, hook, when, where }: { title: string; hook: str
     const result = await convertContent({ data: { title, hook, when, where } });
     if (!result.ok) return;
     setOpen(kind);
+    setStory(kind === "story" ? result.story : null);
+    setReels(kind === "reels" ? result.reels : null);
     if (kind === "carousel") setText(result.carousel.map((p, i) => `${i + 1}. ${p.title}\n${p.body}`).join("\n\n"));
-    if (kind === "story") setText(result.story.map((p) => `${p.headline}\n${p.body}`).join("\n\n"));
-    if (kind === "threads") setText(result.threads);
-    if (kind === "line") setText(result.line);
-    if (kind === "reels") setText(result.reels.map((b) => `${b.start}-${b.end} ${b.caption}\n畫面：${b.visual}\n旁白：${b.voice}`).join("\n\n"));
+    else if (kind === "threads") setText(result.threads);
+    else if (kind === "line") setText(result.line);
+    else setText("");
   }
   return (
     <div className="mt-2">
@@ -702,6 +714,8 @@ function ConvertPreview({ title, hook, when, where }: { title: string; hook: str
           </Button>
         ))}
       </div>
+      {story ? <div className="mt-3"><StoryStrip frames={story} /></div> : null}
+      {reels ? <div className="mt-3"><ReelsDesk beats={reels} /></div> : null}
       {text ? <pre className="mt-3 whitespace-pre-wrap rounded-2xl bg-bg p-3 font-sans text-xs leading-relaxed">{text}</pre> : null}
     </div>
   );

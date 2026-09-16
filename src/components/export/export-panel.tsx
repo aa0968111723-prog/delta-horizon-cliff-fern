@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { canvasToBlob, collectArtboardAssetIds, downloadBlob, renderArtboardToCanvas } from "@/lib/studio/export-png";
@@ -168,6 +169,15 @@ export function ExportPanel({
       >
         複製貼文文案
       </Button>
+      <p className="text-xs text-muted">下載只是檔案，不會當成已發布。真正發出後再標記，下次 AI 才會學這篇。</p>
+      <PublishButton
+        projectId={project.id}
+        campaignId={project.campaignId ?? undefined}
+        title={project.name}
+        size="default"
+        variant="secondary"
+        className="w-full"
+      />
       {project.copy.altText ? (
         <p className="text-xs text-muted">Alt：{project.copy.altText}</p>
       ) : null}

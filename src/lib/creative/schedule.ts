@@ -59,6 +59,7 @@ export function suggestWaves(campaign: Pick<ClubCampaign, "type" | "date" | "nam
         contentKind: item.contentKind,
         projectId: null,
         scheduledAt: when.getTime(),
+        publishedAt: null,
         status,
       };
     });

@@ -29,6 +29,7 @@ export type CampaignWave = {
   contentKind: ContentKind;
   projectId: string | null;
   scheduledAt: number | null;
+  publishedAt?: number | null;
   status: ProjectStatus;
 };
 
@@ -139,4 +140,5 @@ export type CalendarItem = {
   projectId?: string;
   campaignId?: string;
   waveId?: string;
+  publishedAt?: number;
 };
