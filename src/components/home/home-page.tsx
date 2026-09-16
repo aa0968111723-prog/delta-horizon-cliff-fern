@@ -190,8 +190,8 @@ export function HomePage() {
               }
             />
             <ul className="space-y-2">
-              {uniqueById(campaigns).slice(0, 3).map((campaign) => (
-                <li key={campaign.id}>
+              {uniqueById(campaigns).slice(0, 3).map((campaign, index) => (
+                <li key={`${campaign.id}-${index}`}>
                   <Link to="/campaigns/$campaignId" params={{ campaignId: campaign.id }} className="block rounded-2xl bg-bg px-3 py-3">
                     <p className="font-medium">{campaign.name}</p>
                     <p className="text-xs text-muted">
@@ -208,9 +208,9 @@ export function HomePage() {
           <section className="mt-10" data-testid="home-due">
             <SectionHeader title="今天可以發布" hint="到時間就發，沒有審核人" />
             <ul className="grid gap-2 sm:grid-cols-2">
-              {due.slice(0, 4).map((row) => (
+              {due.slice(0, 4).map((row, index) => (
                 <li
-                  key={row.id}
+                  key={`${row.id}-${index}`}
                   className="flex items-center justify-between gap-3 rounded-3xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]"
                 >
                   <div className="min-w-0">
@@ -244,8 +244,8 @@ export function HomePage() {
             }
           />
           <ul className="grid gap-2 sm:grid-cols-2">
-            {upcoming.map((row) => (
-              <li key={row.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+            {upcoming.map((row, index) => (
+              <li key={`${row.id}-${index}`} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
                 <p className="text-xs text-muted">
                   {formatDate(row.plannedAt, "M/d HH:mm", { locale: zhTW })} · {CONTENT_KIND_META[row.contentKind].label}
                 </p>
@@ -270,8 +270,8 @@ export function HomePage() {
             </Link>
           ) : null}
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {recent.map((project) => (
-              <li key={project.id}>
+            {recent.map((project, index) => (
+              <li key={`${project.id}-${index}`}>
                 <ProjectCard project={project} brand={brands.find((b) => b.id === project.brandId)} urls={urls} />
                 <p className="mt-1 px-1 text-xs text-subtle">
                   {CONTENT_KIND_META[project.contentKind].label} · {contentStatusOf(project)}
@@ -335,8 +335,8 @@ export function HomePage() {
               }
             />
             <ul className="grid grid-cols-4 gap-2">
-              {uniqueById(assets).slice(0, 8).map((asset) => (
-                <li key={asset.id} className="overflow-hidden rounded-xl bg-bg">
+              {uniqueById(assets).slice(0, 8).map((asset, index) => (
+                <li key={`${asset.id}-${index}`} className="overflow-hidden rounded-xl bg-bg">
                   <Link to="/assets">
                     {urls[asset.id] ? (
                       <img src={urls[asset.id]} alt={asset.name} className="aspect-square w-full object-cover" />

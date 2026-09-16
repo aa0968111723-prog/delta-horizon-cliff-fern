@@ -88,6 +88,11 @@ type CreativeState = {
   setLastPack: (pack: LastPack | null) => void;
 };
 
+function uniqueById<T extends { id: string }>(items: T[] | undefined, fallback: T[] = []) {
+  const list = items?.length ? items : fallback;
+  return list.filter((item, index, all) => item.id && all.findIndex((row) => row.id === item.id) === index);
+}
+
 function seedCampaign(): ClubCampaign {
   const now = Date.parse("2026-09-12T19:00:00+08:00");
   return {
@@ -320,6 +325,9 @@ export const useCreative = create<CreativeState>()(
         return {
           ...current,
           ...p,
+          campaigns: uniqueById(p.campaigns, current.campaigns),
+          schedule: uniqueById(p.schedule, current.schedule),
+          igPosts: uniqueById(p.igPosts, current.igPosts),
           folder: {
             driveFolder: p.folder?.driveFolder || current.folder.driveFolder,
             driveFolderId: p.folder?.driveFolderId || "",
