@@ -1320,6 +1320,53 @@ export function CreateStudio({
 
       {pack && posterOnly ? (
         <section className="mt-6 space-y-4" data-poster-loop="">
+          <div className="hidden flex-wrap gap-2 lg:flex">
+            <Button className="min-h-11 rounded-full" disabled={busy} onClick={schedulePoster}>
+              排進月曆
+            </Button>
+            <Button variant="secondary" className="min-h-11 rounded-full" onClick={goIgPreview}>
+              IG Preview
+            </Button>
+            <Button variant="secondary" className="min-h-11 rounded-full" disabled={busy} onClick={() => void sendCanva()}>
+              送進 Canva 微調
+            </Button>
+            <Button
+              variant="secondary"
+              className="min-h-11 rounded-full"
+              disabled={busy}
+              onClick={() => void runPack({ skipHero: Boolean(imageSrc) && imageDirId.current === (activeDir?.id ?? dirId) })}
+            >
+              用這個方向做完整宣傳
+            </Button>
+          </div>
+          <div className="pb-2 lg:pb-0" data-poster-convert="">
+            <h2 className="text-sm font-medium">這一張再轉一版</h2>
+            <p className="mt-1 text-xs text-muted">不用先做完整宣傳。Carousel、Story、Threads、Reels 可以從這張直接拆。</p>
+            <ConvertPreview
+              title={pack.plan.campaignName}
+              hook={pack.plan.hook}
+              body={pack.plan.body}
+              when={campaign ? `${campaign.date} ${campaign.time}` : pack.plan.subhead}
+              where={campaign?.location}
+              cta={pack.plan.cta}
+              onSchedule={(kind, kit) => {
+                const next = mergeConvert(pack, kind, kit);
+                setPack(next);
+                persistSession({ pack: next, posterOnly: true });
+                const contentKind = CONVERT_TO_KIND[kind] ?? "carousel";
+                applyToStudio(true, {
+                  kind: contentKind,
+                  nextPack: next,
+                  single: true,
+                  heroSrc: coverForKind(contentKind, { feed: imageSrc, story: reelsCoverSrc }),
+                  heroAssetId: coverForKind(contentKind, {
+                    feed: lastAsset.current.feed,
+                    story: lastAsset.current.story,
+                  }),
+                });
+              }}
+            />
+          </div>
           <IgPhonePreview
             hook={pack.plan.hook}
             caption={copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook}
@@ -1364,53 +1411,6 @@ export function CreateStudio({
               </div>
             </div>
           ) : null}
-          <div className="hidden flex-wrap gap-2 lg:flex">
-            <Button className="min-h-11 rounded-full" disabled={busy} onClick={schedulePoster}>
-              排進月曆
-            </Button>
-            <Button variant="secondary" className="min-h-11 rounded-full" onClick={goIgPreview}>
-              IG Preview
-            </Button>
-            <Button variant="secondary" className="min-h-11 rounded-full" disabled={busy} onClick={() => void sendCanva()}>
-              送進 Canva 微調
-            </Button>
-            <Button
-              variant="secondary"
-              className="min-h-11 rounded-full"
-              disabled={busy}
-              onClick={() => void runPack({ skipHero: Boolean(imageSrc) && imageDirId.current === (activeDir?.id ?? dirId) })}
-            >
-              用這個方向做完整宣傳
-            </Button>
-          </div>
-          <div data-poster-convert="">
-            <h2 className="text-sm font-medium">這一張再轉一版</h2>
-            <p className="mt-1 text-xs text-muted">不用先做完整宣傳。Carousel、Story、Threads、Reels 可以從這張直接拆。</p>
-            <ConvertPreview
-              title={pack.plan.campaignName}
-              hook={pack.plan.hook}
-              body={pack.plan.body}
-              when={campaign ? `${campaign.date} ${campaign.time}` : pack.plan.subhead}
-              where={campaign?.location}
-              cta={pack.plan.cta}
-              onSchedule={(kind, kit) => {
-                const next = mergeConvert(pack, kind, kit);
-                setPack(next);
-                persistSession({ pack: next, posterOnly: true });
-                const contentKind = CONVERT_TO_KIND[kind] ?? "carousel";
-                applyToStudio(true, {
-                  kind: contentKind,
-                  nextPack: next,
-                  single: true,
-                  heroSrc: coverForKind(contentKind, { feed: imageSrc, story: reelsCoverSrc }),
-                  heroAssetId: coverForKind(contentKind, {
-                    feed: lastAsset.current.feed,
-                    story: lastAsset.current.story,
-                  }),
-                });
-              }}
-            />
-          </div>
         </section>
       ) : null}
 

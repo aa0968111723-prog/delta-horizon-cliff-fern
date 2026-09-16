@@ -97,7 +97,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10" data-calendar="">
       <p className="text-xs tracking-[0.18em] text-muted uppercase">排程</p>
       <h1 className="mt-1 font-display text-3xl">什麼時候發</h1>
       <p className="mt-2 text-sm text-muted">只服務創作與發布。沒有審核人。桌面可拖曳改日期。</p>
