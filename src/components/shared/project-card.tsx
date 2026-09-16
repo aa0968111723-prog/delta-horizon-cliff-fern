@@ -63,7 +63,7 @@ export function ProjectCard({
             {formatDate(project.updatedAt, "M/d HH:mm", { locale: zhTW })}
           </p>
         </div>
-        <StatusBadge status={project.status} />
+        <StatusBadge status={project.status} contentStatus={project.contentStatus} />
       </div>
       {footer ?? (
         <div className="mt-1 flex justify-end">

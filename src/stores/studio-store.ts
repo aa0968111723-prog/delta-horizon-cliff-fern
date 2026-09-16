@@ -30,7 +30,19 @@ import {
   normalizeArtboard,
   pagesOf,
 } from "@/lib/studio/layers";
-import { SEED_ASSETS, SEED_BRAND, SEED_BRAND_ID, SEED_PROJECT_ID, createSeedDraft, createSeedProject } from "@/lib/studio/seed";
+import { inferContentKind, kindFromFormat, legacyFromContent, statusFromLegacy } from "@/lib/studio/content";
+import {
+  DEFAULT_CONNECTIONS,
+  SEED_ASSETS,
+  SEED_BRAND,
+  SEED_CAMPAIGNS,
+  SEED_IG_MEMORY,
+  SEED_PROJECT_ID,
+  SEED_REMOTE_FILES,
+  SEED_SCHEDULE,
+  createSeedDraft,
+  createSeedProject,
+} from "@/lib/studio/seed";
 import { templateById } from "@/lib/studio/templates";
 import type {
   AlignMode,
@@ -39,19 +51,26 @@ import type {
   BrandKit,
   Brief,
   CampaignPlan,
+  ClubCampaign,
+  ConnectionMeta,
+  ContentKind,
+  ContentStatus,
   CopyDeck,
   EditorTool,
   ExportVersion,
   FormatId,
+  IgMemoryPost,
   Layer,
   Project,
   ProjectStatus,
   QaIssue,
+  RemoteFile,
+  ScheduleItem,
   Snapshot,
   TemplateId,
 } from "@/lib/studio/types";
 
-const STORAGE_KEY = "kouzhen-studio-v1";
+const STORAGE_KEY = "tamkang-zen-studio-v1";
 const AUTO_SNAP_MS = 20000;
 
 type EditorState = {
@@ -73,6 +92,11 @@ type StudioState = {
   brands: BrandKit[];
   assets: AssetMeta[];
   projects: Project[];
+  campaigns: ClubCampaign[];
+  schedule: ScheduleItem[];
+  connections: ConnectionMeta[];
+  igMemory: IgMemoryPost[];
+  remoteFiles: RemoteFile[];
   lastProjectId: string | null;
   editor: EditorState;
   history: Record<string, HistoryEntry[]>;
@@ -95,8 +119,21 @@ type StudioState = {
     formatId: FormatId;
     brief: Brief;
     templateId?: TemplateId;
+    campaignId?: string | null;
+    contentKind?: ContentKind;
   }) => Project;
   createFromTemplate: (input: { templateId: TemplateId; brandId: string }) => Project;
+  createCampaign: (input: Partial<ClubCampaign> & { name: string }) => ClubCampaign;
+  updateCampaign: (id: string, patch: Partial<ClubCampaign> | ((c: ClubCampaign) => ClubCampaign)) => void;
+  deleteCampaign: (id: string) => void;
+  upsertSchedule: (item: ScheduleItem) => void;
+  moveSchedule: (id: string, scheduledAt: number) => void;
+  removeSchedule: (id: string) => void;
+  setContentStatus: (projectId: string, status: ContentStatus, scheduledAt?: number | null) => void;
+  setConnection: (provider: ConnectionMeta["provider"], patch: Partial<ConnectionMeta>) => void;
+  setRemoteFiles: (files: RemoteFile[]) => void;
+  upsertRemoteFiles: (files: RemoteFile[]) => void;
+  addIgMemory: (post: IgMemoryPost) => void;
   applyCampaignPlan: (projectId: string, plan: CampaignPlan, brief: Brief) => void;
   restorePlanVersion: (projectId: string, versionId: string) => void;
   patchPlan: (projectId: string, patch: Partial<CampaignPlan> | ((plan: CampaignPlan) => CampaignPlan)) => void;
@@ -151,14 +188,13 @@ function historyKey(projectId: string, formatId: FormatId) {
 
 function migrateBrandRecord(raw: BrandKit): BrandKit {
   const next = migrateBrand(raw);
-  if (next.id !== SEED_BRAND_ID) return next;
   return {
     ...next,
-    slogans: next.slogans.length ? next.slogans : SEED_BRAND.slogans,
-    ctas: next.ctas.length ? next.ctas : SEED_BRAND.ctas,
-    logos: next.logos.length ? next.logos : SEED_BRAND.logos,
-    imageStyle: next.imageStyle.mood ? next.imageStyle : SEED_BRAND.imageStyle,
-    rules: next.rules.notes ? next.rules : { ...SEED_BRAND.rules, ...next.rules },
+    mascot: next.mascot || "",
+    motifs: next.motifs ?? [],
+    likes: next.likes ?? [],
+    dislikes: next.dislikes ?? [],
+    audienceNotes: next.audienceNotes ?? "",
   };
 }
 
@@ -195,14 +231,23 @@ function migrateProject(raw: Project): Project {
   const slideIndex = Math.min(Math.max(0, raw.slideIndex ?? 0), Math.max(0, pages.length - 1));
   if (pages[slideIndex]) artboards[formatId] = pages[slideIndex];
   const plan = migratePlan(raw.plan);
+  const brief = migrateBrief(raw.brief);
+  const status = raw.status ?? (plan ? "ready" : "draft");
+  const scheduledAt = raw.scheduledAt ?? null;
   return {
     ...raw,
-    status: raw.status ?? (plan ? "ready" : "draft"),
+    status,
+    contentKind: raw.contentKind ?? inferContentKind({ ...raw, brief, activeFormatId: formatId, slides }),
+    contentStatus: raw.contentStatus ?? statusFromLegacy(status, scheduledAt),
+    scheduledAt,
+    publishedAt: raw.publishedAt ?? null,
+    campaignId: raw.campaignId ?? null,
+    sourceRefs: raw.sourceRefs ?? [],
     exports: raw.exports ?? [],
     artboards,
     slides,
     slideIndex,
-    brief: migrateBrief(raw.brief),
+    brief,
     plan,
     planVersions: migratePlanVersions(raw.planVersions, plan),
     snapshots: (raw.snapshots ?? []).map((snap) => ({
@@ -268,6 +313,11 @@ export const useStudio = create<StudioState>()(
       brands: [SEED_BRAND],
       assets: SEED_ASSETS,
       projects: [createSeedProject(), createSeedDraft()],
+      campaigns: SEED_CAMPAIGNS,
+      schedule: SEED_SCHEDULE,
+      connections: DEFAULT_CONNECTIONS,
+      igMemory: SEED_IG_MEMORY,
+      remoteFiles: SEED_REMOTE_FILES,
       lastProjectId: SEED_PROJECT_ID,
       editor: {
         selectedId: null,
@@ -365,22 +415,29 @@ export const useStudio = create<StudioState>()(
         get().markAssetUsed(asset.id);
         return true;
       },
-      createProject: ({ name, brandId, formatId, brief, templateId }) => {
+      createProject: ({ name, brandId, formatId, brief, templateId, campaignId, contentKind }) => {
         const brand = brandById(get().brands, brandId);
         const tpl = templateId ?? "editorial";
         const copy = withBoilerplate(emptyCopy(brand.handle, brand.boilerplate), brand.boilerplate);
         copy.headline = name;
         const artboard = buildLayout(formatId, copy, brand, tpl);
+        const nextBrief = migrateBrief(brief);
         const project: Project = {
           id: uid("proj"),
-          name: name.trim() || "未命名專案",
+          name: name.trim() || "未命名創作",
           createdAt: Date.now(),
           updatedAt: Date.now(),
           brandId,
           templateId: tpl,
           activeFormatId: formatId,
           status: "draft",
-          brief: migrateBrief(brief),
+          contentKind: contentKind ?? kindFromFormat(formatId, nextBrief.deliverables.carousel),
+          contentStatus: "creating",
+          scheduledAt: null,
+          publishedAt: null,
+          campaignId: campaignId ?? null,
+          sourceRefs: [],
+          brief: nextBrief,
           copy,
           plan: null,
           artboards: { [formatId]: artboard },
@@ -410,6 +467,12 @@ export const useStudio = create<StudioState>()(
           templateId,
           activeFormatId: starter.formatId,
           status: "draft",
+          contentKind: kindFromFormat(starter.formatId, Boolean(starter.brief.deliverables.carousel)),
+          contentStatus: "creating",
+          scheduledAt: null,
+          publishedAt: null,
+          campaignId: null,
+          sourceRefs: [],
           brief: migrateBrief(starter.brief),
           copy,
           plan: null,
@@ -423,6 +486,80 @@ export const useStudio = create<StudioState>()(
         set((s) => ({ projects: [project, ...s.projects], lastProjectId: project.id }));
         return project;
       },
+      createCampaign: (input) => {
+        const campaign: ClubCampaign = {
+          id: uid("camp"),
+          name: input.name.trim() || "未命名活動",
+          type: input.type ?? "other",
+          date: input.date ?? new Date().toISOString().slice(0, 10),
+          time: input.time ?? "",
+          location: input.location ?? "",
+          oneLiner: input.oneLiner ?? "",
+          description: input.description ?? "",
+          theme: input.theme ?? "",
+          studentPain: input.studentPain ?? "",
+          cta: input.cta ?? "來坐一下",
+          signupUrl: input.signupUrl ?? "",
+          imageAssetId: input.imageAssetId ?? null,
+          assetIds: input.assetIds ?? [],
+          waves: input.waves ?? [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        set((s) => ({ campaigns: [campaign, ...s.campaigns] }));
+        return campaign;
+      },
+      updateCampaign: (id, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) => {
+            if (c.id !== id) return c;
+            const next = typeof patch === "function" ? patch(c) : { ...c, ...patch };
+            return { ...next, updatedAt: Date.now() };
+          }),
+        })),
+      deleteCampaign: (id) =>
+        set((s) => ({
+          campaigns: s.campaigns.filter((c) => c.id !== id),
+          projects: s.projects.map((p) => (p.campaignId === id ? { ...p, campaignId: null } : p)),
+          schedule: s.schedule.filter((item) => item.campaignId !== id),
+        })),
+      upsertSchedule: (item) =>
+        set((s) => {
+          const exists = s.schedule.some((row) => row.id === item.id);
+          return {
+            schedule: exists ? s.schedule.map((row) => (row.id === item.id ? item : row)) : [item, ...s.schedule],
+          };
+        }),
+      moveSchedule: (id, scheduledAt) =>
+        set((s) => ({
+          schedule: s.schedule.map((item) => (item.id === id ? { ...item, scheduledAt } : item)),
+          projects: s.projects.map((p) => {
+            const hit = s.schedule.find((row) => row.id === id);
+            if (!hit?.projectId || p.id !== hit.projectId) return p;
+            return { ...p, scheduledAt, contentStatus: "scheduled" as const, status: "ready" as const };
+          }),
+        })),
+      removeSchedule: (id) => set((s) => ({ schedule: s.schedule.filter((item) => item.id !== id) })),
+      setContentStatus: (projectId, status, scheduledAt) =>
+        get().updateProject(projectId, (p) => ({
+          ...p,
+          contentStatus: status,
+          status: legacyFromContent(status),
+          scheduledAt: scheduledAt === undefined ? p.scheduledAt : scheduledAt,
+          publishedAt: status === "published" ? Date.now() : p.publishedAt,
+        })),
+      setConnection: (provider, patch) =>
+        set((s) => ({
+          connections: s.connections.map((c) => (c.provider === provider ? { ...c, ...patch } : c)),
+        })),
+      setRemoteFiles: (files) => set({ remoteFiles: files }),
+      upsertRemoteFiles: (files) =>
+        set((s) => {
+          const map = new Map(s.remoteFiles.map((row) => [row.id, row]));
+          for (const file of files) map.set(file.id, file);
+          return { remoteFiles: [...map.values()] };
+        }),
+      addIgMemory: (post) => set((s) => ({ igMemory: [post, ...s.igMemory.filter((item) => item.id !== post.id)] })),
       applyCampaignPlan: (projectId, plan, brief) => {
         const s = get();
         const project = s.projects.find((p) => p.id === projectId);
@@ -454,6 +591,7 @@ export const useStudio = create<StudioState>()(
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
           status: "ready" as const,
+          contentStatus: "done" as const,
           planVersions: [version, ...(p.planVersions ?? [])].slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, nextPlan.source === "mock" ? "本機草案" : "AI 企劃", "manual");
@@ -478,6 +616,7 @@ export const useStudio = create<StudioState>()(
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
           status: "ready" as const,
+          contentStatus: "done" as const,
           planVersions: [version, p.planVersions.filter((v) => v.id !== versionId)].flat().slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, `還原 ${version.name}`, "manual");
@@ -549,6 +688,9 @@ export const useStudio = create<StudioState>()(
           createdAt: Date.now(),
           updatedAt: Date.now(),
           status: "draft",
+          contentStatus: "creating",
+          scheduledAt: null,
+          publishedAt: null,
           exports: [],
         };
         set((s) => ({ projects: [copy, ...s.projects], lastProjectId: copy.id }));
@@ -558,6 +700,8 @@ export const useStudio = create<StudioState>()(
         get().updateProject(id, (p) => ({
           ...p,
           status: "exported",
+          contentStatus: "published",
+          publishedAt: Date.now(),
           exports: [version, ...p.exports].slice(0, 20),
         })),
       ensureArtboard: (projectId, formatId) => {
@@ -1058,11 +1202,16 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 6,
+      version: 2,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,
         projects: s.projects,
+        campaigns: s.campaigns,
+        schedule: s.schedule,
+        connections: s.connections,
+        igMemory: s.igMemory,
+        remoteFiles: s.remoteFiles,
         lastProjectId: s.lastProjectId,
       }),
       merge: (persisted, current) => {
@@ -1070,6 +1219,11 @@ export const useStudio = create<StudioState>()(
           brands: BrandKit[];
           assets: AssetMeta[];
           projects: Project[];
+          campaigns: ClubCampaign[];
+          schedule: ScheduleItem[];
+          connections: ConnectionMeta[];
+          igMemory: IgMemoryPost[];
+          remoteFiles: RemoteFile[];
           lastProjectId: string | null;
         }>;
         const brands = (p.brands ?? current.brands).map(migrateBrandRecord);
@@ -1081,6 +1235,11 @@ export const useStudio = create<StudioState>()(
           brands,
           assets,
           projects,
+          campaigns: p.campaigns ?? current.campaigns,
+          schedule: p.schedule ?? current.schedule,
+          connections: p.connections?.length ? p.connections : current.connections,
+          igMemory: p.igMemory ?? current.igMemory,
+          remoteFiles: p.remoteFiles?.length ? p.remoteFiles : current.remoteFiles,
           lastProjectId: p.lastProjectId ?? projects[0]?.id ?? current.lastProjectId,
         };
       },
@@ -1089,6 +1248,11 @@ export const useStudio = create<StudioState>()(
           brands?: BrandKit[];
           assets?: AssetMeta[];
           projects?: Project[];
+          campaigns?: ClubCampaign[];
+          schedule?: ScheduleItem[];
+          connections?: ConnectionMeta[];
+          igMemory?: IgMemoryPost[];
+          remoteFiles?: RemoteFile[];
           lastProjectId?: string | null;
         };
         const brands = (state.brands ?? []).map(migrateBrandRecord);
@@ -1098,6 +1262,11 @@ export const useStudio = create<StudioState>()(
           brands,
           assets,
           projects,
+          campaigns: state.campaigns ?? SEED_CAMPAIGNS,
+          schedule: state.schedule ?? SEED_SCHEDULE,
+          connections: state.connections?.length ? state.connections : DEFAULT_CONNECTIONS,
+          igMemory: state.igMemory ?? SEED_IG_MEMORY,
+          remoteFiles: state.remoteFiles?.length ? state.remoteFiles : SEED_REMOTE_FILES,
           lastProjectId: state.lastProjectId ?? projects[0]?.id ?? null,
         };
       },

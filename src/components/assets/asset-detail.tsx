@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -136,7 +136,7 @@ export function AssetDetailSheet({
           <Input
             value={asset.licenseOwner}
             onChange={(e) => patch("licenseOwner", e.target.value)}
-            placeholder="例如：日食咖啡、攝影師姓名"
+            placeholder="例如：淡江禪學社、社員"
           />
         </div>
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
@@ -144,10 +144,18 @@ export function AssetDetailSheet({
           <Button onClick={place} disabled={!lastProjectId}>
             放到目前畫布
           </Button>
+          <Button variant="secondary" asChild>
+            <Link to="/create" search={{ mode: "from-image", idea: asset.name }}>
+              加入創作
+            </Link>
+          </Button>
+          <Button variant="secondary" asChild>
+            <Link to="/image">AI 分析／延伸</Link>
+          </Button>
           <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}
           </Button>
-          <Button variant="outline" onClick={onDelete}>
+          <Button variant="secondary" onClick={onDelete}>
             刪除
           </Button>
         </div>

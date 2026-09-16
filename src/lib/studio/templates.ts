@@ -14,20 +14,20 @@ export type TemplateStarter = {
 export const TEMPLATE_STARTERS: TemplateStarter[] = [
   {
     id: "editorial",
-    name: "編輯封面",
-    description: "大標＋主視覺，適合品牌敘事",
+    name: "情緒封面",
+    description: "生活問句＋主視覺，適合淡江學生停滑",
     formatId: "feed-portrait",
     brief: migrateBrief({
       product: "品牌故事",
       eventName: "品牌敘事",
-      audience: "在意質感的都市受眾",
+      audience: "淡江學生，對禪不熟",
       goal: "awareness",
       notes: "語氣沉靜，不要折扣口吻。",
       style: "編輯節奏、留白",
     }),
     copy: {
       eyebrow: "STUDIO NOTE",
-      headline: "把故事\n放進畫面",
+      headline: "最近是不是\n很久沒坐好",
       subhead: "以編輯節奏鋪陳品牌觀點。",
       body: "適合系列開場、理念闡述與季節提案。",
       cta: "閱讀更多",

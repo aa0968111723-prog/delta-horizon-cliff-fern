@@ -1,6 +1,6 @@
 export { readFileAsImage } from "./asset-upload";
 
-const DB_NAME = "kouzhen-assets";
+const DB_NAME = "tamkang-zen-assets";
 const STORE = "blobs";
 const VERSION = 1;
 

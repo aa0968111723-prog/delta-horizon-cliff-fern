@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "構幀";
+import { APP_NAME, APP_KICKER } from "@/lib/zen/context";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -15,8 +15,8 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: APP_NAME },
-      { name: "description", content: "Instagram 專業網宣製作工作站" },
-      { name: "theme-color", content: "#F3F0EA" },
+      { name: "description", content: `${APP_KICKER} AI Creative Marketing Studio` },
+      { name: "theme-color", content: "#EEF2EC" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },

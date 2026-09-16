@@ -6,20 +6,22 @@
   --font-display: "Noto Serif TC", "Source Han Serif TC", "Noto Serif", ui-serif, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-bg: #f3f0ea;
-  --color-surface: #fffcf7;
-  --color-surface-2: #ebe6dc;
-  --color-fg: #1a1814;
-  --color-muted: #6f6a63;
-  --color-subtle: #9a948c;
-  --color-border: #ddd6ca;
-  --color-border-strong: #c9c1b4;
-  --color-accent: #1e4a45;
-  --color-accent-fg: #f3f0ea;
+  --color-bg: #eef2ec;
+  --color-surface: #fffaf4;
+  --color-surface-2: #e4ebe4;
+  --color-fg: #1c2422;
+  --color-muted: #5f6b66;
+  --color-subtle: #8a7468;
+  --color-border: #d5e0d8;
+  --color-border-strong: #c0cfc6;
+  --color-accent: #2f6f6a;
+  --color-accent-fg: #fffaf4;
+  --color-amber: #d4a574;
+  --color-dusk: #3d5a73;
   --color-danger: #a33b2a;
   --color-warn: #9a6b2f;
   --color-success: #2f6a4a;
-  --color-ring: #1e4a45;
+  --color-ring: #2f6f6a;
 
   --radius-xs: 4px;
   --radius-sm: 8px;
@@ -41,8 +43,11 @@
     0px 1px 2px -1px rgba(26, 24, 20, 0.08),
     0px 2px 4px 0px rgba(26, 24, 20, 0.06);
   --shadow-artboard:
-    0 18px 40px -24px rgba(26, 24, 20, 0.35),
-    0 0 0 1px rgba(26, 24, 20, 0.06);
+    0 18px 40px -24px rgba(28, 36, 34, 0.35),
+    0 0 0 1px rgba(28, 36, 34, 0.06);
+  --shadow-lift:
+    0 22px 50px -28px rgba(28, 36, 34, 0.4),
+    0 0 0 1px rgba(28, 36, 34, 0.05);
 }
 
 @layer base {

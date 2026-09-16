@@ -34,6 +34,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     const unsub = useStudio.subscribe((state, prev) => {
       if (!state.hydrated) return;
       if (
+        state.campaigns === prev.campaigns &&
+        state.schedule === prev.schedule &&
         state.projects === prev.projects &&
         state.brands === prev.brands &&
         state.assets === prev.assets

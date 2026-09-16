@@ -1,11 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="禪光工作室">
-  <rect width="32" height="32" rx="8" fill="#2F6F6A"/>
-  <circle cx="8.2" cy="11.2" r="2.15" fill="#FFF9F2"/>
-  <circle cx="23.8" cy="11.2" r="2.15" fill="#FFF9F2"/>
-  <circle cx="8.6" cy="22.8" r="2.15" fill="#FFF9F2"/>
-  <circle cx="23.4" cy="22.8" r="2.15" fill="#FFF9F2"/>
-  <ellipse cx="16" cy="6.7" rx="2.5" ry="2.7" fill="#FFF9F2"/>
-  <ellipse cx="16" cy="17.1" rx="8.6" ry="7.1" fill="#FFF9F2"/>
-  <ellipse cx="16" cy="17.4" rx="5.2" ry="4.2" fill="#EEF2EC"/>
-  <circle cx="16" cy="16.6" r="1.85" fill="#D4A574"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="8" fill="#EEF2EC"/>
+  <circle cx="16" cy="17" r="7" fill="#2F6F6A"/>
+  <circle cx="11" cy="10" r="2.2" fill="#D4A574"/>
+  <circle cx="16" cy="8" r="2" fill="#7EB8B2"/>
+  <circle cx="21" cy="10" r="2.2" fill="#8B7BB3"/>
 </svg>

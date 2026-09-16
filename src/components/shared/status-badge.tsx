@@ -1,8 +1,13 @@
 import { Badge } from "@/components/ui/badge";
-import { STATUS_META } from "@/lib/studio/status";
-import type { ProjectStatus } from "@/lib/studio/types";
+import { statusLabel, statusTone } from "@/lib/studio/status";
+import type { ContentStatus, ProjectStatus } from "@/lib/studio/types";
 
-export function StatusBadge({ status }: { status: ProjectStatus }) {
-  const meta = STATUS_META[status];
-  return <Badge variant={meta.tone}>{meta.label}</Badge>;
+export function StatusBadge({
+  status,
+  contentStatus,
+}: {
+  status: ProjectStatus;
+  contentStatus?: ContentStatus;
+}) {
+  return <Badge variant={statusTone(status, contentStatus)}>{statusLabel(status, contentStatus)}</Badge>;
 }

@@ -129,9 +129,9 @@ export function BrandEditor() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="品牌中心"
-        title="品牌規範"
-        description="名稱、Logo 版本、色彩、字體、標語、CTA、圖片風格與禁用規則會套進排版、AI 企劃與品質檢查。"
+        kicker="品牌記憶"
+        title="淡江禪學社"
+        description="Logo、龜龜、三色光、語氣、喜歡與不喜歡的風格，每次生成都會先讀。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="brand" />
@@ -449,21 +449,52 @@ export function BrandEditor() {
         <h2 className="text-sm font-medium">固定標語與常用 CTA</h2>
         <ChipList
           label="固定標語"
-          hint="主標語會出現在品牌預覽，AI 企劃會參考。"
+          hint="主標語會出現在品牌預覽，AI 會參考。"
           values={brand.slogans}
-          placeholder="例如：這個月只烘一個產地。"
+          placeholder="例如：先坐下來。"
           onChange={(slogans) => patch("slogans", slogans)}
         />
         <ChipList
           label="常用 CTA"
-          hint="第一則會作為新專案預設按鈕文案。"
+          hint="第一則會作為新創作預設按鈕。"
           values={brand.ctas}
-          placeholder="例如：查看風味"
+          placeholder="例如：來坐一下"
           onChange={(ctas) => {
             patch("ctas", ctas);
             patch("boilerplate", { ...brand.boilerplate, cta: ctas[0] || brand.boilerplate.cta });
           }}
         />
+        <Field label="龜龜／角色">
+          <Input value={brand.mascot} onChange={(e) => patch("mascot", e.target.value)} placeholder="龜龜" />
+        </Field>
+        <ChipList
+          label="品牌母題"
+          hint="三色光、淡水夜晚、茶…"
+          values={brand.motifs}
+          placeholder="例如：三色光"
+          onChange={(motifs) => patch("motifs", motifs)}
+        />
+        <ChipList
+          label="喜歡的風格"
+          hint="生活感、留白、學生語氣"
+          values={brand.likes}
+          placeholder="例如：生活感"
+          onChange={(likes) => patch("likes", likes)}
+        />
+        <ChipList
+          label="不喜歡的風格"
+          hint="說教、華麗佛學詞、過度詩意"
+          values={brand.dislikes}
+          placeholder="例如：說教"
+          onChange={(dislikes) => patch("dislikes", dislikes)}
+        />
+        <Field label="學生情境備註">
+          <Textarea
+            value={brand.audienceNotes}
+            onChange={(e) => patch("audienceNotes", e.target.value)}
+            placeholder="只寫淡江學生，不要寫年輕人。"
+          />
+        </Field>
         <Field label="貼文結尾句">
           <Textarea
             value={brand.boilerplate.captionClose}

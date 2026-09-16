@@ -70,8 +70,8 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>新建網宣專案</DialogTitle>
-          <DialogDescription>先寫清楚活動與受眾，再進工作區編輯畫面與文案。</DialogDescription>
+          <DialogTitle>新的創作</DialogTitle>
+          <DialogDescription>寫活動與淡江學生情境，再進畫布。</DialogDescription>
         </DialogHeader>
         <form className="space-y-3" onSubmit={submit}>
           <div className="space-y-1.5">
@@ -80,7 +80,7 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
               id="proj-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：九月單品上市"
+            placeholder="例如：浮游禪光"
             />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

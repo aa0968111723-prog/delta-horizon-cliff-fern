@@ -1,5 +1,6 @@
+import { HOOK_EXAMPLES, isZenClubBrief } from "../zen/context.ts";
 import { goalLabel } from "../studio/goals.ts";
-import type { CampaignPlan, CarouselPagePlan, TemplateId } from "../studio/types.ts";
+import type { CampaignPlan, CarouselPagePlan, CopyPack, StudentReview, TemplateId, VisualDirection } from "../studio/types.ts";
 import type { BriefInput } from "./schema.ts";
 
 function pickTemplate(goal: BriefInput["goal"], wantCarousel: boolean): TemplateId {
@@ -48,7 +49,10 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
   const cta = stripForbidden(ctaPool[0] || (data.goal === "traffic" ? "查看地點" : "了解活動"), data.forbiddenWords);
   const templateId = pickTemplate(data.goal, data.wantCarousel);
   const headline = clipHeadline(name.replace(/[（(].*$/, ""));
-  const hook = slogan || (offer ? `${name}，${offer}。` : `${name}，只在${when}。`);
+  const zen = isZenClubBrief(data.brandName, data.audience);
+  const hook = zen
+    ? stripForbidden(slogan || HOOK_EXAMPLES[name.length % HOOK_EXAMPLES.length], data.forbiddenWords)
+    : stripForbidden(slogan || (offer ? `${name}，${offer}。` : `${name}，只在${when}。`), data.forbiddenWords);
   const concept = stripForbidden(
     `${name}把「${features}」講給${audience}聽。目的是${goalLabel(data.goal)}，語氣維持${style}，不靠叫賣。`,
     data.forbiddenWords,
@@ -141,30 +145,100 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
     ? [`${name}開始`, features.split(/[、，,]/)[0] || "現場特色", `${cta} · ${where}`]
     : [];
 
-  const hashtags = [
-    hashTag(data.brandName),
-    hashTag(name),
-    hashTag(where),
-    "#到店",
-    data.goal === "ugc" ? "#打卡" : "#活動",
-  ].filter(Boolean);
+  const hashtags = zen
+    ? [hashTag(data.brandName), hashTag(name), "#淡江", "#淡水", data.goal === "ugc" ? "#開學" : "#淡江社團"].filter(Boolean)
+    : [
+        hashTag(data.brandName),
+        hashTag(name),
+        hashTag(where),
+        "#到店",
+        data.goal === "ugc" ? "#打卡" : "#活動",
+      ].filter(Boolean);
+
+  const directions: VisualDirection[] | undefined = zen
+    ? [
+        {
+          id: "dir_night",
+          name: "淡水夜燈",
+          concept: "把活動放進一個真正會發生的晚上，而不是禪風海報。",
+          palette: "深夜底、靜水、一點琥珀",
+          composition: "光點偏上，問句在下半。",
+          typeDirection: "大標像訊息，不要美術字堆疊。",
+          prompt: `Tamkang Tamsui night, quiet campus corner, three soft colored lights amber teal dusk-violet, airy, young, not temple, not incense, photographic mood, ${name}`,
+          headline,
+          subhead: `${when} · ${where}`,
+        },
+        {
+          id: "dir_friend",
+          name: "空一個位子",
+          concept: "朋友感與座位，讓人覺得可以揪人。",
+          palette: "霧園紙色、水色",
+          composition: "局部手或杯子，留空位。",
+          typeDirection: "字少、CTA 像口語。",
+          prompt: `two students sitting with tea, empty seat beside, Tamkang campus interior, soft window light, calm, documentary, ${name}`,
+          headline: clipHeadline("可以自己來"),
+          subhead: "也可以揪人",
+        },
+        {
+          id: "dir_turtle",
+          name: "龜龜在角落",
+          concept: "吉祥物當安靜同伴，不是宗教符號。",
+          palette: "霧園、墨松",
+          composition: "主視覺留白，龜龜小角。",
+          typeDirection: "標題問句優先。",
+          prompt: `small turtle mascot at corner of a quiet poster, three-color light orbs, Tamkang student life, airy, ${name}`,
+          headline,
+          subhead: hook,
+        },
+      ]
+    : undefined;
+
+  const copyPacks: CopyPack[] | undefined = zen
+    ? [
+        { tone: "student", hook, body: captionCore, cta, hashtags },
+        { tone: "short", hook, body: `${when} ${where}。${cta}`, cta, hashtags },
+        { tone: "emotional", hook, body: `${hook}\n${when}，${where}。`, cta, hashtags },
+      ]
+    : undefined;
+
+  const studentReview: StudentReview | undefined = zen
+    ? {
+        wouldStop: "問句比社團全名更容易停。",
+        understandable: "活動名與時間有出現。",
+        tooReligious: "沒有宗教詞。",
+        tooSerious: "語氣偏生活。",
+        tooLiterary: "避免再把句子寫成金句。",
+        tooAi: "本機草案仍偏工整，進畫布後可再口語化。",
+        tooLong: captionCore.length > 280 ? "正文偏長，可再砍。" : "長度還可以。",
+        knowsWhat: name,
+        knowsWhenWhere: `${when} ${where}`,
+        wouldBringFriend: "有『找朋友』空間。",
+        knowsHowToSignup: offer || "還要補報名方式。",
+        rewriteHook: hook,
+        notes: ["時間地點要能被截圖帶走"],
+      }
+    : undefined;
 
   return {
     campaignName: name,
-    concept,
-    insight,
-    hook: stripForbidden(hook, data.forbiddenWords),
+    concept: zen
+      ? stripForbidden(`${name}是給淡江學生一個晚上坐下來的理由。不要做成宗教廣告。`, data.forbiddenWords)
+      : concept,
+    insight: zen
+      ? `${audience}要的是被允許慢，不是更多活動資訊。把${when}和${where}講清楚。`
+      : insight,
+    hook,
     visualTheme,
     visualDirection,
     templateId,
     colorMood: visualTheme,
-    eyebrow: data.goal === "conversion" ? "LIMITED" : "EVENT",
+    eyebrow: zen ? when.slice(0, 12) : data.goal === "conversion" ? "LIMITED" : "EVENT",
     headline,
     subhead,
     body,
     cta,
     captions: [
-      { style: "敘事", text: stripForbidden(captionCore, data.forbiddenWords) },
+      { style: zen ? "學生版" : "敘事", text: stripForbidden(captionCore, data.forbiddenWords) },
       { style: "短句", text: stripForbidden(`${hook}\n${cta}`, data.forbiddenWords) },
     ],
     hashtags,
@@ -190,5 +264,11 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
     qaNotes: ["避免把價格或焦慮話術放進主畫面", `風格維持：${style}`],
     generatedAt: Date.now(),
     source: "mock",
+    directions,
+    copyPacks,
+    threadsPost: zen ? `${hook}\n${when} ${where}。${cta}` : undefined,
+    lineCopy: zen ? `【${name}】\n${when} ${where}\n${cta}` : undefined,
+    storyFrames: zen ? [hook, `${name}`, `${when} ${where}`, cta] : undefined,
+    studentReview,
   };
 }

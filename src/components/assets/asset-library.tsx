@@ -174,9 +174,9 @@ export function AssetLibrary() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="品牌資產"
-        title="素材庫"
-        description="依分類管理活動照片、人物、背景、插圖、圖示、Logo 與歷史素材。搜尋、收藏、刪除，或拖到編輯器畫布。"
+        kicker="創作素材"
+        title="AI Creative Library"
+        description="Logo、龜龜、活動與校園照片、AI 生成。分析、標籤、加入創作。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="assets" />

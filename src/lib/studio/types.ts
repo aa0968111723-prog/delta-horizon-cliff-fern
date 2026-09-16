@@ -3,7 +3,9 @@ export type FormatId =
   | "feed-portrait"
   | "feed-landscape"
   | "story"
-  | "reels-cover";
+  | "reels-cover"
+  | "threads"
+  | "line";
 
 export type TemplateId = "editorial" | "product" | "offer" | "quote";
 
@@ -27,6 +29,36 @@ export type Align = "left" | "center" | "right";
 export type ColorRole = "primary" | "secondary" | "accent" | "background" | "ink";
 
 export type ProjectStatus = "draft" | "ready" | "exported";
+
+export type ContentKind =
+  | "ig-post"
+  | "carousel"
+  | "story"
+  | "reels"
+  | "threads"
+  | "line"
+  | "poster"
+  | "recap"
+  | "member-story"
+  | "countdown"
+  | "qa"
+  | "poll"
+  | "knowledge";
+
+export type ContentStatus = "idea" | "creating" | "done" | "scheduled" | "published";
+
+export type EventKind = "tea" | "sitting" | "light" | "workshop" | "recruit" | "talk" | "other";
+
+export type CopyTone = "short" | "normal" | "emotional" | "student" | "life" | "humor";
+
+export type SourceKind = "drive" | "canva" | "instagram" | "generated" | "upload" | "brand" | "memory";
+
+export type SourceRef = {
+  kind: SourceKind;
+  label: string;
+  id?: string;
+  url?: string;
+};
 
 export type EditorTool = "select" | "text" | "rect" | "ellipse" | "line";
 
@@ -104,6 +136,11 @@ export type BrandKit = {
   imageStyle: ImageStyle;
   rules: BrandRules;
   boilerplate: BrandBoilerplate;
+  mascot: string;
+  motifs: string[];
+  likes: string[];
+  dislikes: string[];
+  audienceNotes: string;
   updatedAt: number;
 };
 
@@ -116,10 +153,19 @@ export type AssetCategory =
   | "illustration"
   | "icon"
   | "logo"
+  | "mascot"
+  | "campus"
+  | "tamsui"
+  | "poster"
+  | "ai"
+  | "ig"
+  | "story-asset"
+  | "reels"
+  | "archive"
   | "template"
   | "history";
 
-export type AssetSourceKind = "upload" | "seed" | "generated";
+export type AssetSourceKind = "upload" | "seed" | "generated" | "drive" | "canva" | "instagram";
 
 export type AssetUsageStatus = "in-use" | "used" | "unused";
 
@@ -304,6 +350,57 @@ export type AssetNeed = {
 
 export type PlanSource = "live" | "mock";
 
+export type VisualDirection = {
+  id: string;
+  name: string;
+  concept: string;
+  palette: string;
+  composition: string;
+  typeDirection: string;
+  prompt: string;
+  headline: string;
+  subhead: string;
+};
+
+export type CopyPack = {
+  tone: CopyTone;
+  hook: string;
+  body: string;
+  cta: string;
+  hashtags: string[];
+};
+
+export type ReelsBeat = {
+  start: string;
+  end: string;
+  onScreen: string;
+  caption: string;
+  voice: string;
+  transition: string;
+  assetHint: string;
+};
+
+export type ReelsScript = {
+  hook: string;
+  beats: ReelsBeat[];
+};
+
+export type StudentReview = {
+  wouldStop: string;
+  understandable: string;
+  tooReligious: string;
+  tooSerious: string;
+  tooLiterary: string;
+  tooAi: string;
+  tooLong: string;
+  knowsWhat: string;
+  knowsWhenWhere: string;
+  wouldBringFriend: string;
+  knowsHowToSignup: string;
+  rewriteHook: string;
+  notes: string[];
+};
+
 export type CampaignPlan = {
   campaignName: string;
   concept: string;
@@ -328,6 +425,13 @@ export type CampaignPlan = {
   qaNotes: string[];
   generatedAt: number;
   source: PlanSource;
+  directions?: VisualDirection[];
+  copyPacks?: CopyPack[];
+  threadsPost?: string;
+  lineCopy?: string;
+  reelsScript?: ReelsScript;
+  studentReview?: StudentReview;
+  storyFrames?: string[];
 };
 
 export type PlanVersion = {
@@ -370,6 +474,12 @@ export type Project = {
   templateId: TemplateId;
   activeFormatId: FormatId;
   status: ProjectStatus;
+  contentKind: ContentKind;
+  contentStatus: ContentStatus;
+  scheduledAt: number | null;
+  publishedAt: number | null;
+  campaignId: string | null;
+  sourceRefs: SourceRef[];
   brief: Brief;
   copy: CopyDeck;
   plan: CampaignPlan | null;
@@ -381,10 +491,103 @@ export type Project = {
   exports: ExportVersion[];
 };
 
+export type CampaignWaveKind =
+  | "warmup"
+  | "emotion"
+  | "hero"
+  | "detail"
+  | "reason"
+  | "countdown"
+  | "dayof"
+  | "recap";
+
+export type CampaignWave = {
+  id: string;
+  kind: CampaignWaveKind;
+  title: string;
+  scheduledAt: number | null;
+  projectId: string | null;
+  notes: string;
+};
+
+export type ClubCampaign = {
+  id: string;
+  name: string;
+  type: EventKind;
+  date: string;
+  time: string;
+  location: string;
+  oneLiner: string;
+  description: string;
+  theme: string;
+  studentPain: string;
+  cta: string;
+  signupUrl: string;
+  imageAssetId: string | null;
+  assetIds: string[];
+  waves: CampaignWave[];
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type ScheduleItem = {
+  id: string;
+  projectId: string | null;
+  campaignId: string | null;
+  kind: ContentKind;
+  title: string;
+  scheduledAt: number;
+  publishedAt: number | null;
+  status: ContentStatus;
+};
+
+export type ConnectionProvider = "drive" | "canva" | "instagram";
+
+export type ConnectionStatus = "disconnected" | "connected" | "expired";
+
+export type ConnectionMeta = {
+  provider: ConnectionProvider;
+  status: ConnectionStatus;
+  accountLabel: string;
+  lastSyncAt: number | null;
+  folderName?: string;
+};
+
+export type IgMemoryPost = {
+  id: string;
+  caption: string;
+  date: string;
+  kind: "post" | "carousel" | "reels" | "story";
+  likes?: number;
+  comments?: number;
+  saves?: number;
+  source: "instagram" | "local";
+  projectId?: string;
+  assetId?: string;
+  analysis?: string;
+};
+
+export type RemoteFile = {
+  id: string;
+  provider: ConnectionProvider;
+  name: string;
+  mime: string;
+  thumbnail?: string;
+  url?: string;
+  modifiedAt?: number;
+  tags: string[];
+  summary: string;
+};
+
 export type PersistSlice = {
   brands: BrandKit[];
   assets: AssetMeta[];
   projects: Project[];
+  campaigns: ClubCampaign[];
+  schedule: ScheduleItem[];
+  connections: ConnectionMeta[];
+  igMemory: IgMemoryPost[];
+  remoteFiles: RemoteFile[];
   lastProjectId: string | null;
 };
 
