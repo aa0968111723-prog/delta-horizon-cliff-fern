@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { type LastPack, persistablePack } from "@/lib/club/last-pack";
+import { campaignIdForUpsert } from "@/lib/club/campaign";
 import { preferPublishedAnalysis } from "@/lib/club/insights";
 import { FEATURED_EVENT } from "@/lib/club/memory";
 import { buildCampaignRhythm, scheduleDraftsFromCampaign } from "@/lib/club/schedule";
@@ -188,9 +189,10 @@ export const useCreative = create<CreativeState>()(
       setHydrated: (hydrated) => set({ hydrated }),
       upsertCampaign: (input) => {
         const existing = input.id ? get().campaigns.find((c) => c.id === input.id) : undefined;
+        const id = campaignIdForUpsert(existing?.id, input.id) || uid("camp");
         const next: ClubCampaign = {
           ...(existing ?? {
-            id: uid("camp"),
+            id,
             type: "活動",
             date: FEATURED_EVENT.date,
             time: "19:30",
@@ -209,6 +211,7 @@ export const useCreative = create<CreativeState>()(
             createdAt: Date.now(),
           }),
           ...input,
+          id,
           name: input.name.trim() || existing?.name || "未命名活動",
           updatedAt: Date.now(),
         };
@@ -341,7 +344,10 @@ export const useCreative = create<CreativeState>()(
         return {
           ...current,
           ...p,
-          campaigns: uniqueById(p.campaigns, current.campaigns),
+          campaigns: uniqueById(
+            (p.campaigns ?? current.campaigns).map((item) => ({ ...item, id: item.id || uid("camp") })),
+            current.campaigns,
+          ),
           schedule: uniqueById(p.schedule, current.schedule),
           igPosts: uniqueById(p.igPosts, current.igPosts),
           folder: {

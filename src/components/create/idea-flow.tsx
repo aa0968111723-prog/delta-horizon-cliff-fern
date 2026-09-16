@@ -830,6 +830,7 @@ export function IdeaFlow({
             {campaignId ? (
               <Button
                 variant="secondary"
+                data-testid="idea-open-campaign"
                 onClick={() => void navigate({ to: "/campaigns/$campaignId", params: { campaignId } })}
               >
                 看活動節奏
