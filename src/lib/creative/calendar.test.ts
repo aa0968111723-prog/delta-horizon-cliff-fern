@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildCampaignRhythm } from "./rhythm.ts";
-import { isoDay, monthGrid, movePlannedAt, weekGrid, daysUntilLabel, calendarSurface } from "./calendar.ts";
+import { isoDay, monthGrid, movePlannedAt, weekGrid, daysUntilLabel, calendarSurface, readCalendarDrag, writeCalendarDrag } from "./calendar.ts";
 import type { ContentItem } from "./types.ts";
 
 function item(id: string, plannedAt: string): ContentItem {
@@ -42,6 +42,21 @@ test("daysUntilLabel uses the campaign date instead of a hardcoded countdown", (
   assert.equal(daysUntilLabel("2026-09-24", new Date("2026-09-16T08:00:00+08:00")), "還有 8 天");
   assert.equal(daysUntilLabel("2026-09-16", new Date("2026-09-16T08:00:00+08:00")), "就是今天");
   assert.equal(daysUntilLabel("2026-09-10", new Date("2026-09-16T08:00:00+08:00")), "已結束");
+});
+
+test("calendar drag payload prefers custom mime then plain text", () => {
+  const store: Record<string, string> = {};
+  const transfer = {
+    setData: (type: string, value: string) => {
+      store[type] = value;
+    },
+    getData: (type: string) => store[type] ?? "",
+    effectAllowed: "none" as DataTransfer["effectAllowed"],
+  };
+  writeCalendarDrag(transfer, "item-9");
+  assert.equal(readCalendarDrag(transfer), "item-9");
+  delete store["text/zen-content"];
+  assert.equal(readCalendarDrag(transfer), "item-9");
 });
 
 test("narrow screens use agenda or week, never the month grid", () => {

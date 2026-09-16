@@ -7,6 +7,7 @@ import {
   scheduleReminder,
   surfaceFromFormat,
 } from "./ig-surfaces.ts";
+import { preferredCopyVariant } from "./copy-tones.ts";
 import type { Project } from "./types.ts";
 
 function pageCountOf(project: Project) {
@@ -23,7 +24,7 @@ export function buildExportCopyPack(
   },
 ) {
   const pack = project.plan?.copyPack;
-  const variant = pack?.variants.find((item) => item.tone === "學生版") ?? pack?.variants[0];
+  const variant = preferredCopyVariant(pack);
   const surface = surfaceFromFormat(project.activeFormatId, pageCountOf(project));
   const converted = convertCopyForSurface(pack, surface, project.copy.caption, project.copy.hashtags);
   const caption = converted.caption

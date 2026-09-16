@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { addMonths, addWeeks, format, isSameDay, parseISO, startOfToday } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CreationLoop } from "@/components/shared/creation-loop";
 import { OutcomeJournal } from "@/components/learning/outcome-journal";
@@ -17,6 +17,8 @@ import {
   isoDay,
   monthGrid,
   movePlannedAt,
+  readCalendarDrag,
+  writeCalendarDrag,
   type CalendarView,
   weekGrid,
 } from "@/lib/creative/calendar";
@@ -67,12 +69,37 @@ export function ContentCalendar() {
     return monthGrid(anchor, filtered);
   }, [anchor, filtered, activeView]);
 
-  function dropOnDay(day: string, contentId: string) {
-    const item = contentItems.find((row) => row.id === contentId);
+  const dropOnDay = useCallback((day: string, contentId: string) => {
+    const item = useCreative.getState().contentItems.find((row) => row.id === contentId);
     if (!item) return;
     rescheduleContent(contentId, movePlannedAt(item.plannedAt, day));
     toast.success("已改期，不會自動發布");
-  }
+  }, [rescheduleContent]);
+
+  const pointerDrag = useRef<{ id: string; moved: boolean } | null>(null);
+
+  useEffect(() => {
+    if (narrow) return;
+    function onMove(event: PointerEvent) {
+      const drag = pointerDrag.current;
+      if (!drag) return;
+      if (Math.abs(event.movementX) + Math.abs(event.movementY) > 3) drag.moved = true;
+    }
+    function onUp(event: PointerEvent) {
+      const drag = pointerDrag.current;
+      pointerDrag.current = null;
+      if (!drag?.moved) return;
+      const el = document.elementFromPoint(event.clientX, event.clientY);
+      const day = el?.closest("[data-day]")?.getAttribute("data-day");
+      if (day) dropOnDay(day, drag.id);
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [dropOnDay, narrow]);
 
   return (
     <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 md:px-8 md:py-10">
@@ -160,10 +187,13 @@ export function ContentCalendar() {
                 key={`mw-${day.date}`}
                 data-testid="calendar-day"
                 data-day={day.date}
-                onDragOver={(event) => event.preventDefault()}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }}
                 onDrop={(event) => {
                   event.preventDefault();
-                  const id = event.dataTransfer.getData("text/zen-content");
+                  const id = readCalendarDrag(event.dataTransfer);
                   if (id) dropOnDay(day.date, id);
                 }}
                 className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]"
@@ -243,10 +273,13 @@ export function ContentCalendar() {
                 key={day.date}
                 data-testid="calendar-day"
                 data-day={day.date}
-                onDragOver={(event) => event.preventDefault()}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }}
                 onDrop={(event) => {
                   event.preventDefault();
-                  const id = event.dataTransfer.getData("text/zen-content");
+                  const id = readCalendarDrag(event.dataTransfer);
                   if (id) dropOnDay(day.date, id);
                 }}
                 className={cn(
@@ -261,17 +294,30 @@ export function ContentCalendar() {
                 <ul className="mt-1 space-y-1">
                   {day.items.map((item) => (
                     <li key={item.id}>
-                      <button
-                        type="button"
+                      <div
+                        role="button"
+                        tabIndex={0}
                         draggable
                         data-testid="calendar-item"
-                        onDragStart={(event) => event.dataTransfer.setData("text/zen-content", item.id)}
-                        onClick={() => openWork(item)}
-                        className="w-full rounded-lg bg-accent/10 px-1.5 py-1 text-left"
+                        onPointerDown={() => {
+                          pointerDrag.current = { id: item.id, moved: false };
+                        }}
+                        onDragStart={(event) => writeCalendarDrag(event.dataTransfer, item.id)}
+                        onClick={() => {
+                          if (pointerDrag.current?.moved) return;
+                          openWork(item);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            openWork(item);
+                          }
+                        }}
+                        className="w-full cursor-grab rounded-lg bg-accent/10 px-1.5 py-1 text-left active:cursor-grabbing"
                       >
                         <span className="block truncate text-xs font-medium">{item.title}</span>
                         <span className="block truncate text-xs text-muted">{item.type}</span>
-                      </button>
+                      </div>
                     </li>
                   ))}
                 </ul>

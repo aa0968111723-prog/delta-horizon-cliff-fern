@@ -1,4 +1,5 @@
 import type { ContentItem } from "../creative/types.ts";
+import { preferredCopyVariant } from "./copy-tones.ts";
 import type {
   CampaignPlan,
   CopyDeck,
@@ -92,7 +93,7 @@ export type SurfaceCopy = {
 };
 
 function studentVariant(pack?: CopyPack | null): CopyVariant | undefined {
-  return pack?.variants.find((item) => item.tone === "學生版") ?? pack?.variants[0];
+  return preferredCopyVariant(pack);
 }
 
 export function composeCaption(caption: string, hashtags: string[] = []) {

@@ -115,11 +115,11 @@
 | 8 Canva | 官方 Connect OAuth PKCE、搜尋／最近設計、metadata 風格摘要寫入 Brand Memory、Autofill 不假裝 | 已有 server-only secrets、unavailable 卡片、複製 brief、風格參考可寫入規律；「當成生成參考」會打開素材庫 Image Studio | 真實 Canva OAuth、真實設計列表、視覺像素分析、Enterprise Autofill |
 | 9 Instagram | Graph / Instagram Login OAuth PKCE + refresh、加密 httpOnly cookie | 已有官方授權 URL、nested token 解析、Insights 權限另開 | 真實 IG OAuth、真實貼文同步 |
 | 10 Creative Brain | 跨素材庫 + Drive + Canva + IG + Copy Pack + Brand Memory 搜尋 | 本機索引即時搜；校園情境／語氣／標語／畫面規則會被搜到；點記憶會打開 Brand Memory 該頁；已連接來源需使用者主動搜尋；Drive 僅在 loginRequired+loginUrl 顯示 Continue with Grok。Drive 檔案可「加入素材庫參考」，沒有原圖像素時不能放到畫布 | 真實 Drive／Canva／IG 回傳 |
-| 11 Calendar | 月／週／議程、改期、AI 節奏 | 手機 375–430 預設議程，可切本週；點一則會打開那則網宣（Studio 或文案桌），沒有作品才開始創作。已連結作品可去 IG 預覽並帶上 project／surface。手機改期用日期欄，桌面仍可拖。 | 真實發文排程 |
+| 11 Calendar | 月／週／議程、改期、AI 節奏 | 手機 375–430 預設議程，可切本週；點一則會打開那則網宣。已連結作品可去 IG 預覽。手機改期用日期欄；桌面月／週格可把卡片拖到另一天（HTML5 + pointer 落點）。 | 真實發文排程 |
 | 12 IG Preview | Studio 畫面套進手機預覽 | 預覽讀目前畫布／輪播頁與這則 Caption／hashtag；切 Feed／Story／Reels／Carousel 會套轉換後的文案與尺寸；Story 用限動逐則；愛心只有圖示。排程「IG 預覽」會直接打開該則網宣。375 畫面寬依手機框量測。 | 不是發文 |
 | 13 Reels | 腳本 + 9:16 封面 | 封面可進素材庫並放到 Studio Reels 封面；沒腳本時導去 Copy Studio；封面生成帶入 Creative Memory | 真實 AI 封面需 xAI；不能直接上傳 IG |
 | 14 Insights／現場學習 | 僅專業帳號授權後顯示官方數字；沒有 grant 時用社團現場筆記 | 無 grant 時 Insights 誠實 unavailable；現場筆記記下誰來了、哪句 Hook 像淡江、下次要記得，並寫入 Brand Memory learnedPatterns。下一次本機文案／企劃會沿用覺得像淡江的 Hook 與「下次要記得」，刪除筆記也會從 Brand Memory 拿掉對應句子。不會用模擬讚數／觀看次數來教你下次怎麼寫 | 真實 insights 數字；真實 xAI 圖片仍依部署金鑰 |
-| 15 Mobile | 375／390／430 | Brand Memory 單頁切換、流程條可橫滑、連接／Brand／IG 分頁 tap ≥44px；AI 創作改為企劃／文案／畫面三桌；素材來源晶片可橫滑；Studio 手機畫布改為填滿可用高度並壓縮輪播列，避免畫布被裁成空白 | 需以瀏覽器再驗 375／390／430 |
+| 15 Mobile | 375／390／430 | Brand Memory 單頁切換、色票直向堆疊、流程條可橫滑；Studio 畫布帶品牌色條與「套用品牌」、手機可切尺寸；文案三種語氣可橫滑。連接／Brand／IG 分頁 tap ≥44px | 需以瀏覽器再驗 375／390／430 |
 
 ## Phase 1 驗收
 

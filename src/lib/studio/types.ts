@@ -346,7 +346,16 @@ export type AssetNeed = {
 
 export type PlanSource = "live" | "mock";
 
-export type CopyTone = "短版" | "一般版" | "感性版" | "學生版" | "生活版" | "幽默版";
+export type CopyTone =
+  | "校園口語"
+  | "清楚資訊"
+  | "傳給朋友"
+  | "短版"
+  | "一般版"
+  | "感性版"
+  | "學生版"
+  | "生活版"
+  | "幽默版";
 
 export type CopyVariant = {
   tone: CopyTone;

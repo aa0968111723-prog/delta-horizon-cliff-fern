@@ -80,6 +80,18 @@ export function campaignNameOf(campaigns: Campaign[], campaignId: string) {
   return campaigns.find((campaign) => campaign.id === campaignId)?.name ?? "活動";
 }
 
+export const CALENDAR_DRAG_MIME = "text/zen-content";
+
+export function writeCalendarDrag(transfer: Pick<DataTransfer, "setData" | "effectAllowed">, contentId: string) {
+  transfer.setData(CALENDAR_DRAG_MIME, contentId);
+  transfer.setData("text/plain", contentId);
+  transfer.effectAllowed = "move";
+}
+
+export function readCalendarDrag(transfer: Pick<DataTransfer, "getData">) {
+  return transfer.getData(CALENDAR_DRAG_MIME) || transfer.getData("text/plain");
+}
+
 export function daysUntil(dateIso: string, from = new Date()) {
   return differenceInCalendarDays(startOfDay(parseISO(dateIso)), startOfDay(from));
 }

@@ -17,6 +17,7 @@ import { emptyCopy, withBoilerplate } from "@/lib/studio/copy";
 import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
 import { uid } from "@/lib/studio/ids";
+import { applyBrandToProject } from "@/lib/studio/apply-brand";
 import { applyCopyToArtboard, buildLayout, extractImageAssetId } from "@/lib/studio/layout";
 import { inspectProject } from "@/lib/studio/quality";
 import { applyQaFixToPages } from "@/lib/studio/quality-fix";
@@ -92,6 +93,7 @@ type StudioState = {
   setLastProjectId: (id: string | null) => void;
   createBrand: (name: string) => BrandKit;
   updateBrand: (id: string, patch: Partial<BrandKit>) => void;
+  applyBrandKit: (projectId: string) => boolean;
   deleteBrand: (id: string) => void;
   addAsset: (meta: AssetMeta) => void;
   updateAsset: (id: string, patch: Partial<AssetMeta>) => void;
@@ -302,11 +304,28 @@ export const useStudio = create<StudioState>()(
         return brand;
       },
       updateBrand: (id, patch) =>
-        set((s) => ({
-          brands: s.brands.map((b) =>
-            b.id === id ? { ...b, ...patch, updatedAt: Date.now() } : b,
-          ),
-        })),
+        set((s) => {
+          const prev = s.brands.find((b) => b.id === id);
+          if (!prev) return s;
+          const next = { ...prev, ...patch, updatedAt: Date.now() };
+          return {
+            brands: s.brands.map((b) => (b.id === id ? next : b)),
+            projects: s.projects.map((p) =>
+              p.brandId === id ? applyBrandToProject(p, next, prev, "follow") : p,
+            ),
+          };
+        }),
+      applyBrandKit: (projectId) => {
+        const s = get();
+        const project = s.projects.find((p) => p.id === projectId);
+        if (!project) return false;
+        const brand = brandById(s.brands, project.brandId);
+        const next = applyBrandToProject(project, brand, brand, "force");
+        set({
+          projects: s.projects.map((p) => (p.id === projectId ? next : p)),
+        });
+        return true;
+      },
       deleteBrand: (id) =>
         set((s) => {
           if (s.brands.length <= 1) return s;

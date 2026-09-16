@@ -49,7 +49,7 @@ test("export copy pack uses local caption and never claims it was posted", () =>
   assert.equal(text.includes("Insights"), true);
 });
 
-test("export copy pack prefers Copy Pack 學生版 when present", () => {
+test("export copy pack prefers 校園口語 then legacy 學生版", () => {
   const text = buildExportCopyPack(project({
     plan: {
       campaignName: "浮游禪光",
@@ -86,6 +86,12 @@ test("export copy pack prefers Copy Pack 學生版 when present", () => {
           body: "課表先放一下。",
           cta: "保留這個晚上",
           hashtags: ["#淡江生活"],
+        }, {
+          tone: "校園口語",
+          hook: "下課先不要回訊息",
+          body: "淡水雨天也沒關係，先坐一下。",
+          cta: "找朋友一起來",
+          hashtags: ["#淡江禪學社"],
         }],
         studentReview: [],
         revisedCaption: "",
@@ -101,9 +107,9 @@ test("export copy pack prefers Copy Pack 學生版 when present", () => {
       source: "mock",
     },
   }));
-  assert.match(text, /課表先放一下/);
+  assert.match(text, /淡水雨天也沒關係/);
   assert.equal(text.includes("這是短版不該成為預設輸出"), false);
-  assert.match(text, /#淡江生活/);
+  assert.match(text, /#淡江禪學社/);
   assert.match(text, /Threads 版/);
   assert.match(text, /LINE 版/);
   assert.match(text, /限動|Story/);

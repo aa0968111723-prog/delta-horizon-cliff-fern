@@ -2,10 +2,21 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { learnedHookFromMemory, learnedRememberFromMemory } from "../creative/learning.ts";
 import { reviewStudentCaption } from "../studio/ig-surfaces.ts";
-import type { CopyPack, CopyTone, CopyVariant } from "@/lib/studio/types";
+import { STUDENT_COPY_TONES, type StudentCopyTone } from "../studio/copy-tones.ts";
+import type { CopyPack, CopyVariant } from "@/lib/studio/types";
 import type { AiStatus } from "./campaign";
 
-const ToneSchema = z.enum(["短版", "一般版", "感性版", "學生版", "生活版", "幽默版"]);
+const ToneSchema = z.enum([
+  "校園口語",
+  "清楚資訊",
+  "傳給朋友",
+  "短版",
+  "一般版",
+  "感性版",
+  "學生版",
+  "生活版",
+  "幽默版",
+]);
 
 const CopyRequestSchema = z.object({
   campaignName: z.string().min(1).max(160),
@@ -53,7 +64,7 @@ const CopyPackJsonSchema = z.object({
 
 export type CopyRequest = z.infer<typeof CopyRequestSchema>;
 
-const TONES: CopyTone[] = ["短版", "一般版", "感性版", "學生版", "生活版", "幽默版"];
+const TONES: StudentCopyTone[] = [...STUDENT_COPY_TONES];
 
 function cleanHashtags(tags: string[]) {
   return [...new Set(["#淡江大學", "#淡江禪學社", "#淡江生活", ...tags])]
@@ -97,17 +108,24 @@ export function buildMockCopyPack(data: CopyRequest): CopyPack {
   const cta = data.cta || "找朋友一起來";
   const hashtags = cleanHashtags(data.hashtags);
   const variants: CopyVariant[] = TONES.map((tone) => {
-    const bodyByTone: Record<CopyTone, string> = {
-      短版: `${core}\n\n${facts}`,
-      一般版: `${hook}\n\n${core}\n\n不用先懂禪，也不用準備答案。來坐坐、整理最近的心情就好。\n\n${facts}`,
-      感性版: `${hook}\n\n有時候我們需要的不是答案，只是一個能慢下來的晚上。\n${core}\n\n${facts}`,
-      學生版: `${hook}\n\n${campus ? `${campus}先放一下。` : "課表、通勤、宿舍和訊息都先放一下。"}${core}\n可以自己來，也可以揪一個最近同樣很忙的朋友。\n\n${facts}`,
-      生活版: `下課後先不要急著回完所有訊息。\n\n${core}\n不需要盤腿，也不會突然考你佛學名詞。\n\n${facts}`,
-      幽默版: `腦袋開了 18 個分頁，卻找不到關閉按鈕嗎？\n\n${core}\n放心，不用會禪，也沒有隨堂考。\n\n${facts}`,
+    const bodyByTone: Record<StudentCopyTone, string> = {
+      校園口語: `${hook}\n\n${campus ? `${campus}先放一下。` : "課表、通勤、宿舍和訊息都先放一下。"}${core}\n可以自己來，也可以揪一個最近同樣很忙的朋友。\n\n${facts}`,
+      清楚資訊: `${facts || `${data.campaignName}`}\n\n${core}\n不用先懂禪，來坐坐就好。\n\n${cta}${data.registrationUrl ? `｜${data.registrationUrl}` : ""}`,
+      傳給朋友: `${hook}\n${data.campaignName}${facts ? `｜${facts.replace(/\n/g, " ")}` : ""}\n要不要一起來？`,
     };
-    return { tone, hook: tone === "生活版" || tone === "幽默版" ? bodyByTone[tone].split("\n")[0] : hook, body: bodyByTone[tone], cta, hashtags };
+    const hookByTone: Record<StudentCopyTone, string> = {
+      校園口語: hook,
+      清楚資訊: data.campaignName,
+      傳給朋友: hook,
+    };
+    const ctaByTone: Record<StudentCopyTone, string> = {
+      校園口語: cta,
+      清楚資訊: cta,
+      傳給朋友: "要不要一起",
+    };
+    return { tone, hook: hookByTone[tone], body: bodyByTone[tone], cta: ctaByTone[tone], hashtags };
   });
-  const student = variants.find((item) => item.tone === "學生版") ?? variants[0];
+  const student = variants.find((item) => item.tone === "校園口語") ?? variants[0];
   const putFactsFirst = Boolean(remember && /時間|Caption|最上面/.test(remember) && facts);
   const revisedCaption = putFactsFirst
     ? `${facts}\n\n${student.body}\n\n${cta}${data.registrationUrl ? `｜${data.registrationUrl}` : ""}\n\n${hashtags.join(" ")}`
@@ -186,10 +204,11 @@ async function generateLive(data: CopyRequest): Promise<CopyPack> {
         {
           role: "user",
           content: `請為以下活動產生完整 IG 文案包：${JSON.stringify(data)}。
-variants 必須各有短版、一般版、感性版、學生版、生活版、幽默版，欄位 tone,hook,body,cta,hashtags。
+variants 必須各有校園口語、清楚資訊、傳給朋友三則，欄位 tone,hook,body,cta,hashtags。
+校園口語像淡江社團同學在說話；清楚資訊把時間地點與怎麼參加放最前面；傳給朋友要短到能直接貼進 LINE。
 studentReview 必須逐題回答：會停下來嗎、看得懂嗎、是否太宗教／太嚴肅／太文青／太 AI／太長、時間地點是否清楚、會想找朋友嗎、知道怎麼報名嗎；欄位 question,pass,feedback。
 另外輸出 revisedCaption, threads, line, storyFrames(3–5), carouselPages(5–6), reelsScript(5 段，每段 timing,visual,subtitle,voiceover,transition,assetSuggestion)。
-Hook 不可用「淡江大學禪學社誠摯邀請您」。必須使用 brandMemory 裡的校園情境寫進 Hook 與學生版，近期 Campaign、Canva 風格與 IG hashtags 若有內容也要呼應。若記憶含「現場：」筆記，Hook 必須優先沿用覺得像淡江的那句，並遵守「下次要記得」；不要發明讚數、觸及或觀看次數。先連結課表、通勤、宿舍、人際、壓力或淡水生活，再進活動。不要寫優惠、限時瘋搶或電商促銷。`,
+Hook 不可用「淡江大學禪學社誠摯邀請您」。必須使用 brandMemory 裡的校園情境寫進 Hook 與校園口語，近期 Campaign、Canva 風格與 IG hashtags 若有內容也要呼應。若記憶含「現場：」筆記，Hook 必須優先沿用覺得像淡江的那句，並遵守「下次要記得」；不要發明讚數、觸及或觀看次數。先連結課表、通勤、宿舍、人際、壓力或淡水生活，再進活動。不要寫優惠、限時瘋搶或電商促銷。`,
         },
       ],
     }),

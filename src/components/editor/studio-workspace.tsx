@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AssetTray } from "@/components/editor/asset-tray";
 import { ArtboardCanvas } from "@/components/editor/artboard-canvas";
+import { BrandOnCanvas } from "@/components/editor/brand-on-canvas";
 import { CopyPanel } from "@/components/editor/copy-panel";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
 import { Inspector } from "@/components/editor/inspector";
@@ -224,7 +225,8 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
             <Panel defaultSize="56%" minSize="36%">
               <div className="flex h-full min-h-0 flex-col">
                 <div className="border-b border-border bg-surface">
-                  <EditorToolbar />
+                  <EditorToolbar projectId={project.id} />
+                  <BrandOnCanvas projectId={project.id} brand={brand} />
                   <SlideBar project={project} />
                 </div>
                 <ArtboardCanvas projectId={project.id} artboard={artboard} brand={brand} urls={urls} />
@@ -264,7 +266,8 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
 
         <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:hidden">
           <div className="shrink-0 border-b border-border bg-surface">
-            <EditorToolbar />
+            <EditorToolbar projectId={project.id} />
+            <BrandOnCanvas projectId={project.id} brand={brand} />
           </div>
           <ArtboardCanvas projectId={project.id} artboard={artboard} brand={brand} urls={urls} />
           <div className="shrink-0 border-t border-border bg-surface">

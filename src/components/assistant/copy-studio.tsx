@@ -14,6 +14,7 @@ import { hashtagsFromOutcomes, lessonsFromLocalWork, mergeHashtagMemory } from "
 import { buildCreativeMemoryContext, memoryInjectionHints } from "@/lib/creative/memory";
 import { CreationLoop } from "@/components/shared/creation-loop";
 import { emptyBrandMemory } from "@/lib/studio/brand";
+import { COPY_TONE_HINT, copyTonesOf, isStudentCopyTone, preferredCopyVariant } from "@/lib/studio/copy-tones";
 import type { CopyTone } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
@@ -47,7 +48,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
   const [busy, setBusy] = useState(false);
   const [liveFailed, setLiveFailed] = useState(false);
   const [status, setStatus] = useState<AiStatus | null>(null);
-  const [activeTone, setActiveTone] = useState<CopyTone>("學生版");
+  const [activeTone, setActiveTone] = useState<CopyTone>("校園口語");
   const pack = project?.plan?.copyPack;
 
   useEffect(() => {
@@ -102,7 +103,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
       }
       setLiveFailed(false);
       patchPlan(projectId, { copyPack: result.pack });
-      const student = result.pack.variants.find((item) => item.tone === "學生版") ?? result.pack.variants[0];
+      const student = preferredCopyVariant(result.pack);
       if (student) {
         setCopy(projectId, {
           headline: student.hook,
@@ -111,8 +112,8 @@ export function CopyStudio({ projectId }: { projectId: string }) {
           caption: `${student.body}\n\n${student.cta}\n\n${student.hashtags.join(" ")}`,
           hashtags: student.hashtags,
         });
+        setActiveTone(student.tone);
       }
-      setActiveTone("學生版");
       toast.success(result.pack.source === "live" ? "文案包已生成" : "本機文案草案已生成，不是 Grok 寫的");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "文案生成失敗");
@@ -187,6 +188,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
             {status
               ? banner.detail
               : "先確認有沒有連到 AI 文案，不會假裝 Grok 已寫好。"}
+            {" "}同一則活動可切校園口語／清楚資訊／傳給朋友，切換後會做學生視角反查。
             {memoryHints.length ? ` 本次會帶入跨來源記憶：${memoryHints.join("、")}。` : " Brand Memory 尚未寫入校園情境時，會用預設的淡江生活場景。"}
             {memoryHashtags.length ? ` 已帶入現場／IG hashtag：${memoryHashtags.slice(0, 5).join(" ")}` : ""}
           </p>
@@ -197,7 +199,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
               改用本機草案
             </Button>
           ) : null}
-          <Button size="sm" className="min-h-11" disabled={busy || !status} onClick={() => void generate(mockMode)}>
+          <Button size="sm" className="min-h-11" data-testid="copy-generate" disabled={busy || !status} onClick={() => void generate(mockMode)}>
             <Sparkles className="size-4" />
             {busy ? "生成中…" : mockMode ? (pack ? "重新生成本機草案" : "生成本機草案") : pack ? "重新生成" : "生成文案包"}
           </Button>
@@ -206,21 +208,26 @@ export function CopyStudio({ projectId }: { projectId: string }) {
 
       {pack && variant ? (
         <div className="mt-4 space-y-5">
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {pack.variants.map((item) => (
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            {copyTonesOf(pack).map((tone) => (
               <button
-                key={item.tone}
+                key={tone}
                 type="button"
-                onClick={() => applyTone(item.tone)}
+                data-testid={`copy-tone-${tone}`}
+                onClick={() => applyTone(tone)}
                 className={cn(
                   "min-h-11 shrink-0 rounded-full px-3 text-xs",
-                  item.tone === activeTone ? "bg-accent text-accent-fg" : "bg-surface text-muted shadow-[var(--shadow-border)]",
+                  tone === activeTone ? "bg-accent text-accent-fg" : "bg-surface text-muted shadow-[var(--shadow-border)]",
                 )}
               >
-                {item.tone}
+                {tone}
               </button>
             ))}
           </div>
+          <p className="text-xs leading-5 text-muted">
+            {isStudentCopyTone(activeTone) ? COPY_TONE_HINT[activeTone] : "這是較早的語氣版本，可重新生成三種學生語氣。"}
+            {" "}切換後會做淡江學生視角反查。
+          </p>
 
           <div className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
             <p className="text-xs text-muted">開頭句</p>

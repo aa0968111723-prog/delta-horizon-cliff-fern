@@ -60,6 +60,8 @@ export function BrandEditor() {
   const addAsset = useStudio((s) => s.addAsset);
   const assets = useStudio((s) => s.assets);
   const projects = useStudio((s) => s.projects);
+  const lastProjectId = useStudio((s) => s.lastProjectId);
+  const applyBrandKit = useStudio((s) => s.applyBrandKit);
   const campaigns = useCreative((s) => s.campaigns);
   const contentItems = useCreative((s) => s.contentItems);
   const outcomes = useCreative((s) => s.outcomes);
@@ -195,6 +197,31 @@ export function BrandEditor() {
               title={`${color.label} ${color.hex}`}
             />
           ))}
+        </div>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <Button
+            type="button"
+            data-testid="apply-brand-current"
+            className="min-h-11"
+            variant="secondary"
+            onClick={() => {
+              const targetId = lastProjectId && projects.some((item) => item.id === lastProjectId)
+                ? lastProjectId
+                : projects[0]?.id;
+              if (!targetId) {
+                toast.error("還沒有網宣可套用。先到 Studio 打開一則。");
+                return;
+              }
+              applyBrandKit(targetId);
+              const name = projects.find((item) => item.id === targetId)?.name ?? "目前網宣";
+              toast.success(`已把色彩、字體與標誌套到「${name}」`);
+            }}
+          >
+            套用到目前網宣
+          </Button>
+          <p className="text-xs leading-5 opacity-70">
+            改色票會自動跟上還在用品牌色的畫面。自訂過的色塊按這顆才會整張重套。
+          </p>
         </div>
       </div>
 
@@ -438,7 +465,10 @@ export function BrandEditor() {
         <p className="text-xs text-muted">主色、輔助色與背景色會進自動排版；強調色用於 CTA 與線條。</p>
         <ul className="space-y-3">
           {brand.colors.map((color) => (
-            <li key={color.id} className="grid grid-cols-[2.5rem_1fr_1fr_auto] items-center gap-2">
+            <li
+              key={color.id}
+              className="flex flex-col gap-2 rounded-xl bg-bg p-3 sm:grid sm:grid-cols-[2.75rem_minmax(0,1fr)_minmax(0,8rem)_auto] sm:items-center sm:gap-2 sm:bg-transparent sm:p-0"
+            >
               <input
                 type="color"
                 value={color.hex}
@@ -448,11 +478,12 @@ export function BrandEditor() {
                     brand.colors.map((c) => (c.id === color.id ? { ...c, hex: e.target.value.toUpperCase() } : c)),
                   )
                 }
-                className="size-10 cursor-pointer rounded-md border border-border bg-transparent"
+                className="size-11 cursor-pointer rounded-md border border-border bg-transparent"
                 aria-label={color.label}
               />
               <Input
                 value={color.hex}
+                className="min-h-11 min-w-0"
                 onChange={(e) =>
                   patch(
                     "colors",
@@ -469,7 +500,7 @@ export function BrandEditor() {
                   )
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="min-h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -483,6 +514,7 @@ export function BrandEditor() {
               <Button
                 variant="ghost"
                 size="icon-sm"
+                className="min-h-11 min-w-11 self-end sm:self-auto"
                 aria-label="移除色票"
                 onClick={() => patch("colors", brand.colors.filter((c) => c.id !== color.id))}
               >
@@ -783,8 +815,9 @@ function ChipList({
     <div>
       <Label className="mb-1.5 block">{label}</Label>
       <p className="mb-2 text-xs text-muted">{hint}</p>
-      <div className="flex gap-2">
+      <div className="flex min-w-0 gap-2">
         <Input
+          className="min-h-11 min-w-0 flex-1"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder={placeholder}
@@ -795,7 +828,7 @@ function ChipList({
             }
           }}
         />
-        <Button type="button" variant="secondary" onClick={add}>
+        <Button type="button" variant="secondary" className="min-h-11 shrink-0" onClick={add}>
           加入
         </Button>
       </div>

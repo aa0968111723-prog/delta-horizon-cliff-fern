@@ -17,15 +17,12 @@ const request: CopyRequest = {
   hashtags: ["#期中"],
 };
 
-test("copy pack provides six tones and complete cross-format drafts", () => {
+test("copy pack provides campus / info / share tones and complete cross-format drafts", () => {
   const pack = buildMockCopyPack(request);
   assert.deepEqual(pack.variants.map((item) => item.tone), [
-    "短版",
-    "一般版",
-    "感性版",
-    "學生版",
-    "生活版",
-    "幽默版",
+    "校園口語",
+    "清楚資訊",
+    "傳給朋友",
   ]);
   assert.equal(pack.storyFrames.length, 4);
   assert.equal(pack.carouselPages.length, 5);
@@ -49,7 +46,7 @@ test("mock copy weaves Brand Memory campus context into the student voice", () =
     ...request,
     brandMemory: "校園情境：淡水雨天、期中報告\n已學到的規律：先寫學生生活",
   });
-  assert.match(pack.variants.find((item) => item.tone === "學生版")?.body ?? "", /淡水雨天/);
+  assert.match(pack.variants.find((item) => item.tone === "校園口語")?.body ?? "", /淡水雨天/);
   assert.match(pack.variants[0].hook, /下雨|淡水/);
 });
 
@@ -60,13 +57,23 @@ test("mock copy skips a generic 課表 token and uses the next campus beat", () 
     hook: "",
     brandMemory: "校園情境：課表、通勤、宿舍、人際與淡水天氣",
   });
-  assert.match(pack.variants.find((item) => item.tone === "學生版")?.body ?? "", /通勤/);
+  assert.match(pack.variants.find((item) => item.tone === "校園口語")?.body ?? "", /通勤/);
 });
 
 test("copy avoids a formal invitation hook and includes club-specific hashtags", () => {
   const pack = buildMockCopyPack({ ...request, hook: "淡江大學禪學社誠摯邀請您" });
   assert.doesNotMatch(pack.variants[0].hook, /誠摯邀請/);
   assert.ok(pack.variants.every((item) => item.hashtags.includes("#淡江禪學社")));
+});
+
+test("info tone leads with time and place; share tone is short enough to send", () => {
+  const pack = buildMockCopyPack(request);
+  const info = pack.variants.find((item) => item.tone === "清楚資訊");
+  const share = pack.variants.find((item) => item.tone === "傳給朋友");
+  assert.match(info?.body ?? "", /^時間｜/);
+  assert.match(info?.body ?? "", /淡江大學商管大樓/);
+  assert.match(share?.body ?? "", /要不要一起來/);
+  assert.ok([...(share?.body ?? "")].length < 160);
 });
 
 test("unavailable copy adapter never pretends Grok wrote the draft", () => {
