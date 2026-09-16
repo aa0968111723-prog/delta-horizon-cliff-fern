@@ -61,11 +61,28 @@ export function buildCanvaKit(input: {
     .join("\n");
 }
 
+export function canvaDesignIdFromEditUrl(url?: string | null) {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname.endsWith("canva.com")) return null;
+    const match = parsed.pathname.match(/\/design\/([^/]+)/);
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function canvaReturnTitle(campaignName: string) {
+  return `${campaignName.replace(/\s+/g, " ").slice(0, 24)} · Canva`;
+}
+
 export function memoryFromCanvaKit(input: {
   campaignName: string;
   kit: string;
   thumbUrl?: string | null;
   id?: string;
+  openUrl?: string | null;
 }): MemoryItem {
   return {
     id: input.id ?? `canva_kit_${Date.now()}`,
@@ -76,6 +93,7 @@ export function memoryFromCanvaKit(input: {
     tags: ["canva", "kit"],
     summary: input.kit.slice(0, 240).replace(/\n+/g, " ").trim(),
     thumbUrl: input.thumbUrl ?? undefined,
+    openUrl: input.openUrl ?? undefined,
     createdAt: Date.now(),
   };
 }

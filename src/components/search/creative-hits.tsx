@@ -35,6 +35,16 @@ export function CreativeHits({
                     <HitBody hit={hit} />
                   </button>
                 )}
+                {hit.href?.startsWith("https:") ? (
+                  <a
+                    href={hit.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 shrink-0 text-xs text-accent"
+                  >
+                    開啟
+                  </a>
+                ) : null}
                 {onAnalyze && hit.thumbUrl ? (
                   <button
                     type="button"

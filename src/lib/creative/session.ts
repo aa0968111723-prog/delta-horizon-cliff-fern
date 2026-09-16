@@ -1,7 +1,7 @@
 import type { CopyBlock } from "@/lib/ai/copy";
 import type { CreativePack } from "@/lib/ai/pack";
 
-export type CanvaLoopStep = "kit" | "need-connect" | "opened";
+export type CanvaLoopStep = "kit" | "need-connect" | "opened" | "returned";
 
 export type LastCreateSession = {
   pack: CreativePack;
@@ -15,6 +15,8 @@ export type LastCreateSession = {
   canvaKit?: string;
   canvaStep?: CanvaLoopStep;
   canvaEditUrl?: string | null;
+  canvaDesignId?: string | null;
+  canvaReturnAssetId?: string | null;
   savedAt: number;
 };
 

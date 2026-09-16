@@ -59,6 +59,7 @@ export function searchCreative(input: {
       kind: item.kind,
       assetId: item.assetId,
       thumbUrl: item.thumbUrl,
+      href: item.openUrl,
       rank: s,
     });
   }

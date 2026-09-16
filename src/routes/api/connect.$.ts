@@ -73,7 +73,7 @@ function startOAuth(provider: ConnectionId, request: Request) {
     auth.searchParams.set("client_id", process.env.CANVA_CLIENT_ID ?? "");
     auth.searchParams.set("redirect_uri", redirectUri);
     auth.searchParams.set("response_type", "code");
-    auth.searchParams.set("scope", "design:meta:read design:content:read design:content:write");
+    auth.searchParams.set("scope", "design:meta:read design:content:read design:content:write asset:read asset:write");
     auth.searchParams.set("state", state);
     return redirect(auth.toString(), [setStateCookie(state, next)]);
   }

@@ -166,8 +166,37 @@ async function postCanvaDesign(access: string, payload: Record<string, unknown>)
     body: JSON.stringify(payload),
   });
   if (!res.ok) return null;
-  const body = (await res.json()) as { design?: { urls?: { edit_url?: string } } };
-  return body.design?.urls?.edit_url ?? null;
+  const body = (await res.json()) as { design?: { id?: string; urls?: { edit_url?: string } } };
+  const url = body.design?.urls?.edit_url ?? null;
+  if (!url) return null;
+  return { url, designId: body.design?.id ?? null };
+}
+
+async function exportCanvaPng(access: string, designId: string) {
+  const started = await fetch("https://api.canva.com/rest/v1/exports", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${access}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ design_id: designId, format: { type: "png" } }),
+  });
+  if (!started.ok) return null;
+  const job = (await started.json()) as { job?: { id?: string; status?: string; urls?: string[] } };
+  if (job.job?.status === "success" && job.job.urls?.[0]) return job.job.urls[0];
+  const jobId = job.job?.id;
+  if (!jobId) return null;
+  for (let i = 0; i < 10; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const poll = await fetch(`https://api.canva.com/rest/v1/exports/${jobId}`, {
+      headers: { Authorization: `Bearer ${access}` },
+    });
+    if (!poll.ok) continue;
+    const body = (await poll.json()) as { job?: { status?: string; urls?: string[] } };
+    if (body.job?.status === "success" && body.job.urls?.[0]) return body.job.urls[0];
+    if (body.job?.status === "failed") return null;
+  }
+  return null;
 }
 
 export const createCanvaDesign = createServerFn({ method: "POST" })
@@ -194,13 +223,48 @@ export const createCanvaDesign = createServerFn({ method: "POST" })
     try {
       const assetId = data.imageUrl ? await uploadCanvaImage(tokens.access, data.imageUrl, data.title) : null;
       const kind = (data.kind ?? "post") as CanvaKind;
-      const url =
+      const created =
         (await postCanvaDesign(tokens.access, canvaCreateBody({ title: data.title, kind, assetId: assetId ?? undefined }))) ??
         (await postCanvaDesign(tokens.access, canvaCreateBody({ title: data.title, kind: "post" })));
-      if (!url) return { ok: false as const, reason: "api" as const, message: "Canva 暫時無法建設計。清單已可先貼上。" };
-      return { ok: true as const, url, withAsset: Boolean(assetId) };
+      if (!created) return { ok: false as const, reason: "api" as const, message: "Canva 暫時無法建設計。清單已可先貼上。" };
+      return { ok: true as const, url: created.url, designId: created.designId, withAsset: Boolean(assetId) };
     } catch {
       return { ok: false as const, reason: "api" as const, message: "Canva 暫時無法建設計。清單已可先貼上。" };
+    }
+  });
+
+export const pullCanvaExport = createServerFn({ method: "POST" })
+  .validator((input: unknown) => parseFnInput(z.object({ designId: z.string().min(1).max(80) }), input))
+  .handler(async ({ data }) => {
+    const { readFreshTokens } = await import("./tokens.server");
+    const tokens = await readFreshTokens("canva");
+    if (!tokens) {
+      return {
+        ok: false as const,
+        reason: "connect" as const,
+        message: "還沒連 Canva。把匯出的 PNG 丟回來也能接上 IG 預覽。",
+      };
+    }
+    try {
+      const url = await exportCanvaPng(tokens.access, data.designId);
+      if (!url) {
+        return { ok: false as const, reason: "api" as const, message: "Canva 還在匯出。也可以把 PNG 丟回來。" };
+      }
+      const img = await fetch(url);
+      if (!img.ok) {
+        return { ok: false as const, reason: "api" as const, message: "取回失敗。把 PNG 丟回來即可。" };
+      }
+      const buf = Buffer.from(await img.arrayBuffer());
+      if (!buf.byteLength) {
+        return { ok: false as const, reason: "api" as const, message: "取回失敗。把 PNG 丟回來即可。" };
+      }
+      if (buf.byteLength > 3_500_000) {
+        return { ok: true as const, src: url, huge: true as const };
+      }
+      const mime = img.headers.get("content-type")?.split(";")[0] || "image/png";
+      return { ok: true as const, src: `data:${mime};base64,${buf.toString("base64")}`, huge: false as const };
+    } catch {
+      return { ok: false as const, reason: "api" as const, message: "取回失敗。把 PNG 丟回來即可。" };
     }
   });
 
@@ -243,6 +307,7 @@ async function listDrive(access: string, query?: string, folderId?: string): Pro
         tags: [file.mimeType.split("/").pop() ?? "file", term].filter(Boolean),
         summary: folderId ? "來自指定的禪學社資料夾。" : "來自 Google Drive。",
         thumbUrl: file.thumbnailLink || file.webContentLink,
+        openUrl: file.webViewLink,
         createdAt: file.modifiedTime ? Date.parse(file.modifiedTime) : Date.now(),
       });
     }
@@ -269,6 +334,7 @@ async function listCanva(access: string, query?: string): Promise<MemoryItem[]> 
     tags: ["canva"],
     summary: "作為風格參考，不要直接複製。",
     thumbUrl: item.thumbnail?.url,
+    openUrl: item.urls?.edit_url,
     createdAt: item.updated_at ?? Date.now(),
   }));
 }

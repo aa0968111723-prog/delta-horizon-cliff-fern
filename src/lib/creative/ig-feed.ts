@@ -1,4 +1,4 @@
-import type { ContentKind, Project, ProjectStatus } from "../studio/types.ts";
+import type { ContentKind, Project, ProjectStatus, SourceRef } from "../studio/types.ts";
 import { isoFromMs } from "./schedule.ts";
 import { captionFromProject, mediaTypeFromKind } from "./publish.ts";
 import type { IgMemoryPost } from "./types.ts";
@@ -36,10 +36,26 @@ export type IgGridSlot = {
   shares?: number;
 };
 
-type ProjectSlice = Pick<
-  Project,
-  "id" | "name" | "status" | "contentKind" | "scheduledAt" | "copy"
->;
+type ProjectSlice = Pick<Project, "id" | "name" | "status" | "contentKind" | "scheduledAt" | "copy"> & {
+  sourceRefs?: SourceRef[];
+};
+
+/** Canva 接回的圖用素材 id；公開網址才當 mediaUrl，避免 data URL 撐爆儲存。 */
+export function coverFromSourceRefs(refs?: SourceRef[]) {
+  const assetIds: string[] = [];
+  let mediaUrl: string | undefined;
+  for (const ref of refs ?? []) {
+    const id = ref.id?.trim();
+    if (!id) continue;
+    if (id.startsWith("https:")) {
+      mediaUrl ??= id;
+      continue;
+    }
+    if (id.startsWith("data:")) continue;
+    assetIds.push(id);
+  }
+  return { assetIds, mediaUrl };
+}
 
 export function upcomingSlotId(projectId: string) {
   return `up-${projectId}`;
@@ -58,20 +74,22 @@ export function igGridSlots(input: { projects: ProjectSlice[]; posts: IgMemoryPo
   const upcoming = input.projects
     .filter((project) => (project.status === "scheduled" || project.status === "done") && IG_GRID_KINDS.has(project.contentKind))
     .sort((a, b) => (a.scheduledAt ?? Number.MAX_SAFE_INTEGER) - (b.scheduledAt ?? Number.MAX_SAFE_INTEGER))
-    .map(
-      (project): IgGridSlot => ({
+    .map((project): IgGridSlot => {
+      const cover = coverFromSourceRefs(project.sourceRefs);
+      return {
         id: upcomingSlotId(project.id),
         origin: "upcoming",
         title: project.name,
         caption: captionFromProject(project),
         takenAt: project.scheduledAt ?? Date.now(),
         projectId: project.id,
-        assetIds: [],
+        assetIds: cover.assetIds,
+        mediaUrl: cover.mediaUrl,
         mediaType: mediaTypeFromKind(project.contentKind),
         status: project.status,
         scheduledAt: project.scheduledAt,
-      }),
-    );
+      };
+    });
 
   const published = [...input.posts]
     .sort((a, b) => b.takenAt - a.takenAt)

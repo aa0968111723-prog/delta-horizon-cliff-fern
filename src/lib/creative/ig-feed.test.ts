@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { igGridSlots, upcomingSlotId, upcomingStatusCopy } from "./ig-feed.ts";
+import { coverFromSourceRefs, igGridSlots, upcomingSlotId, upcomingStatusCopy } from "./ig-feed.ts";
 import type { CopyDeck } from "../studio/types.ts";
 
 const copy: CopyDeck = {
@@ -110,6 +110,31 @@ test("a finished pack with a date still shows as scheduled on the grid copy", ()
     }),
     /排在 09\/17/,
   );
+});
+
+test("Canva return assets sit on the IG grid cover", () => {
+  const cover = coverFromSourceRefs([
+    { source: "canva", label: "Canva 微調後", id: "asset_canva_1" },
+    { source: "canva", label: "Canva 微調後", id: "https://export.canva.com/zen.png" },
+    { source: "generated", label: "太大不存", id: "data:image/png;base64,aaa" },
+  ]);
+  assert.deepEqual(cover.assetIds, ["asset_canva_1"]);
+  assert.equal(cover.mediaUrl, "https://export.canva.com/zen.png");
+  const slots = igGridSlots({
+    projects: [
+      {
+        id: "proj_canva",
+        name: "茶會 · Carousel",
+        status: "done",
+        contentKind: "carousel",
+        scheduledAt: null,
+        copy,
+        sourceRefs: [{ source: "canva", label: "Canva 微調後", id: "asset_canva_1" }],
+      },
+    ],
+    posts: [],
+  });
+  assert.deepEqual(slots[0]?.assetIds, ["asset_canva_1"]);
 });
 
 test("earlier scheduled date comes first among upcoming", () => {

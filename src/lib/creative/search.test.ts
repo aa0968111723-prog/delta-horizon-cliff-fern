@@ -80,3 +80,27 @@ test("picked hits stay in front of pack sources", () => {
   assert.equal(sources.some((item) => item.id === "drive_tea"), true);
   assert.equal(sources.filter((item) => item.id === "canva_tea").length, 1);
 });
+
+test("Canva memory hits keep an open URL", () => {
+  const hits = searchCreative({
+    query: "茶會 Canva",
+    memory: [
+      {
+        id: "canva_live",
+        source: "canva",
+        sourceLabel: "Canva / 茶會",
+        title: "歷屆茶會主視覺",
+        kind: "design",
+        tags: ["茶會"],
+        summary: "上半照片",
+        openUrl: "https://www.canva.com/design/DAFtea/edit",
+        createdAt: 1,
+      },
+    ],
+    assets: [],
+    campaigns: [],
+    igPosts: [],
+    projects: [],
+  });
+  assert.equal(hits[0]?.href, "https://www.canva.com/design/DAFtea/edit");
+});

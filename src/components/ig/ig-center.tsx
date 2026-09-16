@@ -270,6 +270,11 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
             {active.mediaType}
           </p>
           <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed">{active.caption}</pre>
+          {activeProject?.sourceRefs.some((ref) => ref.source === "canva") ? (
+            <p className="mt-2 text-xs text-muted">
+              來源：{activeProject.sourceRefs.find((ref) => ref.source === "canva")?.label ?? "Canva"}
+            </p>
+          ) : null}
           {active.origin === "published" ? (
             <p className="mt-3 text-xs text-muted">
               收藏 {active.saves ?? "—"} · 留言 {active.comments ?? "—"} · 觸及 {active.reach ?? "—"}
@@ -383,7 +388,7 @@ function GridCell({
   urls: Record<string, string>;
   onSelect: () => void;
 }) {
-  const src = slot.assetIds[0] ? urls[slot.assetIds[0]] : slot.mediaUrl ?? "";
+  const src = (slot.assetIds[0] && urls[slot.assetIds[0]]) || slot.mediaUrl || "";
   const board = project?.artboards[project.activeFormatId];
   const generated = project?.sourceRefs.find((ref) => ref.id?.startsWith("https:") || ref.id?.startsWith("data:"))?.id;
   const cover = src || generated;

@@ -37,3 +37,54 @@ test("session storage roundtrip keeps the pack", () => {
   assert.equal(read?.pack.query, "下週有一場茶會");
   assert.equal(read?.canvaStep, "need-connect");
 });
+
+test("session keeps the Canva design id for the round trip", () => {
+  const memory = new Map<string, string>();
+  const fake = {
+    getItem: (key: string) => memory.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      memory.set(key, value);
+    },
+  };
+  (globalThis as { sessionStorage?: typeof fake }).sessionStorage = fake;
+  writeLastSession({
+    pack: { query: "茶會" },
+    dirId: "a",
+    copies: [],
+    tone: "student",
+    imageSrc: null,
+    aspect: "4:5",
+    canvaStep: "opened",
+    canvaEditUrl: "https://www.canva.com/design/DAFVztcvd9z/edit",
+    canvaDesignId: "DAFVztcvd9z",
+    savedAt: Date.now(),
+  } as unknown as LastCreateSession);
+  const read = readLastSession();
+  assert.equal(read?.canvaDesignId, "DAFVztcvd9z");
+  assert.equal(read?.canvaStep, "opened");
+});
+
+test("session keeps the Canva return asset for IG Preview", () => {
+  const memory = new Map<string, string>();
+  const fake = {
+    getItem: (key: string) => memory.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      memory.set(key, value);
+    },
+  };
+  (globalThis as { sessionStorage?: typeof fake }).sessionStorage = fake;
+  writeLastSession({
+    pack: { query: "茶會" },
+    dirId: "a",
+    copies: [],
+    tone: "student",
+    imageSrc: null,
+    aspect: "4:5",
+    canvaStep: "returned",
+    canvaReturnAssetId: "asset_canva_1",
+    savedAt: Date.now(),
+  } as unknown as LastCreateSession);
+  const read = readLastSession();
+  assert.equal(read?.canvaReturnAssetId, "asset_canva_1");
+  assert.equal(read?.canvaStep, "returned");
+});

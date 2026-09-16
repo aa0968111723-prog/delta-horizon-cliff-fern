@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildCanvaKit, canvaCreateBody, canvaDesignType, memoryFromCanvaKit } from "./canva-kit.ts";
+import { buildCanvaKit, canvaCreateBody, canvaDesignType, canvaDesignIdFromEditUrl, canvaReturnTitle, memoryFromCanvaKit } from "./canva-kit.ts";
 
 test("carousel and post use 4:5, not a fake instagramCarousel preset", () => {
   assert.deepEqual(canvaDesignType("carousel"), { type: "custom", width: 1080, height: 1350 });
@@ -43,8 +43,23 @@ test("kit is saved as Canva Creative Memory, not a hidden copy", () => {
     cta: "晚上來坐一下",
     hashtags: ["#淡江禪學社"],
   });
-  const item = memoryFromCanvaKit({ campaignName: "浮游禪光", kit, id: "canva_kit_test" });
+  const item = memoryFromCanvaKit({
+    campaignName: "浮游禪光",
+    kit,
+    id: "canva_kit_test",
+    openUrl: "https://www.canva.com/design/DAFtest/edit",
+  });
   assert.equal(item.source, "canva");
   assert.equal(item.sourceLabel, "Canva / 浮游禪光");
+  assert.equal(item.openUrl, "https://www.canva.com/design/DAFtest/edit");
   assert.ok(item.summary.includes("Canva"));
+});
+
+test("edit URLs keep the Canva design id for taking the image back", () => {
+  assert.equal(
+    canvaDesignIdFromEditUrl("https://www.canva.com/design/DAFVztcvd9z/edit"),
+    "DAFVztcvd9z",
+  );
+  assert.equal(canvaDesignIdFromEditUrl("https://evil.example/design/nope"), null);
+  assert.equal(canvaReturnTitle("浮游禪光"), "浮游禪光 · Canva");
 });

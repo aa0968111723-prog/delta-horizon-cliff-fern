@@ -79,6 +79,7 @@ export type MemoryItem = {
   assetId?: string;
   summary: string;
   thumbUrl?: string;
+  openUrl?: string;
   createdAt: number;
 };
 
