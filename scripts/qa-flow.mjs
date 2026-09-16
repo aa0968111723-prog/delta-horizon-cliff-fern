@@ -447,7 +447,7 @@ try {
   await page.waitForURL(/\/studio\//, { timeout: 25000 });
   await page.waitForLoadState("networkidle");
   await page.waitForSelector("[data-testid=slide-count]", { timeout: 15000 });
-  const slideCount = await page.getByTestId("slide-count").innerText();
+  const slideCount = await page.getByTestId("slide-count").first().innerText();
   record("做成輪播頁數", /\/5\b/.test(slideCount), `頁數是 ${slideCount}`);
   await expectText("做成輪播封面頁", "封面");
   await expectText("做成輪播痛點頁", "痛點");
