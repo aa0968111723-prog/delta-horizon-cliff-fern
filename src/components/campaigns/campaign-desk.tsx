@@ -2,6 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { daysUntil } from "@/lib/club/season";
+import { createSearchForWave } from "@/lib/creative/schedule";
 import { contentKindLabel } from "@/lib/studio/content";
 import { STATUS_META } from "@/lib/studio/status";
 import { useCreative } from "@/stores/creative-store";
@@ -87,12 +88,10 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={() =>
-                      void navigate({
-                        to: "/create",
-                        search: { q: `${campaign.name} ${wave.topic}`, campaign: campaign.id, go: "1" },
-                      })
-                    }
+                    onClick={() => {
+                      const search = createSearchForWave(campaign, wave);
+                      void navigate({ to: "/create", search });
+                    }}
                   >
                     生成這一波
                   </Button>

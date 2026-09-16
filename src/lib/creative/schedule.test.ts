@@ -3,6 +3,9 @@ import test from "node:test";
 import {
   bindScheduledWave,
   campaignNameFromTitle,
+  createModeForKind,
+  createSearchForCalendarItem,
+  createSearchForWave,
   inferEventDate,
   isoFromMs,
   planPreviewSchedule,
@@ -154,4 +157,38 @@ test("binding story does not steal 當天 or 回顧", () => {
   assert.notEqual(bound.id, dayOf.id);
   assert.equal(isoFromMs(bound.scheduledAt ?? 0), "2026-09-22");
   assert.equal(next.find((w) => w.id === dayOf.id)?.projectId, null);
+});
+
+test("empty calendar waves open create with the wave format, not the campaign desk", () => {
+  const search = createSearchForCalendarItem(
+    {
+      title: "情緒共鳴 · 很久沒坐好",
+      kind: "carousel",
+      campaignId: "camp_float",
+    },
+    "浮游禪光",
+  );
+  assert.ok(search);
+  assert.equal(search.go, "1");
+  assert.equal(search.mode, "carousel");
+  assert.equal(search.campaign, "camp_float");
+  assert.match(search.q, /浮游禪光/);
+  assert.match(search.q, /Carousel/);
+  assert.equal(createSearchForCalendarItem({ title: "浮游禪光", kind: "event", campaignId: "camp_float" }), null);
+  assert.equal(
+    createSearchForCalendarItem({
+      title: "已有稿",
+      kind: "story",
+      campaignId: "camp_float",
+      projectId: "proj_1",
+    }),
+    null,
+  );
+  assert.equal(createModeForKind("story"), "story");
+  const waveSearch = createSearchForWave(
+    { id: "camp_float", name: "浮游禪光" },
+    { intent: "當天", topic: "今天晚上見", contentKind: "story" },
+  );
+  assert.equal(waveSearch.mode, "story");
+  assert.match(waveSearch.q, /今天晚上見/);
 });

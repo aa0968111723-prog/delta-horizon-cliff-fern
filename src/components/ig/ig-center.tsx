@@ -12,6 +12,7 @@ import { clubInsightsFromPosts } from "@/lib/club/insights";
 import { analyzeIgMemoryPost } from "@/lib/club/ig-analyze";
 import { igGridSlots, upcomingSlotId, upcomingStatusCopy, type IgGridSlot } from "@/lib/creative/ig-feed";
 import { planPreviewSchedule } from "@/lib/creative/schedule";
+import type { IgMemoryPost } from "@/lib/creative/types";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { ArtboardView } from "@/components/studio/artboard-view";
@@ -43,21 +44,41 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
   const [activeId, setActiveId] = useState<string | null>(
     focusProjectId ? upcomingSlotId(focusProjectId) : slots[0]?.id ?? null,
   );
+  const [draftAnalysis, setDraftAnalysis] = useState<Record<string, NonNullable<IgMemoryPost["analysis"]>>>({});
   const active = slots.find((slot) => slot.id === activeId) ?? slots[0];
   const activeProject = active?.projectId ? projects.find((item) => item.id === active.projectId) : undefined;
   const memory = useCreative((s) => s.memory);
   const dna = clubDnaFromMemory({ igPosts, memory });
   const insights = clubInsightsFromPosts(igPosts);
+  const shownAnalysis = active
+    ? (active.origin === "published" ? active.analysis : draftAnalysis[active.id])
+    : undefined;
 
   useEffect(() => {
     if (focusProjectId) setActiveId(upcomingSlotId(focusProjectId));
   }, [focusProjectId]);
 
   function analyze() {
-    if (!active?.postId) return;
-    const post = igPosts.find((item) => item.id === active.postId);
-    if (!post) return;
-    analyzeIg(post.id, analyzeIgMemoryPost(post));
+    if (!active) return;
+    if (active.origin === "published" && active.postId) {
+      const post = igPosts.find((item) => item.id === active.postId);
+      if (!post) return;
+      analyzeIg(post.id, analyzeIgMemoryPost(post));
+      toast.success("已用淡江學生視角看過這篇");
+      return;
+    }
+    const campaign = activeProject?.campaignId
+      ? campaigns.find((item) => item.id === activeProject.campaignId)
+      : undefined;
+    setDraftAnalysis((prev) => ({
+      ...prev,
+      [active.id]: analyzeIgMemoryPost({
+        caption: active.caption,
+        mediaType: active.mediaType,
+        when: campaign ? `${campaign.date} ${campaign.time}` : undefined,
+        where: campaign?.location,
+      }),
+    }));
     toast.success("已用淡江學生視角看過這篇");
   }
 
@@ -157,11 +178,10 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
                 {activeProject.scheduledAt ? "去月曆" : "排進月曆"}
               </Button>
             ) : null}
-            {active.origin === "published" ? (
-              <Button className="min-h-11" onClick={analyze}>
-                AI 分析
-              </Button>
-            ) : (
+            <Button className="min-h-11" variant={active.origin === "published" ? "default" : "secondary"} onClick={analyze}>
+              AI 分析
+            </Button>
+            {active.origin === "upcoming" ? (
               <PublishButton
                 projectId={active.projectId}
                 campaignId={activeProject?.campaignId ?? undefined}
@@ -171,7 +191,7 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
                 size="default"
                 className="rounded-full"
               />
-            )}
+            ) : null}
             {active.projectId ? (
               <Button asChild variant="secondary" className="min-h-11">
                 <Link to="/studio/$projectId" params={{ projectId: active.projectId }}>
@@ -197,22 +217,33 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
               從這篇再生一篇
             </Button>
           </div>
-          {active.analysis ? (
+          {shownAnalysis ? (
             <div className="mt-4 space-y-2 text-sm">
-              <p>Hook：{active.analysis.hook}</p>
-              <p>視覺：{active.analysis.visual}</p>
-              <p>Caption 長度：{active.analysis.captionLength} 字</p>
-              <p>CTA：{active.analysis.cta}</p>
-              <p>方向：{active.analysis.direction}</p>
-              <p>可改善：{active.analysis.improve.join(" ")}</p>
-              <div className="mt-3 rounded-2xl bg-bg p-3 text-xs text-muted">
-                {insights.answers.map((line) => (
-                  <p key={line} className="mt-1 first:mt-0">
-                    {line}
-                  </p>
-                ))}
-                <p className="mt-2">{insights.mixLesson}</p>
-              </div>
+              <p>Hook：{shownAnalysis.hook}</p>
+              <p>視覺：{shownAnalysis.visual}</p>
+              <p>Caption 長度：{shownAnalysis.captionLength} 字</p>
+              <p>CTA：{shownAnalysis.cta}</p>
+              <p>方向：{shownAnalysis.direction}</p>
+              <p>可改善：{shownAnalysis.improve.join(" ")}</p>
+              {shownAnalysis.studentSim?.notes.length ? (
+                <div className="mt-3 rounded-2xl bg-bg p-3 text-xs text-muted">
+                  {shownAnalysis.studentSim.notes.map((line) => (
+                    <p key={line} className="mt-1 first:mt-0">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+              {active.origin === "published" ? (
+                <div className="mt-3 rounded-2xl bg-bg p-3 text-xs text-muted">
+                  {insights.answers.map((line) => (
+                    <p key={line} className="mt-1 first:mt-0">
+                      {line}
+                    </p>
+                  ))}
+                  <p className="mt-2">{insights.mixLesson}</p>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </section>

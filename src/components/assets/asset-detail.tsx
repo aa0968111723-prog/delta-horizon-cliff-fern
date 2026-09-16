@@ -5,6 +5,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { analyzeImage } from "@/lib/ai/vision";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
+import { tagsFromAssetText, tagsFromVision } from "@/lib/studio/asset-tags";
 import {
   Select,
   SelectContent,
@@ -202,14 +203,12 @@ export function AssetDetailSheet({
                     data: imageUrl ? { imageUrl, note: current.name } : { imageDataUrl: imageDataUrl ?? "", note: current.name },
                   });
                   if (!result.ok) return;
-                  const tags = Array.from(
-                    new Set(
-                      [...current.tags, ...result.report.next.slice(0, 3), result.report.tooReligious ? "偏宗教" : "生活感"].filter(
-                        Boolean,
-                      ),
-                    ),
-                  );
-                  updateAsset(current.id, { tags, licenseNotes: `${current.licenseNotes}\n${result.report.studentFit}`.trim() });
+                  const tags = Array.from(new Set([...current.tags, ...tagsFromVision(result.report)]));
+                  const note = result.report.studentFit;
+                  const licenseNotes = current.licenseNotes.includes(note)
+                    ? current.licenseNotes
+                    : `${current.licenseNotes}\n${note}`.trim();
+                  updateAsset(current.id, { tags, licenseNotes });
                   toast.success(result.report.studentFit);
                 } catch {
                   toast.error("分析失敗");
@@ -222,7 +221,9 @@ export function AssetDetailSheet({
           <Button
             variant="secondary"
             onClick={() => {
-              const tags = Array.from(new Set([...asset.tags, asset.category, asset.name.slice(0, 6)].filter(Boolean)));
+              const tags = Array.from(
+                new Set([...asset.tags, ...tagsFromAssetText(asset.name, asset.category, asset.licenseNotes)]),
+              );
               patch("tags", tags);
               toast.success("已補上 AI 標籤草稿，可再改");
             }}

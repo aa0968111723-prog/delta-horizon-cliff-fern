@@ -5,6 +5,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
+import { createSearchForCalendarItem } from "@/lib/creative/schedule";
 import { contentKindLabel } from "@/lib/studio/content";
 import { STATUS_META } from "@/lib/studio/status";
 import { calendarFrom, useCreative } from "@/stores/creative-store";
@@ -73,11 +74,20 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
     });
   }
 
+  function createWave(item: CalendarItem) {
+    const name = campaigns.find((campaign) => campaign.id === item.campaignId)?.name;
+    const search = createSearchForCalendarItem(item, name);
+    if (!search) return false;
+    void navigate({ to: "/create", search });
+    return true;
+  }
+
   function openItem(item: CalendarItem) {
     if (item.projectId) {
       void navigate({ to: "/ig", search: { item: item.projectId } });
       return;
     }
+    if (createWave(item)) return;
     if (item.campaignId) {
       void navigate({ to: "/campaigns/$campaignId", params: { campaignId: item.campaignId } });
     }
@@ -133,6 +143,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
               focused={Boolean(focusDay && item.date === focusDay && item.kind !== "event")}
               onExtend={() => extend(item)}
               onCopy={() => item.campaignId && item.waveId && duplicateWave(item.campaignId, item.waveId)}
+              onCreate={() => createWave(item)}
             />
           ))}
         </ul>
@@ -238,20 +249,11 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
                       )}
                     >
                       <p className="text-sm">{item.title}</p>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => extend(item)}>
-                          AI 延伸
-                        </Button>
-                        <IgPreviewLink projectId={item.projectId} />
-                        {item.kind !== "event" && item.status !== "published" ? (
-                          <PublishButton
-                            campaignId={item.campaignId}
-                            waveId={item.waveId}
-                            projectId={item.projectId}
-                            title={item.title}
-                          />
-                        ) : null}
-                      </div>
+                      <ItemActions
+                        item={item}
+                        onExtend={() => extend(item)}
+                        onCreate={() => createWave(item)}
+                      />
                     </div>
                   ))}
                 </li>
@@ -279,29 +281,16 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
                       )}
                     >
                       <p className="text-sm">{item.title}</p>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => extend(item)}>
-                          AI 延伸
-                        </Button>
-                        {item.campaignId && item.waveId ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => duplicateWave(item.campaignId!, item.waveId!)}
-                          >
-                            複製
-                          </Button>
-                        ) : null}
-                        <IgPreviewLink projectId={item.projectId} />
-                        {item.kind !== "event" && item.status !== "published" ? (
-                          <PublishButton
-                            campaignId={item.campaignId}
-                            waveId={item.waveId}
-                            projectId={item.projectId}
-                            title={item.title}
-                          />
-                        ) : null}
-                      </div>
+                      <ItemActions
+                        item={item}
+                        onExtend={() => extend(item)}
+                        onCopy={
+                          item.campaignId && item.waveId
+                            ? () => duplicateWave(item.campaignId!, item.waveId!)
+                            : undefined
+                        }
+                        onCreate={() => createWave(item)}
+                      />
                     </div>
                   ))
                 ) : (
@@ -349,11 +338,13 @@ function AgendaRow({
   focused,
   onExtend,
   onCopy,
+  onCreate,
 }: {
   item: CalendarItem;
   focused?: boolean;
   onExtend: () => void;
   onCopy: () => void;
+  onCreate: () => void;
 }) {
   return (
     <li
@@ -372,31 +363,54 @@ function AgendaRow({
           ? " · 該發了"
           : ""}
       </p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        <Button size="sm" variant="ghost" onClick={onExtend}>
-          AI 延伸
+      <ItemActions item={item} onExtend={onExtend} onCopy={onCopy} onCreate={onCreate} />
+    </li>
+  );
+}
+
+function ItemActions({
+  item,
+  onExtend,
+  onCopy,
+  onCreate,
+}: {
+  item: CalendarItem;
+  onExtend: () => void;
+  onCopy?: () => void;
+  onCreate?: () => void;
+}) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {!item.projectId && item.kind !== "event" && onCreate ? (
+        <Button size="sm" variant="secondary" onClick={onCreate}>
+          生成這一波
         </Button>
+      ) : null}
+      <Button size="sm" variant="ghost" onClick={onExtend}>
+        AI 延伸
+      </Button>
+      {onCopy ? (
         <Button size="sm" variant="ghost" onClick={onCopy}>
           複製
         </Button>
-        {item.projectId ? (
-          <Button asChild size="sm" variant="ghost">
-            <Link to="/studio/$projectId" params={{ projectId: item.projectId }}>
-              編輯
-            </Link>
-          </Button>
-        ) : null}
-        <IgPreviewLink projectId={item.projectId} />
-        {item.kind !== "event" && item.status !== "published" ? (
-          <PublishButton
-            campaignId={item.campaignId}
-            waveId={item.waveId}
-            projectId={item.projectId}
-            title={item.title}
-          />
-        ) : null}
-      </div>
-    </li>
+      ) : null}
+      {item.projectId ? (
+        <Button asChild size="sm" variant="ghost">
+          <Link to="/studio/$projectId" params={{ projectId: item.projectId }}>
+            編輯
+          </Link>
+        </Button>
+      ) : null}
+      <IgPreviewLink projectId={item.projectId} />
+      {item.kind !== "event" && item.status !== "published" ? (
+        <PublishButton
+          campaignId={item.campaignId}
+          waveId={item.waveId}
+          projectId={item.projectId}
+          title={item.title}
+        />
+      ) : null}
+    </div>
   );
 }
 

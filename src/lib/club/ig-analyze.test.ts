@@ -20,3 +20,14 @@ test("ig analysis reads the actual caption instead of a generic visual", () => {
   assert.equal(formal.cta, "弱");
   assert.ok(formal.direction.includes("Carousel"));
 });
+
+test("upcoming drafts can be analyzed from caption without a published post", () => {
+  const draft = analyzeIgMemoryPost({
+    caption: "大學生活很自由，但你最近真的有比較快樂嗎？\n9/24 浮游禪光，淡水校園。留言就可以。",
+    mediaType: "carousel",
+  });
+  assert.ok(draft.hook.includes("快樂"));
+  assert.ok(draft.visual.includes("光") || draft.theme.includes("光") || draft.theme.includes("夜間"));
+  assert.equal(draft.cta, "有行動");
+  assert.ok(draft.studentSim?.knowsWhenWhere);
+});

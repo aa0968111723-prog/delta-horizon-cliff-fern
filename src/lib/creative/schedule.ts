@@ -1,7 +1,8 @@
 import { daysUntil } from "../club/season.ts";
+import { contentKindLabel } from "../studio/content.ts";
 import { uid } from "../studio/ids.ts";
 import type { ContentKind, ProjectStatus } from "../studio/types.ts";
-import type { CampaignType, CampaignWave, ClubCampaign } from "./types.ts";
+import type { CalendarItem, CampaignType, CampaignWave, ClubCampaign } from "./types.ts";
 
 /** 當天／回顧節奏不能被轉換格式搶走。 */
 const RESERVED_WAVE_INTENTS = /當天|回顧/;
@@ -234,4 +235,59 @@ export function inferCampaignType(query: string) {
   if (/回顧/.test(query)) return "recap" as const;
   if (/課|工作坊/.test(query)) return "workshop" as const;
   return "other" as const;
+}
+
+/** 月曆空波次進創作台時，對上 Create Studio 的 mode。 */
+export function createModeForKind(kind: ContentKind | "event"): string | undefined {
+  if (kind === "event") return undefined;
+  if (kind === "carousel") return "carousel";
+  if (kind === "story" || kind === "countdown") return "story";
+  if (kind === "reels") return "reels";
+  if (kind === "poster") return "image";
+  return "post";
+}
+
+export type CreateFromCalendarSearch = {
+  q: string;
+  go: "1";
+  campaign?: string;
+  mode?: string;
+};
+
+/** 還沒有稿的波次直接生成；活動列與已有專案回 null。 */
+export function createSearchForCalendarItem(
+  item: Pick<CalendarItem, "title" | "kind" | "campaignId" | "projectId">,
+  campaignName?: string,
+): CreateFromCalendarSearch | null {
+  if (item.kind === "event" || item.projectId) return null;
+  const mode = createModeForKind(item.kind);
+  const label = contentKindLabel(item.kind);
+  const head = campaignName?.trim() ? `${campaignName.trim()} ` : "";
+  return {
+    q: `${head}${item.title}。做一則${label}。`.trim(),
+    go: "1",
+    campaign: item.campaignId,
+    mode,
+  };
+}
+
+export function createSearchForWave(
+  campaign: Pick<ClubCampaign, "id" | "name">,
+  wave: Pick<CampaignWave, "topic" | "intent" | "contentKind">,
+): CreateFromCalendarSearch {
+  return (
+    createSearchForCalendarItem(
+      {
+        title: `${wave.intent} · ${wave.topic}`,
+        kind: wave.contentKind,
+        campaignId: campaign.id,
+      },
+      campaign.name,
+    ) ?? {
+      q: `幫我做 ${campaign.name} ${wave.topic}`,
+      go: "1",
+      campaign: campaign.id,
+      mode: createModeForKind(wave.contentKind),
+    }
+  );
 }

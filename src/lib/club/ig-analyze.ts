@@ -5,16 +5,33 @@ function firstLine(caption: string) {
   return caption.split("\n").map((line) => line.trim()).find(Boolean) ?? "";
 }
 
+function inferWhen(caption: string, when?: string) {
+  if (when) return when;
+  if (/明天/.test(caption)) return "明天";
+  if (/下週|下周/.test(caption)) return "下週";
+  const match = caption.match(/(\d{1,2})[/／月](\d{1,2})/);
+  if (match) return `${match[1]}/${match[2]}`;
+  return "";
+}
+
+function inferWhere(caption: string, where?: string) {
+  if (where) return where;
+  if (/淡水/.test(caption)) return "淡水";
+  if (/宿舍/.test(caption)) return "宿舍";
+  if (/淡江|校園/.test(caption)) return "淡江";
+  return "";
+}
+
 export function analyzeIgMemoryPost(
-  post: Pick<IgMemoryPost, "caption" | "mediaType" | "analysis">,
+  post: Pick<IgMemoryPost, "caption" | "mediaType" | "analysis"> & { when?: string; where?: string },
 ): NonNullable<IgMemoryPost["analysis"]> {
   const hook = firstLine(post.caption);
   const caption = post.caption;
   const sim = mockStudentSim({
     hook,
     caption,
-    when: "",
-    where: "淡江",
+    when: inferWhen(caption, post.when),
+    where: inferWhere(caption, post.where) || "淡江",
     cta: "",
   });
   const visual = /龜/.test(caption)
