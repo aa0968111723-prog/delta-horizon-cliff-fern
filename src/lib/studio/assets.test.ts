@@ -6,6 +6,7 @@ import test from "node:test";
 import {
   inferAssetSource,
   isDisplayableImageBlob,
+  isStampAsset,
   isSvgPreviewSrc,
   assetPreviewFitClass,
   migrateAsset,

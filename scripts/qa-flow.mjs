@@ -191,6 +191,14 @@ try {
   await expectText("畫面裡可套全套", "文案套到全套");
   await page.waitForSelector("text=當主視覺", { timeout: 15000 });
   await expectText("畫面裡當主視覺", "當主視覺");
+  await tap(page.getByRole("button", { name: "淡水河傍晚 當主視覺" }).first());
+  await page.waitForTimeout(500);
+  const afterHero = await text();
+  record(
+    "畫面換成主視覺",
+    afterHero.includes("已套成主視覺") || afterHero.includes("已套成全套主視覺"),
+    "點淡水河傍晚之後沒有換成主視覺",
+  );
   await page.screenshot({ path: `${prefix}-studio-pack.png` });
 
   await page.goto(`${base}/`, { waitUntil: "networkidle" });

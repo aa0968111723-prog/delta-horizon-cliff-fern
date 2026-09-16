@@ -110,6 +110,11 @@ export function assetPreviewFitClass(asset: { mime?: string; seedSrc?: string },
   return isSvgPreviewSrc(asset.seedSrc ?? blobUrl, asset.mime) ? "object-fill" : "object-cover";
 }
 
+/** Logo／龜龜是蓋章；照片、插圖、現場才當主視覺。 */
+export function isStampAsset(asset: Pick<AssetMeta, "kind" | "category">): boolean {
+  return asset.kind === "logo" || asset.category === "logo";
+}
+
 export function categoryLabel(id: AssetCategory) {
   return ASSET_CATEGORIES.find((item) => item.id === id)?.label ?? id;
 }

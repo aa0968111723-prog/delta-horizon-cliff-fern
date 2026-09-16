@@ -14,6 +14,7 @@ import { Group, Panel, Separator } from "react-resizable-panels";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AssetTray } from "@/components/editor/asset-tray";
+import { HeroPhotoStrip } from "@/components/editor/hero-photo-strip";
 import { ArtboardCanvas } from "@/components/editor/artboard-canvas";
 import { CopyPanel } from "@/components/editor/copy-panel";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
@@ -208,7 +209,8 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
           <ConvertBar project={project} variant="compact" />
           <PackSyncButtons projectId={project.id} />
         </div>
-        <p className="text-xs text-subtle">左側素材：照片點一下當主視覺，Logo 點一下放入。</p>
+        <p className="text-xs text-subtle">點照片當主視覺。Logo 到左側素材放入。</p>
+        <HeroPhotoStrip projectId={project.id} />
         <SourceList sources={project.sources} />
       </div>
 
@@ -216,7 +218,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
         <div className="hidden h-full min-h-0 min-w-0 flex-1 lg:block">
           <Group orientation="horizontal" className="h-full">
             <Panel defaultSize="20%" minSize="16%" className="bg-surface">
-              <Tabs defaultValue="layers" className="flex h-full min-h-0 flex-col">
+              <Tabs defaultValue="assets" className="flex h-full min-h-0 flex-col">
                 <div className="px-3 pt-3">
                   <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="layers">圖層</TabsTrigger>

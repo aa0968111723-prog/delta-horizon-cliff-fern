@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { AssetUploadError, decodeAssetImage } from "@/lib/studio/asset-upload";
-import { ASSET_DRAG_MIME, ASSET_CATEGORIES, assetPreviewFitClass, kindFromCategory, matchesAssetQuery } from "@/lib/studio/assets";
+import { ASSET_DRAG_MIME, ASSET_CATEGORIES, assetPreviewFitClass, isStampAsset, kindFromCategory, matchesAssetQuery } from "@/lib/studio/assets";
 import { uid } from "@/lib/studio/ids";
 import type { AssetCategory } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -135,7 +135,7 @@ export function AssetTray({ projectId }: { projectId: string }) {
         <ScrollArea className="min-h-0 flex-1">
           <ul className="grid grid-cols-2 gap-2 p-3">
             {visible.map((asset) => {
-              const stamp = asset.kind === "logo" || asset.category === "logo";
+              const stamp = isStampAsset(asset);
               return (
               <li key={asset.id}>
                 <button
