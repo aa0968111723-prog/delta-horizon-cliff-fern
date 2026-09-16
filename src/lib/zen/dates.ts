@@ -65,10 +65,10 @@ export function campaignMatchingIdea<T extends { id: string; name: string; oneLi
   return matches.sort((a, b) => b.updatedAt - a.updatedAt)[0];
 }
 
-/** 「用這個 Hook 再寫一篇」is a new piece, not a reopen of last week's 茶會. */
+/** 「用這個 Hook 再寫一篇」is a new piece. Drive / Canva files may reopen 茶會. */
 export function shouldReopenCampaign(mode?: string | null, campaignId?: string | null): boolean {
   if (campaignId) return true;
-  return mode !== "from-ig" && mode !== "from-image" && mode !== "from-drive" && mode !== "from-canva";
+  return mode !== "from-ig" && mode !== "from-image";
 }
 
 /** Extend modes keep the spoken Hook as the name — never guess 茶會 from a plan. */

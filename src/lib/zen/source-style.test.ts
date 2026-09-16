@@ -18,6 +18,17 @@ test("pickSourceRefs prefers Canva when arriving from Canva", () => {
   assert.equal(picked[0]?.source, "canva");
 });
 
+test("pickSourceRefs pins the Drive file that was added from search", () => {
+  const hits = [
+    { id: "remote:drv_plan", source: "drive" as const, title: "浮游禪光企劃", subtitle: "", kind: "x", score: 8, remoteId: "drv_plan" },
+    { id: "remote:drv_tea_2025", source: "drive" as const, title: "2025 茶會現場", subtitle: "", kind: "x", score: 9, remoteId: "drv_tea_2025" },
+    hit("canva", "招新版型"),
+  ];
+  const picked = pickSourceRefs("from-drive", hits, { remoteId: "drv_tea_2025" });
+  assert.equal(picked[0]?.title, "2025 茶會現場");
+  assert.ok(picked.some((row) => row.title === "浮游禪光企劃"));
+});
+
 test("styleFromHits continues DNA and never says copy the old poster", () => {
   const text = styleFromHits([hit("canva", "招新版型")]);
   assert.match(text, /Canva/);

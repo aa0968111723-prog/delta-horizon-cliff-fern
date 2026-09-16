@@ -44,7 +44,8 @@ import { uid } from "@/lib/studio/ids";
 import { previewTemplate, TEMPLATE_STARTERS } from "@/lib/studio/templates";
 import type { AssetCategory, AssetMeta, AssetSourceKind, RemoteFile } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
-import { remoteMatchesQuery } from "@/lib/zen/search";
+import { createSearchFromHit } from "@/lib/studio/create-search";
+import { remoteMatchesQuery, hitFromRemote } from "@/lib/zen/search";
 import { useStudio } from "@/stores/studio-store";
 
 type FilterId = "all" | AssetCategory | "favorite";
@@ -369,9 +370,7 @@ export function AssetLibrary() {
                 <RemoteAssetRow
                   file={file}
                   onCreate={() => {
-                    const mode =
-                      file.provider === "canva" ? "from-canva" : file.provider === "instagram" ? "from-ig" : "from-drive";
-                    void navigate({ to: "/create", search: { mode, idea: file.name } });
+                    void navigate({ to: "/create", search: createSearchFromHit(hitFromRemote(file)) });
                   }}
                 />
               </li>

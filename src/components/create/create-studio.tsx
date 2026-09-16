@@ -36,7 +36,7 @@ import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction";
 import { researchInspiration } from "@/lib/zen/inspiration";
 import { offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
-import { searchCreative, groupCreativeHits, igSearchHookBlock, type CreativeHit } from "@/lib/zen/search";
+import { searchCreative, groupCreativeHits, hitFromRemote, igSearchHookBlock, type CreativeHit } from "@/lib/zen/search";
 import { pickSourceRefs, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import {
@@ -95,7 +95,13 @@ const MODE_HINT: Record<string, string> = {
 };
 
 export function CreateStudio() {
-  const search = useSearch({ strict: false }) as { mode?: string; idea?: string; asset?: string; campaign?: string };
+  const search = useSearch({ strict: false }) as {
+    mode?: string;
+    idea?: string;
+    asset?: string;
+    campaign?: string;
+    remote?: string;
+  };
   const navigate = useNavigate();
   const brands = useStudio((s) => s.brands);
   const hydrated = useStudio((s) => s.hydrated);
@@ -176,6 +182,8 @@ export function CreateStudio() {
     name: string;
     mime: string;
     base64: string;
+    src?: string;
+    source?: string;
   } | null>(null);
   const autoRan = useRef(false);
   const foundGroups = useMemo(() => groupCreativeHits(found), [found]);
@@ -230,7 +238,7 @@ export function CreateStudio() {
     } else if (search.idea) {
       setSchedule(defaultScheduleText(search.idea));
     }
-  }, [search.idea, search.campaign, search.mode, hydrated]);
+  }, [search.idea, search.campaign, search.mode, search.remote, hydrated]);
 
   const activePack = packs.find((p) => p.tone === tone) ?? packs[0];
   const mode = search.mode || "idea";
@@ -244,7 +252,7 @@ export function CreateStudio() {
   useEffect(() => {
     autoRan.current = false;
     if (!shouldReopenCampaign(search.mode, search.campaign)) eventNameTouched.current = false;
-  }, [search.idea, search.mode, search.campaign, search.asset]);
+  }, [search.idea, search.mode, search.campaign, search.asset, search.remote]);
 
   useEffect(() => {
     if (!status || !brand || !hydrated || autoRan.current) return;
@@ -256,7 +264,7 @@ export function CreateStudio() {
     if (mode === "from-image" && !search.idea) return;
     autoRan.current = true;
     void runKit(search.idea || undefined, true);
-  }, [status, brand, hydrated, mode, search.asset, search.idea, search.campaign]);
+  }, [status, brand, hydrated, mode, search.asset, search.idea, search.campaign, search.remote]);
 
   useEffect(() => {
     if (!lastImage) return;
@@ -286,12 +294,29 @@ export function CreateStudio() {
       igMemory: useStudio.getState().igMemory,
       remoteFiles: remotes,
     });
+    const remote = search.remote ? remotes.find((file) => file.id === search.remote) : undefined;
+    if (remote && !hits.some((hit) => hit.remoteId === remote.id)) {
+      hits.unshift(hitFromRemote(remote));
+    }
+    const sourceAsset = search.asset ? assets.find((item) => item.id === search.asset) : undefined;
+    if (sourceAsset && !hits.some((hit) => hit.assetId === sourceAsset.id)) {
+      hits.unshift({
+        id: `asset:${sourceAsset.id}`,
+        source: sourceAsset.source === "generated" ? "generated" : "local",
+        title: sourceAsset.name,
+        subtitle: "來源素材",
+        kind: "素材",
+        score: 99,
+        assetId: sourceAsset.id,
+        thumbnail: sourceAsset.seedSrc,
+      });
+    }
     setFound(hits.slice(0, 12));
     return hits;
   }
 
   function sourceNotes(hits: CreativeHit[]) {
-    const refs = pinned.length ? pinned : pickSourceRefs(mode, hits);
+    const refs = pickSourceRefs(mode, [...pinned, ...hits], { remoteId: search.remote, assetId: search.asset });
     const picked = refs.length ? refs : hits.slice(0, 6);
     const sources = picked.map((h) => `${sourceLine(h)}/${h.title}`).join("、") || "品牌記憶";
     return `${sources}。${styleFromHits(picked)}`.slice(0, 400);
@@ -313,7 +338,9 @@ export function CreateStudio() {
       eventName,
       beat: academicBeat(),
       learning: learningNow,
-      sources: (pinned.length ? pinned : hits).map((hit) => ({ source: hit.source, title: hit.title })),
+      sources: pickSourceRefs(mode, [...pinned, ...hits], { remoteId: search.remote, assetId: search.asset }).map(
+        (hit) => ({ source: hit.source, title: hit.title }),
+      ),
     });
     return composeMemoryHint([
       `過去表現較好的 Hook：「${ideaStudioHook(s.igMemory, idea, eventName)}」`,
@@ -531,8 +558,21 @@ export function CreateStudio() {
     if (!brand) return;
     const workingIdea = ideaOverride ?? idea;
     const hits = await gatherHits(`${workingIdea} ${typedEventName()}`.trim());
-    const refs = pinned.length ? pinned : pickSourceRefs(mode, hits);
-    if (!pinned.length && refs.length) setPinned(refs);
+    const refs = pickSourceRefs(mode, hits, { remoteId: search.remote, assetId: search.asset });
+    const extraPins = pinned.filter((row) => !refs.some((hit) => hit.id === row.id));
+    const nextPins = [...refs, ...extraPins].slice(0, 6);
+    if (nextPins.length) setPinned(nextPins);
+    const previewHit = nextPins[0];
+    if (previewHit?.thumbnail) {
+      setSourcePreview({
+        id: previewHit.remoteId || previewHit.assetId || previewHit.id,
+        name: previewHit.title,
+        mime: "image/*",
+        base64: "",
+        src: previewHit.thumbnail,
+        source: previewHit.source,
+      });
+    }
     setBusy(true);
     try {
       const kitName = campaignNameForIdea({
@@ -1258,18 +1298,28 @@ export function CreateStudio() {
         <div className="mt-3">
           <p className="text-sm font-medium">或從一張圖開始</p>
           <PhotoDrop disabled={busy} onFile={(file) => void onImage(file)} />
-          {sourcePreview ? (
+          {sourcePreview && (sourcePreview.src || sourcePreview.base64) ? (
             <figure
               className="mt-3 flex items-center gap-3 rounded-2xl bg-bg p-3"
               data-testid="source-visual"
             >
               <img
-                src={`data:${sourcePreview.mime};base64,${sourcePreview.base64}`}
+                src={
+                  sourcePreview.src ||
+                  (sourcePreview.base64 ? `data:${sourcePreview.mime};base64,${sourcePreview.base64}` : "")
+                }
                 alt={sourcePreview.name}
                 className="size-16 shrink-0 rounded-xl object-cover"
               />
-              <figcaption className="min-w-0 text-xs text-muted">
-                來源素材 · {sourcePreview.name}。會理解畫面再延續，不複製舊作品。
+              <figcaption className="min-w-0 text-xs text-muted" data-testid="source-visual-label">
+                {sourcePreview.source === "drive"
+                  ? "Google Drive"
+                  : sourcePreview.source === "canva"
+                    ? "Canva"
+                    : sourcePreview.source === "instagram"
+                      ? "Instagram"
+                      : "來源素材"}{" "}
+                · {sourcePreview.name}。會理解畫面再延續，不複製舊作品。
               </figcaption>
             </figure>
           ) : null}

@@ -16,13 +16,37 @@ function abstract(hit: CreativeHit): string {
   return "當氣氛參考。";
 }
 
-/** Prefer the source the user came from, without making them pick files first. */
-export function pickSourceRefs(mode: string, hits: CreativeHit[]): CreativeHit[] {
-  if (mode === "from-canva") return hits.filter((h) => h.source === "canva").slice(0, 4);
-  if (mode === "from-drive") return hits.filter((h) => h.source === "drive").slice(0, 4);
-  if (mode === "from-ig") return hits.filter((h) => h.source === "instagram").slice(0, 4);
-  if (mode === "from-image") return hits.filter((h) => h.source === "generated" || h.source === "local").slice(0, 4);
-  return hits.slice(0, 6);
+/** Prefer the exact file the user tapped, then the source they came from. */
+export function pickSourceRefs(
+  mode: string,
+  hits: CreativeHit[],
+  preferred?: { remoteId?: string | null; assetId?: string | null },
+): CreativeHit[] {
+  const out: CreativeHit[] = [];
+  const seen = new Set<string>();
+  function add(list: CreativeHit[]) {
+    for (const hit of list) {
+      if (seen.has(hit.id)) continue;
+      seen.add(hit.id);
+      out.push(hit);
+    }
+  }
+  if (preferred?.remoteId) {
+    add(
+      hits.filter(
+        (hit) => hit.remoteId === preferred.remoteId || hit.id === `remote:${preferred.remoteId}`,
+      ),
+    );
+  }
+  if (preferred?.assetId) {
+    add(hits.filter((hit) => hit.assetId === preferred.assetId));
+  }
+  if (mode === "from-canva") add(hits.filter((h) => h.source === "canva"));
+  else if (mode === "from-drive") add(hits.filter((h) => h.source === "drive"));
+  else if (mode === "from-ig") add(hits.filter((h) => h.source === "instagram"));
+  else if (mode === "from-image") add(hits.filter((h) => h.source === "generated" || h.source === "local"));
+  else add(hits);
+  return out.slice(0, 6);
 }
 
 /** Style brief for generators — continue DNA, never duplicate the old poster. */

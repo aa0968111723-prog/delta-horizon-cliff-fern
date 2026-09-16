@@ -99,6 +99,21 @@ export type CreativeHit = {
   url?: string;
 };
 
+export function hitFromRemote(file: RemoteFile, score = 99): CreativeHit {
+  const source = file.provider;
+  return {
+    id: `remote:${file.id}`,
+    source,
+    title: file.name,
+    subtitle: file.summary || file.provider,
+    kind: source === "drive" ? "Google Drive" : source === "canva" ? "Canva" : "Instagram",
+    score,
+    remoteId: file.id,
+    thumbnail: file.thumbnail,
+    url: file.url,
+  };
+}
+
 const WEIGHT: Record<CreativeHit["source"], number> = {
   instagram: 8,
   canva: 7,
@@ -222,17 +237,7 @@ export function searchCreative(input: {
     const source = file.provider;
     const score = scoreText(q, text, WEIGHT[source]);
     if (!q || score > WEIGHT[source]) {
-      hits.push({
-        id: `remote:${file.id}`,
-        source,
-        title: file.name,
-        subtitle: file.summary || file.provider,
-        kind: source === "drive" ? "Google Drive" : source === "canva" ? "Canva" : "Instagram",
-        score,
-        remoteId: file.id,
-        thumbnail: file.thumbnail,
-        url: file.url,
-      });
+      hits.push(hitFromRemote(file, score));
     }
   }
 

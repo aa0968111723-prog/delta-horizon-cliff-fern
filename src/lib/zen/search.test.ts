@@ -94,7 +94,9 @@ test("searchCreative groups Drive / Canva / IG for 茶會", () => {
     igMemory: [nightIg],
     remoteFiles: [teaDrive, teaCanva],
   });
-  assert.ok(hits.some((hit) => hit.title.includes("茶會") && hit.source === "drive"));
+  const drive = hits.find((hit) => hit.title.includes("茶會") && hit.source === "drive");
+  assert.ok(drive);
+  assert.equal(drive?.remoteId, "drv_tea_2025");
   assert.ok(hits.some((hit) => hit.source === "canva"));
   assert.ok(hits.some((hit) => hit.source === "instagram"));
 });

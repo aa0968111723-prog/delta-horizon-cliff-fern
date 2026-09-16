@@ -7,7 +7,7 @@ import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { calendarSearchParams } from "@/lib/studio/calendar-search";
+import { calendarSearchFromScheduled, calendarSearchParams } from "@/lib/studio/calendar-search";
 import { contentKindLabel } from "@/lib/studio/content";
 import { academicBeat, academicBeatLabel, daysUntil } from "@/lib/zen/context";
 import { ideaFromInspiration, inspirationForBeat } from "@/lib/zen/inspiration";
@@ -41,8 +41,9 @@ export function HomePage() {
     () => campaigns.filter((row) => !isEventCampaign(row)).map((row) => row.id),
     [campaigns],
   );
+  const eventCampaigns = useMemo(() => campaigns.filter(isEventCampaign), [campaigns]);
   const scheduled = homeScheduled(schedule, { eventId: upcoming?.id, pieceIds });
-  const calendarSearch = calendarSearchParams({ campaign: upcoming?.id });
+  const calendarSearch = calendarSearchFromScheduled(scheduled);
   const generated = [...projects].filter((p) => p.plan).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
   const generatedLooks = assets.filter((asset) => asset.source === "generated").slice(0, 4);
   const dna = useMemo(
@@ -79,7 +80,7 @@ export function HomePage() {
           <Sparkles className="size-4" />
           AI 創作
         </Button>
-        <Button variant="secondary" onClick={() => setSearchOpen(true)}>
+        <Button variant="secondary" data-testid="home-search" onClick={() => setSearchOpen(true)}>
           搜尋素材
         </Button>
       </div>
@@ -182,8 +183,8 @@ export function HomePage() {
             </Button>
           }
         />
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {campaigns.map((c) => (
+        <ul className="grid gap-3 sm:grid-cols-2" data-testid="home-events">
+          {eventCampaigns.map((c) => (
             <li key={c.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
               <p className="text-xs text-muted">{c.date} · {c.time}</p>
               <p className="mt-1 font-medium">{c.name}</p>
@@ -205,7 +206,7 @@ export function HomePage() {
         <SectionHeader
           title="已排程內容"
           action={
-            <Link to="/calendar" search={calendarSearch} className="text-sm text-muted">
+            <Link to="/calendar" search={calendarSearch} className="text-sm text-muted" data-testid="home-calendar">
               月曆
             </Link>
           }

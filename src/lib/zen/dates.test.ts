@@ -47,6 +47,13 @@ test("from-ig / from-image do not reopen a campaign unless the URL names it", ()
   assert.equal(shouldReopenCampaign("from-ig", "camp_tea"), true);
 });
 
+test("Drive / Canva tea files reopen 茶會 instead of becoming a Hook-named piece", () => {
+  assert.equal(shouldReopenCampaign("from-drive"), true);
+  assert.equal(shouldReopenCampaign("from-canva"), true);
+  assert.equal(campaignNameForIdea({ mode: "from-drive", idea: "2025 茶會現場" }), "茶會");
+  assert.equal(campaignNameForIdea({ mode: "from-canva", idea: "茶會 IG 主視覺" }), "茶會");
+});
+
 test("from-ig keeps the learned Hook as the name, not last week's 茶會", () => {
   assert.equal(
     campaignNameForIdea({ mode: "from-ig", idea: "可以自己來？", planName: "茶會" }),

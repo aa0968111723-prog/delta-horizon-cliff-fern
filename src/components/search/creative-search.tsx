@@ -4,8 +4,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { searchDriveLive } from "@/lib/connect/sync";
+import { createSearchFromHit, isStudioHit } from "@/lib/studio/create-search";
 import { searchCreative, groupCreativeHits, type CreativeHit } from "@/lib/zen/search";
-import { hookLine } from "@/lib/zen/insights";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
@@ -56,35 +56,11 @@ export function CreativeSearch() {
       return;
     }
     setSearchOpen(false);
-    if (hit.projectId) {
+    if (isStudioHit(hit) && hit.projectId) {
       void navigate({ to: "/studio/$projectId", params: { projectId: hit.projectId } });
       return;
     }
-    if (hit.campaignId) {
-      void navigate({ to: "/create", search: { mode: "campaign", idea: hit.title, campaign: hit.campaignId } });
-      return;
-    }
-    const idea = hit.title;
-    if (hit.source === "canva") {
-      void navigate({ to: "/create", search: { mode: "from-canva", idea } });
-      return;
-    }
-    if (hit.source === "drive") {
-      void navigate({ to: "/create", search: { mode: "from-drive", idea } });
-      return;
-    }
-    if (hit.source === "instagram") {
-      void navigate({ to: "/create", search: { mode: "from-ig", idea: hookLine(idea) } });
-      return;
-    }
-    if (hit.assetId) {
-      void navigate({
-        to: "/create",
-        search: { mode: "from-image", idea, asset: hit.assetId },
-      });
-      return;
-    }
-    void navigate({ to: "/create", search: { mode: "idea", idea } });
+    void navigate({ to: "/create", search: createSearchFromHit(hit) });
   }
 
   return (
@@ -94,6 +70,7 @@ export function CreativeSearch() {
         <div className="border-b border-border p-3">
           <Input
             autoFocus
+            data-testid="creative-search-input"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="浮游禪光、茶會、龜龜、晚上的照片…"
@@ -118,6 +95,14 @@ export function CreativeSearch() {
                         <p className="truncate text-xs text-muted">
                           {sourceLabel(hit.source)} · {hit.subtitle}
                         </p>
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="search-into-create"
+                        className="shrink-0 text-xs text-accent"
+                        onClick={() => openHit(hit, "create")}
+                      >
+                        加入創作
                       </button>
                       {hit.url ? (
                         <button

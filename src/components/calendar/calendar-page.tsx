@@ -9,7 +9,7 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { runPublishItem } from "@/lib/connect/publish-item";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { agendaSorted, firstPublishable, isDue } from "@/lib/zen/schedule";
-import { campaignsForCalendar, scheduleForCampaign } from "@/lib/studio/calendar-search";
+import { campaignsForCalendar, hasLiveEventCampaign, scheduleForCampaign } from "@/lib/studio/calendar-search";
 import { igSearchParams } from "@/lib/studio/ig-search";
 import { contentKindLabel, contentStatusLabel } from "@/lib/studio/content";
 import { uid } from "@/lib/studio/ids";
@@ -34,7 +34,11 @@ export function CalendarPage() {
   const setCreateOpen = useUi((s) => s.setCreateOpen);
   const campaignId = search.campaign;
   const focused = campaigns.find((row) => row.id === campaignId);
-  const schedule = useMemo(() => scheduleForCampaign(scheduleAll, campaignId), [scheduleAll, campaignId]);
+  const hideSeed = !campaignId && hasLiveEventCampaign(campaigns);
+  const schedule = useMemo(
+    () => scheduleForCampaign(scheduleAll, campaignId, { hideSeed }),
+    [scheduleAll, campaignId, hideSeed],
+  );
   const visibleCampaigns = useMemo(() => campaignsForCalendar(campaigns, campaignId), [campaigns, campaignId]);
   const urls = useAssetUrls(
     schedule.flatMap((item) => [item.imageAssetId, item.videoAssetId]).filter((id): id is string => Boolean(id)),

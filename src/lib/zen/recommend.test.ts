@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { HOOK_EXAMPLES } from "./context.ts";
-import { recommendCampaign, recommendHook } from "./recommend.ts";
+import { isEventCampaign, recommendCampaign, recommendHook } from "./recommend.ts";
 
 const SEED_TIME = Date.parse("2026-09-10T00:00:00+08:00");
 const NOW = new Date("2026-09-16T10:00:00+08:00");
@@ -84,4 +84,10 @@ test("a learned-Hook piece does not steal 今天推薦 from the tea-party", () =
   const hit = recommendCampaign([seed, tea, piece], NOW);
   assert.equal(hit?.id, "camp_tea");
   assert.equal(hit?.name, "茶會");
+});
+
+test("近期活動 only lists events, not a Hook-named piece", () => {
+  assert.equal(isEventCampaign({ name: "可以自己來？", type: "other" }), false);
+  assert.equal(isEventCampaign({ name: "茶會", type: "tea" }), true);
+  assert.equal(isEventCampaign({ name: "浮游禪光", type: "light" }), true);
 });

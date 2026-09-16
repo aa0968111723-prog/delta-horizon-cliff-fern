@@ -11,6 +11,7 @@ export const Route = createFileRoute("/create")({
       idea: typeof search.idea === "string" ? search.idea : undefined,
       asset: typeof search.asset === "string" ? search.asset : undefined,
       campaign: typeof search.campaign === "string" ? search.campaign : undefined,
+      remote: typeof search.remote === "string" ? search.remote : undefined,
     });
   },
   component: CreateStudio,

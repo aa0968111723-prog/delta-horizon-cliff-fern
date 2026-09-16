@@ -18,7 +18,7 @@ import { scheduleForCampaign } from "@/lib/studio/calendar-search";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { igNextReels, igStoryStrip, soonestScheduled } from "@/lib/zen/schedule";
 import { igHookAnalysis } from "@/lib/zen/review";
-import { hookLine } from "@/lib/zen/insights";
+import { createSearchFromHit } from "@/lib/studio/create-search";
 import { useStudio } from "@/stores/studio-store";
 import type { ScheduleItem } from "@/lib/studio/types";
 import { previewMediaId } from "@/lib/ai/reels-asset";
@@ -265,7 +265,18 @@ export function InstagramCenter() {
                 size="sm"
                 data-testid="ig-extend"
                 onClick={() =>
-                  void navigate({ to: "/create", search: { mode: "from-ig", idea: hookLine(post.caption) } })
+                  void navigate({
+                    to: "/create",
+                    search: createSearchFromHit({
+                      id: post.id,
+                      source: "instagram",
+                      title: post.caption,
+                      subtitle: post.date,
+                      kind: "過去 IG",
+                      score: 1,
+                      assetId: post.assetId,
+                    }),
+                  })
                 }
               >
                 從這篇延伸
