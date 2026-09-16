@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { learnFromIg } from "./insights.ts";
+import { awaitingFeel, hookLine, learnFromIg } from "./insights.ts";
 import { nextKindAfter, offsetDaysForConvertedKind, rhythmHint } from "./rhythm.ts";
 import { createPkce } from "../connect/pkce.ts";
 import { canvaBrief, canvaSize } from "../connect/canva-format.ts";
@@ -90,6 +90,63 @@ test("one-person 學生會停 beats a seed post with higher saves", () => {
   assert.match(learning.bestHookShape, /快樂/);
   assert.match(learning.promptBlock, /快樂/);
   assert.ok(learning.lessons.some((l) => l.detail.includes("學生會停")));
+});
+
+test("hookLine keeps the student question and drops hashtags", () => {
+  assert.equal(hookLine("可以自己來？\n2026/09/23 19:00，淡水校園\n#淡江 #茶會"), "可以自己來？");
+  assert.equal(hookLine("可以自己來？ #淡江大學禪學社 #茶會"), "可以自己來？");
+  assert.doesNotMatch(hookLine("可以自己來？\n來坐一下 #淡江"), /#/);
+});
+
+test("awaitingFeel is just-published local posts, not seed metrics", () => {
+  const posted = awaitingFeel([
+    {
+      id: "ig_mem_tea",
+      caption: "有時候我們需要的不是答案，只是一個安靜的晚上。",
+      date: "2025-12-04",
+      kind: "post",
+      saves: 33,
+      likes: 124,
+      source: "local",
+    },
+    {
+      id: "local:tea",
+      caption: "可以自己來？\n下週茶會。",
+      date: "2026-09-16",
+      kind: "carousel",
+      source: "local",
+    },
+  ]);
+  assert.deepEqual(
+    posted.map((post) => post.id),
+    ["local:tea"],
+  );
+});
+
+test("learnFromIg uses the first line even when the published caption has hashtags", () => {
+  const learning = learnFromIg([
+    {
+      id: "posted",
+      caption: "可以自己來？\n2026/09/23 19:00，淡水校園\n#淡江大學禪學社 #茶會",
+      date: "2026-09-16",
+      kind: "carousel",
+      source: "local",
+      feel: "strong",
+      saves: 22,
+      likes: 84,
+    },
+    {
+      id: "seed",
+      caption: "有時候我們需要的不是答案，只是一個安靜的晚上。",
+      date: "2025-12-04",
+      kind: "post",
+      saves: 33,
+      likes: 124,
+      source: "local",
+    },
+  ]);
+  assert.equal(learning.bestHookShape, "可以自己來？");
+  assert.doesNotMatch(learning.bestHookShape, /#淡江/);
 });
 
 test("rhythm avoids consecutive promo ads", () => {

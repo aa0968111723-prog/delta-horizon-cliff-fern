@@ -30,8 +30,22 @@ function score(post: IgMemoryPost) {
   );
 }
 
+/** First spoken line only — hashtags and time/place must not become the learned Hook. */
+export function hookLine(caption: string) {
+  const line = caption.trim().split(/\n/)[0] ?? "";
+  const withoutTags = line.replace(/\s*[#＃].*$/, "").trim();
+  return (withoutTags || line).slice(0, 48);
+}
+
 function firstLine(caption: string) {
-  return caption.trim().split(/\n/)[0]?.slice(0, 48) || "";
+  return hookLine(caption);
+}
+
+/** Just-published local posts with no feel yet — Home can mark 學生會停 without opening IG. */
+export function awaitingFeel(posts: IgMemoryPost[]): IgMemoryPost[] {
+  return posts
+    .filter((post) => !post.feel && post.saves == null && post.likes == null)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
 }
 
 function captionChars(caption: string) {

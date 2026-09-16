@@ -12,7 +12,8 @@ import { contentKindLabel } from "@/lib/studio/content";
 import { academicBeat, academicBeatLabel, daysUntil } from "@/lib/zen/context";
 import { ideaFromInspiration, inspirationForBeat } from "@/lib/zen/inspiration";
 import { clubCreativeDna } from "@/lib/zen/dna";
-import { learnFromIg } from "@/lib/zen/insights";
+import { feelLabel, type PostFeel } from "@/lib/zen/feel";
+import { awaitingFeel, hookLine, learnFromIg } from "@/lib/zen/insights";
 import { recommendCampaign, recommendHook } from "@/lib/zen/recommend";
 import { soonestScheduled, isDue } from "@/lib/zen/schedule";
 import { useStudio } from "@/stores/studio-store";
@@ -25,6 +26,7 @@ export function HomePage() {
   const navigate = useNavigate();
   const setCreateOpen = useUi((s) => s.setCreateOpen);
   const setSearchOpen = useUi((s) => s.setSearchOpen);
+  const rateIgMemory = useStudio((s) => s.rateIgMemory);
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
@@ -45,6 +47,8 @@ export function HomePage() {
   );
   const learning = useMemo(() => learnFromIg(igMemory), [igMemory]);
   const strong = learning.ranked[0];
+  const strongHook = strong ? hookLine(strong.caption) : "";
+  const pendingFeel = awaitingFeel(igMemory)[0];
   const beat = academicBeat();
   const inspiration = useMemo(() => inspirationForBeat(beat), [beat]);
 
@@ -273,18 +277,40 @@ export function HomePage() {
         </ul>
       </section>
 
+      {pendingFeel ? (
+        <section className="mt-10 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]" data-testid="home-awaiting-feel">
+          <SectionHeader title="剛發布" hint="標記學生會不會停，下次生成會學" />
+          <p className="text-sm">「{hookLine(pendingFeel.caption)}」</p>
+          <p className="mt-1 text-xs text-muted">{pendingFeel.date} · 還沒有效數，先靠你看</p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {(["strong", "ok", "weak"] as PostFeel[]).map((feel) => (
+              <Button
+                key={feel}
+                size="sm"
+                className="min-h-11"
+                variant="secondary"
+                data-testid={feel === "strong" ? "home-rate-strong" : undefined}
+                onClick={() => rateIgMemory(pendingFeel.id, feel)}
+              >
+                {feelLabel(feel)}
+              </Button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {strong ? (
-        <section className="mt-10 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <section className="mt-10 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]" data-testid="home-learned">
           <SectionHeader title="過去表現不錯" hint="用來改善下一次，不是報表牆" />
-          <p className="text-sm">「{strong.caption}」</p>
+          <p className="text-sm">「{strongHook}」</p>
           <p className="mt-1 text-xs text-muted">
             {strong.date} · 收藏 {strong.saves ?? 0} · {strong.analysis || "生活問句當 Hook 比較容易停。"}
           </p>
           <Button
-            className="mt-3"
+            className="mt-3 min-h-11"
             size="sm"
             variant="secondary"
-            onClick={() => void navigate({ to: "/create", search: { mode: "from-ig", idea: strong.caption } })}
+            onClick={() => void navigate({ to: "/create", search: { mode: "from-ig", idea: strongHook } })}
           >
             用這個 Hook 再寫一篇
           </Button>
