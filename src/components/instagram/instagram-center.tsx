@@ -764,6 +764,34 @@ export function InstagramCenter() {
                       ) : null}
                     </div>
                   </div>
+                  <div className="mt-3 flex min-w-0 flex-col gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      data-testid="preview-canva"
+                      disabled={canvaBusy}
+                      onClick={() => void sendPreviewToCanva()}
+                    >
+                      {canvaBusy ? "送出中…" : "送到 Canva 微調"}
+                    </Button>
+                    <PublishIgButton
+                      caption={caption}
+                      imageSrc={previewImageSrc}
+                      onPublished={() => rememberPreviewPublished()}
+                    />
+                    {alreadyOnCalendar ? (
+                      <Button size="sm" variant="ghost" asChild>
+                        <Link to="/calendar">已排進日曆</Link>
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="secondary" onClick={scheduleCurrent} disabled={!caption.trim()}>
+                        排進日曆
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={rememberPreviewPublished} disabled={!caption.trim()}>
+                      寫進過去 IG
+                    </Button>
+                  </div>
                   {filmstrip && filmstrip.assetIds.length > 1 ? (
                     <div className="mt-3 w-full min-w-0 overflow-x-auto overscroll-x-contain lg:hidden">
                       <SuiteFilmstrip
@@ -791,32 +819,36 @@ export function InstagramCenter() {
               <Button size="sm" onClick={saveCaption} disabled={!previewProject}>
                 更新文案
               </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                data-testid="preview-canva"
-                disabled={canvaBusy}
-                onClick={() => void sendPreviewToCanva()}
-              >
-                {canvaBusy ? "送出中…" : "送到 Canva 微調"}
-              </Button>
-              {alreadyOnCalendar ? (
-                <Button size="sm" variant="ghost" asChild>
-                  <Link to="/calendar">已排進日曆</Link>
-                </Button>
-              ) : (
-                <Button size="sm" variant="secondary" onClick={scheduleCurrent} disabled={!caption.trim()}>
-                  排進日曆
-                </Button>
-              )}
-              <PublishIgButton
-                caption={caption}
-                imageSrc={previewImageSrc}
-                onPublished={() => rememberPreviewPublished()}
-              />
-              <Button size="sm" variant="ghost" onClick={rememberPreviewPublished} disabled={!caption.trim()}>
-                寫進過去 IG
-              </Button>
+              {!lastPack || !lastVisualAssetId ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    data-testid="preview-canva"
+                    disabled={canvaBusy}
+                    onClick={() => void sendPreviewToCanva()}
+                  >
+                    {canvaBusy ? "送出中…" : "送到 Canva 微調"}
+                  </Button>
+                  {alreadyOnCalendar ? (
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link to="/calendar">已排進日曆</Link>
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="secondary" onClick={scheduleCurrent} disabled={!caption.trim()}>
+                      排進日曆
+                    </Button>
+                  )}
+                  <PublishIgButton
+                    caption={caption}
+                    imageSrc={previewImageSrc}
+                    onPublished={() => rememberPreviewPublished()}
+                  />
+                  <Button size="sm" variant="ghost" onClick={rememberPreviewPublished} disabled={!caption.trim()}>
+                    寫進過去 IG
+                  </Button>
+                </>
+              ) : null}
               {previewScript ? (
                 <FormatScriptPanel
                   script={previewScript}
