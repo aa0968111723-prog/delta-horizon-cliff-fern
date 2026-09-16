@@ -184,8 +184,8 @@ try {
   await expectText("LINE 橫式", "1.91:1");
   await expectText("LINE 預覽", "LINE 預覽");
   await expectText("複製 LINE 文案", "複製 LINE 文案");
-  await expectText("LINE 橫式畫面在下面", "1.91:1 畫面在下面");
   await page.waitForSelector('[data-testid="line-preview"][data-variant="compact"]', { timeout: 8000 });
+  await expectText("LINE 橫式畫面在下面", "1.91:1 畫面在下面");
   await page.waitForSelector('[data-testid="artboard-photo"]', { timeout: 15000 });
   const linePhoto = await page
     .getByTestId("artboard")
@@ -214,12 +214,12 @@ try {
   await page.waitForSelector("text=改這裡只影響目前這一頁", { timeout: 8000 });
   await expectText("LINE 完整文案在文字", "改這裡只影響目前這一頁");
   await page.screenshot({ path: `${prefix}-line.png` });
-  await tap(page.getByRole("button", { name: /做成Threads/ }));
+  await tap(page.getByRole("button", { name: /做成Threads/ }).first());
   await page.waitForSelector("text=Threads 預覽", { timeout: 15000 });
   await expectText("Threads 預覽", "Threads 預覽");
   await expectText("複製 Threads 文案", "複製 Threads 文案");
   await page.screenshot({ path: `${prefix}-threads.png` });
-  await tap(page.getByRole("button", { name: /做成Reels/ }));
+  await tap(page.getByRole("button", { name: /做成Reels/ }).first());
   await page.waitForSelector("text=Reels 預覽", { timeout: 15000 });
   await expectText("Reels 預覽", "Reels 預覽");
   await expectText("轉換後可複製腳本", "複製整支腳本");
