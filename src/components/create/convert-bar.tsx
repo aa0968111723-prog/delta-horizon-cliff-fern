@@ -1,8 +1,8 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Repeat2 } from "lucide-react";
+import { Repeat2, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { CONVERT_TARGETS } from "@/lib/studio/convert";
+import { CONVERT_TARGETS, remainingConvertTargets } from "@/lib/studio/convert";
 import type { ContentKind, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
@@ -16,6 +16,7 @@ export function ConvertBar({
 }) {
   const navigate = useNavigate();
   const convertProject = useStudio((s) => s.convertProject);
+  const remaining = remainingConvertTargets(project.contentKind);
 
   function run(kind: ContentKind) {
     const next = convertProject(project.id, kind);
@@ -27,12 +28,23 @@ export function ConvertBar({
     void navigate({ to: "/studio/$projectId", params: { projectId: next.id } });
   }
 
+  function runPack() {
+    const made = remaining
+      .map((item) => convertProject(project.id, item.id))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    if (!made.length) {
+      toast.info("沒有其他型態可以做。");
+      return;
+    }
+    toast.success(`已做成 ${made.map((item) => CONVERT_TARGETS.find((t) => t.id === item.contentKind)?.label).join("、")}。原本那則還在。`);
+  }
+
   return (
     <div className={cn("space-y-2", className)}>
       <p className="text-sm font-medium">做成其他型態</p>
       <p className="text-xs text-muted">一則內容可以變成貼文、輪播、限動、Threads、LINE 圖或 Reels，原本那則不會被蓋掉。</p>
       <div className="flex flex-wrap gap-2">
-        {CONVERT_TARGETS.filter((item) => item.id !== project.contentKind).map((item) => (
+        {remaining.map((item) => (
           <Button
             key={item.id}
             size="sm"
@@ -44,6 +56,12 @@ export function ConvertBar({
             {item.label}
           </Button>
         ))}
+        {remaining.length > 1 ? (
+          <Button size="sm" variant="ghost" aria-label="一次做成全套" onClick={runPack}>
+            <Layers className="size-4" aria-hidden />
+            一次做成全套
+          </Button>
+        ) : null}
       </div>
     </div>
   );

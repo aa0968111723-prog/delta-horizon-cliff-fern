@@ -86,6 +86,20 @@ try {
   await expectText("建立內容後回到創作頁", "進畫面編輯");
   await expectText("來源標示", "這則用到的來源");
   await expectText("完成這則", "這則完成了");
+  await expectText("發文包", "複製發文文案");
+  await expectText("做成全套", "一次做成全套");
+  await page.getByText("發這則").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${prefix}-post-pack.png` });
+  await page.getByRole("button", { name: /做成.*LINE/ }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForURL(/\/studio\//, { timeout: 15000 });
+  await page.waitForLoadState("networkidle");
+  const linePage = await text();
+  record("LINE 橫式", linePage.includes("1.91:1") || linePage.includes("LINE"), "轉換 LINE 後不是橫式");
+  await page.screenshot({ path: `${prefix}-line.png` });
+  await page.goBack({ waitUntil: "networkidle" });
+  await page.waitForSelector("text=這則完成了", { timeout: 15000 });
   await page.getByRole("button", { name: "這則完成了" }).first().evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );

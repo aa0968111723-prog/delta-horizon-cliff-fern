@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyFlowToProject, flowActions, primaryFlowAction, statusLabel } from "./status.ts";
+import { applyFlowToProject, flowActions, inferContentKind, primaryFlowAction, statusLabel } from "./status.ts";
 
 test("flowActions for making starts with 這則完成了", () => {
   assert.equal(primaryFlowAction("making")?.id, "done");
@@ -57,4 +57,10 @@ test("unschedule clears the calendar slot", () => {
   );
   assert.equal(next.status, "done");
   assert.equal(next.scheduledAt, null);
+});
+
+test("inferContentKind maps landscape to LINE", () => {
+  assert.equal(inferContentKind("feed-landscape", 1), "line");
+  assert.equal(inferContentKind("reels-cover", 1), "reels");
+  assert.equal(inferContentKind("story", 3), "story");
 });

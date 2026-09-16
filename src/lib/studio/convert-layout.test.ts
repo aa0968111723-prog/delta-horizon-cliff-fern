@@ -102,3 +102,12 @@ test("reelsFromCopy uses headline and schedule instead of generic mock lines", (
   assert.ok(reels.beats[0]?.caption.includes("第一次來"));
   assert.ok(reels.beats.some((beat) => beat.caption.includes("週三") || beat.caption.includes("B302")));
 });
+
+test("convertContent to LINE uses landscape 1.91:1", () => {
+  const brand = createEmptyBrand("禪學社");
+  const next = convertContent(sampleProject(), brand, "line");
+  assert.equal(next.contentKind, "line");
+  assert.equal(next.activeFormatId, "feed-landscape");
+  assert.ok(pagesOf(next)[0]);
+  assert.equal(pagesOf(next)[0]?.formatId, "feed-landscape");
+});

@@ -175,6 +175,31 @@ test("waveProjectFields for reels uses the cover format", () => {
   assert.equal(fields.brief.deliverables.reels, true);
 });
 
+test("waveProjectFields for LINE uses landscape", () => {
+  const fields = waveProjectFields({
+    brandId: "brand",
+    campaign: {
+      id: "camp_1",
+      name: "浮游禪光",
+      date: "2026-09-24",
+      time: "19:00",
+      location: "商管 B302",
+      oneLiner: "",
+      intro: "",
+      audienceIds: [],
+    },
+    wave: {
+      title: "社群轉發",
+      kind: "line",
+      hook: "晚上七點，商管 B302",
+      note: "",
+      stage: "提醒",
+    },
+  });
+  assert.equal(fields.formatId, "feed-landscape");
+  assert.equal(fields.contentKind, "line");
+});
+
 function wave(patch: Partial<CampaignWave> & { id: string }): CampaignWave {
   return {
     offsetDays: 0,

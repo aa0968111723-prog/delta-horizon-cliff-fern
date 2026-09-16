@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CopyDraftCard, copyDraftText } from "@/components/create/copy-results";
 import { ConvertBar } from "@/components/create/convert-bar";
+import { PostPackBar } from "@/components/create/post-pack";
 import { ImageUnderstanding, type ImageMakePayload } from "@/components/create/image-understanding";
 import { ReelsTimeline } from "@/components/create/reels-timeline";
 import { SourceList } from "@/components/shared/source-list";
@@ -425,6 +426,65 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       toast.success(created ? "已建立內容，可以進畫面編輯了" : "已套用到這則內容");
     }
     return target.id;
+  }
+
+  function attachGeneratedImage(assetId: string, direction: VisualDirection) {
+    if (!brand) {
+      toast.error("找不到品牌設定。");
+      return;
+    }
+    let projectId = linkedProject?.id ?? null;
+    if (!projectId) {
+      const draft = (usedDraftId ? drafts.find((item) => item.id === usedDraftId) : null) ?? drafts[0];
+      projectId = draft ? commitDraft(draft, { quiet: true }) ?? null : null;
+    }
+    if (!projectId) {
+      const meta = CONTENT_KIND_META[kind];
+      const created = createProject({
+        name: (direction.headline.split("\n")[0] || direction.title).slice(0, 18) || "視覺草稿",
+        brandId: brand.id,
+        formatId: meta.formatId,
+        contentKind: kind,
+        campaignId: campaign?.id ?? null,
+        status: "making",
+        brief: {
+          product: eventName || direction.title,
+          eventName: eventName || direction.title,
+          schedule: schedule.trim(),
+          location: location.trim(),
+          offer: campaign?.oneLiner ?? "",
+          audience: audienceIds.join("、"),
+          goal: "awareness",
+          features: idea.trim() || direction.concept,
+          style: direction.imagePrompt,
+          notes: painPoint.trim(),
+          deliverables: deliverablesForKind(kind),
+        },
+        sources: [{ kind: "generated", label: "AI 生成圖片", detail: direction.title, assetId }],
+      });
+      projectId = created.id;
+      if (direction.headline) {
+        setCopy(projectId, { headline: direction.headline, subhead: direction.subhead });
+      }
+    }
+    const applied =
+      kind === "reels" ? applyCoverAsset(projectId, assetId) : applyVisualAsset(projectId, assetId);
+    if (!applied) {
+      toast.error("套不到畫面，再試一次。");
+      return;
+    }
+    if (!linkedProject) {
+      void navigate({
+        to: "/create",
+        search: {
+          contentId: projectId,
+          kind,
+          campaignId: campaign?.id,
+          seed: search.seed,
+        },
+      });
+    }
+    toast.success("已套成這則的主視覺，可以下載圖或進畫面編輯。");
   }
 
   async function makeFromImage(payload: ImageMakePayload) {
@@ -974,12 +1034,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
                       toast.info("先選一個文案版本建立內容，才有畫面可以套用。");
                     }
                   }}
-                  onImageSaved={(assetId) => {
-                    if (!linkedProject) return;
-                    addSources(linkedProject.id, [
-                      { kind: "generated", label: "AI 生成圖片", detail: direction.title, assetId },
-                    ]);
-                  }}
+                  onImageSaved={(assetId) => attachGeneratedImage(assetId, direction)}
                 />
               </li>
             ))}
@@ -1000,7 +1055,8 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       ) : null}
 
       {linkedProject ? (
-        <section className="mt-8 space-y-4 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <section className="mt-8 space-y-6 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <PostPackBar copy={linkedProject.copy} kind={linkedProject.contentKind} projectId={linkedProject.id} />
           <ContentFlowBar project={linkedProject} />
           <ConvertBar project={linkedProject} />
         </section>

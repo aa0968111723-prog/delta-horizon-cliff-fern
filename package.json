@@ -16,7 +16,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/studio/brand.test.ts src/lib/studio/brief.test.ts src/lib/studio/carousel.test.ts src/lib/studio/convert.test.ts src/lib/studio/convert-layout.test.ts src/lib/studio/ideas.test.ts src/lib/studio/quality.test.ts src/lib/studio/reels-cover.test.ts src/lib/studio/ig-dna.test.ts src/lib/studio/schedule.test.ts src/lib/studio/sources.test.ts src/lib/studio/assets.test.ts src/lib/studio/status.test.ts src/lib/studio/wave-draft.test.ts src/lib/connections/media.test.ts src/lib/ai/imagine-request.test.ts src/lib/ai/mock.test.ts src/lib/ai/edit-mock.test.ts",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/studio/brand.test.ts src/lib/studio/brief.test.ts src/lib/studio/carousel.test.ts src/lib/studio/convert.test.ts src/lib/studio/convert-layout.test.ts src/lib/studio/ideas.test.ts src/lib/studio/quality.test.ts src/lib/studio/reels-cover.test.ts src/lib/studio/ig-dna.test.ts src/lib/studio/schedule.test.ts src/lib/studio/sources.test.ts src/lib/studio/assets.test.ts src/lib/studio/status.test.ts src/lib/studio/wave-draft.test.ts src/lib/studio/post-pack.test.ts src/lib/connections/media.test.ts src/lib/ai/imagine-request.test.ts src/lib/ai/mock.test.ts src/lib/ai/edit-mock.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

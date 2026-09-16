@@ -3,12 +3,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { canvasToBlob, collectArtboardAssetIds, downloadBlob, renderArtboardToCanvas } from "@/lib/studio/export-png";
-import { convertCopy } from "@/lib/studio/convert-copy";
 import { formatById } from "@/lib/studio/formats";
 import { getAssetBlob, hydrateSeedAsset } from "@/lib/studio/assets-idb";
 import { isDisplayableImageBlob, pickExportImageSource } from "@/lib/studio/assets";
 import { uid } from "@/lib/studio/ids";
 import { pagesOf } from "@/lib/studio/layers";
+import { igPostText, packStats, packLimit, threadsPostText } from "@/lib/studio/post-pack";
 import type { Artboard, AssetMeta, BrandKit, Project } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
 
@@ -179,19 +179,24 @@ export function ExportPanel({
         variant="secondary"
         className="w-full"
         onClick={async () => {
-          const text = `${project.copy.caption}\n\n${project.copy.hashtags.join(" ")}`.trim();
+          const text = igPostText(project.copy);
           await navigator.clipboard.writeText(text);
           toast.success("已複製貼文文案");
         }}
       >
         複製貼文文案
       </Button>
+      <p className="text-xs tabular-nums text-muted">
+        {(() => {
+          const stats = packStats(igPostText(project.copy), packLimit("ig"));
+          return `貼文 ${stats.length} / ${stats.limit} 字${stats.over ? "，超過上限了" : ""}`;
+        })()}
+      </p>
       <Button
         variant="secondary"
         className="w-full"
         onClick={async () => {
-          const threads = convertCopy(project.copy, "threads");
-          await navigator.clipboard.writeText(threads.caption);
+          await navigator.clipboard.writeText(threadsPostText(project.copy));
           toast.success("已複製 Threads 文案");
         }}
       >

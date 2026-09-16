@@ -88,7 +88,7 @@ export const CONTENT_KIND_META: Record<
   story: { label: "限時動態", hint: "9:16，三到五張。", formatId: "story", slides: 3 },
   reels: { label: "Reels", hint: "短影音腳本＋封面。", formatId: "reels-cover", slides: 1 },
   threads: { label: "Threads", hint: "純文字為主，語氣更口語。", formatId: "feed-square", slides: 1 },
-  line: { label: "LINE 宣傳圖", hint: "群組轉發用，資訊要一眼看完。", formatId: "feed-square", slides: 1 },
+  line: { label: "LINE 宣傳圖", hint: "群組轉發用，橫式 1.91:1，時間地點一眼看完。", formatId: "feed-landscape", slides: 1 },
   poster: { label: "海報", hint: "實體或系板張貼。", formatId: "feed-portrait", slides: 1 },
   recap: { label: "活動回顧", hint: "活動後兩天內發效果最好。", formatId: "feed-portrait", slides: 3 },
   "member-story": { label: "社員故事", hint: "真人真話，最能建立信任。", formatId: "feed-portrait", slides: 1 },
@@ -153,6 +153,7 @@ export function migrateStatus(raw: unknown, hasPlan: boolean): ContentStatus {
 export function inferContentKind(formatId: FormatId, slideCount: number): ContentKind {
   if (formatId === "story") return slideCount > 1 ? "story" : "countdown";
   if (formatId === "reels-cover") return "reels";
+  if (formatId === "feed-landscape") return "line";
   if (slideCount > 1) return "carousel";
   return "ig-post";
 }

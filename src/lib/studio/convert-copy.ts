@@ -7,12 +7,17 @@ export const CONVERT_TARGETS: { id: ContentKind; label: string; hint: string }[]
   { id: "carousel", label: "輪播", hint: "拆成五頁把一件事講完" },
   { id: "story", label: "限動", hint: "三張：鉤子、資訊、行動" },
   { id: "threads", label: "Threads", hint: "純文字、更口語" },
-  { id: "line", label: "LINE 圖", hint: "一眼看完時間地點" },
+  { id: "line", label: "LINE 圖", hint: "橫式 1.91:1，一眼看完時間地點" },
   { id: "reels", label: "Reels", hint: "腳本加上封面" },
 ];
 
 export function convertTargetLabel(kind: ContentKind) {
   return CONVERT_TARGETS.find((item) => item.id === kind)?.label ?? contentKindLabel(kind);
+}
+
+/** 這則還沒做成的型態。一次做成全套時走這裡。 */
+export function remainingConvertTargets(kind: ContentKind) {
+  return CONVERT_TARGETS.filter((item) => item.id !== kind);
 }
 
 function firstLines(text: string, n: number): string {

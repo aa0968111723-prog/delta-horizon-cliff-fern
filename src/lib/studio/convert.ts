@@ -5,14 +5,14 @@ import {
   copyForCarouselPage,
   stampSlideMeta,
 } from "./carousel.ts";
-import { convertCopy } from "./convert-copy.ts";
 import { uid } from "./ids.ts";
 import { buildLayout, extractImageAssetId } from "./layout.ts";
 import { MAX_SLIDES, pagesOf } from "./layers.ts";
 import { CONTENT_KIND_META, contentKindLabel, deliverablesForKind, kindUsesPagedLayout } from "./status.ts";
 import type { Artboard, BrandKit, ContentKind, CopyDeck, Project, ReelsScript } from "./types.ts";
+import { convertCopy } from "./convert-copy.ts";
 
-export { CONVERT_TARGETS, convertCopy, convertTargetLabel } from "./convert-copy.ts";
+export { CONVERT_TARGETS, convertCopy, convertTargetLabel, remainingConvertTargets } from "./convert-copy.ts";
 
 function firstLine(text: string): string {
   return text.split("\n").map((line) => line.trim()).filter(Boolean)[0] ?? "";

@@ -33,6 +33,7 @@ export function VisualDirectionCard({
   const [ratio, setRatio] = useState<(typeof RATIOS)[number]["id"]>(preferredRatio);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [lastAssetId, setLastAssetId] = useState<string | null>(null);
 
   useEffect(() => {
     setRatio(preferredRatio);
@@ -56,6 +57,7 @@ export function VisualDirectionCard({
         tags: [direction.title, ratio],
       });
       addAsset(meta);
+      setLastAssetId(meta.id);
       onImageSaved?.(meta.id);
       toast.success("圖片已存進素材庫");
     } catch {
@@ -132,6 +134,19 @@ export function VisualDirectionCard({
             {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
             {preview ? "換一張" : "生成圖片"}
           </Button>
+          {preview && onImageSaved ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                const id = lastAssetId;
+                if (id) onImageSaved(id);
+              }}
+              disabled={!lastAssetId}
+            >
+              用這張當主視覺
+            </Button>
+          ) : null}
           {preview ? (
             <Button size="sm" variant="ghost" asChild>
               <a href={preview} download={`${direction.title}.png`}>

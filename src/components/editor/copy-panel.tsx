@@ -1,9 +1,9 @@
 import { ConvertBar } from "@/components/create/convert-bar";
+import { PostPackBar } from "@/components/create/post-pack";
 import { ReelsTimeline } from "@/components/create/reels-timeline";
 import { ContentFlowBar } from "@/components/shared/content-flow";
 import { SourceList } from "@/components/shared/source-list";
 import type { ReactNode } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,28 +62,7 @@ export function CopyPanel({ project }: { project: Project }) {
           onChange={(e) => setCopy(project.id, { caption: e.target.value })}
         />
       </Field>
-      <div className="flex gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={async () => {
-            await navigator.clipboard.writeText(project.copy.caption);
-            toast.success("已複製 Caption");
-          }}
-        >
-          複製文案
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={async () => {
-            await navigator.clipboard.writeText(project.copy.hashtags.join(" "));
-            toast.success("已複製標籤");
-          }}
-        >
-          複製標籤
-        </Button>
-      </div>
+      <PostPackBar copy={project.copy} kind={project.contentKind} projectId={project.id} />
       <p className="text-xs leading-relaxed text-muted">{project.copy.hashtags.join(" ")}</p>
       <ContentFlowBar project={project} className="pt-2" />
       <SourceList sources={project.sources} className="pt-2" />
