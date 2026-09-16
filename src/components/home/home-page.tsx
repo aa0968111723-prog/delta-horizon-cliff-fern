@@ -40,6 +40,7 @@ export function HomePage() {
   const memory = useCreative((s) => s.memory);
   const setLastPack = useCreative((s) => s.setLastPack);
   const lastPack = useCreative((s) => s.lastPack);
+  const setCreateIntent = useCreative((s) => s.setCreateIntent);
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -225,6 +226,21 @@ export function HomePage() {
               <p className="text-xs text-muted">{seed.watch}</p>
               <p className="mt-2 text-sm font-medium">{seed.zenClub.hook}</p>
               <p className="mt-1 text-xs text-muted">{seed.zenClub.why}</p>
+              <Button
+                className="mt-3"
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setCreateIntent({
+                    idea: seed.zenClub.hook,
+                    kind: "emotion",
+                    autoGenerate: true,
+                  });
+                  void navigate({ to: "/create" });
+                }}
+              >
+                用這個 Hook 創作
+              </Button>
             </li>
           ))}
         </ul>
@@ -247,21 +263,29 @@ export function HomePage() {
         <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
           {(
             [
-              ["生成 IG 貼文", "/create"],
-              ["生成圖片", "/create/image"],
-              ["從一張圖片開始", "/create/image"],
-              ["生成 Story", "/create"],
-              ["生成 Carousel", "/create"],
-              ["生成 Reels", "/create"],
-              ["建立活動", "/campaigns"],
-              ["從 Drive 素材", "/connect"],
-              ["從 Canva 設計", "/connect"],
-              ["從以前 IG", "/instagram"],
-              ["靈感研究", "/inspire"],
+              { label: "生成 IG 貼文", to: "/create", intent: { idea: "下週有一場茶會", kind: "event", autoGenerate: false } },
+              { label: "生成圖片", to: "/create/image" },
+              { label: "從一張圖片開始", to: "/create/image" },
+              { label: "生成 Story", to: "/create", intent: { idea: "把活動做成 3 到 5 張限動", kind: "story", autoGenerate: true } },
+              { label: "生成 Carousel", to: "/create", intent: { idea: "茶會 Carousel，第一頁先講生活", kind: "carousel", autoGenerate: true } },
+              { label: "生成 Reels", to: "/create", intent: { idea: "茶會 Reels，前三秒先讓學生停下來", kind: "reels", autoGenerate: true } },
+              { label: "建立活動", to: "/campaigns" },
+              { label: "從 Drive 素材", to: "/connect" },
+              { label: "從 Canva 設計", to: "/connect" },
+              { label: "從以前 IG", to: "/instagram" },
+              { label: "靈感研究", to: "/inspire" },
             ] as const
-          ).map(([label, to]) => (
-            <Link key={label} to={to} className="rounded-2xl bg-surface px-4 py-4 text-sm shadow-[var(--shadow-border)]">
-              {label}
+          ).map((item) => (
+            <Link
+              key={item.label}
+              to={item.to}
+              onClick={() => {
+                if ("intent" in item && item.intent) setCreateIntent(item.intent);
+                else setCreateIntent(null);
+              }}
+              className="rounded-2xl bg-surface px-4 py-4 text-sm shadow-[var(--shadow-border)]"
+            >
+              {item.label}
             </Link>
           ))}
         </div>

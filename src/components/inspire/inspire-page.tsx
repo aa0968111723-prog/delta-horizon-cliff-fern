@@ -7,7 +7,7 @@ import { useCreative } from "@/stores/creative-store";
 
 export function InspirePage() {
   const navigate = useNavigate();
-  const setSearchQuery = useCreative((s) => s.setSearchQuery);
+  const setCreateIntent = useCreative((s) => s.setCreateIntent);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
@@ -47,7 +47,11 @@ export function InspirePage() {
                 className="mt-4"
                 size="sm"
                 onClick={() => {
-                  setSearchQuery(seed.zenClub.hook);
+                  setCreateIntent({
+                    idea: seed.zenClub.hook,
+                    kind: "emotion",
+                    autoGenerate: true,
+                  });
                   void navigate({ to: "/create" });
                 }}
               >

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { creativeSearch, expandCreativeQuery, groupSearchHits } from "./search.ts";
-import { applyPackToWaves, emptyCampaign, scheduleItemsFromCampaign, suggestWaves } from "./schedule.ts";
+import { applyPackToWaves, copyKindForWave, emptyCampaign, nextWaveAngle, nextWaveVisual, scheduleItemsFromCampaign, suggestWaves } from "./schedule.ts";
+import { canvaDraftNotes, canvaDraftTitle, canvaPresetForKind } from "./canva-draft.ts";
 import { convertFromPlan, CONVERT_TARGETS, briefFlagsForTarget, captionForTarget } from "./convert.ts";
 import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
 import { applyStudentRewrite } from "./review.ts";
@@ -338,4 +339,31 @@ test("applyPackToWaves fills every wave without owners", () => {
   assert.ok(next.waves.every((wave) => (wave.copyPreview ?? "").length > 0));
   assert.ok(next.tagline.includes("休息") || next.tagline.includes("坐好"));
   assert.ok(next.waves.every((wave) => !("assignee" in wave)));
+});
+
+test("nextWaveAngle and nextWaveVisual rotate without owners", () => {
+  const first = nextWaveAngle("emotion", 0);
+  const second = nextWaveAngle("emotion", first.index);
+  assert.notEqual(first.angle, second.angle);
+  const visual = nextWaveVisual("我要宣傳茶會", 0);
+  assert.ok(visual.direction.imagePrompt.length > 10);
+  assert.equal(visual.index, 1);
+});
+
+test("copy kinds include Q&A poll and member stories", async () => {
+  const { COPY_KIND_IDS } = await import("./voice.ts");
+  assert.ok(COPY_KIND_IDS.includes("qa"));
+  assert.ok(COPY_KIND_IDS.includes("poll"));
+  assert.ok(COPY_KIND_IDS.includes("member"));
+  assert.equal(copyKindForWave("day-of"), "story");
+  assert.equal(copyKindForWave("emotion"), "emotion");
+});
+
+test("canva draft title includes hook and stays short", () => {
+  const title = canvaDraftTitle("浮游禪光", "最近是不是很久沒有好好坐下來？");
+  assert.match(title, /浮游禪光/);
+  assert.ok(title.length <= 50);
+  assert.equal(canvaPresetForKind("story"), "instagramStory");
+  assert.equal(canvaPresetForKind("reels"), "instagramReel");
+  assert.match(canvaDraftNotes({ hook: "坐好", cta: "晚上見", signupUrl: "https://forms" }), /報名/);
 });

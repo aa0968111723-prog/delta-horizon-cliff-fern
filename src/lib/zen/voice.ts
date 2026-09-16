@@ -92,3 +92,24 @@ export const COPY_STYLES = [
 ] as const;
 
 export type CopyStyleId = (typeof COPY_STYLES)[number]["id"];
+
+export const COPY_KIND_OPTIONS = [
+  { id: "event", label: "活動宣傳" },
+  { id: "emotion", label: "情緒共鳴" },
+  { id: "campus", label: "校園生活" },
+  { id: "recruit", label: "招生" },
+  { id: "member", label: "社員故事" },
+  { id: "zen-life", label: "禪生活" },
+  { id: "countdown", label: "倒數" },
+  { id: "recap", label: "活動回顧" },
+  { id: "knowledge", label: "知識型" },
+  { id: "qa", label: "Q&A" },
+  { id: "poll", label: "互動投票" },
+  { id: "carousel", label: "Carousel" },
+  { id: "reels", label: "Reels" },
+  { id: "story", label: "Story" },
+] as const;
+
+export type CopyKindId = (typeof COPY_KIND_OPTIONS)[number]["id"];
+
+export const COPY_KIND_IDS = COPY_KIND_OPTIONS.map((item) => item.id) as [CopyKindId, ...CopyKindId[]];

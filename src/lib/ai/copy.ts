@@ -1,31 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { systemPrompt } from "@/lib/zen/voice";
-import { COPY_STYLES } from "@/lib/zen/voice";
+import { COPY_KIND_IDS, COPY_STYLES, systemPrompt } from "@/lib/zen/voice";
 import { applyStudentRewrite } from "@/lib/zen/review";
 import type { CopyPack } from "@/lib/zen/types";
 import { describeAdapter } from "./campaign";
 
 const CopyInput = z.object({
   idea: z.string().min(1).max(500),
-  kind: z.enum([
-    "event",
-    "emotion",
-    "campus",
-    "recruit",
-    "member",
-    "zen-life",
-    "countdown",
-    "recap",
-    "knowledge",
-    "carousel",
-    "reels",
-    "story",
-  ]),
+  kind: z.enum(COPY_KIND_IDS),
   style: z.string().max(40).optional(),
   eventName: z.string().max(120).optional(),
   schedule: z.string().max(80).optional(),
   location: z.string().max(80).optional(),
+  signupUrl: z.string().max(300).optional(),
+  angle: z.string().max(80).optional(),
   forceMock: z.boolean().optional(),
   dnaNotes: z.string().max(2000).optional(),
 });
@@ -38,11 +26,21 @@ function mockCopy(data: z.infer<typeof CopyInput>): CopyPack {
         ? "明天晚上，真的只是坐一下。"
         : data.kind === "recruit"
           ? "你不用先懂禪，才有資格來。"
-          : "最近是不是很久沒有好好坐下來？";
+          : data.kind === "qa"
+            ? "你最近一次好好坐下來，是什麼時候？"
+            : data.kind === "poll"
+              ? "最近比較像哪一種：課表塞滿，還是晚上不知道要幹嘛？"
+              : data.kind === "member"
+                ? "來社團之前，我也覺得自己不太會交朋友。"
+                : data.kind === "knowledge"
+                  ? "禪不是要你突然變得很懂。先坐一下就好。"
+                  : "最近是不是很久沒有好好坐下來？";
   const when = data.schedule || "";
   const where = data.location || "淡江大學淡水校園";
   const event = data.eventName || data.idea;
-  const body = `${data.idea.trim()}\n\n不是要你突然變得很懂禪。${when ? `\n${when}，${where}。` : `\n${where}。`}\n找一個朋友一起來也行。`;
+  const signup = data.signupUrl?.trim();
+  const angleLine = data.angle ? `${data.angle}\n\n` : "";
+  const body = `${angleLine}${data.idea.trim()}\n\n不是要你突然變得很懂禪。${when ? `\n${when}，${where}。` : `\n${where}。`}\n找一個朋友一起來也行。${signup ? `\n報名：${signup}` : ""}`;
   const variants = COPY_STYLES.map((style) => ({
     style: style.label,
     text:
@@ -57,7 +55,7 @@ function mockCopy(data: z.infer<typeof CopyInput>): CopyPack {
   return {
     hook,
     body,
-    cta: "晚上見",
+    cta: signup ? "報名連結在下面" : "晚上見",
     hashtags: ["#淡江禪學社", "#淡江", "#淡水"],
     variants,
     studentReview: {
@@ -71,8 +69,12 @@ function mockCopy(data: z.infer<typeof CopyInput>): CopyPack {
       knowsWhat: `知道跟「${event}」有關。`,
       knowsWhenWhere: when ? "有時間地點。" : "時間還不清楚。",
       wouldBringFriend: "可以。",
-      knowsSignup: "還沒寫怎麼報名。",
-      notes: when ? [] : ["補時間地點。"],
+      knowsSignup: signup ? "有報名方式。" : "還沒寫怎麼報名。",
+      notes: [
+        ...(when ? [] : ["補時間地點。"]),
+        ...(signup ? [] : ["補報名連結。"]),
+        ...(data.angle ? [`這一波換角度：${data.angle}`] : []),
+      ],
       rewriteHook:
         data.kind === "emotion"
           ? "大學生活很自由，但你最近真的有比較快樂嗎？"
@@ -115,7 +117,8 @@ export const generateCopyPack = createServerFn({ method: "POST" })
           {
             role: "user",
             content: `為淡江禪學社寫 IG 文案。類型：${data.kind}。想法：${data.idea}。活動：${data.eventName ?? ""}。時間：${data.schedule ?? ""}。地點：${data.location ?? ""}。
-優先延續自己 IG 有效的 Hook 與語氣，不要套一般品牌模板。
+報名連結：${data.signupUrl ?? "尚未提供"}。換角度：${data.angle ?? "無"}。
+優先延續自己 IG 有效的 Hook 與語氣，不要套一般品牌模板。有報名連結就要讓學生知道怎麼報。
 輸出 JSON：hook, body, cta, hashtags[], variants[{style,text}]（短版/一般版/感性版/學生版/生活版/幽默版）, studentReview{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,tooLong,knowsWhat,knowsWhenWhere,wouldBringFriend,knowsSignup,notes,rewriteHook}`,
           },
         ],

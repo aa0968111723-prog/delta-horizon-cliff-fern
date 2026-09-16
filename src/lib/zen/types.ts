@@ -29,6 +29,14 @@ export type CampaignWave = {
   status: ProjectStatus;
   notes: string;
   copyPreview?: string;
+  visualIndex?: number;
+  angleIndex?: number;
+};
+
+export type CreateIntent = {
+  idea: string;
+  kind: string;
+  autoGenerate: boolean;
 };
 
 export type ClubCampaign = {

@@ -18,6 +18,9 @@ const ProviderInput = z.object({
 
 const DesignInput = z.object({
   title: z.string().min(1).max(80),
+  hook: z.string().max(80).optional(),
+  notes: z.string().max(2000).optional(),
+  preset: z.enum(["instagramPost", "instagramStory", "instagramReel"]).optional(),
 });
 
 export const getOAuthStatus = createServerFn({ method: "POST" }).handler(async () => {
@@ -85,13 +88,17 @@ export const createCanvaDraft = createServerFn({ method: "POST" })
   .handler(
     async ({
       data,
-    }): Promise<{ ok: true; editUrl: string } | { ok: false; needsAuth: boolean; error: string }> => {
+    }): Promise<
+      { ok: true; editUrl: string; title: string; notes: string } | { ok: false; needsAuth: boolean; error: string }
+    > => {
+      const { canvaDraftTitle } = await import("@/lib/zen/canva-draft");
       const { createCanvaDesign } = await import("@/lib/oauth/canva.server");
-      const created = await createCanvaDesign(data.title);
+      const title = canvaDraftTitle(data.title, data.hook);
+      const created = await createCanvaDesign({ title, preset: data.preset });
       if (!created) {
         return { ok: false, needsAuth: true, error: "還沒連接 Canva，或官方應用程式尚未設定。" };
       }
-      return { ok: true, editUrl: created.editUrl };
+      return { ok: true, editUrl: created.editUrl, title, notes: data.notes ?? "" };
     },
   );
 

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AssistantForm } from "@/components/assistant/assistant-form";
 import { ConvertPanel } from "@/components/create/convert-panel";
@@ -14,8 +14,13 @@ import { migrateBrief } from "@/lib/studio/brief";
 import type { CopyPack } from "@/lib/zen/types";
 import { igDnaBlock } from "@/lib/zen/insights";
 import { applyStudentRewrite } from "@/lib/zen/review";
+import { COPY_KIND_OPTIONS, type CopyKindId } from "@/lib/zen/voice";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
+
+function isCopyKind(value: string): value is CopyKindId {
+  return COPY_KIND_OPTIONS.some((item) => item.id === value);
+}
 
 export function CreateHub() {
   const navigate = useNavigate();
@@ -26,24 +31,41 @@ export function CreateHub() {
   const setLastPack = useCreative((s) => s.setLastPack);
   const memory = useCreative((s) => s.memory);
   const igPosts = useCreative((s) => s.igPosts);
+  const intentTick = useCreative((s) => s.createIntent ?? s.searchQuery);
   const [idea, setIdea] = useState("下週有一場茶會");
+  const [copyKind, setCopyKind] = useState<CopyKindId>("event");
   const [busy, setBusy] = useState(false);
   const [copyBusy, setCopyBusy] = useState(false);
   const [copyPack, setCopyPack] = useState<CopyPack | null>(null);
   const [copyStyle, setCopyStyle] = useState("一般版");
   const brand = brands[0];
 
-  async function runPack() {
+  useEffect(() => {
+    const intent = useCreative.getState().consumeCreateIntent();
+    if (!intent) return;
+    const nextKind = isCopyKind(intent.kind) ? intent.kind : "event";
+    const nextIdea = intent.idea.trim() || "下週有一場茶會";
+    setIdea(nextIdea);
+    setCopyKind(nextKind);
+    if (!intent.autoGenerate) return;
+    if (nextKind === "carousel" || nextKind === "story" || nextKind === "reels" || nextKind === "event") {
+      void runPack(nextIdea);
+    } else {
+      void runCopy(nextIdea, nextKind);
+    }
+  }, [intentTick]);
+
+  async function runPack(nextIdea = idea) {
     if (!brand) return;
     setBusy(true);
     try {
       const brief = migrateBrief({
-        eventName: idea.slice(0, 40),
-        product: idea,
+        eventName: nextIdea.slice(0, 40),
+        product: nextIdea,
         audience: "淡江大學學生",
         location: "淡江大學淡水校園",
         goal: "awareness",
-        notes: idea,
+        notes: nextIdea,
         deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
       });
       const result = await generateCreativePack({
@@ -63,11 +85,11 @@ export function CreateHub() {
     }
   }
 
-  async function runCopy() {
+  async function runCopy(nextIdea = idea, nextKind = copyKind) {
     setCopyBusy(true);
     try {
       const result = await generateCopyPack({
-        data: { idea, kind: "event", dnaNotes: igDnaBlock(igPosts) },
+        data: { idea: nextIdea, kind: nextKind, dnaNotes: igDnaBlock(igPosts) },
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -113,6 +135,18 @@ export function CreateHub() {
       <div className="mt-6 rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-border)] md:p-6">
         <Textarea value={idea} onChange={(e) => setIdea(e.target.value)} placeholder="下週有一場茶會" />
         <div className="mt-3 flex flex-wrap gap-2">
+          {COPY_KIND_OPTIONS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setCopyKind(item.id)}
+              className={`rounded-full px-3 py-2 text-xs ${copyKind === item.id ? "bg-accent text-accent-fg" : "bg-bg"}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
           <Button disabled={busy} onClick={() => void runPack()}>
             {busy ? "正在找素材、想方向…" : "AI 生成完整宣傳"}
           </Button>
@@ -154,7 +188,7 @@ export function CreateHub() {
           </div>
           <p className="mt-4 text-xs text-muted">
             學生視角：停下？{copyPack.studentReview.wouldStop} 宗教？{copyPack.studentReview.tooReligious} AI？
-            {copyPack.studentReview.tooAi}
+            {copyPack.studentReview.tooAi} 報名？{copyPack.studentReview.knowsSignup}
           </p>
           {copyPack.studentReview.rewriteHook && copyPack.studentReview.rewriteHook !== copyPack.hook ? (
             <Button

@@ -1,3 +1,4 @@
+import { proposeVisualDirections } from "../ai/image-directions.ts";
 import { uid } from "../studio/ids.ts";
 import type { ContentKind, ProjectStatus } from "../studio/types.ts";
 import { convertFromPlan } from "./convert.ts";
@@ -66,6 +67,38 @@ export function rhythmHint(items: { contentKind: string }[]) {
     return "連續活動廣告會讓帳號看起來一直在招生。下一則改生活、互動或社員故事。";
   }
   return "宣傳 → 生活 → 互動 → 活動 → 知識 → 故事 → 倒數，讓節奏自然。";
+}
+
+export const WAVE_ANGLES: Record<WaveKind, string[]> = {
+  tease: ["先講生活，還沒講活動名", "用淡水晚上當入口", "用開學課表當入口"],
+  emotion: ["連休息都有罪惡感", "大學很自由但快樂嗎", "需要的不是答案只是一個晚上"],
+  "key-visual": ["大 Hook 夜色留白", "同學側臉", "龜龜與三色光"],
+  info: ["時間地點先講清楚", "來了會做什麼", "不用先懂禪"],
+  reason: ["找朋友一起來", "剛到淡水需要一個地方", "報告先放旁邊"],
+  countdown: ["明天只是坐一下", "今晚真的可以什麼都不做", "剩一天"],
+  "day-of": ["今晚見", "現場怎麼走", "帶一個朋友"],
+  recap: ["昨天晚上坐下來的感覺", "光還在", "下次還可以來"],
+};
+
+export function nextWaveAngle(kind: WaveKind, currentIndex = 0) {
+  const list = WAVE_ANGLES[kind];
+  const index = (currentIndex + 1) % list.length;
+  return { index, angle: list[index]! };
+}
+
+export function nextWaveVisual(prompt: string, currentIndex = 0) {
+  const dirs = proposeVisualDirections(prompt);
+  const index = (currentIndex + 1) % dirs.length;
+  return { index, direction: dirs[index]! };
+}
+
+export function copyKindForWave(kind: WaveKind) {
+  if (kind === "emotion") return "emotion" as const;
+  if (kind === "countdown") return "countdown" as const;
+  if (kind === "day-of") return "story" as const;
+  if (kind === "recap") return "recap" as const;
+  if (kind === "key-visual") return "carousel" as const;
+  return "event" as const;
 }
 
 export function contentKindForWave(kind: WaveKind): ContentKind {

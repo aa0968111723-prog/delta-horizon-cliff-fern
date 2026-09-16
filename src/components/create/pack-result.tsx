@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { createCanvaDraft } from "@/lib/ai/oauth";
+import { canvaDraftNotes, canvaPresetForKind } from "@/lib/zen/canva-draft";
 import type { CreativePack } from "@/lib/zen/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -54,13 +55,35 @@ export function PackResult({
             className="mt-4"
             variant="secondary"
             onClick={async () => {
-              const result = await createCanvaDraft({ data: { title: pack.campaignName || pack.copy.hook } });
+              const notes = canvaDraftNotes({
+                hook: pack.copy.hook,
+                body: pack.copy.body,
+                cta: pack.copy.cta,
+                hashtags: pack.copy.hashtags,
+              });
+              const result = await createCanvaDraft({
+                data: {
+                  title: pack.campaignName || pack.copy.hook,
+                  hook: pack.copy.hook,
+                  notes,
+                  preset: canvaPresetForKind("event"),
+                },
+              });
               if (!result.ok) {
                 toast.message(result.error);
                 return;
               }
+              if (notes) {
+                try {
+                  await navigator.clipboard.writeText(notes);
+                  toast.success("已在 Canva 開 IG 稿，文案已複製，可貼進去微調");
+                } catch {
+                  toast.success("已在 Canva 開 IG 稿，可繼續微調");
+                }
+              } else {
+                toast.success("已在 Canva 開一張 IG 稿，可繼續微調");
+              }
               window.open(result.editUrl, "_blank", "noopener,noreferrer");
-              toast.success("已在 Canva 開一張 IG 稿，可繼續微調");
             }}
           >
             送到 Canva 繼續編

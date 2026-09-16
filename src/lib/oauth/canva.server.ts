@@ -124,7 +124,10 @@ export async function searchCanvaDesigns(query: string): Promise<CanvaDesignHit[
   }));
 }
 
-export async function createCanvaDesign(title: string): Promise<{ editUrl: string; id: string } | null> {
+export async function createCanvaDesign(input: {
+  title: string;
+  preset?: "instagramPost" | "instagramStory" | "instagramReel";
+}): Promise<{ editUrl: string; id: string } | null> {
   const token = await canvaAccess();
   if (!token) return null;
   const res = await fetch(CANVA_DESIGNS, {
@@ -134,8 +137,8 @@ export async function createCanvaDesign(title: string): Promise<{ editUrl: strin
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      title: title.slice(0, 50),
-      design_type: { type: "preset", name: "instagramPost" },
+      title: input.title.slice(0, 50),
+      design_type: { type: "preset", name: input.preset ?? "instagramPost" },
     }),
   });
   if (!res.ok) return null;

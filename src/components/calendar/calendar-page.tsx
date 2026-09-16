@@ -28,6 +28,8 @@ const KIND_OPTIONS: ContentKind[] = [
   "knowledge",
   "member-story",
   "countdown",
+  "qa",
+  "poll",
 ];
 
 function toLocalInput(ts: number) {

@@ -9,6 +9,7 @@ import type {
   ClubCampaign,
   ConnectionId,
   ConnectionState,
+  CreateIntent,
   CreativePack,
   IgMemoryPost,
   MemoryItem,
@@ -77,9 +78,12 @@ type CreativeState = {
   connections: ConnectionState[];
   lastPack: CreativePack | null;
   searchQuery: string;
+  createIntent: CreateIntent | null;
   driveFolderQuery: string;
   setHydrated: (v: boolean) => void;
   setSearchQuery: (q: string) => void;
+  setCreateIntent: (intent: CreateIntent | null) => void;
+  consumeCreateIntent: () => CreateIntent | null;
   setDriveFolderQuery: (q: string) => void;
   setLastPack: (pack: CreativePack | null) => void;
   upsertCampaign: (campaign: ClubCampaign) => void;
@@ -110,9 +114,28 @@ export const useCreative = create<CreativeState>()(
       connections: SEED_CONNECTIONS,
       lastPack: null,
       searchQuery: "",
+      createIntent: null,
       driveFolderQuery: "淡江禪學社",
       setHydrated: (v) => set({ hydrated: v }),
       setSearchQuery: (searchQuery) => set({ searchQuery }),
+      setCreateIntent: (createIntent) =>
+        set({
+          createIntent,
+          searchQuery: createIntent?.idea ?? "",
+        }),
+      consumeCreateIntent: () => {
+        const intent = get().createIntent;
+        const q = get().searchQuery.trim();
+        if (intent) {
+          set({ createIntent: null, searchQuery: "" });
+          return intent;
+        }
+        if (q) {
+          set({ searchQuery: "" });
+          return { idea: q, kind: "emotion", autoGenerate: true };
+        }
+        return null;
+      },
       setDriveFolderQuery: (driveFolderQuery) => set({ driveFolderQuery }),
       setLastPack: (lastPack) => set({ lastPack }),
       upsertCampaign: (campaign) =>

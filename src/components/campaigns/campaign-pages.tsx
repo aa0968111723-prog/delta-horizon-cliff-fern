@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { PackResult } from "@/components/create/pack-result";
 import { PageHeader } from "@/components/shared/page-header";
@@ -11,7 +11,14 @@ import { migrateBrief } from "@/lib/studio/brief";
 import { CAMPAIGN_TYPES } from "@/lib/zen/types";
 import type { CampaignType } from "@/lib/zen/types";
 import { igDnaBlock } from "@/lib/zen/insights";
-import { emptyCampaign, applyPackToWaves, suggestWaves } from "@/lib/zen/schedule";
+import {
+  emptyCampaign,
+  applyPackToWaves,
+  copyKindForWave,
+  nextWaveAngle,
+  nextWaveVisual,
+  suggestWaves,
+} from "@/lib/zen/schedule";
 import { formatMd } from "@/lib/zen/season";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -65,6 +72,10 @@ function CampaignForm({ onSave }: { onSave: (c: ReturnType<typeof emptyCampaign>
   const [location, setLocation] = useState("淡江大學淡水校園");
   const [tagline, setTagline] = useState("");
   const [description, setDescription] = useState("");
+  const [theme, setTheme] = useState("");
+  const [studentPain, setStudentPain] = useState("");
+  const [cta, setCta] = useState("晚上見");
+  const [signupUrl, setSignupUrl] = useState("");
   const [type, setType] = useState<CampaignType>("tea");
 
   return (
@@ -72,7 +83,19 @@ function CampaignForm({ onSave }: { onSave: (c: ReturnType<typeof emptyCampaign>
       className="mt-4 space-y-3 rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-border)]"
       onSubmit={(e) => {
         e.preventDefault();
-        const camp = emptyCampaign({ name, date, time, location, tagline, description, type });
+        const camp = emptyCampaign({
+          name,
+          date,
+          time,
+          location,
+          tagline,
+          description,
+          theme,
+          studentPain,
+          cta,
+          signupUrl,
+          type,
+        });
         camp.waves = suggestWaves({ date, type, name });
         onSave(camp);
       }}
@@ -96,6 +119,22 @@ function CampaignForm({ onSave }: { onSave: (c: ReturnType<typeof emptyCampaign>
       </Field>
       <Field label="完整介紹">
         <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+      </Field>
+      <Field label="活動主題">
+        <Input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="夜燈、三色光、慢下來" />
+      </Field>
+      <Field label="學生痛點">
+        <Input value={studentPain} onChange={(e) => setStudentPain(e.target.value)} placeholder="連休息都有罪惡感" />
+      </Field>
+      <Field label="主要 CTA">
+        <Input value={cta} onChange={(e) => setCta(e.target.value)} />
+      </Field>
+      <Field label="報名連結">
+        <Input
+          value={signupUrl}
+          onChange={(e) => setSignupUrl(e.target.value)}
+          placeholder="https://…（沒有也可以之後再補）"
+        />
       </Field>
       <div className="flex flex-wrap gap-2">
         {CAMPAIGN_TYPES.map((item) => (
@@ -131,11 +170,18 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const attach = useCreative((s) => s.attachProject);
   const patchWave = useCreative((s) => s.patchWave);
+  const patchCampaign = useCreative((s) => s.patchCampaign);
   const upsertCampaign = useCreative((s) => s.upsertCampaign);
   const lastPack = useCreative((s) => s.lastPack);
   const setLastPack = useCreative((s) => s.setLastPack);
   const igPosts = useCreative((s) => s.igPosts);
   const [busy, setBusy] = useState(false);
+  const [waveBusy, setWaveBusy] = useState<string | null>(null);
+  const [signupUrl, setSignupUrl] = useState(campaign?.signupUrl ?? "");
+
+  useEffect(() => {
+    setSignupUrl(campaign?.signupUrl ?? "");
+  }, [campaign?.id, campaign?.signupUrl]);
 
   if (!campaign) {
     return (
@@ -157,6 +203,25 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
       <p className="mt-3 text-lg">{campaign.tagline}</p>
       <p className="mt-2 text-sm text-muted">{campaign.description}</p>
       <p className="mt-2 text-sm">學生痛點：{campaign.studentPain || "—"}</p>
+      <p className="mt-1 text-sm">主題：{campaign.theme || "—"} · CTA：{campaign.cta}</p>
+      <form
+        className="mt-4 flex flex-col gap-2 sm:flex-row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          patchCampaign(campaign.id, { signupUrl: signupUrl.trim() });
+          toast.success(signupUrl.trim() ? "已記下報名連結" : "已清空報名連結");
+        }}
+      >
+        <Input
+          value={signupUrl}
+          onChange={(e) => setSignupUrl(e.target.value)}
+          placeholder="報名連結"
+          aria-label="報名連結"
+        />
+        <Button type="submit" variant="secondary">
+          儲存報名
+        </Button>
+      </form>
       <div className="mt-6 flex flex-wrap gap-2">
       <Button
         disabled={busy}
@@ -173,7 +238,10 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               location: campaign.location,
               audience: "淡江大學學生",
               features: campaign.theme,
-              notes: campaign.studentPain,
+              notes: [campaign.studentPain, campaign.signupUrl && `報名：${campaign.signupUrl}`]
+                .filter(Boolean)
+                .join("\n"),
+              offer: campaign.cta,
               deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
             });
             const result = await generateCreativePack({
@@ -252,44 +320,100 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
             <p className="text-sm font-medium">{wave.title}</p>
             {wave.copyPreview ? <p className="mt-2 text-sm leading-relaxed">{wave.copyPreview}</p> : null}
             {wave.notes ? <p className="mt-1 text-xs text-muted">{wave.notes}</p> : null}
+            <div className="mt-2 flex flex-wrap gap-2">
             <Button
-              className="mt-2"
               size="sm"
               variant="secondary"
-              disabled={busy}
+              disabled={waveBusy === wave.id || busy}
               onClick={async () => {
-                setBusy(true);
+                setWaveBusy(wave.id);
                 try {
                   const { generateCopyPack } = await import("@/lib/ai/copy");
-                  const kind =
-                    wave.kind === "emotion"
-                      ? "emotion"
-                      : wave.kind === "countdown"
-                        ? "countdown"
-                        : wave.kind === "day-of"
-                          ? "story"
-                          : wave.kind === "recap"
-                            ? "recap"
-                            : "event";
                   const result = await generateCopyPack({
                     data: {
                       idea: `${campaign.name} ${wave.title} ${campaign.tagline}`,
-                      kind,
+                      kind: copyKindForWave(wave.kind),
                       eventName: campaign.name,
                       schedule: `${campaign.date} ${campaign.time}`,
                       location: campaign.location,
+                      signupUrl: campaign.signupUrl,
                       dnaNotes: igDnaBlock(igPosts),
                     },
                   });
                   if (!result.ok) return;
                   patchWave(campaign.id, wave.id, { copyPreview: result.pack.hook, status: "creating" });
                 } finally {
-                  setBusy(false);
+                  setWaveBusy(null);
                 }
               }}
             >
               重新生成這波
             </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={waveBusy === wave.id || busy}
+              onClick={async () => {
+                const next = nextWaveAngle(wave.kind, wave.angleIndex ?? 0);
+                setWaveBusy(wave.id);
+                try {
+                  const { generateCopyPack } = await import("@/lib/ai/copy");
+                  const result = await generateCopyPack({
+                    data: {
+                      idea: `${campaign.name} ${wave.title} ${campaign.tagline}`,
+                      kind: copyKindForWave(wave.kind),
+                      eventName: campaign.name,
+                      schedule: `${campaign.date} ${campaign.time}`,
+                      location: campaign.location,
+                      signupUrl: campaign.signupUrl,
+                      angle: next.angle,
+                      dnaNotes: igDnaBlock(igPosts),
+                    },
+                  });
+                  if (!result.ok) return;
+                  patchWave(campaign.id, wave.id, {
+                    copyPreview: result.pack.hook,
+                    status: "creating",
+                    angleIndex: next.index,
+                    notes: `換角度：${next.angle}`,
+                  });
+                  toast.success(`已換成「${next.angle}」`);
+                } finally {
+                  setWaveBusy(null);
+                }
+              }}
+            >
+              換角度
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={waveBusy === wave.id}
+              onClick={() => {
+                const packDirs =
+                  lastPack && lastPack.campaignName === campaign.name ? lastPack.directions : undefined;
+                const next = packDirs?.length
+                  ? {
+                      index: ((wave.visualIndex ?? 0) + 1) % packDirs.length,
+                      direction: packDirs[((wave.visualIndex ?? 0) + 1) % packDirs.length]!,
+                    }
+                  : nextWaveVisual(`${campaign.name} ${campaign.tagline}`, wave.visualIndex ?? 0);
+                const dir = next.direction;
+                patchWave(campaign.id, wave.id, {
+                  visualIndex: next.index,
+                  notes: `${dir.title}｜${dir.imagePrompt}`,
+                  copyPreview:
+                    wave.kind === "key-visual"
+                      ? `${dir.headline.replace(/\n/g, " ")}\n${dir.concept}`
+                      : wave.copyPreview,
+                  status: wave.status === "published" || wave.status === "done" ? wave.status : "creating",
+                });
+                toast.success(`已換成視覺「${dir.title}」`);
+              }}
+            >
+              換視覺
+            </Button>
+            </div>
           </li>
         ))}
       </ol>
