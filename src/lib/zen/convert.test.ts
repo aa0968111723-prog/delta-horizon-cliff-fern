@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildMockPlan } from "../ai/mock.ts";
-import { convertFromPlan, captionForTarget, formatIdForContentKind, formatScript, formatScriptClipboard, previewContentKind, sequenceBeats } from "./convert.ts";
+import { convertFromPlan, captionForTarget, formatIdForContentKind, formatScript, formatScriptClipboard, packWithCaption, previewContentKind, sequenceBeats } from "./convert.ts";
 
 const converted = convertFromPlan(
   buildMockPlan({
@@ -104,4 +104,71 @@ test("previewContentKind uses carousel for 4:5 after a suite, square for the sin
   assert.equal(previewContentKind("feed-square", [{ kind: "carousel" }, { kind: "post" }]), "ig-post");
   assert.equal(previewContentKind("story", [{ kind: "carousel" }]), "story");
   assert.equal(previewContentKind("feed-portrait", []), "ig-post");
+});
+
+test("packWithCaption overlays an edited short caption onto story carousel reels and threads", () => {
+  const sourcePlan = buildMockPlan({
+    eventName: "茶會",
+    schedule: "2026-09-23 19:30",
+    location: "淡江大學淡水校園",
+    product: "茶會",
+    offer: "",
+    audience: "淡江大學學生",
+    goal: "awareness",
+    features: "坐下來",
+    style: "",
+    notes: "",
+    wantPost: true,
+    wantStory: true,
+    wantCarousel: true,
+    wantReels: true,
+    brandName: "淡江大學禪學社",
+    handle: "@tkuzen",
+    voice: "",
+    doSay: "",
+    dontSay: "",
+    forbiddenWords: [],
+  });
+  const pack = {
+    campaignName: sourcePlan.campaignName,
+    insight: sourcePlan.insight,
+    studentContext: "淡江大學學生",
+    foundCount: 3,
+    citedSources: [],
+    directions: sourcePlan.visualDirections ?? [],
+    plan: sourcePlan,
+    copy: {
+      hook: sourcePlan.hook,
+      body: sourcePlan.captions.find((row) => row.style === "一般版")?.text ?? sourcePlan.captions[0]?.text ?? "",
+      cta: sourcePlan.cta,
+      hashtags: sourcePlan.hashtags,
+      variants: sourcePlan.captions,
+      studentReview: sourcePlan.studentReview ?? {
+        wouldStop: "",
+        understandable: "",
+        tooReligious: "",
+        tooSerious: "",
+        tooLiterary: "",
+        tooAi: "",
+        tooLong: "",
+        knowsWhat: "",
+        knowsWhenWhere: "",
+        wouldBringFriend: "",
+        knowsSignup: "",
+        notes: [],
+        rewriteHook: "",
+      },
+    },
+  };
+  const edited = "最近是不是連休息都覺得有罪惡感？\n晚上見";
+  const next = packWithCaption(pack, edited);
+  const out = convertFromPlan(next.plan);
+  assert.equal(out.post.hook, "最近是不是連休息都覺得有罪惡感？");
+  assert.equal(out.story[0]?.headline, out.post.hook);
+  assert.equal(out.reels[0]?.caption, out.post.hook);
+  assert.equal(out.carousel[0]?.headline, out.post.hook);
+  assert.equal(out.threads, edited);
+  assert.ok(captionForTarget(out, "story").startsWith("最近是不是連休息都覺得有罪惡感？"));
+  assert.ok(captionForTarget(out, "carousel").startsWith("最近是不是連休息都覺得有罪惡感？"));
+  assert.ok(sequenceBeats(out, "story")[0]?.title.includes("休息"));
 });

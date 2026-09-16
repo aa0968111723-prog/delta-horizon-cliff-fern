@@ -1,5 +1,6 @@
 import { applyVisualDirection } from "@/components/create/apply-visual";
 import {
+  captionForTarget,
   convertFromPlan,
   convertTargetById,
   sequenceBeats,
@@ -31,7 +32,8 @@ export async function applyFormatSequence(input: {
   touchCampaign?: boolean;
 }): Promise<ApplySequenceResult> {
   const target = convertTargetById(input.kind);
-  const beats = sequenceBeats(convertFromPlan(input.pack.plan), target.formatId, target.contentKind);
+  const converted = convertFromPlan(input.pack.plan);
+  const beats = sequenceBeats(converted, target.formatId, target.contentKind);
   if (beats.length < 2) {
     return { ok: false, error: "這則還沒有分鏡可以做成畫面。" };
   }
@@ -72,9 +74,7 @@ export async function applyFormatSequence(input: {
   }
 
   const sequence: VisualSequence = { kind: input.kind, labels, assetIds, projectId };
-  const caption = [input.pack.copy.hook, "", input.pack.copy.body, "", input.pack.copy.cta, input.pack.copy.hashtags.join(" ")]
-    .join("\n")
-    .trim();
+  const caption = captionForTarget(converted, input.kind);
   useStudio.getState().setCopy(projectId, {
     headline: input.pack.copy.hook.slice(0, 80),
     caption,

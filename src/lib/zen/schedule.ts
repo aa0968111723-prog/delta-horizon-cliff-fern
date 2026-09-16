@@ -413,12 +413,13 @@ export function scheduleItemForPreview(input: {
     if (exact && (!kind || exact.contentKind === kind)) return exact;
   }
   const pool = kind ? live.filter((item) => item.contentKind === kind) : live.filter((item) => !isWaveScheduleItem(item));
-  return (
+  const matched =
     pool.find((item) => input.projectId && item.projectId === input.projectId) ??
     pool.find((item) => input.sequenceProjectId && item.sequence?.projectId === input.sequenceProjectId) ??
-    pool.find((item) => !isWaveScheduleItem(item)) ??
-    pool[0]
-  );
+    pool.find((item) => !isWaveScheduleItem(item));
+  if (matched) return matched;
+  if (input.projectId || input.sequenceProjectId) return undefined;
+  return pool[0];
 }
 
 export function emptyCampaign(partial?: Partial<ClubCampaign>): ClubCampaign {

@@ -9,6 +9,7 @@ import {
   captionForTarget,
   clipboardText,
   convertFromPlan,
+  packWithCaption,
   previewLines,
   tonightAt,
   type ConvertTargetId,
@@ -17,19 +18,29 @@ import { convertStaggerDays } from "@/lib/zen/from-idea";
 import { placeScheduleItems } from "@/lib/zen/schedule";
 import type { CreativePack } from "@/lib/zen/types";
 import { uid } from "@/lib/studio/ids";
+import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 
 export function ConvertPanel({
   pack,
   campaignId,
+  caption,
+  compact,
+  stay,
+  onConverted,
 }: {
   pack: CreativePack;
   campaignId?: string | null;
+  caption?: string;
+  compact?: boolean;
+  stay?: boolean;
+  onConverted?: (info: { id: ConvertTargetId; caption: string }) => void;
 }) {
   const navigate = useNavigate();
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
   const patchCampaign = useCreative((s) => s.patchCampaign);
-  const converted = convertFromPlan(pack.plan);
+  const livePack = caption?.trim() ? packWithCaption(pack, caption) : pack;
+  const converted = convertFromPlan(livePack.plan);
   const [busyId, setBusyId] = useState<ConvertTargetId | null>(null);
 
   async function toPreview(id: ConvertTargetId) {
@@ -38,7 +49,7 @@ export function ConvertPanel({
     try {
       if (id === "carousel" || id === "story" || id === "reels") {
         const result = await applyFormatSequence({
-          pack,
+          pack: livePack,
           kind: id,
           campaignId,
         });
@@ -46,12 +57,14 @@ export function ConvertPanel({
           toast.error(result.error);
           return;
         }
+        const nextCaption = captionForTarget(converted, id);
+        onConverted?.({ id, caption: nextCaption });
         toast.success(`已做成 ${result.labels.length} 張${target.label}，打開 IG Preview`);
-        await navigate({ to: "/instagram" });
+        if (!stay) await navigate({ to: "/instagram" });
         return;
       }
       const result = await applyVisualDirection({
-        pack,
+        pack: livePack,
         campaignId,
         formatId: target.formatId,
         convertTarget: target.id,
@@ -62,8 +75,10 @@ export function ConvertPanel({
         toast.error(result.error);
         return;
       }
+      const nextCaption = captionForTarget(converted, id);
+      onConverted?.({ id, caption: nextCaption });
       toast.success(`已做成${target.label}，打開 IG Preview`);
-      await navigate({ to: "/instagram" });
+      if (!stay) await navigate({ to: "/instagram" });
     } finally {
       setBusyId(null);
     }
@@ -76,7 +91,7 @@ export function ConvertPanel({
     const [placed] = placeScheduleItems(useCreative.getState().schedule, [
       {
         id: uid("sch"),
-        title: `${pack.copy.hook} · ${target.label}`,
+        title: `${livePack.copy.hook} · ${target.label}`,
         contentKind: target.contentKind,
         status: "scheduled",
         scheduledAt: tonightAt(convertStaggerDays(id)),
@@ -109,6 +124,28 @@ export function ConvertPanel({
     } catch {
       toast.message(text.slice(0, 80));
     }
+  }
+
+  if (compact) {
+    return (
+      <div className="flex min-w-0 flex-wrap gap-2" data-testid="convert-targets">
+        {CONVERT_TARGETS.map((target) => (
+          <button
+            key={target.id}
+            type="button"
+            data-testid={`convert-target-${target.id}`}
+            disabled={Boolean(busyId)}
+            onClick={() => void toPreview(target.id)}
+            className={cn(
+              "min-h-11 rounded-full px-3 py-2 text-xs",
+              busyId === target.id ? "bg-accent text-accent-fg" : "bg-bg",
+            )}
+          >
+            {busyId === target.id ? "生成中…" : `做成 ${target.label}`}
+          </button>
+        ))}
+      </div>
+    );
   }
 
   return (

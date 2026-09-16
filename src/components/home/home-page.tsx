@@ -8,6 +8,7 @@ import { applyPickedDirection } from "@/components/create/apply-picked";
 import { createFromHit } from "@/components/create/from-hit";
 import { runIdeaPack } from "@/components/create/run-idea";
 import { PackResult } from "@/components/create/pack-result";
+import { ConvertPanel } from "@/components/create/convert-panel";
 import { DueSlotCard } from "@/components/instagram/due-slot";
 import { NewProjectDialog } from "@/components/dashboard/new-project-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -301,6 +302,19 @@ export function HomePage() {
             }}
             onSuiteDone={() => navigate({ to: "/instagram" })}
           />
+          <div className="mt-3">
+            <p className="mb-2 text-xs text-muted">一篇做成其他格式</p>
+            <ConvertPanel
+              compact
+              pack={lastPack}
+              campaignId={
+                campaigns.find(
+                  (campaign) =>
+                    campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name),
+                )?.id ?? featured?.id
+              }
+            />
+          </div>
         </section>
       ) : null}
 

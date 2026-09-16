@@ -1,4 +1,5 @@
 import type { CampaignPlan, CarouselPagePlan, ContentKind, FormatId } from "../studio/types.ts";
+import type { CreativePack } from "./types.ts";
 
 export type ConvertedFormats = {
   post: { hook: string; body: string; cta: string };
@@ -60,6 +61,53 @@ function defaultCarousel(plan: CampaignPlan): CarouselPagePlan[] {
     { role: "cta", headline: cta, subhead: plan.subhead, body: "時間地點看這頁。找一個朋友一起來也行。", cta, visualNote: "只留資訊。", templateId: "offer" },
     { role: "close", headline: plan.hook.slice(0, 12), subhead: "淡江禪學社", body: plan.cta, cta, visualNote: "可截圖。", templateId: "quote" },
   ];
+}
+
+export function firstCaptionLine(caption: string) {
+  return (
+    caption
+      .trim()
+      .split(/\n/)
+      .map((line) => line.trim())
+      .find(Boolean) ?? ""
+  );
+}
+
+export function packWithCaption(pack: CreativePack, caption: string): CreativePack {
+  const text = caption.trim();
+  if (!text) return pack;
+  const hook = firstCaptionLine(text) || pack.copy.hook;
+  const cta = pack.copy.cta || pack.plan.cta;
+  const captions = [{ style: "一般版", text }, ...pack.plan.captions.filter((row) => row.style !== "一般版")];
+  const carouselPages = pack.plan.carouselPages.length
+    ? pack.plan.carouselPages.map((page, i) => (i === 0 ? { ...page, headline: hook, body: text } : page))
+    : pack.plan.carouselPages;
+  const restStory = pack.plan.storyBeats.filter((_, i) => i > 0);
+  const storyBeats = [hook, ...restStory, pack.plan.insight, `${cta} · ${pack.plan.subhead}`]
+    .filter((beat, i, all) => Boolean(beat) && all.indexOf(beat) === i)
+    .slice(0, 5);
+  const reelsScript = pack.plan.reelsScript?.length
+    ? pack.plan.reelsScript.map((beat, i) => (i === 0 ? { ...beat, caption: hook, voiceover: hook } : beat))
+    : pack.plan.reelsScript;
+  return {
+    ...pack,
+    copy: {
+      ...pack.copy,
+      hook,
+      body: text,
+      variants: [{ style: "一般版", text }, ...(pack.copy.variants ?? []).filter((row) => row.style !== "一般版")],
+    },
+    plan: {
+      ...pack.plan,
+      hook,
+      captions,
+      carouselPages,
+      storyBeats,
+      reelsScript,
+      threadsPost: text,
+      lineCopy: [pack.campaignName, hook, pack.plan.subhead, cta].filter(Boolean).join("\n"),
+    },
+  };
 }
 
 export const CONVERT_TARGETS = [

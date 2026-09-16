@@ -867,6 +867,18 @@ test("scheduleItemForPreview binds the format on screen, not the first unpublish
     contentKind: "carousel",
   });
   assert.equal(after, undefined);
+  const unbound = scheduleItemForPreview({
+    items: [
+      row("sch_post", { contentKind: "ig-post", projectId: "proj_post" }),
+      row("sch_car", { contentKind: "carousel", projectId: "proj_car" }),
+      row("sch_wave_story", { contentKind: "story", projectId: null }),
+    ],
+    previewScheduleId: "sch_car",
+    contentKind: "story",
+    projectId: "proj_new_story",
+    sequenceProjectId: "proj_new_story",
+  });
+  assert.equal(unbound, undefined);
 });
 
 test("canva draft title includes hook and stays short", () => {

@@ -6,6 +6,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { applyVisualDirection } from "@/components/create/apply-visual";
 import { applyFormatSequence } from "@/components/create/apply-sequence";
+import { ConvertPanel } from "@/components/create/convert-panel";
 import { createFromHit } from "@/components/create/from-hit";
 import { openCanvaDraft } from "@/components/create/open-canva";
 import { openScheduledPreview } from "@/components/create/open-preview";
@@ -32,7 +33,7 @@ import { dnaPromptIdea, igDnaBlock, learnFromPosts, nextCreateHint, recentPosted
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
 import { COPY_STYLES, captionFromCopyStyle, completeCopyVariants, matchingCopyStyle } from "@/lib/zen/voice";
-import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatIdForContentKind, formatScript, previewContentKind } from "@/lib/zen/convert";
+import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatIdForContentKind, formatScript, packWithCaption, previewContentKind } from "@/lib/zen/convert";
 import { isWaveScheduleItem, schedulePreviewAssetId, placeScheduleItems, dueScheduleItems, scheduleItemForPreview } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
@@ -165,10 +166,14 @@ export function InstagramCenter() {
     () => (lastPack ? completeCopyVariants(lastPack.copy) : []),
     [lastPack],
   );
+  const overlayPack = useMemo(
+    () => (lastPack ? packWithCaption(lastPack, caption) : null),
+    [lastPack, caption],
+  );
   const previewScript = useMemo(() => {
-    if (!lastPack) return null;
-    return formatScript(convertFromPlan(lastPack.plan), previewFormat, previewProject?.contentKind);
-  }, [lastPack, previewFormat, previewProject?.contentKind]);
+    if (!overlayPack) return null;
+    return formatScript(convertFromPlan(overlayPack.plan), previewFormat, previewProject?.contentKind);
+  }, [overlayPack, previewFormat, previewProject?.contentKind]);
   const previewAssetId =
     lastVisualAssetId ??
     filmstrip?.assetIds[previewProject?.slideIndex ?? 0] ??
@@ -197,12 +202,12 @@ export function InstagramCenter() {
 
   useEffect(() => {
     const opened = schedule.find((item) => item.id === previewScheduleId);
-    if (opened?.captionPreview) {
+    if (opened?.captionPreview && opened.contentKind === previewKind) {
       setCaption(opened.captionPreview);
       return;
     }
     if (previewProject) setCaption(previewProject.copy.caption || previewProject.copy.headline);
-  }, [previewScheduleId, schedule, previewProject?.id, previewProject?.copy.caption, previewProject?.copy.headline]);
+  }, [previewScheduleId, schedule, previewKind, previewProject?.id, previewProject?.copy.caption, previewProject?.copy.headline]);
 
   useEffect(() => {
     if (!previewCopyVariants.length) return;
@@ -353,7 +358,7 @@ export function InstagramCenter() {
       setActiveFormat(previewProject.id, previewFormat);
       setCopy(previewProject.id, { caption: next });
     }
-    if (previewSlot) {
+    if (previewSlot && previewSlot.contentKind === previewKind) {
       patchSchedule(previewSlot.id, { captionPreview: next });
     }
   }
@@ -482,7 +487,7 @@ export function InstagramCenter() {
     setBeatBusy("all");
     try {
       const result = await applyFormatSequence({
-        pack: lastPack,
+        pack: overlayPack ?? lastPack,
         kind,
         campaignId:
           campaigns.find(
@@ -503,9 +508,10 @@ export function InstagramCenter() {
     if (!lastPack) return;
     setBeatBusy(beat.id);
     try {
+      const source = overlayPack ?? lastPack;
       const pack = {
-        ...lastPack,
-        directions: lastPack.directions?.map((dir, i) =>
+        ...source,
+        directions: source.directions?.map((dir, i) =>
           i === 0 ? { ...dir, headline: beat.title, subhead: beat.kicker } : dir,
         ),
       };
@@ -868,6 +874,50 @@ export function InstagramCenter() {
               <Button size="sm" onClick={saveCaption} disabled={!previewProject && !previewSlot}>
                 更新文案
               </Button>
+              {lastPack ? (
+                <>
+                  <div className="rounded-2xl bg-bg p-3" data-testid="preview-student-review">
+                    <p className="text-xs text-muted">淡江學生視角</p>
+                    <p className="mt-1 text-sm">
+                      停下？{lastPack.copy.studentReview.wouldStop} · 太宗教？{lastPack.copy.studentReview.tooReligious}{" "}
+                      · 太 AI？{lastPack.copy.studentReview.tooAi} · 太長？{lastPack.copy.studentReview.tooLong}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      看得懂？{lastPack.copy.studentReview.understandable} · 時間地點？
+                      {lastPack.copy.studentReview.knowsWhenWhere} · 找朋友？{lastPack.copy.studentReview.wouldBringFriend}{" "}
+                      · 報名？{lastPack.copy.studentReview.knowsSignup}
+                    </p>
+                    {Array.isArray(lastPack.copy.studentReview.notes) && lastPack.copy.studentReview.notes.length ? (
+                      <ul className="mt-2 space-y-1 text-xs text-muted">
+                        {lastPack.copy.studentReview.notes.slice(0, 4).map((line, i) => (
+                          <li key={`${line}-${i}`}>{line}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">一篇做成其他格式</p>
+                    <p className="mt-1 text-xs text-muted">用上面這則文案，做成 Story、Carousel、Threads、LINE、Reels</p>
+                    <div className="mt-2">
+                      <ConvertPanel
+                        compact
+                        stay
+                        pack={lastPack}
+                        caption={caption}
+                        campaignId={
+                          campaigns.find(
+                            (campaign) =>
+                              campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name),
+                          )?.id ?? null
+                        }
+                        onConverted={({ caption: next }) => {
+                          setCaption(next);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : null}
               {!lastPack || !lastVisualAssetId ? (
                 <>
                   <Button
