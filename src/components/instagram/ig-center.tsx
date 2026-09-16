@@ -9,7 +9,7 @@ import { IgThumb } from "@/components/create/ig-thumb";
 import { IG_DNA } from "@/lib/club/memory";
 import { lastPackPreviewSrc, packAssetIds, withPackKind } from "@/lib/club/last-pack";
 import { CONVERT_TARGETS } from "@/lib/convert/pack";
-import { lessonsFromIg } from "@/lib/club/insights";
+import { analysisFromLive, lessonsFromIg } from "@/lib/club/insights";
 import { writeHandoff } from "@/lib/create/handoff";
 import { runPackPublish } from "@/lib/club/run-publish";
 import { toast } from "sonner";
@@ -46,17 +46,24 @@ export function InstagramCenter() {
 
   useEffect(() => {
     void listConnectedMedia().then((result) => {
-      const mapped: IgMemoryPost[] = result.instagram.map((item) => ({
-        id: item.id,
-        mediaType: item.kind === "carousel" ? "carousel" : item.kind === "reels" ? "reels" : "image",
-        caption: item.caption || item.title,
-        takenAt: item.date ? Date.parse(item.date) : Date.now(),
-        thumb: item.thumb,
-        permalink: item.notes.startsWith("http") ? item.notes : undefined,
-        metrics: item.metrics,
-        metricsSource: "live" as const,
-        analysis: item.notes,
-      }));
+      const mapped: IgMemoryPost[] = result.instagram.map((item) => {
+        const mediaType = item.kind === "carousel" ? "carousel" : item.kind === "reels" ? "reels" : "image";
+        return {
+          id: item.id,
+          mediaType,
+          caption: item.caption || item.title,
+          takenAt: item.date ? Date.parse(item.date) : Date.now(),
+          thumb: item.thumb,
+          permalink: item.notes.startsWith("http") ? item.notes : undefined,
+          metrics: item.metrics,
+          metricsSource: "live" as const,
+          analysis: analysisFromLive({
+            caption: item.caption || item.title,
+            mediaType,
+            metrics: item.metrics,
+          }),
+        };
+      });
       setLive(mapped);
       if (mapped.length) ingestIg(mapped);
     });

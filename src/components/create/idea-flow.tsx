@@ -11,12 +11,13 @@ import { applyStudentReviewToPlan } from "@/lib/copy/review";
 import { toBriefInput } from "@/lib/ai/payload";
 import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, notesFromHits, summarizeFound } from "@/lib/club/compose";
 import { applyCanvaPush, canvaPushMessage, pushHeroToCanva } from "@/lib/club/canva-push";
-import { formatIdFromKind, httpsRasterUrl, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, withPackKind } from "@/lib/club/last-pack";
+import { formatIdFromKind, httpsRasterUrl, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, publicReelsCoverUrl, withPackKind, withReelsVideo } from "@/lib/club/last-pack";
 import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
 import { convertedScheduleInput, matchingScheduleRow } from "@/lib/club/schedule";
+import { generateReelsClip } from "@/lib/club/reels-video";
 import { runPackPublish } from "@/lib/club/run-publish";
-import { CONVERT_TARGETS, allConvertedPacks, convertPlan } from "@/lib/convert/pack";
+import { CONVERT_TARGETS, allConvertedPacks, convertPlan, reelsVideoPrompt } from "@/lib/convert/pack";
 import { folderSearchInput } from "@/lib/connections/presets";
 import { generateStudioImage } from "@/lib/image/studio";
 import { moodFromVariation, posterDataUrl } from "@/lib/image/poster";
@@ -455,6 +456,42 @@ export function IdeaFlow({
     }
   }
 
+  async function makeReelsVideo() {
+    const current = useCreative.getState().lastPack;
+    if (!current || !plan) {
+      toast.message("先做成一篇，才能生成 Reels 影片。");
+      return;
+    }
+    const cover = publicReelsCoverUrl(current);
+    const items = convertPlan(plan, "reels").items;
+    setBusy(true);
+    setPackKind("reels");
+    try {
+      const result = await generateReelsClip({
+        data: {
+          prompt: reelsVideoPrompt(plan.hook, items),
+          imageUrl: cover || undefined,
+          requestId: current.reelsJobId,
+        },
+      });
+      if (!result.ok) {
+        toast.message(result.error);
+        return;
+      }
+      if ("pending" in result && result.pending) {
+        setLastPack(withReelsVideo(current, { requestId: result.requestId }));
+        toast.message("影片還在生成，再按一次可以接續。");
+        return;
+      }
+      if ("url" in result && result.url) {
+        setLastPack(withReelsVideo(current, { url: result.url, requestId: result.requestId }));
+        toast.success("Reels 影片已就緒，可以用官方 API 發布。");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <label className="block text-sm">
@@ -627,6 +664,8 @@ export function IdeaFlow({
                         canvaDesignId: current?.canvaDesignId,
                         canvaEditUrl: current?.canvaEditUrl,
                         canvaExportUrl: current?.canvaExportUrl,
+                        reelsVideoUrl: current?.reelsVideoUrl,
+                        reelsJobId: current?.reelsJobId,
                         directionName: picked?.name ?? current?.directionName,
                         heroAssetId: current?.heroAssetId,
                         heroThumb: current?.heroThumb,
@@ -654,6 +693,12 @@ export function IdeaFlow({
                 ))}
               </ul>
             </div>
+          ) : null}
+
+          {lastPackState?.reelsVideoUrl ? (
+            <p className="text-xs text-muted" data-testid="idea-reels-ready">
+              來源：AI Generated · Reels 影片已可官方發布
+            </p>
           ) : null}
 
           <div className="grid gap-2 sm:grid-cols-2">
@@ -685,6 +730,14 @@ export function IdeaFlow({
                 進畫布微調
               </Button>
             ) : null}
+            <Button
+              variant="secondary"
+              data-testid="idea-reels-video"
+              disabled={busy}
+              onClick={() => void makeReelsVideo()}
+            >
+              {lastPackState?.reelsVideoUrl ? "Reels 影片已就緒" : lastPackState?.reelsJobId ? "接續 Reels 影片" : "生成 Reels 影片"}
+            </Button>
             <Button
               variant="secondary"
               data-testid="idea-canva"

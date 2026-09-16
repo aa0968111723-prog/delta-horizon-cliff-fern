@@ -10,7 +10,7 @@ import { FormatPreview } from "@/components/create/format-preview";
 import { CONVERT_TARGETS, convertPlan } from "@/lib/convert/pack";
 import { COPY_INTENTS, COPY_TONES, generateCopyPack, type CopyPack } from "@/lib/copy/generate";
 import { applyStudentReviewToPack } from "@/lib/copy/review";
-import { consumeHandoff, type CreateHandoff, type CreateTab } from "@/lib/create/handoff";
+import { consumeHandoff, takeAutoRun, type CreateHandoff, type CreateTab } from "@/lib/create/handoff";
 import { generateImageDirections, generateStudioImage, IMAGE_ASPECTS } from "@/lib/image/studio";
 import { analyzeImage, type VisionReport } from "@/lib/vision/analyze";
 import { compactDataUrl, loadAssetDataUrl } from "@/lib/vision/media";
@@ -122,6 +122,7 @@ export function CreateHub({ initialTab = "campaign" }: { initialTab?: CreateTab 
             sourceLabel={bridge.sourceLabel}
             seedFormat={bridge.formatId}
             seedAction={bridge.visionAction}
+            seedAutoRun={bridge.autoRun}
           />
         ) : null}
         {tab === "vision" ? (
@@ -258,17 +259,20 @@ function ImageStudio({
   sourceLabel,
   seedFormat,
   seedAction,
+  seedAutoRun,
 }: {
   seedIdea?: string;
   referenceImage?: string;
   sourceLabel?: string;
   seedFormat?: FormatId;
   seedAction?: string;
+  seedAutoRun?: boolean;
 }) {
   const addAsset = useStudio((s) => s.addAsset);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const setLastPack = useCreative((s) => s.setLastPack);
   const campaigns = useCreative((s) => s.campaigns);
+  const igPosts = useCreative((s) => s.igPosts);
   const [idea, setIdea] = useState(seedIdea || "我要宣傳茶會");
   const [formatId, setFormatId] = useState<(typeof IMAGE_ASPECTS)[number]["id"]>(
     seedFormat && IMAGE_ASPECTS.some((item) => item.id === seedFormat) ? seedFormat : "feed-portrait",
@@ -283,14 +287,19 @@ function ImageStudio({
     if (seedFormat && IMAGE_ASPECTS.some((item) => item.id === seedFormat)) setFormatId(seedFormat);
   }, [seedIdea, seedFormat]);
 
+  useEffect(() => {
+    if (!takeAutoRun(seedAutoRun)) return;
+    void directions();
+    // Intentionally once per consumed handoff.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedAutoRun, seedIdea]);
+
   async function directions() {
     setBusy(true);
     try {
-      const result = await generateImageDirections({ data: { idea, formatId } });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
+      const result = await generateImageDirections({
+        data: { idea, formatId, igLessons: lessonPrompt(igPosts) },
+      });
       setDirs(result.directions);
     } finally {
       setBusy(false);
@@ -358,6 +367,8 @@ function ImageStudio({
           canvaDesignId: current?.canvaDesignId,
           canvaEditUrl: current?.canvaEditUrl,
           canvaExportUrl: current?.canvaExportUrl,
+          reelsVideoUrl: current?.reelsVideoUrl,
+          reelsJobId: current?.reelsJobId,
           directionName: direction.name,
           heroAssetId: id,
           heroThumb: current?.heroThumb,
@@ -378,7 +389,7 @@ function ImageStudio({
       ) : null}
       <label className="block text-sm">
         我想做
-        <Input value={idea} onChange={(e) => setIdea(e.target.value)} />
+        <Input data-testid="image-studio-input" value={idea} onChange={(e) => setIdea(e.target.value)} />
       </label>
       <div className="flex flex-wrap gap-2">
         {IMAGE_ASPECTS.map((item) => (
@@ -387,12 +398,12 @@ function ImageStudio({
           </Button>
         ))}
       </div>
-      <Button disabled={busy} onClick={() => void directions()}>
+      <Button data-testid="image-studio-run" disabled={busy} onClick={() => void directions()}>
         {busy ? "思考中…" : "提出三個視覺方向"}
       </Button>
       <ul className="space-y-3">
         {dirs.map((dir) => (
-          <li key={dir.id} className={cn("rounded-2xl bg-bg p-4", picked?.id === dir.id && "ring-2 ring-ring/30")}>
+          <li key={dir.id} data-testid="image-direction" className={cn("rounded-2xl bg-bg p-4", picked?.id === dir.id && "ring-2 ring-ring/30")}>
             <p className="font-display text-lg">{dir.name}</p>
             <p className="mt-1 text-sm">{dir.concept}</p>
             <p className="mt-1 text-xs text-muted">{dir.palette} · {dir.composition} · {dir.typeDirection}</p>

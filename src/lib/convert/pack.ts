@@ -113,3 +113,11 @@ export function allConvertedPacks(plan: CampaignPlan): Partial<Record<ContentKin
     Record<ContentKind, ConvertedPack["items"]>
   >;
 }
+
+export function reelsVideoPrompt(hook: string, items: ConvertedPack["items"]) {
+  const beats = items
+    .slice(0, 5)
+    .map((item) => `${item.heading} ${item.body.replace(/\n/g, " ")} 素材：${item.visual}`)
+    .join("。");
+  return `A 9:16 vertical Reels, 8-10 seconds, Tamkang university students in Tamsui, warm indoor paper light, cyan amber rose glow, candid, not a temple poster, not golden Buddha, not AI-smooth skin. Student hook: ${hook}. ${beats}`.slice(0, 800);
+}

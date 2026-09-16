@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { convertPlan, allConvertedPacks } from "./pack.ts";
+import { convertPlan, allConvertedPacks, reelsVideoPrompt } from "./pack.ts";
 import { buildZenMockPlan } from "../club/mock-plan.ts";
 
 const plan = buildZenMockPlan({
@@ -48,4 +48,14 @@ test("allConvertedPacks keeps every IG size for one pack", () => {
   assert.ok((packs.carousel?.length ?? 0) >= 5);
   assert.ok((packs.threads?.[0]?.body.length ?? 0) > 8);
   assert.ok((packs.line?.[0]?.body.length ?? 0) > 4);
+});
+
+test("reels video prompt keeps the student hook and timed beats", () => {
+  const items = convertPlan(plan, "reels").items;
+  const prompt = reelsVideoPrompt(plan.hook, items);
+  assert.match(prompt, /9:16/);
+  assert.match(prompt, /Tamkang/);
+  assert.match(prompt, /not a temple poster/);
+  assert.match(prompt, /好好坐下來/);
+  assert.ok(prompt.length <= 800);
 });

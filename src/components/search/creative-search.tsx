@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { writeHandoff } from "@/lib/create/handoff";
 import { searchCreative } from "@/lib/search/creative";
+import { adoptIdeaFromHit } from "@/lib/search/hits";
 import { folderSearchInput } from "@/lib/connections/presets";
 import { sourceLabel } from "@/stores/creative-store";
 import { useCreative } from "@/stores/creative-store";
@@ -105,7 +106,7 @@ export function CreativeSearch() {
                       data-testid="search-add-create"
                       onClick={() => {
                         writeHandoff({
-                          idea: `${item.title}\n${item.notes}`,
+                          idea: adoptIdeaFromHit(item),
                           tab: "campaign",
                           autoRun: true,
                           convertKind: item.kind !== "asset" ? item.kind : undefined,

@@ -18,9 +18,19 @@ export type LastPack = {
   canvaDesignId?: string;
   canvaEditUrl?: string;
   canvaExportUrl?: string;
+  reelsVideoUrl?: string;
+  reelsJobId?: string;
   directionName?: string;
   updatedAt: number;
 };
+
+export function httpsVideoUrl(src?: string | null) {
+  const raw = src?.trim() || "";
+  if (!raw.startsWith("https://")) return "";
+  if (/\.(mp4|mov|webm)(\?|$)/i.test(raw)) return raw;
+  if (/x\.ai|imgen|grok|fbcdn|cdninstagram|scontent|instagram\.com/i.test(raw)) return raw;
+  return "";
+}
 
 export function httpsRasterUrl(src?: string | null) {
   const raw = src?.trim() || "";
@@ -82,6 +92,8 @@ export function lastPackFromPlan(input: {
   canvaDesignId?: string;
   canvaEditUrl?: string;
   canvaExportUrl?: string;
+  reelsVideoUrl?: string;
+  reelsJobId?: string;
   directionName?: string;
   heroAssetId?: string | null;
   heroThumb?: string;
@@ -110,6 +122,8 @@ export function lastPackFromPlan(input: {
     canvaDesignId: input.canvaDesignId,
     canvaEditUrl: input.canvaEditUrl?.startsWith("https://") ? input.canvaEditUrl : undefined,
     canvaExportUrl: httpsRasterUrl(input.canvaExportUrl) || undefined,
+    reelsVideoUrl: httpsVideoUrl(input.reelsVideoUrl) || undefined,
+    reelsJobId: input.reelsJobId,
     directionName: input.directionName,
     updatedAt: input.updatedAt ?? Date.now(),
   };
@@ -169,6 +183,20 @@ export function withCanvaExport(pack: LastPack, result: { id: string; editUrl: s
   };
 }
 
+export function publicReelsCoverUrl(pack: LastPack | null) {
+  if (!pack) return "";
+  return httpsRasterUrl(pack.formatPublicUrls?.reels) || httpsRasterUrl(pack.canvaExportUrl);
+}
+
+export function withReelsVideo(pack: LastPack, input: { url?: string; requestId?: string }): LastPack {
+  return persistablePack({
+    ...withPackKind(pack, "reels"),
+    reelsVideoUrl: httpsVideoUrl(input.url) || pack.reelsVideoUrl,
+    reelsJobId: input.requestId || pack.reelsJobId,
+    updatedAt: Date.now(),
+  })!;
+}
+
 export function persistablePack(pack: LastPack | null): LastPack | null {
   if (!pack) return null;
   return {
@@ -180,5 +208,7 @@ export function persistablePack(pack: LastPack | null): LastPack | null {
     canvaDesignId: pack.canvaDesignId,
     canvaEditUrl: pack.canvaEditUrl?.startsWith("https://") ? pack.canvaEditUrl : undefined,
     canvaExportUrl: httpsRasterUrl(pack.canvaExportUrl) || undefined,
+    reelsVideoUrl: httpsVideoUrl(pack.reelsVideoUrl) || undefined,
+    reelsJobId: pack.reelsJobId,
   };
 }

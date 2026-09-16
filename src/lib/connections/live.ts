@@ -191,23 +191,28 @@ export async function fetchInstagramMedia(blob: OAuthBlob | null): Promise<LiveH
 
 export async function publishInstagramMedia(
   blob: OAuthBlob | null,
-  input: { imageUrl: string; caption: string; kind: string },
+  input: { imageUrl: string; caption: string; kind: string; videoUrl?: string },
 ): Promise<
   | { ok: true; mediaId: string; permalink?: string }
   | { ok: false; error: string; needsConnect?: boolean; reason: "not-connected" | "api" | "unsupported" }
 > {
-  if (input.kind === "reels") {
+  if (input.kind === "reels" && !input.videoUrl) {
     return { ok: false, error: "Reels 需要影片檔，官方 API 不能只發封面。", reason: "unsupported" };
   }
   const ig = await resolveIgAccount(blob);
   if (!ig) return { ok: false, error: "還沒連接 Instagram。", needsConnect: true, reason: "not-connected" };
   try {
     const createBody = new URLSearchParams({
-      image_url: input.imageUrl,
       caption: input.caption.slice(0, 2200),
       access_token: ig.token,
     });
-    if (input.kind === "story") createBody.set("media_type", "STORIES");
+    if (input.kind === "reels" && input.videoUrl) {
+      createBody.set("media_type", "REELS");
+      createBody.set("video_url", input.videoUrl);
+    } else {
+      createBody.set("image_url", input.imageUrl);
+      if (input.kind === "story") createBody.set("media_type", "STORIES");
+    }
     const created = await fetch(`https://graph.facebook.com/v21.0/${ig.id}/media`, {
       method: "POST",
       body: createBody,

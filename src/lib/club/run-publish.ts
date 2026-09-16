@@ -1,17 +1,29 @@
 import { publishToInstagram } from "@/lib/connections/oauth";
 import type { LastPack } from "./last-pack.ts";
-import { memoryPostFromPublish, publicPublishUrl, publishCaption, publishNeedsVideo } from "./publish.ts";
+import { memoryPostFromPublish, publicPublishUrl, publicVideoUrl, publishCaption, publishNeedsVideo } from "./publish.ts";
 
 export async function runPackPublish(pack: LastPack, previewSrc: string) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const imageUrl = publicPublishUrl(pack, previewSrc, origin);
+  const videoUrl = publicVideoUrl(pack);
   let live = false;
   let mediaId: string | undefined;
   let error = "";
   let needsConnect = false;
 
-  if (publishNeedsVideo(pack.kind)) {
+  if (publishNeedsVideo(pack.kind, pack.reelsVideoUrl)) {
     error = "Reels 需要影片檔，官方 API 不能只發封面。";
+  } else if (pack.kind === "reels" && videoUrl) {
+    const result = await publishToInstagram({
+      data: { imageUrl: imageUrl || videoUrl, caption: publishCaption(pack), kind: pack.kind, videoUrl },
+    });
+    if (result.ok) {
+      live = true;
+      mediaId = result.mediaId;
+    } else {
+      error = result.error;
+      needsConnect = "needsConnect" in result && Boolean(result.needsConnect);
+    }
   } else if (imageUrl) {
     const result = await publishToInstagram({
       data: { imageUrl, caption: publishCaption(pack), kind: pack.kind },
@@ -34,7 +46,7 @@ export async function runPackPublish(pack: LastPack, previewSrc: string) {
     post: memoryPostFromPublish({ pack, thumb: previewSrc, live, mediaId }),
     message: live
       ? "已發到社團 IG，並寫進內容記憶。下次生成會參考這篇第一句。"
-      : publishNeedsVideo(pack.kind)
+      : publishNeedsVideo(pack.kind, pack.reelsVideoUrl)
         ? "Reels 需要影片檔。封面與腳本已寫進 IG 記憶。"
         : needsConnect
           ? `${error} 這篇已先寫進 IG 記憶。`

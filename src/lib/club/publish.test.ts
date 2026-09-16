@@ -49,6 +49,8 @@ test("publish caption keeps the student hook and club hashtags", () => {
   assert.equal(caption.includes("誠摯邀請"), false);
   assert.equal(publishNeedsVideo("reels"), true);
   assert.equal(publishNeedsVideo("story"), false);
+  assert.equal(publishNeedsVideo("reels", "https://imgen.x.ai/clip.mp4"), false);
+  assert.equal(publishNeedsVideo("reels", "data:video/mp4;base64,xx"), true);
 });
 
 test("published packs enter IG memory so the next generate can learn the hook", () => {

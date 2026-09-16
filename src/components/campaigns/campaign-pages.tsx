@@ -320,12 +320,12 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                   setBusy(true);
                   try {
                     const result = await generateImageDirections({
-                      data: { idea: current.oneLiner || current.name, eventName: current.name },
+                      data: {
+                        idea: current.oneLiner || current.name,
+                        eventName: current.name,
+                        igLessons: lessonPrompt(igPosts),
+                      },
                     });
-                    if (!result.ok) {
-                      toast.error(result.error);
-                      return;
-                    }
                     setDirections(current.id, result.directions);
                   } finally {
                     setBusy(false);

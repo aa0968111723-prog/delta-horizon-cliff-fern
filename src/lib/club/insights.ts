@@ -13,7 +13,7 @@ export type IgLessons = {
   story: string;
 };
 
-function score(post: IgLessonPost) {
+function score(post: { metrics?: IgLessonPost["metrics"] }) {
   const m = post.metrics;
   if (!m) return 0;
   return (m.saves ?? 0) * 3 + (m.comments ?? 0) * 2 + (m.likes ?? 0) + Math.round((m.reach ?? 0) / 40);
@@ -45,6 +45,34 @@ export function formatLessons(lessons: IgLessons) {
 
 export function lessonPrompt(posts: IgLessonPost[]) {
   return formatLessons(lessonsFromIg(posts)).slice(0, 800);
+}
+
+export function preferPublishedAnalysis(prev?: string, next?: string) {
+  if ((prev || "").includes("剛發布") && !(next || "").includes("剛發布")) return prev;
+  return next ?? prev;
+}
+
+export function analysisFromLive(post: {
+  caption?: string;
+  mediaType?: string;
+  metrics?: { reach?: number; likes?: number; comments?: number; saves?: number };
+}) {
+  const hook = firstLine(post.caption || "") || "沒有第一句";
+  const kind = post.mediaType === "carousel" ? "Carousel" : post.mediaType === "reels" ? "Reels" : "單張";
+  const m = post.metrics;
+  if (!m || score(post) === 0) {
+    return `官方 IG · ${kind}。還沒有足夠成效數字。Hook：「${hook}」。`;
+  }
+  const saves = m.saves ?? 0;
+  const likes = m.likes ?? 0;
+  const comments = m.comments ?? 0;
+  if (saves >= 20 || saves * 3 > likes) {
+    return `官方成效 · ${kind}。收藏高。Hook「${hook}」讓人停下來。下次延續問句，不要改回社團全名。`;
+  }
+  if (/龜龜/.test(hook) && comments < 8) {
+    return `官方成效 · ${kind}。互動少。只露角色、沒有生活句。Hook：「${hook}」。`;
+  }
+  return `官方成效 · ${kind}。Hook「${hook}」。讚 ${likes}、收藏 ${saves}。時間地點要再早兩行。`;
 }
 
 export function quotedHookFromLessons(text: string) {

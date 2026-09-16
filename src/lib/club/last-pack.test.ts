@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fallbackHeroThumb, formatIdFromKind, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, packForScheduleRow, persistablePack, withCanvaExport, withPackKind } from "./last-pack.ts";
+import { fallbackHeroThumb, formatIdFromKind, httpsVideoUrl, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, packForScheduleRow, persistablePack, publicReelsCoverUrl, withCanvaExport, withPackKind, withReelsVideo } from "./last-pack.ts";
 
 test("lastPackFromPlan keeps hook, caption, and a public hero fallback", () => {
   const pack = lastPackFromPlan({
@@ -132,4 +132,26 @@ test("without a pack, the wave title becomes the publish hook", () => {
   assert.equal(next.kind, "ig-post");
   assert.equal(next.hook, "預熱 · 浮游禪光");
   assert.equal(next.eventName, "預熱 · 浮游禪光");
+});
+
+test("https video urls persist on a reels pack", () => {
+  assert.equal(httpsVideoUrl("https://imgen.x.ai/clip.mp4"), "https://imgen.x.ai/clip.mp4");
+  assert.equal(httpsVideoUrl("data:video/mp4;base64,xx"), "");
+  assert.equal(httpsVideoUrl("https://cdn.example/hero.png"), "");
+  const pack = lastPackFromPlan({
+    projectId: "proj_tea",
+    campaignId: "camp_tea",
+    eventName: "茶會",
+    plan: { hook: "坐一下", captions: [], hashtags: [] },
+    kind: "ig-post",
+    formatPublicUrls: { reels: "https://export-download.canva.com/cover.jpg" },
+    canvaExportUrl: "https://export-download.canva.com/cover.jpg",
+    updatedAt: 1,
+  });
+  assert.equal(publicReelsCoverUrl(pack), "https://export-download.canva.com/cover.jpg");
+  const next = withReelsVideo(pack, { url: "https://imgen.x.ai/clip.mp4", requestId: "job_1" });
+  assert.equal(next.kind, "reels");
+  assert.equal(next.reelsVideoUrl, "https://imgen.x.ai/clip.mp4");
+  assert.equal(next.reelsJobId, "job_1");
+  assert.equal(persistablePack(next)?.reelsVideoUrl, "https://imgen.x.ai/clip.mp4");
 });

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { type LastPack, persistablePack } from "@/lib/club/last-pack";
+import { preferPublishedAnalysis } from "@/lib/club/insights";
 import { FEATURED_EVENT } from "@/lib/club/memory";
 import { buildCampaignRhythm, scheduleDraftsFromCampaign } from "@/lib/club/schedule";
 import { uid } from "@/lib/studio/ids";
@@ -294,7 +295,7 @@ export const useCreative = create<CreativeState>()(
               ...prev,
               ...post,
               metrics: post.metrics ?? prev?.metrics,
-              analysis: post.analysis ?? prev?.analysis,
+              analysis: preferPublishedAnalysis(prev?.analysis, post.analysis),
             });
           }
           return { igPosts: [...byId.values()].sort((a, b) => b.takenAt - a.takenAt) };
@@ -346,6 +347,8 @@ export const useCreative = create<CreativeState>()(
                 canvaDesignId: p.lastPack.canvaDesignId ?? current.lastPack?.canvaDesignId,
                 canvaEditUrl: p.lastPack.canvaEditUrl ?? current.lastPack?.canvaEditUrl,
                 canvaExportUrl: p.lastPack.canvaExportUrl ?? current.lastPack?.canvaExportUrl,
+                reelsVideoUrl: p.lastPack.reelsVideoUrl ?? current.lastPack?.reelsVideoUrl,
+                reelsJobId: p.lastPack.reelsJobId ?? current.lastPack?.reelsJobId,
               }
             : current.lastPack ?? null,
         };

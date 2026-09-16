@@ -1,4 +1,4 @@
-import { httpsRasterUrl, type LastPack } from "./last-pack.ts";
+import { httpsRasterUrl, httpsVideoUrl, type LastPack } from "./last-pack.ts";
 import type { ContentKind } from "../studio/types.ts";
 
 export function graphImageUrl(src: string, origin = "") {
@@ -17,6 +17,10 @@ export function publicPublishUrl(pack: LastPack, previewSrc: string, origin = ""
     if (url) return url;
   }
   return "";
+}
+
+export function publicVideoUrl(pack: LastPack) {
+  return pack.kind === "reels" ? httpsVideoUrl(pack.reelsVideoUrl) : "";
 }
 
 export function publishCaption(pack: Pick<LastPack, "caption" | "hashtags" | "hook">) {
@@ -59,6 +63,6 @@ export function memoryPostFromPublish(input: {
   };
 }
 
-export function publishNeedsVideo(kind: ContentKind) {
-  return kind === "reels";
+export function publishNeedsVideo(kind: ContentKind, videoUrl?: string) {
+  return kind === "reels" && !httpsVideoUrl(videoUrl);
 }

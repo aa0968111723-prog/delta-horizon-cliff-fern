@@ -53,3 +53,8 @@ export function mergeRanked<T extends MemoryItem>(query: string, live: T[], memo
   );
   return rankHits(merged, query);
 }
+
+export function adoptIdeaFromHit(item: Pick<MemoryItem, "title" | "notes" | "subtitle" | "source">) {
+  const source = item.subtitle || item.source;
+  return `延續這個來源的品牌 DNA，做新的活動。不要直接複製舊作品。來源：${source}。參考：「${item.title}」。${item.notes}`.slice(0, 420);
+}

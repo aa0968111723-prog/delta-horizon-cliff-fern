@@ -13,6 +13,7 @@ import {
 } from "./vault.server";
 import { fetchCanvaDesigns, fetchInstagramMedia, probeDrive, createCanvaDesign, searchDriveFolders, publishInstagramMedia } from "./live";
 import { graphImageUrl } from "@/lib/club/publish";
+import { httpsVideoUrl } from "@/lib/club/last-pack";
 
 type PkceState = { verifier: string; provider: "canva" | "instagram"; at: number };
 
@@ -227,17 +228,28 @@ export const publishToInstagram = createServerFn({ method: "POST" })
     z
       .object({
         caption: z.string().min(1).max(2200),
-        imageUrl: z.string().min(8).max(2000),
+        imageUrl: z.string().max(2000).optional(),
+        videoUrl: z.string().max(2000).optional(),
         kind: z.string().max(40).optional(),
       })
       .parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input),
   )
   .handler(async ({ data }) => {
-    const imageUrl = graphImageUrl(data.imageUrl);
-    if (!imageUrl) {
+    const videoUrl = data.videoUrl ? httpsVideoUrl(data.videoUrl) : "";
+    const imageUrl = data.imageUrl ? graphImageUrl(data.imageUrl) : "";
+    if (data.kind === "reels") {
+      if (!videoUrl) {
+        return { ok: false as const, error: "Reels 需要影片檔，官方 API 不能只發封面。", reason: "unsupported" as const };
+      }
+    } else if (!imageUrl) {
       return { ok: false as const, error: "官方 API 需要公開的 JPG/PNG 網址。", reason: "not-public" as const };
     }
     const req = getRequest();
     const blob = await readBlobFromCookie(req?.headers.get("cookie") ?? null);
-    return publishInstagramMedia(blob, { imageUrl, caption: data.caption, kind: data.kind || "ig-post" });
+    return publishInstagramMedia(blob, {
+      imageUrl: imageUrl || videoUrl,
+      caption: data.caption,
+      kind: data.kind || "ig-post",
+      videoUrl,
+    });
   });

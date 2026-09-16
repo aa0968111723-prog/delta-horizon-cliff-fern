@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { asDriveHits, driveThumb, mergeRanked } from "./hits.ts";
+import { asDriveHits, adoptIdeaFromHit, driveThumb, mergeRanked } from "./hits.ts";
 
 test("Drive files keep a useful thumb and club tags", () => {
   assert.equal(driveThumb({ name: "2024 茶會現場.JPG" }), "/seed/tea.svg");
@@ -33,4 +33,17 @@ test("English Canva titles still appear even when they miss the Chinese query", 
   );
   assert.equal(ranked[0]?.id, "mem_tea");
   assert.ok(ranked.some((row) => row.id === "live_en"));
+});
+
+test("adopting a search hit continues brand DNA instead of copying the old work", () => {
+  const idea = adoptIdeaFromHit({
+    source: "canva",
+    title: "浮游禪光",
+    subtitle: "Canva / 浮游禪光",
+    notes: "歷屆夜間主視覺，留白多。",
+  });
+  assert.match(idea, /品牌 DNA/);
+  assert.match(idea, /浮游禪光/);
+  assert.match(idea, /Canva/);
+  assert.match(idea, /不要直接複製/);
 });

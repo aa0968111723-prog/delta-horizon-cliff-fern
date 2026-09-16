@@ -19,4 +19,9 @@ test("IG / Story / Carousel / Reels quick starts land on campaign IdeaFlow", () 
   const carousel = handoffFromQuickStart(byId.carousel!);
   assert.equal(carousel.convertKind, "carousel");
   assert.equal(carousel.autoRun, true);
+
+  const image = handoffFromQuickStart(byId.image!);
+  assert.equal(image.autoRun, true);
+  assert.equal(image.tab, "image");
+  assert.match(image.idea ?? "", /茶會/);
 });

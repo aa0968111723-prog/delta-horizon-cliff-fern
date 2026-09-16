@@ -42,7 +42,12 @@ export function convertKindFromQuickStart(id: string): ContentKind | undefined {
 
 export function handoffFromQuickStart(action: QuickStart): CreateHandoff {
   const convertKind = convertKindFromQuickStart(action.id);
-  const autoRun = action.id === "post" || action.id === "story" || action.id === "carousel" || action.id === "reels";
+  const autoRun =
+    action.id === "post" ||
+    action.id === "story" ||
+    action.id === "carousel" ||
+    action.id === "reels" ||
+    action.id === "image";
   return {
     idea: START_IDEAS[action.id],
     tab: action.tab,
