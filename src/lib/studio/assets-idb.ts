@@ -56,7 +56,6 @@ export async function deleteAssetBlob(id: string): Promise<void> {
 }
 
 export async function hydrateSeedAsset(id: string, src: string): Promise<void> {
-  if (await hasAssetBlob(id)) return;
   const res = await fetch(src);
   if (!res.ok) throw new Error(`無法載入素材 ${src}`);
   const blob = await res.blob();
