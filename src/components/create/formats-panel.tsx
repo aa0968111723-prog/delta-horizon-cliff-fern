@@ -45,7 +45,7 @@ export function FormatsPanel({
   }
 
   return (
-    <section className="rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)] md:p-5">
+    <section className="min-w-0 rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)] md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-sm font-medium">一鍵轉換</h2>
@@ -72,7 +72,7 @@ export function FormatsPanel({
           </TabsList>
 
           <TabsContent value="carousel" className="mt-3">
-            <ol className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1">
+            <ol className="no-scrollbar -mx-4 flex min-w-0 snap-x gap-3 overflow-x-auto px-4 pb-1">
               {content.carousel.map((s) => (
                 <li key={s.index} className="w-[70%] shrink-0 snap-start sm:w-56">
                   <div className="flex aspect-[4/5] flex-col rounded-2xl bg-glow-card p-4">
@@ -89,7 +89,7 @@ export function FormatsPanel({
           </TabsContent>
 
           <TabsContent value="story" className="mt-3">
-            <ol className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1">
+            <ol className="no-scrollbar -mx-4 flex min-w-0 snap-x gap-3 overflow-x-auto px-4 pb-1">
               {content.storyFrames.map((f) => (
                 <li key={f.index} className="w-[46%] shrink-0 snap-start sm:w-40">
                   <div className="flex aspect-[9/16] flex-col rounded-2xl bg-night p-3 text-night-fg">

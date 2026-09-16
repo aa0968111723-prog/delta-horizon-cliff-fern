@@ -455,7 +455,7 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
   const visualAspect: AspectId = isReels || type === "story" ? "9:16" : "4:5";
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-6xl min-w-0 px-4 py-6 md:px-8 md:py-10">
       {/* Header */}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
@@ -549,8 +549,8 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
         </section>
       ) : null}
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-[1.35fr_1fr] lg:items-start">
-        <div className="space-y-5">
+      <div className="mt-6 grid min-w-0 gap-5 lg:grid-cols-[1.35fr_1fr] lg:items-start">
+        <div className="min-w-0 space-y-5">
           {/* 情境 */}
           <section className="rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)] md:p-5">
             <h2 className="text-sm font-medium">這篇在講什麼</h2>
@@ -605,10 +605,10 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
               </div>
             </div>
             {campaign ? (
-              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-glow-card px-3 py-2 text-xs">
-                <Tent className="size-3.5 text-accent" />
+              <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2 rounded-2xl bg-glow-card px-3 py-2 text-xs">
+                <Tent className="size-3.5 shrink-0 text-accent" />
                 <span className="font-medium">{campaign.name}</span>
-                <span className="text-muted">
+                <span className="min-w-0 text-muted">
                   {campaign.date} {campaign.time} · {campaign.location}
                 </span>
                 {wave ? <span className="rounded-full bg-surface px-2 py-0.5">{WAVE_ROLES[wave.role].label}</span> : null}
@@ -739,7 +739,7 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
         </div>
 
         {/* Right rail */}
-        <aside className="space-y-4 lg:sticky lg:top-6">
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-6">
           {content ? (
             <>
               {isReels ? (
@@ -766,10 +766,10 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
                     </button>
                   ))}
                 </div>
-                <div className="mt-3 flex items-center gap-2">
+                <div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
                   <Input
                     type="datetime-local"
-                    className="rounded-2xl"
+                    className="min-w-0 rounded-2xl"
                     value={content.scheduledAt ? formatDate(content.scheduledAt, "yyyy-MM-dd'T'HH:mm") : ""}
                     onChange={(e) => scheduleContent(content.id, e.target.value ? new Date(e.target.value).getTime() : null)}
                   />

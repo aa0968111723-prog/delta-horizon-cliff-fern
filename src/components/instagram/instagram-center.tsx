@@ -123,7 +123,7 @@ export function InstagramCenter({ initialTab }: { initialTab?: Tab }) {
             key={t.id}
             type="button"
             onClick={() => switchTab(t.id)}
-            className={cn("shrink-0 rounded-full px-4 py-2 text-xs", tab === t.id ? "bg-surface text-fg shadow-[var(--shadow-border)]" : "text-muted")}
+            className={cn("min-h-11 shrink-0 rounded-full px-4 py-2 text-xs", tab === t.id ? "bg-surface text-fg shadow-[var(--shadow-border)]" : "text-muted")}
           >
             {t.label}
           </button>

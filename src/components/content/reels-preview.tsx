@@ -29,62 +29,58 @@ export function ReelsPreview({
   const progress = duration ? Math.min(1, time / duration) : 0;
 
   return (
-    <div className={cn("mx-auto w-full max-w-[18rem]", className)}>
+    <div className={cn("mx-auto w-full max-w-[min(18rem,100%)]", className)}>
       <div className="relative overflow-hidden rounded-[28px] bg-night text-night-fg shadow-[var(--shadow-float)]">
         <div className="relative aspect-[9/16] w-full">
           {cover ? <img src={cover} alt="" className="absolute inset-0 size-full object-cover" /> : <div className="absolute inset-0 bg-glow-card" />}
           <div className="absolute inset-0 bg-gradient-to-t from-night/80 via-night/10 to-night/30" />
 
-          <div className="absolute inset-x-3 top-3 flex items-center gap-1">
+          <div className="absolute inset-x-2 top-2 z-10 flex items-center gap-1">
             {beats.length
               ? beats.map((b, i) => (
                   <button
                     key={`${b.from}-${i}`}
                     type="button"
-                    aria-label={`${beatRole(i).label} ${b.from}–${b.to} 秒`}
-                    className="h-0.5 min-h-0 flex-1 overflow-hidden rounded-full bg-night-fg/25"
+                    aria-label={`跳到 ${beatRole(i).label} ${b.from}–${b.to} 秒`}
+                    className="flex h-7 flex-1 items-center"
                     onClick={() => onSeek?.(b.from + 0.05)}
                   >
-                    <span
-                      className="block h-full bg-night-fg"
-                      style={{
-                        width: i < active ? "100%" : i === active ? `${Math.min(100, ((time - b.from) / Math.max(0.1, b.to - b.from)) * 100)}%` : "0%",
-                      }}
-                    />
+                    <span className="block h-0.5 w-full overflow-hidden rounded-full bg-night-fg/25">
+                      <span
+                        className="block h-full bg-night-fg"
+                        style={{
+                          width: i < active ? "100%" : i === active ? `${Math.min(100, ((time - b.from) / Math.max(0.1, b.to - b.from)) * 100)}%` : "0%",
+                        }}
+                      />
+                    </span>
                   </button>
                 ))
               : <span className="h-0.5 w-full rounded-full bg-night-fg/40" />}
           </div>
 
-          <p className="absolute top-6 left-3 text-[10px] tracking-[0.18em] text-night-fg/70 uppercase">
+          <p className="absolute top-9 left-3 z-10 text-[10px] tracking-[0.18em] text-night-fg/70 uppercase">
             {beat ? `${beatRole(active).label} · ${Math.floor(time)}s` : "Reels · 20s"}
           </p>
 
-          <button
-            type="button"
-            onClick={onTogglePlay}
-            className="absolute inset-0 flex items-center justify-center"
-            aria-label={playing ? "暫停預覽" : "預覽 20 秒"}
-          >
-            {!playing ? (
-              <span className="flex size-14 items-center justify-center rounded-full bg-night/55 text-night-fg backdrop-blur-sm">
-                <Play className="size-6 fill-current" />
-              </span>
-            ) : (
-              <span className="sr-only">播放中</span>
-            )}
-          </button>
-
-          {playing ? (
+          {!playing ? (
             <button
               type="button"
               onClick={onTogglePlay}
-              className="absolute top-6 right-3 flex size-8 items-center justify-center rounded-full bg-night/40"
+              className="absolute top-1/2 left-1/2 z-[5] flex size-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-night/55 text-night-fg backdrop-blur-sm"
+              aria-label="在畫面裡預覽"
+            >
+              <Play className="size-6 fill-current" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onTogglePlay}
+              className="absolute top-9 right-3 z-10 flex size-11 items-center justify-center rounded-full bg-night/40"
               aria-label="暫停"
             >
               <Pause className="size-3.5" />
             </button>
-          ) : null}
+          )}
 
           <div className="absolute inset-x-0 bottom-0 p-4">
             <p className="text-xs font-semibold">{handle.replace(/^@/, "")}</p>

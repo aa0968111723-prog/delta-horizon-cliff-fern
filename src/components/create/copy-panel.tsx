@@ -33,7 +33,7 @@ export function CopyPanel({
   const hasCopy = Boolean(copy.hook || copy.body);
 
   return (
-    <section className="rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)] md:p-5">
+    <section className="min-w-0 rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)] md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-sm font-medium">IG 文案</h2>
@@ -45,7 +45,7 @@ export function CopyPanel({
         </Button>
       </div>
 
-      <div className="no-scrollbar -mx-1 mt-3 flex gap-1.5 overflow-x-auto px-1 pb-1">
+      <div className="mt-3 flex flex-wrap gap-1.5">
         {TONES.map((t) => {
           const has = variants.some((v) => v.tone === t.id);
           const active = copy.tone === t.id;
@@ -55,7 +55,7 @@ export function CopyPanel({
               type="button"
               onClick={() => onTone(t.id)}
               className={cn(
-                "flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs transition-colors",
+                "flex min-h-8 items-center gap-1 rounded-full px-3 py-1.5 text-xs transition-colors",
                 active ? "bg-fg text-bg" : has ? "bg-surface-2 text-fg" : "bg-surface-2/60 text-muted",
               )}
               title={t.hint}

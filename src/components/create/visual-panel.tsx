@@ -69,7 +69,7 @@ export function VisualPanel({
   }, [defaultAspect]);
 
   return (
-    <section className="rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)] md:p-5">
+    <section className="min-w-0 rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)] md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-sm font-medium">{defaultAspect === "9:16" ? "Reels / Story 封面" : "主視覺"}</h2>

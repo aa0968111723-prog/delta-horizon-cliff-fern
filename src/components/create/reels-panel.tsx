@@ -90,7 +90,7 @@ export function ReelsPanel({
   }
 
   return (
-    <section className="rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)] md:p-5">
+    <section className="min-w-0 rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)] md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-sm font-medium">Reels 工作台</h2>
@@ -113,8 +113,8 @@ export function ReelsPanel({
           按「AI 生成 20 秒腳本」。會依 Brand Memory 與淡江學生情境，拆成 0–3 / 3–7 / 7–12 / 12–17 / 17–20 秒，每段都有畫面、字幕、旁白與要準備的素材。
         </p>
       ) : (
-        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,16.5rem)_1fr] lg:items-start">
-          <div className="mx-auto w-full max-w-[16.5rem]">
+          <div className="mt-4 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,16.5rem)_1fr] lg:items-start">
+            <div className="mx-auto w-full max-w-[min(16.5rem,100%)]">
             <ReelsPreview
               beats={beats}
               cover={cover}
@@ -139,7 +139,7 @@ export function ReelsPanel({
             </div>
           </div>
 
-          <ol className="space-y-2">
+            <ol className="min-w-0 space-y-2">
             {beats.map((beat, i) => (
               <BeatCard
                 key={`${beat.from}-${i}`}
@@ -191,11 +191,11 @@ function BeatCard({
   return (
     <li
       className={cn(
-        "overflow-hidden rounded-2xl bg-surface-2/70 shadow-[var(--shadow-border)]",
+        "min-w-0 overflow-hidden rounded-2xl bg-surface-2/70 shadow-[var(--shadow-border)]",
         active && "ring-2 ring-accent/40",
       )}
     >
-      <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 px-3 py-3 text-left">
+      <button type="button" onClick={onOpen} className="flex w-full min-h-11 items-center gap-3 px-3 py-3 text-left" aria-label={`編輯 ${role.label} ${beat.from}–${beat.to} 秒`}>
         <span className="w-12 shrink-0 font-display text-sm tabular-nums">
           {beat.from}–{beat.to}
         </span>
