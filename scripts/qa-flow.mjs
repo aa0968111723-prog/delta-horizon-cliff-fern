@@ -75,6 +75,7 @@ try {
   await page.getByRole("button", { name: /^用這版$/ }).first().click();
   await page.waitForTimeout(1200);
   await expectText("建立內容後回到創作頁", "進畫面編輯");
+  await expectText("來源標示", "這則用到的來源");
 
   // 6b. 一鍵轉換 + Reels 腳本
   await expectText("一鍵轉換", "做成其他型態");
@@ -93,7 +94,7 @@ try {
   // 7. 逐頁檢查
   for (const [name, path, needle] of [
     ["活動列表", "/campaigns", "社課與活動"],
-    ["日曆", "/calendar", "內容日曆"],
+    ["日曆", "/calendar", "依宣傳節奏排程"],
     ["IG 中心", "/instagram", "IG 中心"],
     ["搜尋", "/search", "找素材與過去的內容"],
     ["連接", "/connections", "素材與帳號"],
@@ -103,6 +104,17 @@ try {
     await page.goto(`${base}${path}`, { waitUntil: "networkidle" });
     await expectText(name, needle);
   }
+
+  await page.goto(`${base}/calendar`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "依宣傳節奏排程" }).click();
+  await page.waitForTimeout(800);
+  const cal = await text();
+  record(
+    "AI 自動排程",
+    cal.includes("已排程") || cal.includes("主視覺") || cal.includes("沒有可以排"),
+    "排程後日曆沒有更新",
+  );
+  await page.screenshot({ path: `${prefix}-calendar.png` });
 
   // 8. 活動詳情 + AI 生成完整宣傳
   await page.goto(`${base}/campaigns`, { waitUntil: "networkidle" });

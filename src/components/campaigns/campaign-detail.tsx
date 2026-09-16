@@ -37,6 +37,7 @@ import {
   formatCampaignDate,
   waveDateLabel,
 } from "@/lib/studio/campaign";
+import { suggestSchedule } from "@/lib/studio/schedule";
 import { CONTENT_KIND_META, contentKindLabel } from "@/lib/studio/status";
 import type { Campaign, CampaignWave } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -51,6 +52,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
   const updateCampaign = useStudio((s) => s.updateCampaign);
   const deleteCampaign = useStudio((s) => s.deleteCampaign);
   const createProject = useStudio((s) => s.createProject);
+  const applySchedule = useStudio((s) => s.applySchedule);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(false);
@@ -159,6 +161,18 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
     });
   }
 
+  function runSchedule() {
+    if (!campaign) return;
+    const suggestions = suggestSchedule(projects, [campaign]);
+    if (!suggestions.length) {
+      toast.info("這場活動還沒有可以排的內容。先從節奏裡建立一篇。");
+      return;
+    }
+    const count = applySchedule(suggestions);
+    toast.success(`已排 ${count} 則到日曆`);
+    void navigate({ to: "/calendar" });
+  }
+
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
@@ -170,6 +184,10 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
             <Button onClick={runStrategy} disabled={busy}>
               {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
               AI 生成完整宣傳
+            </Button>
+            <Button variant="secondary" onClick={runSchedule}>
+              <CalendarDays className="size-4" />
+              依節奏排程
             </Button>
             <Button variant="secondary" onClick={() => setEditing(true)}>
               <Pencil className="size-4" />

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import {
   addDays,
   addMonths,
@@ -19,6 +19,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { campaignDateMs, waveDateMs } from "@/lib/studio/campaign";
+import { suggestSchedule } from "@/lib/studio/schedule";
 import { contentKindLabel } from "@/lib/studio/status";
 import type { Campaign, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -31,14 +32,26 @@ type DayItem =
   | { type: "wave"; campaign: Campaign; waveId: string; title: string; stage: string; at: number }
   | { type: "event"; campaign: Campaign; at: number };
 
+function initialView(): View {
+  if (typeof window === "undefined") return "month";
+  return window.innerWidth < 640 ? "agenda" : "month";
+}
+
+function prefersTapMove(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(pointer: coarse)").matches;
+}
+
 export function CalendarPage() {
-  const navigate = useNavigate();
   const projects = useStudio((s) => s.projects);
   const campaigns = useStudio((s) => s.campaigns);
   const setSchedule = useStudio((s) => s.setSchedule);
+  const applySchedule = useStudio((s) => s.applySchedule);
   const [cursor, setCursor] = useState(() => new Date());
-  const [view, setView] = useState<View>("month");
+  const [view, setView] = useState<View>(initialView);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [pickId, setPickId] = useState<string | null>(null);
+  const [tapMove] = useState(prefersTapMove);
 
   const items = useMemo<DayItem[]>(() => {
     const rows: DayItem[] = [];
@@ -88,17 +101,35 @@ export function CalendarPage() {
     return items.filter((item) => isSameDay(item.at, day));
   }
 
-  function dropOn(day: Date) {
-    if (!dragId) return;
-    const project = projects.find((p) => p.id === dragId);
+  function moveProject(projectId: string, day: Date) {
+    const project = projects.find((p) => p.id === projectId);
     if (!project) return;
     const prev = project.scheduledAt ? new Date(project.scheduledAt) : null;
     const next = new Date(day);
     next.setHours(prev?.getHours() ?? 19, prev?.getMinutes() ?? 0, 0, 0);
     setSchedule(project.id, next.getTime());
     setDragId(null);
+    setPickId(null);
     toast.success(`已改到 ${format(next, "M/d HH:mm")}`);
   }
+
+  function dropOn(day: Date) {
+    const id = dragId ?? pickId;
+    if (!id) return;
+    moveProject(id, day);
+  }
+
+  function runAutoSchedule() {
+    const suggestions = suggestSchedule(projects, campaigns);
+    if (!suggestions.length) {
+      toast.info("沒有可以排的內容。先把活動節奏或完成的稿準備好。");
+      return;
+    }
+    const count = applySchedule(suggestions);
+    toast.success(`已依宣傳節奏排了 ${count} 則，預設晚上發出。`);
+  }
+
+  const picked = pickId ? projects.find((p) => p.id === pickId) : null;
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
@@ -107,29 +138,44 @@ export function CalendarPage() {
         title="內容日曆"
         description="只服務創作與發布：什麼時候發、發什麼型態。沒有負責人，也沒有審核流程。"
         actions={
-          <div className="flex items-center gap-1 rounded-full bg-surface p-1 shadow-[var(--shadow-border)]">
-            {(
-              [
-                { id: "month" as const, label: "月" },
-                { id: "week" as const, label: "週" },
-                { id: "agenda" as const, label: "清單" },
-              ]
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setView(tab.id)}
-                className={cn(
-                  "min-h-9 rounded-full px-3 text-xs transition-colors",
-                  view === tab.id ? "bg-accent text-accent-fg" : "text-muted hover:text-fg",
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={runAutoSchedule}>
+              <Sparkles className="size-4" />
+              依宣傳節奏排程
+            </Button>
+            <div className="flex items-center gap-1 rounded-full bg-surface p-1 shadow-[var(--shadow-border)]">
+              {(
+                [
+                  { id: "month" as const, label: "月" },
+                  { id: "week" as const, label: "週" },
+                  { id: "agenda" as const, label: "清單" },
+                ]
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setView(tab.id)}
+                  className={cn(
+                    "min-h-9 rounded-full px-3 text-xs transition-colors",
+                    view === tab.id ? "bg-accent text-accent-fg" : "text-muted hover:text-fg",
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
         }
       />
+
+      {picked ? (
+        <p className="mt-4 rounded-xl bg-surface px-3 py-2 text-xs text-muted shadow-[var(--shadow-border)]">
+          已選「{picked.name}」。點一個日期改過去。
+          <button type="button" className="ml-2 underline" onClick={() => setPickId(null)}>
+            取消
+          </button>
+        </p>
+      ) : null}
 
       {view !== "agenda" ? (
         <div className="mt-6 flex items-center justify-between gap-2">
@@ -160,9 +206,11 @@ export function CalendarPage() {
         </div>
       ) : null}
 
-      {/* 手機用清單，電腦用格線 */}
       {view === "agenda" ? (
-        <AgendaList items={agenda} />
+        <AgendaList
+          items={agenda}
+          onReschedule={(projectId, day) => moveProject(projectId, day)}
+        />
       ) : (
         <>
           <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs text-muted">
@@ -181,22 +229,33 @@ export function CalendarPage() {
                     if (dragId) e.preventDefault();
                   }}
                   onDrop={() => dropOn(day)}
+                  onClick={(e) => {
+                    if (!pickId) return;
+                    if ((e.target as HTMLElement).closest("a")) return;
+                    dropOn(day);
+                  }}
                   className={cn(
                     "min-h-24 rounded-xl bg-surface p-1.5 shadow-[var(--shadow-border)] transition-shadow sm:min-h-28",
                     dim && "opacity-45",
                     isSameDay(day, new Date()) && "ring-2 ring-ring",
-                    dragId && "hover:shadow-[var(--shadow-lift)]",
+                    (dragId || pickId) && "hover:shadow-[var(--shadow-lift)]",
                   )}
                 >
                   <p className="px-0.5 text-xs tabular-nums text-muted">{format(day, "d")}</p>
                   <ul className="mt-1 space-y-1">
                     {dayItems.slice(0, 3).map((item) => (
                       <li key={keyOf(item)}>
-                        <CalendarChip item={item} onDragStart={setDragId} />
+                        <CalendarChip
+                          item={item}
+                          selected={item.type === "content" && pickId === item.project.id}
+                          tapMove={tapMove}
+                          onDragStart={setDragId}
+                          onPick={(id) => setPickId(id)}
+                        />
                       </li>
                     ))}
                     {dayItems.length > 3 ? (
-                      <li className="px-1 text-[0.65rem] text-subtle">+{dayItems.length - 3}</li>
+                      <li className="px-1 text-xs text-subtle">+{dayItems.length - 3}</li>
                     ) : null}
                   </ul>
                 </div>
@@ -204,7 +263,9 @@ export function CalendarPage() {
             })}
           </div>
           <p className="mt-3 text-xs text-subtle">
-            已排程的內容可以直接拖到別的日期。灰色的是 AI 排好但還沒建立的那幾篇。
+            {tapMove
+              ? "點一則內容再點日期就能改期。灰色的是 AI 排好但還沒建立的那幾篇。"
+              : "已排程的內容可以直接拖到別的日期。手機點內容再點日期也能改。灰色的是還沒建立的節奏。"}
           </p>
         </>
       )}
@@ -241,17 +302,23 @@ function keyOf(item: DayItem): string {
 
 function CalendarChip({
   item,
+  selected,
+  tapMove,
   onDragStart,
+  onPick,
 }: {
   item: DayItem;
+  selected?: boolean;
+  tapMove?: boolean;
   onDragStart: (id: string | null) => void;
+  onPick: (id: string) => void;
 }) {
   if (item.type === "event") {
     return (
       <Link
         to="/campaigns/$campaignId"
         params={{ campaignId: item.campaign.id }}
-        className="block truncate rounded-lg bg-[color-mix(in_oklab,var(--color-warm)_28%,transparent)] px-1.5 py-1 text-[0.65rem] font-medium"
+        className="block truncate rounded-lg bg-[color-mix(in_oklab,var(--color-warm)_28%,transparent)] px-1.5 py-1 text-xs font-medium"
       >
         {item.campaign.name || "活動"}
       </Link>
@@ -262,7 +329,7 @@ function CalendarChip({
       <Link
         to="/campaigns/$campaignId"
         params={{ campaignId: item.campaign.id }}
-        className="block truncate rounded-lg bg-surface-2 px-1.5 py-1 text-[0.65rem] text-muted"
+        className="block truncate rounded-lg bg-surface-2 px-1.5 py-1 text-xs text-muted"
         title={`${item.stage}·${item.title}（還沒建立）`}
       >
         {item.title || item.stage}
@@ -273,41 +340,69 @@ function CalendarChip({
     <Link
       to="/studio/$projectId"
       params={{ projectId: item.project.id }}
-      draggable
+      draggable={!tapMove}
       onDragStart={() => onDragStart(item.project.id)}
       onDragEnd={() => onDragStart(null)}
-      className="block truncate rounded-lg bg-[color-mix(in_oklab,var(--color-clear)_22%,transparent)] px-1.5 py-1 text-[0.65rem] font-medium"
-      title={item.project.name}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!tapMove && !e.metaKey && !e.ctrlKey) return;
+        if (e.metaKey || e.ctrlKey) return;
+        e.preventDefault();
+        onPick(item.project.id);
+      }}
+      className={cn(
+        "block truncate rounded-lg px-1.5 py-1 text-xs font-medium",
+        selected
+          ? "bg-accent text-accent-fg"
+          : "bg-[color-mix(in_oklab,var(--color-clear)_22%,transparent)]",
+      )}
+      title={tapMove ? "點選後再點日期改期" : item.project.name}
     >
       {item.project.name}
     </Link>
   );
 }
 
-function AgendaList({ items }: { items: DayItem[] }) {
+function AgendaList({
+  items,
+  onReschedule,
+}: {
+  items: DayItem[];
+  onReschedule: (projectId: string, day: Date) => void;
+}) {
   if (!items.length) return null;
   return (
     <ul className="mt-6 space-y-2">
       {items.map((item) => (
         <li key={keyOf(item)} className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
           {item.type === "content" ? (
-            <Link
-              to="/studio/$projectId"
-              params={{ projectId: item.project.id }}
-              className="flex items-center gap-3"
-            >
-              <span className="w-14 shrink-0 text-xs tabular-nums text-muted">
-                {format(item.at, "M/d")}
+            <div className="flex items-center gap-3">
+              <label className="w-16 shrink-0 text-xs tabular-nums text-muted">
+                <span className="block">{format(item.at, "M/d")}</span>
                 <span className="block text-subtle">{format(item.at, "HH:mm")}</span>
-              </span>
-              <span className="min-w-0 flex-1">
+                <input
+                  type="date"
+                  aria-label={`改期 ${item.project.name}`}
+                  value={format(item.at, "yyyy-MM-dd")}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    onReschedule(item.project.id, new Date(`${e.target.value}T00:00:00`));
+                  }}
+                  className="mt-1 w-full min-h-8 rounded-lg bg-surface-2 px-1 text-xs text-fg"
+                />
+              </label>
+              <Link
+                to="/studio/$projectId"
+                params={{ projectId: item.project.id }}
+                className="min-w-0 flex-1"
+              >
                 <span className="block truncate text-sm font-medium">{item.project.name}</span>
                 <span className="block truncate text-xs text-muted">
                   {contentKindLabel(item.project.contentKind)}
                 </span>
-              </span>
+              </Link>
               <StatusBadge status={item.project.status} />
-            </Link>
+            </div>
           ) : item.type === "event" ? (
             <Link
               to="/campaigns/$campaignId"

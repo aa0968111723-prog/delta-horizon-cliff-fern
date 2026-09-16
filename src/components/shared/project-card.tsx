@@ -63,6 +63,11 @@ export function ProjectCard({
             {contentKindLabel(project.contentKind)} · {format.short} ·{" "}
             {formatDate(project.updatedAt, "M/d HH:mm", { locale: zhTW })}
           </p>
+          {project.sources.length ? (
+            <p className="mt-1 truncate text-xs text-subtle">
+              來源 {project.sources.map((src) => src.label).join("、")}
+            </p>
+          ) : null}
         </div>
         <StatusBadge status={project.status} />
       </div>

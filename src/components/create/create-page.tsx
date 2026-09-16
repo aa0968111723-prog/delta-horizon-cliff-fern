@@ -11,7 +11,10 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CopyDraftCard, copyDraftText } from "@/components/create/copy-results";
-import { ImageUnderstanding } from "@/components/create/image-understanding";
+import { ConvertBar } from "@/components/create/convert-bar";
+import { ImageUnderstanding, type ImageMakePayload } from "@/components/create/image-understanding";
+import { ReelsTimeline } from "@/components/create/reels-timeline";
+import { SourceList } from "@/components/shared/source-list";
 import { StudentReviewPanel } from "@/components/create/student-review-panel";
 import { PageHeader, SectionHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -25,9 +28,9 @@ import {
 import { COPY_TONES, COPY_TOPICS, type CopyTopic } from "@/lib/ai/copy-local";
 import { generateIgCopy, getZenAiStatus, reviewAsStudent, generateReelsScript } from "@/lib/ai/copy-ai";
 import { generateVisualDirections, type VisualDirection } from "@/lib/ai/image-ai";
-import { ConvertBar } from "@/components/create/convert-bar";
-import { ReelsTimeline } from "@/components/create/reels-timeline";
 import { formatBrandMemory } from "@/lib/studio/brand";
+import { saveDataUrlAsAsset } from "@/lib/studio/generated-image";
+import { sourceFromAsset } from "@/lib/studio/sources";
 import { CONTENT_KIND_META, CONTENT_KIND_ORDER, contentKindLabel } from "@/lib/studio/status";
 import type { ContentKind, CopyDraft, CopyTone, StudentReview } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -61,6 +64,10 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const setReels = useStudio((s) => s.setReels);
   const setCopy = useStudio((s) => s.setCopy);
   const updateCampaign = useStudio((s) => s.updateCampaign);
+  const addAsset = useStudio((s) => s.addAsset);
+  const addSources = useStudio((s) => s.addSources);
+  const applyCoverAsset = useStudio((s) => s.applyCoverAsset);
+  const applyVisualAsset = useStudio((s) => s.applyVisualAsset);
 
   const brand = brands[0];
   const phase = semesterPhaseAt();
@@ -272,6 +279,64 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     return target.id;
   }
 
+  async function makeFromImage(payload: ImageMakePayload) {
+    if (!brand) return;
+    let assetId = payload.assetId;
+    if (!assetId) {
+      const meta = await saveDataUrlAsAsset({
+        dataUrl: payload.preview,
+        name: payload.caption.slice(0, 18) || "圖片理解",
+        tags: ["圖片理解"],
+        source: "upload",
+        notes: payload.analysis.summary,
+      });
+      addAsset(meta);
+      assetId = meta.id;
+    }
+    const asset = useStudio.getState().assets.find((item) => item.id === assetId);
+    const meta = CONTENT_KIND_META[payload.kind];
+    const name = (payload.caption || payload.analysis.summary).slice(0, 18) || "從圖片開始";
+    const project = createProject({
+      name,
+      brandId: brand.id,
+      formatId: meta.formatId,
+      contentKind: payload.kind,
+      campaignId: campaign?.id ?? null,
+      status: "making",
+      brief: {
+        product: eventName || name,
+        eventName: eventName || name,
+        schedule: schedule.trim(),
+        location: location.trim(),
+        offer: campaign?.oneLiner ?? "",
+        audience: audienceIds.join("、"),
+        goal: "awareness",
+        features: payload.analysis.summary,
+        style: payload.stylePrompt,
+        notes: payload.analysis.summary,
+        deliverables: {
+          post: false,
+          story: payload.kind === "story",
+          carousel: payload.kind === "carousel",
+          reels: payload.kind === "reels",
+        },
+      },
+      sources: [
+        ...(campaign ? [{ kind: "local" as const, label: `活動 / ${campaign.name}`, detail: "活動資訊" }] : []),
+        asset
+          ? sourceFromAsset(asset, "圖片理解")
+          : { kind: "local" as const, label: "圖片理解", detail: payload.analysis.summary },
+      ],
+    });
+    if (payload.kind === "reels") applyCoverAsset(project.id, assetId);
+    else applyVisualAsset(project.id, assetId);
+    if (payload.caption) {
+      setCopy(project.id, { headline: payload.caption.slice(0, 24), caption: payload.caption });
+    }
+    toast.success(`已做成${contentKindLabel(payload.kind)}`);
+    void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+  }
+
   async function runReels(draft?: CopyDraft) {
     setReelsBusy(true);
     try {
@@ -338,6 +403,12 @@ export function CreatePage({ search }: { search: CreateSearch }) {
         }
       />
 
+      {linkedProject?.sources.length ? (
+        <div className="mt-4 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <SourceList sources={linkedProject.sources} />
+        </div>
+      ) : null}
+
       {aiStatus && !aiStatus.available ? (
         <p className="mt-4 rounded-xl bg-[color-mix(in_oklab,var(--color-warn)_12%,transparent)] px-3 py-2 text-xs text-muted">
           {aiStatus.label}：{aiStatus.detail}
@@ -390,6 +461,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
                 },
               ])
             }
+            onMakeKind={makeFromImage}
           />
         </div>
       ) : null}
@@ -646,6 +718,12 @@ export function CreatePage({ search }: { search: CreateSearch }) {
                     } else {
                       toast.info("先選一個文案版本建立內容，才有畫面可以套用。");
                     }
+                  }}
+                  onImageSaved={(assetId) => {
+                    if (!linkedProject) return;
+                    addSources(linkedProject.id, [
+                      { kind: "generated", label: "AI 生成圖片", detail: direction.title, assetId },
+                    ]);
                   }}
                 />
               </li>

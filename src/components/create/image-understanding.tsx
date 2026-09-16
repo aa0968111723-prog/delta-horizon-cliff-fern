@@ -1,12 +1,28 @@
-import { AlertTriangle, CheckCircle2, Eye, Loader2, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Eye, Loader2, Repeat2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { analyzeImage, type ImageAnalysis } from "@/lib/ai/image-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
+import type { ContentKind } from "@/lib/studio/types";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
+
+const MAKE_KINDS: { id: ContentKind; label: string }[] = [
+  { id: "story", label: "做成限動" },
+  { id: "carousel", label: "做成輪播" },
+  { id: "reels", label: "做成 Reels 封面" },
+];
+
+export type ImageMakePayload = {
+  kind: ContentKind;
+  caption: string;
+  stylePrompt: string;
+  preview: string;
+  assetId: string | null;
+  analysis: ImageAnalysis;
+};
 
 /**
  * 圖片理解：丟一張照片、歷屆海報、IG 截圖或 Canva 匯出圖進來。
@@ -16,24 +32,29 @@ export function ImageUnderstanding({
   audienceIds,
   onUseCaption,
   onUseStylePrompt,
+  onMakeKind,
 }: {
   audienceIds: string[];
   onUseCaption?: (caption: string) => void;
   onUseStylePrompt?: (prompt: string) => void;
+  onMakeKind?: (payload: ImageMakePayload) => void | Promise<void>;
 }) {
   const assets = useStudio((s) => s.assets);
   const brand = useStudio((s) => s.brands[0]);
+  const updateAsset = useStudio((s) => s.updateAsset);
   const urls = useAssetUrls(assets.map((a) => a.id));
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [pickedAssetId, setPickedAssetId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [making, setMaking] = useState<ContentKind | null>(null);
   const [analysis, setAnalysis] = useState<ImageAnalysis | null>(null);
 
   async function pickFile(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
-      const dataUrl = String(reader.result);
-      setPreview(dataUrl);
+      setPreview(String(reader.result));
+      setPickedAssetId(null);
       setAnalysis(null);
     };
     reader.readAsDataURL(file);
@@ -48,6 +69,7 @@ export function ImageUnderstanding({
       const reader = new FileReader();
       reader.onload = () => {
         setPreview(String(reader.result));
+        setPickedAssetId(assetId);
         setAnalysis(null);
       };
       reader.readAsDataURL(blob);
@@ -75,10 +97,41 @@ export function ImageUnderstanding({
         return;
       }
       setAnalysis(res.analysis);
+      if (pickedAssetId) {
+        updateAsset(pickedAssetId, {
+          insight: {
+            summary: res.analysis.summary,
+            stylePrompt: res.analysis.stylePrompt,
+            captionIdea: res.analysis.captionIdea,
+            tooReligious: res.analysis.tooReligious,
+            tooAi: res.analysis.tooAi,
+            fitsTku: res.analysis.fitsTku,
+            nextSteps: res.analysis.nextSteps,
+            analyzedAt: Date.now(),
+          },
+        });
+      }
     } catch {
       toast.error("分析圖片時出錯了，再試一次。");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function make(kind: ContentKind) {
+    if (!preview || !analysis || !onMakeKind) return;
+    setMaking(kind);
+    try {
+      await onMakeKind({
+        kind,
+        caption: analysis.captionIdea,
+        stylePrompt: analysis.stylePrompt,
+        preview,
+        assetId: pickedAssetId,
+        analysis,
+      });
+    } finally {
+      setMaking(null);
     }
   }
 
@@ -121,7 +174,10 @@ export function ImageUnderstanding({
                 <button
                   type="button"
                   onClick={() => void pickAsset(asset.id)}
-                  className="size-16 overflow-hidden rounded-xl bg-surface-2 shadow-[var(--shadow-border)]"
+                  className={cn(
+                    "size-16 overflow-hidden rounded-xl bg-surface-2 shadow-[var(--shadow-border)]",
+                    pickedAssetId === asset.id && "ring-2 ring-ring",
+                  )}
                   aria-label={`分析 ${asset.name}`}
                 >
                   {urls[asset.id] ? (
@@ -184,6 +240,30 @@ export function ImageUnderstanding({
                   </Button>
                 ) : null}
               </div>
+
+              {onMakeKind ? (
+                <div>
+                  <p className="text-xs text-muted">用這張圖直接開始</p>
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {MAKE_KINDS.map((item) => (
+                      <Button
+                        key={item.id}
+                        size="sm"
+                        aria-label={item.label}
+                        disabled={making !== null}
+                        onClick={() => void make(item.id)}
+                      >
+                        {making === item.id ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Repeat2 className="size-4" />
+                        )}
+                        {item.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : (
             <p className="text-sm text-muted">按「AI 分析」讀這張圖：畫面、色彩、構圖、品牌感，還有它適不適合淡江學生。</p>

@@ -15,6 +15,7 @@ import {
 import { defaultWavePlan, migrateCampaign } from "@/lib/studio/campaign";
 import { convertContent } from "@/lib/studio/convert";
 import { applyAssetToArtboard } from "@/lib/studio/reels-cover";
+import { sourceFromAsset } from "@/lib/studio/sources";
 import { emptyCopy, withBoilerplate } from "@/lib/studio/copy";
 import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
@@ -110,6 +111,7 @@ type StudioState = {
   removeAsset: (id: string) => void;
   placeAsset: (projectId: string, assetId: string, at?: { x: number; y: number }) => boolean;
   applyCoverAsset: (projectId: string, assetId: string) => boolean;
+  applyVisualAsset: (projectId: string, assetId: string) => boolean;
   createProject: (input: {
     name: string;
     brandId: string;
@@ -131,6 +133,7 @@ type StudioState = {
   convertProject: (id: string, kind: ContentKind) => Project | null;
   setContentKind: (projectId: string, kind: ContentKind) => void;
   setSchedule: (projectId: string, at: number | null) => void;
+  applySchedule: (entries: { projectId: string; at: number }[]) => number;
   markPublished: (projectId: string, at?: number) => void;
   addCopyDraft: (projectId: string, draft: CopyDraft) => void;
   useCopyDraft: (projectId: string, draftId: string) => void;
@@ -414,6 +417,17 @@ export const useStudio = create<StudioState>()(
           get().addLayer(projectId, createImageLayer(asset.id, asset.name, { x, y, w, h }));
         }
         get().markAssetUsed(asset.id);
+        get().addSources(projectId, [sourceFromAsset(asset)]);
+        return true;
+      },
+      applyVisualAsset: (projectId, assetId) => {
+        const s = get();
+        const project = s.projects.find((p) => p.id === projectId);
+        const asset = s.assets.find((a) => a.id === assetId);
+        if (!project || !asset) return false;
+        get().patchArtboard(projectId, (board) => applyAssetToArtboard(board, assetId));
+        get().markAssetUsed(assetId);
+        get().addSources(projectId, [sourceFromAsset(asset)]);
         return true;
       },
       applyCoverAsset: (projectId, assetId) => {
@@ -512,6 +526,24 @@ export const useStudio = create<StudioState>()(
           scheduledAt: at,
           status: at ? (p.status === "published" ? p.status : "scheduled") : p.status === "scheduled" ? "done" : p.status,
         })),
+      applySchedule: (entries) => {
+        const byId = new Map(entries.map((entry) => [entry.projectId, entry.at]));
+        let count = 0;
+        set((state) => ({
+          projects: state.projects.map((project) => {
+            const at = byId.get(project.id);
+            if (at == null || project.status === "published") return project;
+            count += 1;
+            return {
+              ...project,
+              scheduledAt: at,
+              status: "scheduled" as const,
+              updatedAt: Date.now(),
+            };
+          }),
+        }));
+        return count;
+      },
       markPublished: (projectId, at) =>
         get().updateProject(projectId, (p) => ({
           ...p,
