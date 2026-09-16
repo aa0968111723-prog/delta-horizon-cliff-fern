@@ -11,17 +11,20 @@ export function igMemoryFromSchedule(item: ScheduleItem, now = Date.now()): IgMe
   const published = item.publishedAt ?? now;
   const date = new Date(published).toISOString().slice(0, 10);
   const caption = (item.caption || item.body || item.title).trim();
+  const graph = Boolean(item.permalink || item.igMediaId);
   return {
-    id: item.permalink ? `ig:${item.id}` : `local:${item.id}`,
+    id: item.igMediaId ? `ig:${item.igMediaId}` : graph ? `ig:${item.id}` : `local:${item.id}`,
     caption,
     date,
     kind: igKindFromContent(item.kind),
     permalink: item.permalink,
     mediaUrl: item.mediaUrl,
-    source: item.permalink ? "instagram" : "local",
+    source: graph ? "instagram" : "local",
     projectId: item.projectId ?? undefined,
     assetId: item.imageAssetId,
-    analysis: "這則已發布，下次生成會當成自己的 IG 記憶。",
+    analysis: graph
+      ? "官方發布後寫進過去 IG，下次生成會學這則的 Hook 與畫面。"
+      : "這則已發布，下次生成會當成自己的 IG 記憶。",
   };
 }
 

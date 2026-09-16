@@ -4,9 +4,11 @@ import {
   containerParams,
   isPublicImageUrl,
   mediaContainerUrl,
+  mediaPermalinkUrl,
   mediaPublishUrl,
   parseIgUser,
   parseContainerId,
+  parsePermalink,
 } from "./instagram-graph.ts";
 
 test("Graph URLs and public image check stay official and non-local", () => {
@@ -27,4 +29,7 @@ test("parseIgUser reads professional account without tokens in payload", () => {
   });
   assert.equal(ig?.id, "ig1");
   assert.equal(parseContainerId({ id: "cont_1" }), "cont_1");
+  assert.equal(mediaPermalinkUrl("1789"), "https://graph.facebook.com/v21.0/1789?fields=permalink");
+  assert.equal(parsePermalink({ permalink: "https://www.instagram.com/p/tea1/" }), "https://www.instagram.com/p/tea1/");
+  assert.equal(parsePermalink({ permalink: "not-a-url" }), null);
 });

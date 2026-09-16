@@ -27,7 +27,7 @@ const SIDE: { to: string; label: string; icon: LucideIcon; match: string }[] = [
 
 function activeKey(pathname: string) {
   if (pathname.startsWith("/studio") || pathname.startsWith("/assistant")) return "create";
-  if (pathname.startsWith("/create") || pathname.startsWith("/image")) return "create";
+  if (pathname.startsWith("/create") || pathname.startsWith("/image") || pathname.startsWith("/inspire")) return "create";
   if (pathname.startsWith("/calendar")) return "calendar";
   if (pathname.startsWith("/assets") || pathname.startsWith("/brand") || pathname.startsWith("/connect")) return "assets";
   if (pathname.startsWith("/ig") || pathname.startsWith("/export")) return "ig";

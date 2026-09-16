@@ -115,14 +115,23 @@ export function HomePage() {
       ) : null}
 
       <section className="mt-10">
-        <SectionHeader title="今日靈感" hint={`${academicBeatLabel(beat)} · 研究構圖與 Hook，不要抄別人`} />
+        <SectionHeader
+          title="今日靈感"
+          hint={`${academicBeatLabel(beat)} · 研究構圖與 Hook，不要抄別人`}
+          action={
+            <Link to="/inspire" className="text-sm text-muted">
+              靈感研究
+            </Link>
+          }
+        />
         <ul className="flex gap-3 overflow-x-auto pb-1">
           {inspiration.map((card) => (
             <li key={card.id} className="min-w-[16rem] rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
               <p className="text-sm font-medium">{card.title}</p>
-              <p className="mt-2 text-xs text-muted">{card.zenUse}</p>
+              <p className="mt-2 text-xs text-muted">{card.hookShape}</p>
+              <p className="mt-1 text-xs text-subtle">{card.composition}</p>
               <Button
-                className="mt-3"
+                className="mt-3 min-h-11"
                 size="sm"
                 variant="secondary"
                 onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: ideaFromInspiration(card) } })}

@@ -46,3 +46,12 @@ export function parseContainerId(json: unknown): string | null {
 export function parsePublishId(json: unknown): string | null {
   return parseContainerId(json);
 }
+
+export function mediaPermalinkUrl(mediaId: string) {
+  return `${IG_GRAPH}/${mediaId}?fields=permalink`;
+}
+
+export function parsePermalink(json: unknown): string | null {
+  const permalink = (json as { permalink?: string }).permalink;
+  return permalink && permalink.startsWith("http") ? permalink : null;
+}

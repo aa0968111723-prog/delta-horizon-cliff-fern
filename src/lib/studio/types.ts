@@ -545,6 +545,7 @@ export type ScheduleItem = {
   mediaUrl?: string;
   imageAssetId?: string;
   permalink?: string;
+  igMediaId?: string;
 };
 
 export type ConnectionProvider = "drive" | "canva" | "instagram";

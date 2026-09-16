@@ -10,6 +10,7 @@ export type IgLearning = {
   ranked: IgMemoryPost[];
   lessons: IgLesson[];
   bestHookShape: string;
+  bestKind: IgMemoryPost["kind"] | null;
   avoid: string;
   promptBlock: string;
   captionLengthBest: number;
@@ -139,6 +140,7 @@ export function learnFromIg(posts: IgMemoryPost[]): IgLearning {
     ranked,
     lessons,
     bestHookShape,
+    bestKind: bestKind?.kind ?? null,
     avoid,
     promptBlock,
     captionLengthBest: bestLen,

@@ -19,6 +19,7 @@ import { Route as CreateRouteImport } from './routes/create'
 import { Route as ExportRouteImport } from './routes/export'
 import { Route as IgRouteImport } from './routes/ig'
 import { Route as ImageRouteImport } from './routes/image'
+import { Route as InspireRouteImport } from './routes/inspire'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as StudioIndexRouteImport } from './routes/studio.index'
 import { Route as StudioProjectIdRouteImport } from './routes/studio.$projectId'
@@ -74,6 +75,11 @@ const ImageRoute = ImageRouteImport.update({
   path: '/image',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InspireRoute = InspireRouteImport.update({
+  id: '/inspire',
+  path: '/inspire',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudioRoute = StudioRouteImport.update({
   id: '/studio',
   path: '/studio',
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/export': typeof ExportRoute
   '/ig': typeof IgRoute
   '/image': typeof ImageRoute
+  '/inspire': typeof InspireRoute
   '/studio': typeof StudioRouteWithChildren
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio/': typeof StudioIndexRoute
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/export': typeof ExportRoute
   '/ig': typeof IgRoute
   '/image': typeof ImageRoute
+  '/inspire': typeof InspireRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio': typeof StudioIndexRoute
   '/api/connect/$': typeof ApiConnectSplatRoute
@@ -138,6 +146,7 @@ export interface FileRoutesById {
   '/export': typeof ExportRoute
   '/ig': typeof IgRoute
   '/image': typeof ImageRoute
+  '/inspire': typeof InspireRoute
   '/studio': typeof StudioRouteWithChildren
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio/': typeof StudioIndexRoute
@@ -156,6 +165,7 @@ export interface FileRouteTypes {
     | '/export'
     | '/ig'
     | '/image'
+    | '/inspire'
     | '/studio'
     | '/studio/$projectId'
     | '/studio/'
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/export'
     | '/ig'
     | '/image'
+    | '/inspire'
     | '/studio/$projectId'
     | '/studio'
     | '/api/connect/$'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/export'
     | '/ig'
     | '/image'
+    | '/inspire'
     | '/studio'
     | '/studio/$projectId'
     | '/studio/'
@@ -204,6 +216,7 @@ export interface RootRouteChildren {
   ExportRoute: typeof ExportRoute
   IgRoute: typeof IgRoute
   ImageRoute: typeof ImageRoute
+  InspireRoute: typeof InspireRoute
   StudioRoute: typeof StudioRouteWithChildren
   ApiConnectSplatRoute: typeof ApiConnectSplatRoute
 }
@@ -280,6 +293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ImageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inspire': {
+      id: '/inspire'
+      path: '/inspire'
+      fullPath: '/inspire'
+      preLoaderRoute: typeof InspireRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/studio': {
       id: '/studio'
       path: '/studio'
@@ -335,6 +355,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExportRoute: ExportRoute,
   IgRoute: IgRoute,
   ImageRoute: ImageRoute,
+  InspireRoute: InspireRoute,
   StudioRoute: StudioRouteWithChildren,
   ApiConnectSplatRoute: ApiConnectSplatRoute,
 }

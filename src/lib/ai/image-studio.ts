@@ -4,6 +4,7 @@ import { mockPosterImage } from "@/lib/ai/poster";
 import { formatById } from "@/lib/studio/formats";
 import { studentSituation, zenSystemPrompt } from "@/lib/zen/context";
 import { labelDirections } from "@/lib/zen/direction";
+import { directionsFromResearch, researchInspiration } from "@/lib/zen/inspiration";
 import type { FormatId, VisualDirection } from "@/lib/studio/types";
 
 export const IMAGE_FORMAT_IDS = [
@@ -76,41 +77,8 @@ export type VisionResult =
 
 export function mockDirections(idea: string, eventName = ""): VisualDirection[] {
   const subject = eventName || idea;
-  return [
-    {
-      id: "a",
-      name: "方向 A · 淡水夜",
-      concept: "夜晚、光、可以坐下的空氣。不是禪風海報。",
-      palette: "墨松、靜水、琥珀點",
-      composition: "上半光、下半問句。",
-      typeDirection: "像訊息，不要美術字牆。",
-      prompt: `Quiet Tamsui night near Tamkang campus, three soft orbs of amber teal and dusk-violet light floating, airy, photographic, young students implied not posed, ${subject}, no temple, no incense, no monk robes`,
-      headline: "最近是不是很久沒坐好",
-      subhead: subject,
-    },
-    {
-      id: "b",
-      name: "方向 B · 朋友位",
-      concept: "空一個位子，讓人想揪人。",
-      palette: "霧園、水色",
-      composition: "杯子與座位，人只露局部。",
-      typeDirection: "CTA 口語。",
-      prompt: `Close-up of tea cups and an empty chair in a calm campus room, window light, Tamkang student life, ${subject}, documentary, not stock-photo smile`,
-      headline: "可以自己來",
-      subhead: "也可以揪人",
-    },
-    {
-      id: "c",
-      name: "方向 C · 龜龜與光",
-      concept: "吉祥物當同伴，三色光當氣氛。",
-      palette: "霧園紙、小色光",
-      composition: "大留白，角色角落。",
-      typeDirection: "標題先問生活。",
-      prompt: `Small geometric turtle mascot in the corner, three colored lights, paper-like mist background, Tamkang Zen Club poster mood, ${subject}, not religious, not luxury`,
-      headline: "先坐下來",
-      subhead: subject,
-    },
-  ];
+  const research = researchInspiration({ idea, eventName: subject });
+  return directionsFromResearch(research, { eventName: subject });
 }
 
 function parseIdeaInput(input: unknown) {

@@ -134,12 +134,20 @@ export function CalendarPage() {
                         <p className="truncate">
                           {contentKindLabel(item.kind)} · {item.title}
                         </p>
-                        {view === "week" && item.imageAssetId && urls[item.imageAssetId] ? (
+                        {view !== "month" && item.imageAssetId && urls[item.imageAssetId] ? (
                           <img
                             src={urls[item.imageAssetId]}
                             alt=""
                             data-testid="schedule-thumb"
                             className="mt-1 size-10 rounded-lg object-cover"
+                          />
+                        ) : null}
+                        {view === "month" && item.imageAssetId && urls[item.imageAssetId] ? (
+                          <img
+                            src={urls[item.imageAssetId]}
+                            alt=""
+                            data-testid="schedule-thumb"
+                            className="mt-1 size-6 rounded-md object-cover"
                           />
                         ) : null}
                         {view === "month" ? (

@@ -1,5 +1,6 @@
-import { HOOK_EXAMPLES, isZenClubBrief } from "../zen/context.ts";
+import { HOOK_EXAMPLES, academicBeat, isZenClubBrief } from "../zen/context.ts";
 import { labelDirections } from "../zen/direction.ts";
+import { directionsFromResearch, researchInspiration } from "../zen/inspiration.ts";
 import { proposedHook, tidyCopy } from "../zen/review.ts";
 import { goalLabel } from "../studio/goals.ts";
 import type { CampaignPlan, CarouselPagePlan, CopyPack, StudentReview, TemplateId, VisualDirection } from "../studio/types.ts";
@@ -160,41 +161,16 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
       ].filter(Boolean);
 
   const directions: VisualDirection[] | undefined = zen
-    ? labelDirections([
-        {
-          id: "dir_night",
-          name: "淡水夜燈",
-          concept: "把活動放進一個真正會發生的晚上，而不是禪風海報。",
-          palette: "深夜底、靜水、一點琥珀",
-          composition: "光點偏上，問句在下半。",
-          typeDirection: "大標像訊息，不要美術字堆疊。",
-          prompt: `Tamkang Tamsui night, quiet campus corner, three soft colored lights amber teal dusk-violet, airy, young, not temple, not incense, photographic mood, ${name}`,
-          headline: hook,
-          subhead: `${name} · ${when}`,
-        },
-        {
-          id: "dir_friend",
-          name: "空一個位子",
-          concept: "朋友感與座位，讓人覺得可以揪人。",
-          palette: "霧園紙色、水色",
-          composition: "局部手或杯子，留空位。",
-          typeDirection: "字少、CTA 像口語。",
-          prompt: `two students sitting with tea, empty seat beside, Tamkang campus interior, soft window light, calm, documentary, ${name}`,
-          headline: "可以自己來？",
-          subhead: "也可以揪人",
-        },
-        {
-          id: "dir_turtle",
-          name: "龜龜在角落",
-          concept: "吉祥物當安靜同伴，不是宗教符號。",
-          palette: "霧園、墨松",
-          composition: "主視覺留白，龜龜小角。",
-          typeDirection: "標題問句優先。",
-          prompt: `small turtle mascot at corner of a quiet poster, three-color light orbs, Tamkang student life, airy, ${name}`,
-          headline: hook,
-          subhead: name,
-        },
-      ])
+    ? labelDirections(
+        directionsFromResearch(
+          researchInspiration({
+            idea: `${name} ${features} ${data.notes}`,
+            eventName: name,
+            beat: academicBeat(),
+          }),
+          { eventName: name, hook },
+        ),
+      )
     : undefined;
 
   const copyPacks: CopyPack[] | undefined = zen

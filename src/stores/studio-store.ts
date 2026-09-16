@@ -130,7 +130,7 @@ type StudioState = {
   updateCampaign: (id: string, patch: Partial<ClubCampaign> | ((c: ClubCampaign) => ClubCampaign)) => void;
   deleteCampaign: (id: string) => void;
   upsertSchedule: (item: ScheduleItem) => void;
-  publishSchedule: (id: string, extra?: { permalink?: string; mediaUrl?: string }) => void;
+  publishSchedule: (id: string, extra?: { permalink?: string; mediaUrl?: string; igMediaId?: string }) => void;
   moveSchedule: (id: string, scheduledAt: number) => void;
   removeSchedule: (id: string) => void;
   setContentStatus: (projectId: string, status: ContentStatus, scheduledAt?: number | null) => void;
@@ -556,6 +556,7 @@ export const useStudio = create<StudioState>()(
             publishedAt: item.publishedAt ?? Date.now(),
             permalink: extra?.permalink ?? item.permalink,
             mediaUrl: extra?.mediaUrl ?? item.mediaUrl,
+            igMediaId: extra?.igMediaId ?? item.igMediaId,
           };
           const memory = igMemoryFromSchedule(published);
           return {

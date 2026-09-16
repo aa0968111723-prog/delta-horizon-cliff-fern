@@ -70,7 +70,11 @@ export function InstagramCenter() {
           },
         });
         if (result.ok) {
-          publishSchedule(item.id, { mediaUrl: result.imageUrl || item.mediaUrl });
+          publishSchedule(item.id, {
+            mediaUrl: result.imageUrl || item.mediaUrl,
+            permalink: result.permalink,
+            igMediaId: result.mediaId,
+          });
           toast.success(result.note);
           return;
         }

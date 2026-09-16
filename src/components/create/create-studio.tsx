@@ -22,10 +22,11 @@ import { bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById, FORMATS } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { parseEventDate, parseEventTime, guessEventName } from "@/lib/zen/dates";
-import { DEFAULT_AUDIENCE } from "@/lib/zen/context";
+import { DEFAULT_AUDIENCE, academicBeat } from "@/lib/zen/context";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
 import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction";
+import { researchInspiration } from "@/lib/zen/inspiration";
 import { offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
 import { searchCreative, groupCreativeHits, type CreativeHit } from "@/lib/zen/search";
 import { pickSourceRefs, styleFromHits } from "@/lib/zen/source-style";
@@ -101,6 +102,10 @@ export function CreateStudio() {
   const [oneLiner, setOneLiner] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
+  const research = useMemo(
+    () => researchInspiration({ idea: `${idea} ${eventName}`, eventName, beat: academicBeat(), learning }),
+    [idea, eventName, learning],
+  );
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [plan, setPlan] = useState<CampaignPlan | null>(null);
@@ -200,7 +205,7 @@ export function CreateStudio() {
           eventName,
           schedule,
           location,
-          memoryHint: `${memoryHint}\n參考來源：${sourceNotes(hits)}`.slice(0, 800),
+          memoryHint: `${memoryHint}\n${research.promptBlock}\n參考來源：${sourceNotes(hits)}`.slice(0, 800),
           forceMock: !status?.available,
         },
       });
@@ -238,7 +243,7 @@ export function CreateStudio() {
         deliverables: { post: true, story: true, carousel: true, reels: true },
       });
       const result = await generateCampaignPlan({
-        data: toBriefInput(brief, brand, { forceMock: !status?.available, memoryHint }),
+        data: toBriefInput(brief, brand, { forceMock: !status?.available, memoryHint: `${memoryHint}\n${research.promptBlock}`.slice(0, 800) }),
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -308,7 +313,7 @@ export function CreateStudio() {
         data: {
           idea: `${idea}。參考：${sourceNotes(hits)}`.slice(0, 400),
           eventName,
-          memoryHint,
+          memoryHint: `${memoryHint}\n${research.promptBlock}`.slice(0, 800),
           forceMock: !status?.available,
         },
       });
@@ -654,6 +659,27 @@ export function CreateStudio() {
           ) : null}
         </div>
       </div>
+
+      <section className="mt-8" data-testid="inspiration-research">
+        <h2 className="text-sm font-medium">這次抽象自：{research.cards[0]?.title}</h2>
+        <p className="mt-1 text-xs text-muted">
+          研究構圖、配色、排版、Hook、形式，再轉成淡江禪學社。不是抄別人。
+        </p>
+        <p className="mt-2 text-xs text-muted">{research.fromOwnIg}</p>
+        <ul className="mt-3 grid gap-2">
+          {research.cards.slice(0, 3).map((card) => (
+            <li key={card.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <p className="text-sm font-medium">{card.title}</p>
+              <p className="mt-1 text-xs text-muted">構圖 {card.composition}</p>
+              <p className="mt-1 text-xs text-muted">配色 {card.palette}</p>
+              <p className="mt-1 text-xs text-muted">排版 {card.layout}</p>
+              <p className="mt-1 text-xs text-muted">Hook {card.hookShape}</p>
+              <p className="mt-1 text-xs text-muted">形式 {card.form}</p>
+              <p className="mt-2 text-xs text-subtle">{card.zenUse}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {vision ? (
         <VisionCard vision={vision}>

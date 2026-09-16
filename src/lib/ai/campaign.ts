@@ -142,6 +142,8 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
 補充：${data.notes || "無"}
 過去 IG 表現：${data.memoryHint || "問句 Hook 與生活向收藏較高"}
 
+靈感只抽象構圖、配色、排版、Hook、形式，禁止抄其他社團貼文。視覺方向要轉成淡江禪學社自己的晚上、座位、三色光。
+
 Hook 必須先讓淡江學生覺得「這好像在講我」，禁止「誠摯邀請您」。
 文案自然、偶爾口語，不要每句金句、不要過度詩意。
 

@@ -33,6 +33,7 @@ test("learnFromIg prefers question hooks with higher saves", () => {
     },
   ]);
   assert.match(learning.bestHookShape, /坐下來/);
+  assert.equal(learning.bestKind, "carousel");
   assert.match(learning.promptBlock, /過去表現/);
   assert.match(learning.promptBlock, /觸及/);
   assert.ok(learning.lessons.some((l) => l.id === "hook"));

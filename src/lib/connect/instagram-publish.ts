@@ -8,14 +8,16 @@ import {
   containerParams,
   isPublicImageUrl,
   mediaContainerUrl,
+  mediaPermalinkUrl,
   mediaPublishUrl,
   parseContainerId,
   parseIgUser,
+  parsePermalink,
   parsePublishId,
 } from "./instagram-graph";
 
 export type PublishResult =
-  | { ok: true; mediaId: string; note: string; imageUrl: string; hostedBy: "given" | "drive" | "canva" }
+  | { ok: true; mediaId: string; permalink?: string; note: string; imageUrl: string; hostedBy: "given" | "drive" | "canva" }
   | { ok: false; reason: "not-connected" | "no-image" | "api"; note: string };
 
 const Input = z.object({
@@ -114,6 +116,14 @@ export const publishInstagramMedia = createServerFn({ method: "POST" })
       if (!mediaId) {
         return { ok: false, reason: "api", note: "IG 發布沒有回傳編號。" };
       }
+      let permalink: string | undefined;
+      try {
+        const permalinkUrl = new URL(mediaPermalinkUrl(mediaId));
+        permalinkUrl.searchParams.set("access_token", bundle.accessToken);
+        permalink = parsePermalink(await graphJson(permalinkUrl.toString())) ?? undefined;
+      } catch {
+        permalink = undefined;
+      }
       const hostedNote =
         hosted.hostedBy === "drive"
           ? "主視覺已進 Google Drive「禪光發布」，"
@@ -123,6 +133,7 @@ export const publishInstagramMedia = createServerFn({ method: "POST" })
       return {
         ok: true,
         mediaId,
+        permalink,
         imageUrl: hosted.url,
         hostedBy: hosted.hostedBy,
         note: `${hostedNote}已用 Instagram 官方 API 發到帳號。`.trim(),
