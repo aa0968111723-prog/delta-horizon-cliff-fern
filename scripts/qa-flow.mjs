@@ -304,7 +304,9 @@ try {
   }
   // 中央 AI 創作按鈕
   await mp.goto(`${base}/`, { waitUntil: "networkidle" });
-  await mp.getByRole("button", { name: "AI 創作" }).click();
+  await mp.getByRole("button", { name: "AI 創作" }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
   await mp.waitForTimeout(600);
   const sheet = await mp.locator("body").innerText();
   record("底部 AI 創作面板", sheet.includes("今天想創作什麼？"), "面板沒打開");
