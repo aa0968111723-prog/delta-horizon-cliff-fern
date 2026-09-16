@@ -11,21 +11,34 @@ export type EncodedReels = {
   height: number;
 };
 
-export async function canEncodeReels() {
-  if (typeof VideoEncoder === "undefined" || typeof VideoFrame === "undefined") return false;
-  try {
-    const support = await VideoEncoder.isConfigSupported({
-      codec: "avc1.42001f",
-      width: 1080,
-      height: 1920,
-      bitrate: 900_000,
-      avc: { format: "avc" },
-      framerate: 24,
-    });
-    return Boolean(support.supported);
-  } catch {
-    return false;
+const CODEC_TRIES: { codec: string; width: number; height: number; bitrate: number }[] = [
+  { codec: "avc1.420028", width: 1080, height: 1920, bitrate: 900_000 },
+  { codec: "avc1.4d0028", width: 1080, height: 1920, bitrate: 900_000 },
+  { codec: "avc1.42001f", width: 720, height: 1280, bitrate: 600_000 },
+];
+
+export async function pickReelsEncoderConfig() {
+  if (typeof VideoEncoder === "undefined" || typeof VideoFrame === "undefined") return null;
+  for (const attempt of CODEC_TRIES) {
+    try {
+      const support = await VideoEncoder.isConfigSupported({
+        codec: attempt.codec,
+        width: attempt.width,
+        height: attempt.height,
+        bitrate: attempt.bitrate,
+        avc: { format: "avc" },
+        framerate: 24,
+      });
+      if (support.supported) return { ...attempt, fps: 24 };
+    } catch {
+      /* try the next profile */
+    }
   }
+  return null;
+}
+
+export async function canEncodeReels() {
+  return Boolean(await pickReelsEncoderConfig());
 }
 
 function sourceSize(poster: CanvasImageSource, fallbackW: number, fallbackH: number) {
@@ -85,9 +98,10 @@ export async function encodeReelsFromPng(
   script?: ReelsScript | null,
   hook?: string,
 ): Promise<EncodedReels | null> {
-  if (!(await canEncodeReels())) return null;
+  const encoderCfg = await pickReelsEncoderConfig();
+  if (!encoderCfg) return null;
   const shots = reelsShotsFromScript(script, hook);
-  const spec = reelsEncodeSpec(shots);
+  const spec = { ...reelsEncodeSpec(shots), width: encoderCfg.width, height: encoderCfg.height, bitrate: encoderCfg.bitrate };
   const blob = blobFromBase64(pngBase64, "image/png");
   const poster = await createImageBitmap(blob);
   const canvas = document.createElement("canvas");
@@ -110,7 +124,7 @@ export async function encodeReelsFromPng(
     error: () => undefined,
   });
   encoder.configure({
-    codec: "avc1.42001f",
+    codec: encoderCfg.codec,
     width: spec.width,
     height: spec.height,
     bitrate: spec.bitrate,
@@ -129,6 +143,7 @@ export async function encodeReelsFromPng(
       });
       encoder.encode(frame, { keyFrame: i % spec.fps === 0 });
       frame.close();
+      if (i % 24 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
     }
     await encoder.flush();
     muxer.finalize();
