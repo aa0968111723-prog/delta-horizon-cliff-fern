@@ -309,15 +309,7 @@ export function CreateStudio() {
       updateCampaign(currentCampaign.id, { oneLiner: hook });
       setCampaign({ ...currentCampaign, oneLiner: hook });
       for (const item of useStudio.getState().schedule.filter((row) => row.campaignId === currentCampaign.id)) {
-        if (
-          item.kind === "ig-post" ||
-          item.kind === "carousel" ||
-          item.kind === "threads" ||
-          item.kind === "line" ||
-          item.title.startsWith(waveLabel("hero"))
-        ) {
-          upsertSchedule({ ...item, caption, body: next.body });
-        }
+        upsertSchedule({ ...item, caption, body: next.body });
       }
     }
     if (toastMsg) toast.success(toastMsg);
