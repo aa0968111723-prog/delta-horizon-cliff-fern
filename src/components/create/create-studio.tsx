@@ -500,18 +500,21 @@ export function CreateStudio() {
         <Label className="mt-4">你想做什麼</Label>
         <Textarea className="mt-2" value={idea} onChange={(e) => setIdea(e.target.value)} rows={3} />
         <div className="mt-3">
-          <Field label="或從一張圖開始">
-            <Input
+          <p className="text-sm font-medium">或從一張圖開始</p>
+          <label className="mt-1.5 flex min-h-11 cursor-pointer items-center justify-center rounded-md bg-surface-2 px-3 text-sm">
+            選擇照片／舊海報／截圖
+            <input
               type="file"
               accept="image/*"
               disabled={busy}
+              className="sr-only"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) void onImage(file);
                 e.target.value = "";
               }}
             />
-          </Field>
+          </label>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <Field label="活動名">
