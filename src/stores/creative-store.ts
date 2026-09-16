@@ -157,7 +157,7 @@ export const useCreative = create<CreativeState>()(
     }),
     {
       name: "zen-creative-brain-v1",
-      version: 4,
+      version: 5,
       skipHydration: true,
       migrate: (persisted) => {
         const state = persisted as {
@@ -166,14 +166,18 @@ export const useCreative = create<CreativeState>()(
           outcomes?: PostOutcome[];
           activeCampaignId?: string;
         };
+        const campaigns = state.campaigns?.length ? state.campaigns : [SEED_CAMPAIGN];
+        const contentItems = state.contentItems?.length
+          ? state.contentItems
+          : campaigns.flatMap((campaign) => buildCampaignRhythm(campaign));
         return {
-          campaigns: state.campaigns ?? [SEED_CAMPAIGN],
-          contentItems: state.contentItems ?? seedItems,
+          campaigns,
+          contentItems,
           outcomes: (state.outcomes ?? []).map((item) => ({
             ...item,
             hashtags: item.hashtags ?? [],
           })),
-          activeCampaignId: state.activeCampaignId ?? state.campaigns?.[0]?.id ?? SEED_CAMPAIGN.id,
+          activeCampaignId: state.activeCampaignId ?? campaigns[0]?.id ?? SEED_CAMPAIGN.id,
         };
       },
       partialize: (state) => ({
@@ -182,6 +186,13 @@ export const useCreative = create<CreativeState>()(
         outcomes: state.outcomes,
         activeCampaignId: state.activeCampaignId,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (!state?.campaigns.length) return;
+        if (state.contentItems.length) return;
+        useCreative.setState({
+          contentItems: state.campaigns.flatMap((campaign) => buildCampaignRhythm(campaign)),
+        });
+      },
     },
   ),
 );

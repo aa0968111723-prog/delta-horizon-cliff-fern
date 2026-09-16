@@ -37,7 +37,12 @@ export function ContentCalendar() {
   const [view, setView] = useState<CalendarView>("month");
   const [mobileView, setMobileView] = useState<Extract<CalendarView, "agenda" | "week">>("agenda");
   const [narrow, setNarrow] = useState(false);
-  const [campaignId, setCampaignId] = useState(() => useCreative.getState().activeCampaignId || "all");
+  const [campaignId, setCampaignId] = useState(() => {
+    const state = useCreative.getState();
+    const id = state.activeCampaignId;
+    if (id && state.contentItems.some((item) => item.campaignId === id)) return id;
+    return "all";
+  });
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
