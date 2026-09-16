@@ -513,9 +513,10 @@ try {
 
   // 8e. 從一張圖片做成貼文：單張 4:5，照片當主視覺
   await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });
-  await expectText("做成貼文入口再點", "做成貼文");
+  await page.waitForSelector('[data-testid="analyze-asset-asset_tamsui_dusk"]', { timeout: 15000 });
   await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
   await page.waitForSelector("text=本機規則", { timeout: 20000 });
+  await expectText("做成貼文入口再點", "做成貼文");
   await tap(
     page
       .locator("section")
