@@ -15,6 +15,7 @@ import {
 import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
 import { toBriefInput } from "@/lib/ai/payload";
 import { createCanvaDesign } from "@/lib/connect/canva";
+import { runPublishItem } from "@/lib/connect/publish-item";
 import { searchDriveLive } from "@/lib/connect/sync";
 import { emptyBrief, migrateBrief } from "@/lib/studio/brief";
 import { getAssetBlob, hydrateSeedAsset, putAssetBlob } from "@/lib/studio/assets-idb";
@@ -40,6 +41,7 @@ import {
   waveVisualVariation,
   mergeCampaignWaves,
   scheduleItemsForWave,
+  heroScheduleItem,
 } from "@/lib/zen/schedule";
 import type { WaveDraft } from "@/lib/ai/wave";
 import type { CampaignPlan, CampaignWaveKind, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
@@ -97,6 +99,7 @@ export function CreateStudio() {
   const createCampaign = useStudio((s) => s.createCampaign);
   const updateCampaign = useStudio((s) => s.updateCampaign);
   const upsertSchedule = useStudio((s) => s.upsertSchedule);
+  const publishSchedule = useStudio((s) => s.publishSchedule);
   const addAsset = useStudio((s) => s.addAsset);
   const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
   const updateAsset = useStudio((s) => s.updateAsset);
@@ -783,6 +786,27 @@ export function CreateStudio() {
     toast.success("IG／Story／Reels／Threads 已依節奏排進月曆");
   }
 
+  async function publishHero() {
+    if (!campaign) return;
+    const item = heroScheduleItem(useStudio.getState().schedule, campaign.id);
+    if (!item) {
+      toast.error("還沒有主視覺排程，可先選一個方向。");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await runPublishItem(item);
+      toast.message(result.note);
+      if (result.marked) {
+        publishSchedule(item.id, result.extra);
+        toast.success("已寫進過去 IG。可在 Feed 標記學生會不會停。");
+        void navigate({ to: "/ig" });
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function sendToCanva() {
     if (!plan) return;
     setBusy(true);
@@ -1201,6 +1225,9 @@ export function CreateStudio() {
                 </Button>
                 <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/ig" })}>
                   IG Preview
+                </Button>
+                <Button size="sm" disabled={busy} data-testid="publish-hero" onClick={() => void publishHero()}>
+                  發布主視覺
                 </Button>
               </div>
             </div>

@@ -58,7 +58,7 @@ export function CreativeSearch() {
       return;
     }
     if (hit.campaignId) {
-      void navigate({ to: "/create", search: { mode: "campaign", idea: hit.title } });
+      void navigate({ to: "/create", search: { mode: "campaign", idea: hit.title, campaign: hit.campaignId } });
       return;
     }
     const idea = hit.title;

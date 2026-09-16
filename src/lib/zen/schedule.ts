@@ -156,6 +156,16 @@ export function scheduleItemsForWave<T extends { campaignId: string | null; titl
   return items.filter((item) => item.campaignId === campaignId && item.title.startsWith(label));
 }
 
+export function heroScheduleItem<T extends { campaignId: string | null; title: string; kind: string }>(
+  items: T[],
+  campaignId: string,
+) {
+  return (
+    scheduleItemsForWave(items, campaignId, "hero")[0] ??
+    items.find((item) => item.campaignId === campaignId && (item.kind === "carousel" || item.kind === "ig-post"))
+  );
+}
+
 export function eventKindFromText(text: string): EventKind {
   if (/茶/.test(text)) return "tea";
   if (/光|浮游|燈/.test(text)) return "light";

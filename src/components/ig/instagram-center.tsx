@@ -1,3 +1,4 @@
+import { IgFeedPreview } from "@/components/ig/ig-feed-preview";
 import { InsightLessons } from "@/components/ig/insight-lessons";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
@@ -7,13 +8,10 @@ import { PageHeader } from "@/components/shared/page-header";
 import { LoadingState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { publishInstagramMedia } from "@/lib/connect/instagram-publish";
-import { getAssetBlob } from "@/lib/studio/assets-idb";
-import { bytesToBase64 } from "@/lib/studio/bytes";
-import { persistGeneratedImage } from "@/lib/studio/raster";
+import { runPublishItem } from "@/lib/connect/publish-item";
 import { pagesOf } from "@/lib/studio/layers";
 import { clubCreativeDna } from "@/lib/zen/dna";
-import { canGraphPublish } from "@/lib/zen/memory";
+import { feelLabel, type PostFeel } from "@/lib/zen/feel";
 import { soonestScheduled } from "@/lib/zen/schedule";
 import { igHookAnalysis } from "@/lib/zen/review";
 import { useStudio } from "@/stores/studio-store";
@@ -29,6 +27,7 @@ export function InstagramCenter() {
   const campaigns = useStudio((s) => s.campaigns);
   const schedule = useStudio((s) => s.schedule);
   const publishSchedule = useStudio((s) => s.publishSchedule);
+  const rateIgMemory = useStudio((s) => s.rateIgMemory);
   const brand = brands[0];
   const [selected, setSelected] = useState<string | null>(igMemory[0]?.id ?? null);
   const [analysis, setAnalysis] = useState<ReturnType<typeof igHookAnalysis> | null>(null);
@@ -36,6 +35,7 @@ export function InstagramCenter() {
   const urls = useAssetUrls(assets.map((a) => a.id));
   const gridProjects = projects.filter((p) => p.activeFormatId.startsWith("feed") || p.contentKind === "carousel");
   const upcoming = soonestScheduled(schedule, 12);
+  const stories = upcoming.filter((item) => item.kind === "story" || item.kind === "countdown" || item.kind === "reels");
   const post = igMemory.find((p) => p.id === selected);
 
   const dna = useMemo(
@@ -44,52 +44,22 @@ export function InstagramCenter() {
   );
 
   async function publishItem(item: ScheduleItem) {
-    const caption = (item.caption || item.title).slice(0, 2200);
     setPublishingId(item.id);
     try {
-      await navigator.clipboard.writeText(caption).catch(() => undefined);
-      if (canGraphPublish(item.kind)) {
-        let imageBase64: string | undefined;
-        if (item.imageAssetId) {
-          const blob = await getAssetBlob(item.imageAssetId);
-          if (blob) {
-            const png = await persistGeneratedImage({
-              base64: bytesToBase64(new Uint8Array(await blob.arrayBuffer())),
-              mime: blob.type || "image/png",
-              width: 1080,
-              height: 1350,
-            });
-            imageBase64 = png.base64;
-          }
-        }
-        const result = await publishInstagramMedia({
-          data: {
-            caption,
-            imageUrl: item.mediaUrl,
-            imageBase64,
-            mime: "image/png",
-            title: item.title,
-            format: "feed-portrait",
-          },
-        });
-        if (result.ok) {
-          publishSchedule(item.id, {
-            mediaUrl: result.imageUrl || item.mediaUrl,
-            permalink: result.permalink,
-            igMediaId: result.mediaId,
-          });
-          toast.success(result.note);
-          return;
-        }
-        toast.message(result.note);
-      } else {
-        toast.message("限動／Reels／Threads 請在 IG App 發。文案已複製。");
+      const result = await runPublishItem(item);
+      toast.message(result.note);
+      if (result.marked) {
+        publishSchedule(item.id, result.extra);
+        toast.success("已寫進過去 IG。可標記學生會不會停，下次生成會學。");
       }
-      publishSchedule(item.id);
-      toast.success("已標記發布，並寫進過去 IG 記憶");
     } finally {
       setPublishingId(null);
     }
+  }
+
+  function rate(id: string, feel: PostFeel) {
+    rateIgMemory(id, feel);
+    toast.success(`已記成「${feelLabel(feel)}」，下次生成會參考`);
   }
 
   if (!hydrated) {
@@ -101,7 +71,7 @@ export function InstagramCenter() {
       <PageHeader
         kicker="Instagram"
         title="IG 是產品出口"
-        description="Grid、文案、歷史、DNA。官方連接在「連接」。"
+        description="Feed、Grid、文案、歷史、DNA。官方連接在「連接」。"
         actions={
           <Button size="sm" variant="secondary" asChild>
             <Link to="/connect">連接 IG</Link>
@@ -118,6 +88,21 @@ export function InstagramCenter() {
         <p className="mt-2 text-xs text-subtle">{dna.voice}</p>
         <p className="mt-2 text-xs text-muted">喜歡 {dna.likes.join("、")} · 視覺 {dna.visual}</p>
       </section>
+
+      <IgFeedPreview
+        handle={brand?.handle ?? "@tamkang.zen"}
+        upcoming={upcoming}
+        stories={stories}
+        memory={igMemory}
+        urls={urls}
+        publishingId={publishingId}
+        onPublish={(item) => void publishItem(item)}
+        onRate={rate}
+        onSelect={(id) => {
+          setSelected(id);
+          setAnalysis(null);
+        }}
+      />
 
       <section className="mt-8">
         <h2 className="text-sm font-medium">Grid Preview</h2>
@@ -138,7 +123,7 @@ export function InstagramCenter() {
                   ) : (
                     <span className="flex size-full items-center p-2 text-left text-xs">{item.title}</span>
                   )}
-                  <span className="absolute bottom-1 left-1 rounded-full bg-surface px-2 py-0.5 text-[10px] text-fg">即將</span>
+                  <span className="absolute bottom-1 left-1 rounded-full bg-surface px-2 py-0.5 text-xs text-fg">即將</span>
                 </li>
               );
             })}
@@ -185,6 +170,7 @@ export function InstagramCenter() {
           <article className="mt-4 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
             <p className="text-xs text-muted">
               Instagram / {post.date} · {post.kind}
+              {post.feel ? ` · ${feelLabel(post.feel)}` : ""}
             </p>
             <p className="mt-2 whitespace-pre-wrap text-sm">{post.caption}</p>
             <p className="mt-2 text-xs text-muted">
@@ -199,6 +185,18 @@ export function InstagramCenter() {
               <Button size="sm" onClick={() => void navigate({ to: "/create", search: { mode: "from-ig", idea: post.caption } })}>
                 從這篇延伸
               </Button>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {(["strong", "ok", "weak"] as PostFeel[]).map((feel) => (
+                <Button
+                  key={feel}
+                  size="sm"
+                  variant={post.feel === feel ? "default" : "secondary"}
+                  onClick={() => rate(post.id, feel)}
+                >
+                  {feelLabel(feel)}
+                </Button>
+              ))}
             </div>
             {analysis ? (
               <ul className="mt-3 space-y-1 text-sm text-muted">

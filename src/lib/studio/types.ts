@@ -580,6 +580,7 @@ export type IgMemoryPost = {
   projectId?: string;
   assetId?: string;
   analysis?: string;
+  feel?: "strong" | "ok" | "weak";
 };
 
 export type RemoteFile = {

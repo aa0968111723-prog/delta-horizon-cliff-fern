@@ -32,6 +32,7 @@ import {
 } from "@/lib/studio/layers";
 import { inferContentKind, kindFromFormat, legacyFromContent, statusFromLegacy } from "@/lib/studio/content";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
+import { metricsFromFeel } from "@/lib/zen/feel";
 import {
   DEFAULT_CONNECTIONS,
   SEED_ASSETS,
@@ -140,6 +141,7 @@ type StudioState = {
   upsertRemoteFiles: (files: RemoteFile[]) => void;
   addIgMemory: (post: IgMemoryPost) => void;
   upsertIgMemory: (posts: IgMemoryPost[]) => void;
+  rateIgMemory: (id: string, feel: "strong" | "ok" | "weak") => void;
   applyCampaignPlan: (projectId: string, plan: CampaignPlan, brief: Brief) => void;
   restorePlanVersion: (projectId: string, versionId: string) => void;
   patchPlan: (projectId: string, patch: Partial<CampaignPlan> | ((plan: CampaignPlan) => CampaignPlan)) => void;
@@ -575,9 +577,22 @@ export const useStudio = create<StudioState>()(
             igMediaId: extra?.igMediaId ?? item.igMediaId,
           };
           const memory = igMemoryFromSchedule(published);
+          const prev = s.igMemory.find((row) => row.id === memory.id || row.id === `local:${id}`);
           return {
             schedule: s.schedule.map((row) => (row.id === id ? published : row)),
-            igMemory: [memory, ...s.igMemory.filter((row) => row.id !== memory.id && row.id !== `local:${id}`)],
+            igMemory: [
+              {
+                ...memory,
+                feel: prev?.feel,
+                saves: prev?.saves ?? memory.saves,
+                likes: prev?.likes ?? memory.likes,
+                comments: prev?.comments ?? memory.comments,
+                shares: prev?.shares ?? memory.shares,
+                reach: prev?.reach ?? memory.reach,
+                analysis: prev?.analysis ?? memory.analysis,
+              },
+              ...s.igMemory.filter((row) => row.id !== memory.id && row.id !== `local:${id}`),
+            ],
             projects: s.projects.map((p) =>
               published.projectId && p.id === published.projectId
                 ? { ...p, contentStatus: "published" as const, status: "exported" as const, publishedAt: published.publishedAt }
@@ -620,6 +635,15 @@ export const useStudio = create<StudioState>()(
           const map = new Map(s.igMemory.map((row) => [row.id, row]));
           for (const post of posts) map.set(post.id, { ...map.get(post.id), ...post });
           return { igMemory: [...map.values()] };
+        }),
+      rateIgMemory: (id, feel) =>
+        set((s) => {
+          const metrics = metricsFromFeel(feel);
+          return {
+            igMemory: s.igMemory.map((post) =>
+              post.id === id ? { ...post, feel, ...metrics } : post,
+            ),
+          };
         }),
       applyCampaignPlan: (projectId, plan, brief) => {
         const s = get();

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mergeCampaignWaves, scheduleItemsForWave, soonestScheduled, waveLabel, waveVisualVariation } from "./schedule.ts";
+import { mergeCampaignWaves, scheduleItemsForWave, soonestScheduled, waveLabel, waveVisualVariation, heroScheduleItem } from "./schedule.ts";
 
 test("soonestScheduled surfaces the next tea-party IG post, not a later LINE draft", () => {
   const items = [
@@ -43,4 +43,15 @@ test("scheduleItemsForWave matches 主視覺 rows for one campaign", () => {
     scheduleItemsForWave(rows, "camp_1", "hero").map((row) => row.id),
     ["a"],
   );
+});
+
+test("heroScheduleItem finds the 主視覺 row for a tea-party campaign", () => {
+  const hero = heroScheduleItem(
+    [
+      { id: "w", campaignId: "camp_1", title: `${waveLabel("warmup")} · 茶會`, kind: "member-story" },
+      { id: "h", campaignId: "camp_1", title: `${waveLabel("hero")} · 茶會`, kind: "carousel" },
+    ],
+    "camp_1",
+  );
+  assert.equal(hero?.id, "h");
 });
