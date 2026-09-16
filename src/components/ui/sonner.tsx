@@ -4,8 +4,7 @@ export function Toaster() {
   return (
     <Sonner
       theme="light"
-      position="top-center"
-      offset={16}
+      position="bottom-center"
       toastOptions={{
         classNames: {
           toast: "bg-surface text-fg border-border shadow-[var(--shadow-border)]",

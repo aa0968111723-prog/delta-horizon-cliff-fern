@@ -25,7 +25,6 @@ import { STUDIO_FONTS } from "@/lib/studio/fonts";
 import { uid } from "@/lib/studio/ids";
 import type { BrandColor, BrandKit, ColorRole, LogoUsage, LogoVariant } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
-import { BRAND_MEMORY } from "@/lib/club/memory";
 import { useStudio } from "@/stores/studio-store";
 import { SwatchBook } from "lucide-react";
 

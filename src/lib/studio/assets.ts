@@ -35,7 +35,7 @@ export const ASSET_CATEGORIES: {
   { id: "illustration", label: "插圖", hint: "手繪與裝飾" },
   { id: "icon", label: "圖示", hint: "小標、符號" },
   { id: "template", label: "模板", hint: "可套用的版型起點", virtual: true },
-  { id: "history", label: "IG", hint: "曾放到畫布或來自 IG", virtual: true },
+  { id: "history", label: "歷史素材", hint: "曾放到畫布的檔案", virtual: true },
 ];
 
 export const ASSET_SOURCES: { id: AssetSourceKind; label: string }[] = [
@@ -92,7 +92,7 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
   if (/海報|poster/.test(blob)) return "poster";
   if (/人物|人像|portrait|people|社員/.test(blob)) return "people";
   if (/背景|場景|材質|background|texture/.test(blob)) return "background";
-  if (/龜龜|插圖|illustration|handdrawn/.test(blob)) return "illustration";
+  if (/插圖|illustration|handdrawn/.test(blob)) return "illustration";
   if (/圖示|icon|badge/.test(blob)) return "icon";
   if (/logo|標誌/.test(blob)) return "logo";
   if (/reels|短影音/.test(blob)) return "reels";
@@ -138,7 +138,6 @@ export function createGeneratedAsset(input: {
   width: number;
   height: number;
   category?: AssetCategory;
-  tags?: string[];
 }): AssetMeta {
   const now = Date.now();
   return migrateAsset({
@@ -149,7 +148,7 @@ export function createGeneratedAsset(input: {
     mime: input.mime,
     width: input.width,
     height: input.height,
-    tags: input.tags ?? ["AI生成"],
+    tags: ["生成", "QR"],
     createdAt: now,
     updatedAt: now,
     source: "generated",

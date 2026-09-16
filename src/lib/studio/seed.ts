@@ -457,7 +457,6 @@ export function createSeedProject(): Project {
       "CTA 是來坐一下或找朋友",
       "Logo 沒壓光點",
     ],
-    checklist: ["第一句不是公文", "時間地點有出現", "不太宗教", "CTA 可讀", "Logo 沒壓主體"],
     altText: copy.altText,
     qaNotes: ["避免木魚與香爐", "時間地點要能被截圖帶走"],
     generatedAt: now,
@@ -488,8 +487,12 @@ export function createSeedProject(): Project {
     brief,
     copy,
     plan,
-    artboards: { "feed-portrait": page1 },
-    slides: { "feed-portrait": slides },
+    artboards: {
+      "feed-portrait": page1,
+    },
+    slides: {
+      "feed-portrait": slides,
+    },
     slideIndex: 0,
     snapshots: [
       {
@@ -558,8 +561,12 @@ export function createSeedDraft(): Project {
     }),
     copy: draftCopy,
     plan: null,
-    artboards: { story: artboard },
-    slides: { story: [artboard] },
+    artboards: {
+      story: artboard,
+    },
+    slides: {
+      story: [artboard],
+    },
     slideIndex: 0,
     snapshots: [],
     planVersions: [],
