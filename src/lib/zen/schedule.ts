@@ -190,6 +190,19 @@ export function scheduleItemsFromCampaign(
   }));
 }
 
+export function schedulePreviewAssetId(
+  item: { campaignId: string | null; contentKind: string },
+  campaigns: ClubCampaign[],
+): string | null {
+  if (!item.campaignId) return null;
+  const campaign = campaigns.find((row) => row.id === item.campaignId);
+  if (!campaign) return null;
+  if (item.contentKind === "story" || item.contentKind === "reels") {
+    return campaign.relatedAssetIds.find((id) => id !== campaign.coverAssetId) ?? campaign.coverAssetId;
+  }
+  return campaign.coverAssetId;
+}
+
 export function emptyCampaign(partial?: Partial<ClubCampaign>): ClubCampaign {
   const now = Date.now();
   return {

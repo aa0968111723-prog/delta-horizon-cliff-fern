@@ -21,6 +21,7 @@ import { dnaPromptIdea, igDnaBlock, learnFromPosts } from "@/lib/zen/insights";
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
 import { tonightAt } from "@/lib/zen/convert";
+import { schedulePreviewAssetId } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -33,19 +34,40 @@ export function InstagramCenter() {
   const navigate = useNavigate();
   const igPosts = useCreative((s) => s.igPosts);
   const schedule = useCreative((s) => s.schedule);
+  const campaigns = useCreative((s) => s.campaigns);
+  const igView = useCreative((s) => s.igView);
+  const setIgView = useCreative((s) => s.setIgView);
+  const lastVisualAssetId = useCreative((s) => s.lastVisualAssetId);
   const addIgPost = useCreative((s) => s.addIgPost);
   const setConnection = useCreative((s) => s.setConnection);
   const igStatus = useCreative((s) => s.connections.find((c) => c.id === "instagram")?.status);
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
   const projects = useStudio((s) => s.projects);
+  const lastProjectId = useStudio((s) => s.lastProjectId);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
   const addAsset = useStudio((s) => s.addAsset);
   const setCopy = useStudio((s) => s.setCopy);
   const ensureArtboard = useStudio((s) => s.ensureArtboard);
   const setActiveFormat = useStudio((s) => s.setActiveFormat);
-  const urls = useAssetUrls(useMemo(() => [...assets.map((a) => a.id), ...igPosts.map((p) => p.assetId)], [assets, igPosts]));
-  const [tab, setTab] = useState<Tab>("grid");
+  const upcoming = useMemo(
+    () =>
+      [...schedule]
+        .filter((item) => ["ig-post", "carousel", "story", "reels", "threads"].includes(item.contentKind))
+        .sort((a, b) => a.scheduledAt - b.scheduledAt),
+    [schedule],
+  );
+  const previewIds = useMemo(() => {
+    const ids = [
+      ...assets.map((a) => a.id),
+      ...igPosts.map((p) => p.assetId),
+      ...upcoming.map((item) => schedulePreviewAssetId(item, campaigns)).filter((id): id is string => Boolean(id)),
+      ...(lastVisualAssetId ? [lastVisualAssetId] : []),
+    ];
+    return [...new Set(ids)];
+  }, [assets, igPosts, upcoming, campaigns, lastVisualAssetId]);
+  const urls = useAssetUrls(previewIds);
+  const [tab, setTab] = useState<Tab>(igView);
   const [active, setActive] = useState(igPosts[0]?.id ?? null);
   const [busy, setBusy] = useState(false);
   const [dnaBusy, setDnaBusy] = useState(false);
@@ -56,13 +78,15 @@ export function InstagramCenter() {
   const brand = brands[0];
   const learned = useMemo(() => learnFromPosts(igPosts), [igPosts]);
   const previewProject =
+    projects.find((p) => p.id === lastProjectId) ??
     projects.find((p) => p.activeFormatId === previewFormat) ??
     projects.find((p) => pagesOf(p, previewFormat).length) ??
     projects[0];
   const previewPages = previewProject ? pagesOf(previewProject, previewFormat) : [];
-  const upcoming = [...schedule]
-    .filter((item) => ["ig-post", "carousel", "story", "reels", "threads"].includes(item.contentKind))
-    .sort((a, b) => a.scheduledAt - b.scheduledAt);
+
+  useEffect(() => {
+    setTab(igView);
+  }, [igView]);
 
   useEffect(() => {
     if (previewProject) setCaption(previewProject.copy.caption || previewProject.copy.headline);
@@ -189,7 +213,15 @@ export function InstagramCenter() {
           ["preview", "Preview"],
           ["calendar", "Calendar"],
         ] as const).map(([id, label]) => (
-          <Button key={id} size="sm" variant={tab === id ? "default" : "secondary"} onClick={() => setTab(id)}>
+          <Button
+            key={id}
+            size="sm"
+            variant={tab === id ? "default" : "secondary"}
+            onClick={() => {
+              setTab(id);
+              setIgView(id);
+            }}
+          >
             {label}
           </Button>
         ))}
@@ -250,15 +282,35 @@ export function InstagramCenter() {
               <div className="mt-6">
                 <p className="text-sm font-medium">即將發布</p>
                 <div className="mt-2 grid grid-cols-3 gap-1">
-                  {upcoming.slice(0, 6).map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex aspect-square flex-col justify-end bg-surface p-2 shadow-[var(--shadow-border)]"
-                    >
-                      <p className="text-xs text-muted">{format(item.scheduledAt, "M/d", { locale: zhTW })}</p>
-                      <p className="mt-1 line-clamp-3 text-xs">{item.captionPreview || item.title}</p>
-                    </div>
-                  ))}
+                  {upcoming.slice(0, 6).map((item) => {
+                    const assetId = schedulePreviewAssetId(item, campaigns);
+                    const seedSrc =
+                      assets.find((a) => a.id === assetId)?.seedSrc ??
+                      SEED_ASSETS.find((a) => a.id === assetId)?.seedSrc;
+                    const src = resolveAssetSrc(assetId, urls, seedSrc);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setTab("preview");
+                          setIgView("preview");
+                        }}
+                        className="relative aspect-square overflow-hidden bg-surface"
+                      >
+                        {src ? (
+                          <img src={src} alt="" className="size-full object-cover" />
+                        ) : (
+                          <span className="flex size-full items-center justify-center bg-surface text-xs text-muted">
+                            {CONTENT_KIND_LABEL[item.contentKind]}
+                          </span>
+                        )}
+                        <span className="absolute inset-x-0 bottom-0 bg-fg/55 px-2 py-1 text-left text-xs text-bg">
+                          {format(item.scheduledAt, "M/d", { locale: zhTW })}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}

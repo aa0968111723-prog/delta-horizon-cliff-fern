@@ -69,6 +69,8 @@ function seedSchedule(campaigns: ClubCampaign[]): ScheduleItem[] {
   return campaigns.flatMap((camp) => scheduleItemsFromCampaign(camp));
 }
 
+type IgView = "grid" | "preview" | "calendar";
+
 type CreativeState = {
   hydrated: boolean;
   campaigns: ClubCampaign[];
@@ -77,6 +79,8 @@ type CreativeState = {
   memory: MemoryItem[];
   connections: ConnectionState[];
   lastPack: CreativePack | null;
+  lastVisualAssetId: string | null;
+  igView: IgView;
   searchQuery: string;
   createIntent: CreateIntent | null;
   driveFolderQuery: string;
@@ -86,6 +90,8 @@ type CreativeState = {
   consumeCreateIntent: () => CreateIntent | null;
   setDriveFolderQuery: (q: string) => void;
   setLastPack: (pack: CreativePack | null) => void;
+  setIgView: (igView: IgView) => void;
+  setIgPreview: (assetId: string | null) => void;
   upsertCampaign: (campaign: ClubCampaign) => void;
   patchCampaign: (id: string, patch: Partial<ClubCampaign>) => void;
   removeCampaign: (id: string) => void;
@@ -113,6 +119,8 @@ export const useCreative = create<CreativeState>()(
       memory: SEED_MEMORY,
       connections: SEED_CONNECTIONS,
       lastPack: null,
+      lastVisualAssetId: null,
+      igView: "grid",
       searchQuery: "",
       createIntent: null,
       driveFolderQuery: "淡江禪學社",
@@ -138,6 +146,8 @@ export const useCreative = create<CreativeState>()(
       },
       setDriveFolderQuery: (driveFolderQuery) => set({ driveFolderQuery }),
       setLastPack: (lastPack) => set({ lastPack }),
+      setIgView: (igView) => set({ igView }),
+      setIgPreview: (assetId) => set({ lastVisualAssetId: assetId, igView: assetId ? "preview" : "grid" }),
       upsertCampaign: (campaign) =>
         set((s) => {
           const exists = s.campaigns.some((c) => c.id === campaign.id);
@@ -230,7 +240,7 @@ export const useCreative = create<CreativeState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 2,
+      version: 3,
       migrate: (persisted) => {
         const row = (persisted ?? {}) as {
           campaigns: ClubCampaign[];
@@ -239,6 +249,8 @@ export const useCreative = create<CreativeState>()(
           memory: MemoryItem[];
           connections: ConnectionState[];
           lastPack: CreativePack | null;
+          lastVisualAssetId?: string | null;
+          igView?: IgView;
           driveFolderQuery?: string;
         };
         return {
@@ -248,6 +260,8 @@ export const useCreative = create<CreativeState>()(
           memory: row.memory,
           connections: row.connections,
           lastPack: row.lastPack ?? null,
+          lastVisualAssetId: row.lastVisualAssetId ?? null,
+          igView: row.igView === "preview" || row.igView === "calendar" ? row.igView : "grid",
           driveFolderQuery: row.driveFolderQuery || "淡江禪學社",
         };
       },
@@ -258,6 +272,8 @@ export const useCreative = create<CreativeState>()(
         memory: s.memory,
         connections: s.connections,
         lastPack: s.lastPack,
+        lastVisualAssetId: s.lastVisualAssetId,
+        igView: s.igView,
         driveFolderQuery: s.driveFolderQuery,
       }),
     },

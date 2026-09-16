@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { ConvertPanel } from "@/components/create/convert-panel";
+import { applyVisualDirection } from "@/components/create/apply-visual";
 import { PackResult } from "@/components/create/pack-result";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -326,7 +327,22 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
       </div>
       {lastPack && lastPack.campaignName === campaign.name ? (
         <section className="mt-6">
-          <PackResult pack={lastPack} />
+          <PackResult
+            pack={lastPack}
+            onApply={async (directionId) => {
+              const result = await applyVisualDirection({
+                pack: lastPack,
+                directionId,
+                campaignId: campaign.id,
+              });
+              if (!result.ok) {
+                toast.error(result.error);
+                return;
+              }
+              toast.success("已生成主視覺，打開 IG Preview");
+              void navigate({ to: "/instagram" });
+            }}
+          />
           <ConvertPanel pack={lastPack} campaignId={campaign.id} />
         </section>
       ) : null}
@@ -355,6 +371,15 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                       location: campaign.location,
                       signupUrl: campaign.signupUrl,
                       dnaNotes: igDnaBlock(igPosts),
+                      memoryNotes: composeMemoryNotes([
+                        searchCreativeKnowledge(`${campaign.name} ${wave.title}`, {
+                          assets,
+                          campaigns: useCreative.getState().campaigns,
+                          igPosts,
+                          memory,
+                        }).memoryNotes,
+                        clientMemoryLines(memory),
+                      ]),
                     },
                   });
                   if (!result.ok) return;

@@ -27,6 +27,12 @@ test("systemPrompt injects IG DNA for copy campaign and image", () => {
   }
 });
 
+test("systemPrompt injects Creative Memory notes for copy", () => {
+  const prompt = systemPrompt("copy", { memoryNotes: "Google Drive / 2025 茶會：晚上同學圍坐" });
+  assert.match(prompt, /Creative Memory/);
+  assert.match(prompt, /2025 茶會/);
+});
+
 test("dnaPromptIdea asks for a new post not a copy", () => {
   assert.match(dnaPromptIdea(), /不要複製舊文/);
 });

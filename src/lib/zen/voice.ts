@@ -48,10 +48,13 @@ export const ANTI_AI_RULES = `文案必須像淡江學生、社團的人在發 I
 
 export function systemPrompt(
   kind: "copy" | "campaign" | "image" | "vision" | "review",
-  extras?: { dnaNotes?: string },
+  extras?: { dnaNotes?: string; memoryNotes?: string },
 ) {
   const season = seasonContext();
   const liveDna = extras?.dnaNotes?.trim() ? `\n即時 IG 記憶：\n${extras.dnaNotes.trim()}` : "";
+  const liveMemory = extras?.memoryNotes?.trim()
+    ? `\nCreative Memory：\n${extras.memoryNotes.trim().slice(0, 2000)}`
+    : "";
   const head = `你在為「${CLUB_NAME}」做一人網宣創作。使用者同時是企劃、文案、設計、社群編輯、排程者。
 唯一客群是淡江大學學生，不要寫成抽象的「年輕人／Z 世代」。
 學生樣貌：
@@ -64,7 +67,7 @@ ${audienceSummary()}
 吉祥物：${MASCOT}。活動常見視覺：${LIGHTS}。
 ${ANTI_AI_RULES}
 
-${igDnaBlock()}${liveDna}`;
+${igDnaBlock()}${liveDna}${liveMemory}`;
 
   if (kind === "image") {
     return `${head}

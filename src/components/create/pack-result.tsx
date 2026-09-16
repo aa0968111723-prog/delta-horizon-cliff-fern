@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { createCanvaDraft } from "@/lib/ai/oauth";
@@ -14,9 +15,10 @@ export function PackResult({
 }: {
   pack: CreativePack;
   compact?: boolean;
-  onApply?: (directionId?: string) => void;
+  onApply?: (directionId?: string) => void | Promise<void>;
 }) {
   const converted = convertFromPlan(pack.plan);
+  const [busyId, setBusyId] = useState<string | null>(null);
   return (
     <div className={cn("rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-border)] md:p-6", compact && "p-4")}>
       <p className="text-xs text-muted">
@@ -38,8 +40,16 @@ export function PackResult({
             <p className="mt-1 text-sm font-medium">{dir.concept}</p>
             <p className="mt-2 text-xs text-muted">{dir.palette}</p>
             {onApply ? (
-              <Button className="mt-3 w-full" size="sm" onClick={() => onApply(dir.id)}>
-                用這個方向
+              <Button
+                className="mt-3 w-full"
+                size="sm"
+                disabled={Boolean(busyId)}
+                onClick={() => {
+                  setBusyId(dir.id);
+                  void Promise.resolve(onApply(dir.id)).finally(() => setBusyId(null));
+                }}
+              >
+                {busyId === dir.id ? "生成主視覺中…" : "生成這個方向的主視覺"}
               </Button>
             ) : null}
           </article>

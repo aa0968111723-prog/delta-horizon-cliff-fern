@@ -16,6 +16,7 @@ const CopyInput = z.object({
   angle: z.string().max(80).optional(),
   forceMock: z.boolean().optional(),
   dnaNotes: z.string().max(2000).optional(),
+  memoryNotes: z.string().max(4000).optional(),
 });
 
 function mockCopy(data: z.infer<typeof CopyInput>): CopyPack {
@@ -74,6 +75,9 @@ function mockCopy(data: z.infer<typeof CopyInput>): CopyPack {
         ...(when ? [] : ["補時間地點。"]),
         ...(signup ? [] : ["補報名連結。"]),
         ...(data.angle ? [`這一波換角度：${data.angle}`] : []),
+        ...(data.memoryNotes?.trim()
+          ? [`記得參考：${data.memoryNotes.trim().split("\n").find(Boolean)}`]
+          : []),
       ],
       rewriteHook:
         data.kind === "emotion"
@@ -113,12 +117,12 @@ export const generateCopyPack = createServerFn({ method: "POST" })
         max_tokens: 1800,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: systemPrompt("copy", { dnaNotes: data.dnaNotes }) },
+          { role: "system", content: systemPrompt("copy", { dnaNotes: data.dnaNotes, memoryNotes: data.memoryNotes }) },
           {
             role: "user",
             content: `為淡江禪學社寫 IG 文案。類型：${data.kind}。想法：${data.idea}。活動：${data.eventName ?? ""}。時間：${data.schedule ?? ""}。地點：${data.location ?? ""}。
 報名連結：${data.signupUrl ?? "尚未提供"}。換角度：${data.angle ?? "無"}。
-優先延續自己 IG 有效的 Hook 與語氣，不要套一般品牌模板。有報名連結就要讓學生知道怎麼報。
+優先讀 Creative Memory 與自己 IG，不要套一般品牌模板。有報名連結就要讓學生知道怎麼報。
 輸出 JSON：hook, body, cta, hashtags[], variants[{style,text}]（短版/一般版/感性版/學生版/生活版/幽默版）, studentReview{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,tooLong,knowsWhat,knowsWhenWhere,wouldBringFriend,knowsSignup,notes,rewriteHook}`,
           },
         ],

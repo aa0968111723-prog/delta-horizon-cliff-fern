@@ -1,3 +1,4 @@
+import { applyVisualDirection } from "@/components/create/apply-visual";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -31,8 +32,6 @@ export function CreateHub() {
   const navigate = useNavigate();
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
-  const createProject = useStudio((s) => s.createProject);
-  const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const lastPack = useCreative((s) => s.lastPack);
   const setLastPack = useCreative((s) => s.setLastPack);
   const upsertCampaign = useCreative((s) => s.upsertCampaign);
@@ -131,8 +130,19 @@ export function CreateHub() {
   async function runCopy(nextIdea = idea, nextKind = copyKind) {
     setCopyBusy(true);
     try {
+      const world = searchCreativeKnowledge(nextIdea, {
+        assets: useStudio.getState().assets,
+        campaigns,
+        igPosts,
+        memory,
+      });
       const result = await generateCopyPack({
-        data: { idea: nextIdea, kind: nextKind, dnaNotes: igDnaBlock(igPosts) },
+        data: {
+          idea: nextIdea,
+          kind: nextKind,
+          dnaNotes: igDnaBlock(igPosts),
+          memoryNotes: composeMemoryNotes([world.memoryNotes, clientMemoryLines(memory)]),
+        },
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -145,27 +155,19 @@ export function CreateHub() {
     }
   }
 
-  function applyDirection(directionId?: string) {
-    if (!lastPack || !brand) return;
-    const dir = lastPack.directions?.find((d) => d.id === directionId);
-    const plan = dir
-      ? { ...lastPack.plan, headline: dir.headline || lastPack.plan.headline, visualDirection: dir.concept }
-      : lastPack.plan;
-    const brief = migrateBrief({
-      eventName: lastPack.campaignName,
-      audience: "淡江大學學生",
-      location: "淡江大學淡水校園",
-      deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
+  async function applyDirection(directionId?: string) {
+    if (!lastPack) return;
+    const result = await applyVisualDirection({
+      pack: lastPack,
+      directionId,
+      campaignId: ideaCampaignId,
     });
-    const project = createProject({
-      name: lastPack.campaignName,
-      brandId: brand.id,
-      formatId: "feed-portrait",
-      brief,
-      templateId: plan.templateId,
-    });
-    applyCampaignPlan(project.id, plan, brief);
-    void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(result.adapter === "mock" ? "已生成本機主視覺，打開 IG Preview" : "已生成主視覺，打開 IG Preview");
+    void navigate({ to: "/instagram" });
   }
 
   return (

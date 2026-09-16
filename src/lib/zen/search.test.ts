@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { SEED_MEMORY } from "./memory.ts";
 import { creativeSearch, expandCreativeQuery, groupSearchHits, knowledgeFromHits, searchCreativeKnowledge, searchTerms } from "./search.ts";
-import { applyPackToWaves, contentKindForWave, copyKindForWave, emptyCampaign, nextWaveAngle, nextWaveVisual, rhythmHint, scheduleItemsFromCampaign, suggestWaves, waveOffsets } from "./schedule.ts";
+import { applyPackToWaves, contentKindForWave, copyKindForWave, emptyCampaign, nextWaveAngle, nextWaveVisual, rhythmHint, scheduleItemsFromCampaign, schedulePreviewAssetId, suggestWaves, waveOffsets } from "./schedule.ts";
 import { canvaDraftNotes, canvaDraftTitle, canvaPresetForAspect, canvaPresetForKind } from "./canva-draft.ts";
 import { convertFromPlan, CONVERT_TARGETS, briefFlagsForTarget, captionForTarget } from "./convert.ts";
 import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
@@ -387,6 +387,23 @@ test("waveOffsets compress when the event is soon and recruit starts earlier", (
   assert.equal(contentKindForWave("reason"), "member-story");
   assert.equal(contentKindForWave("day-of"), "story");
   assert.match(rhythmHint([{ contentKind: "ig-post" }, { contentKind: "carousel" }, { contentKind: "ig-post" }]), /招生/);
+});
+
+test("schedulePreviewAssetId uses campaign cover and related thumbs", () => {
+  const camp = emptyCampaign({
+    id: "camp_preview",
+    coverAssetId: "asset_cover",
+    relatedAssetIds: ["asset_cover", "asset_story"],
+  });
+  assert.equal(
+    schedulePreviewAssetId({ campaignId: camp.id, contentKind: "ig-post" }, [camp]),
+    "asset_cover",
+  );
+  assert.equal(
+    schedulePreviewAssetId({ campaignId: camp.id, contentKind: "story" }, [camp]),
+    "asset_story",
+  );
+  assert.equal(schedulePreviewAssetId({ campaignId: null, contentKind: "ig-post" }, [camp]), null);
 });
 
 test("applyStudentRewrite swaps the first sentence", () => {
