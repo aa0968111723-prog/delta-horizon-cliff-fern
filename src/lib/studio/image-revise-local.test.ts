@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { coverRect, frameForPreset, RATIO_PX } from "./image-revise-local.ts";
+import { coverRect, frameForPreset, presetForRatio, RATIO_PX } from "./image-revise-local.ts";
 
 test("coverRect fills the frame without stretching", () => {
   const tall = coverRect(1080, 1350, 1080, 1080);
@@ -32,4 +32,11 @@ test("IG ratios keep integer canvas sizes", () => {
   assert.equal(RATIO_PX["4:5"].w / RATIO_PX["4:5"].h, 1080 / 1350);
   assert.equal(RATIO_PX["1:1"].w, RATIO_PX["1:1"].h);
   assert.equal(RATIO_PX["9:16"].h > RATIO_PX["4:5"].h, true);
+});
+
+test("presetForRatio maps story to the headline band and squares to more air", () => {
+  assert.equal(presetForRatio("9:16"), "story-space");
+  assert.equal(presetForRatio("1:1"), "more-air");
+  assert.equal(presetForRatio("1.91:1"), "more-air");
+  assert.equal(presetForRatio("4:5"), "tku-life");
 });

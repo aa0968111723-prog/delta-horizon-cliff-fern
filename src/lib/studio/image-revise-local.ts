@@ -21,6 +21,13 @@ export const RATIO_PX: Record<ReviseRatio, { w: number; h: number }> = {
   "1.91:1": { w: 1200, h: 628 },
 };
 
+/** 本機排版用的改版預設：限動留中間標題帶，方圖與橫式多留白。 */
+export function presetForRatio(ratio: ReviseRatio): string {
+  if (ratio === "9:16") return "story-space";
+  if (ratio === "1:1" || ratio === "1.91:1") return "more-air";
+  return "tku-life";
+}
+
 export type CoverRect = { x: number; y: number; w: number; h: number };
 
 /** object-cover：圖等比放大後置中裁切。 */

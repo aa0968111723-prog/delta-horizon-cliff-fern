@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { generateImage } from "@/lib/ai/image-ai";
 import { previewUrlForAsset } from "@/lib/studio/assets";
 import { saveGeneratedImage } from "@/lib/studio/generated-image";
-import { LOCAL_VISUAL_NOTE, matchLocalVisualAsset } from "@/lib/studio/local-visual";
+import { LOCAL_VISUAL_NOTE, localVisualNote, localVisualRatioLine, matchLocalVisualAsset } from "@/lib/studio/local-visual";
+import { frameAndSaveLocalVisual } from "@/lib/studio/local-visual-frame";
 import { coverImagePrompt, reelsScriptText, shotListText } from "@/lib/studio/reels-cover";
 import type { ReelsScript } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
@@ -32,18 +33,36 @@ export function ReelsTimeline({
   const [preview, setPreview] = useState<string | null>(null);
   const [coverAdapter, setCoverAdapter] = useState<"live" | "local" | null>(null);
 
-  function applyLocalCover() {
+  async function applyLocalCover() {
     const match = matchLocalVisualAsset({ hook: reels.hook, imagePrompt: reels.cover }, assets);
     const url = match ? previewUrlForAsset(match) : undefined;
     if (!match || !url) return false;
-    setPreview(url);
-    setCoverAdapter("local");
-    if (projectId) {
-      const count = applyVisualToPack(projectId, match.id);
-      if (count < 1) applyCoverAsset(projectId, match.id);
+    try {
+      const framed = await frameAndSaveLocalVisual({
+        sourceUrl: url,
+        name: `Reels 封面 · ${reels.hook.slice(0, 18)}`,
+        tags: ["Reels 封面"],
+        ratio: "9:16",
+      });
+      addAsset(framed.meta);
+      setPreview(framed.dataUrl);
+      setCoverAdapter("local");
+      if (projectId) {
+        const count = applyVisualToPack(projectId, framed.meta.id);
+        if (count < 1) applyCoverAsset(projectId, framed.meta.id);
+      }
+      toast.info(localVisualNote("Story 9:16"));
+      return true;
+    } catch {
+      setPreview(url);
+      setCoverAdapter("local");
+      if (projectId) {
+        const count = applyVisualToPack(projectId, match.id);
+        if (count < 1) applyCoverAsset(projectId, match.id);
+      }
+      toast.info(LOCAL_VISUAL_NOTE);
+      return true;
     }
-    toast.info(LOCAL_VISUAL_NOTE);
-    return true;
   }
 
   async function copyText(kind: "script" | "shots", text: string) {
@@ -70,7 +89,7 @@ export function ReelsTimeline({
         },
       });
       if (!res.ok) {
-        if (!applyLocalCover()) toast.error(res.error);
+        if (!(await applyLocalCover())) toast.error(res.error);
         return;
       }
       setPreview(res.dataUrl);
@@ -94,7 +113,7 @@ export function ReelsTimeline({
         toast.success("封面已存進素材庫。先用一版文案建立內容，就能套到畫面上。");
       }
     } catch {
-      if (!applyLocalCover()) toast.error("生成封面時出錯了，再試一次。");
+      if (!(await applyLocalCover())) toast.error("生成封面時出錯了，再試一次。");
     } finally {
       setCoverBusy(false);
     }
@@ -125,7 +144,7 @@ export function ReelsTimeline({
       {coverAdapter === "local" ? (
         <p className="text-xs text-subtle">
           <Badge className="mr-2">本機素材</Badge>
-          {LOCAL_VISUAL_NOTE}
+          {localVisualRatioLine("Story 9:16")}
         </p>
       ) : null}
       {adapter === "local" || adapter === "mock" ? (
@@ -135,7 +154,9 @@ export function ReelsTimeline({
         <img
           src={preview}
           alt="Reels 封面"
+          data-ratio="9:16"
           className="mx-auto max-h-80 w-auto rounded-xl bg-surface-2 object-cover"
+          style={{ aspectRatio: "9 / 16" }}
         />
       ) : null}
       <ol className="relative space-y-2 border-l border-border pl-4">

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { matchLocalVisualAsset, nextLocalVisualAsset } from "./local-visual.ts";
+import { localVisualNote, localVisualRatioLine, matchLocalVisualAsset, nextLocalVisualAsset } from "./local-visual.ts";
 import type { AssetMeta } from "./types.ts";
 
 const SEED_DUSK_ID = "asset_tamsui_dusk";
@@ -60,4 +60,27 @@ test("換一張 walks the photo list and skips stamps", () => {
   assert.ok(second);
   assert.notEqual(second?.id, first?.id);
   assert.notEqual(second?.kind, "logo");
+});
+
+test("framed 本機素材 copies are not used as the next seed photo", () => {
+  const framed = asset({
+    id: "asset_framed_night",
+    name: "夜晚的安靜 · 9:16",
+    kind: "image",
+    category: "photo",
+    tags: ["本機素材", "9:16"],
+  });
+  framed.source = "upload";
+  const pool = [...SEED_ASSETS, framed];
+  const first = matchLocalVisualAsset({ title: "夜晚的安靜" }, pool);
+  const second = nextLocalVisualAsset({ title: "夜晚的安靜" }, pool, first?.id ?? null);
+  assert.equal(first?.id, SEED_NIGHT_ID);
+  assert.notEqual(second?.id, "asset_framed_night");
+  assert.equal(second?.source, "seed");
+});
+
+test("local notes name the chosen ratio without claiming AI pixels", () => {
+  assert.match(localVisualNote("Story 9:16"), /排成 Story 9:16/);
+  assert.match(localVisualNote("Story 9:16"), /不是 AI 生成的畫面/);
+  assert.equal(localVisualRatioLine("Story 9:16"), "已排成 Story 9:16（只改構圖比例與留白）");
 });

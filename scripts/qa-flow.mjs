@@ -99,11 +99,15 @@ try {
   const dirs = await page.locator("summary", { hasText: "圖片 Prompt" }).count();
   record("視覺方向數量", dirs >= 3, `只有 ${dirs} 個`);
   await expectText("視覺方向可用示範照片", "點照片也能當主視覺");
+  await tap(page.getByRole("button", { name: "Story 9:16" }).first());
   await tap(page.getByTestId("visual-generate").first());
-  await page.waitForSelector("text=本機素材", { timeout: 15000 });
+  await page.waitForSelector("text=本機素材", { timeout: 20000 });
   await expectText("生圖本機素材", "本機素材");
   await expectText("生圖不是 AI 畫面", "不是 AI 生成的畫面");
-  await page.getByTestId("visual-local-note").first().scrollIntoViewIfNeeded();
+  await expectText("生圖已排成比例", "已排成 Story 9:16");
+  const previewRatio = await page.getByTestId("visual-preview").first().getAttribute("data-ratio");
+  record("生圖預覽比例", previewRatio === "9:16", `預覽是 ${previewRatio ?? "沒有"}`);
+  await page.getByTestId("visual-local-ratio").first().scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${prefix}-visual.png` });
 
   // 6. 用這版 → 建立內容。從首頁節奏進來時已經有內容跟「進畫面編輯」。

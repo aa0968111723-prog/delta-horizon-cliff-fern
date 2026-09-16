@@ -5,9 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PhotoHeroButtons } from "@/components/editor/hero-photo-strip";
 import { generateImage, type VisualDirection } from "@/lib/ai/image-ai";
-import { assetPreviewFitClass, previewUrlForAsset } from "@/lib/studio/assets";
+import { previewUrlForAsset } from "@/lib/studio/assets";
 import { saveGeneratedImage } from "@/lib/studio/generated-image";
-import { LOCAL_VISUAL_NOTE, matchLocalVisualAsset, nextLocalVisualAsset } from "@/lib/studio/local-visual";
+import { LOCAL_VISUAL_NOTE, localVisualNote, localVisualRatioLine, matchLocalVisualAsset, nextLocalVisualAsset } from "@/lib/studio/local-visual";
+import { frameAndSaveLocalVisual } from "@/lib/studio/local-visual-frame";
 import type { ImageRatio } from "@/lib/studio/wave-draft";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
@@ -38,6 +39,7 @@ export function VisualDirectionCard({
   const [ratio, setRatio] = useState<(typeof RATIOS)[number]["id"]>(preferredRatio);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [seedId, setSeedId] = useState<string | null>(null);
   const [lastAssetId, setLastAssetId] = useState<string | null>(null);
   const [adapter, setAdapter] = useState<"live" | "local" | null>(null);
 
@@ -45,20 +47,41 @@ export function VisualDirectionCard({
     setRatio(preferredRatio);
   }, [preferredRatio]);
 
-  function applyLocalPhoto(currentId: string | null) {
-    const match = currentId
-      ? nextLocalVisualAsset(direction, assets, currentId)
-      : matchLocalVisualAsset(direction, assets);
+  const ratioLabel = RATIOS.find((item) => item.id === ratio)?.label ?? ratio;
+
+  async function applyLocalPhoto(cycle: boolean) {
+    const match =
+      cycle && seedId
+        ? nextLocalVisualAsset(direction, assets, seedId)
+        : seedId && !cycle
+          ? (assets.find((item) => item.id === seedId) ?? matchLocalVisualAsset(direction, assets))
+          : matchLocalVisualAsset(direction, assets);
     const url = match ? previewUrlForAsset(match) : undefined;
     if (!match || !url) {
       toast.error("這個環境沒有連上圖片生成服務。可以先點下面的示範照片。");
       return false;
     }
-    setPreview(url);
-    setLastAssetId(match.id);
-    setAdapter("local");
-    toast.info(LOCAL_VISUAL_NOTE);
-    return true;
+    setSeedId(match.id);
+    try {
+      const framed = await frameAndSaveLocalVisual({
+        sourceUrl: url,
+        name: `${direction.title} · ${ratio}`,
+        tags: [direction.title],
+        ratio,
+      });
+      addAsset(framed.meta);
+      setPreview(framed.dataUrl);
+      setLastAssetId(framed.meta.id);
+      setAdapter("local");
+      toast.info(localVisualNote(ratioLabel));
+      return true;
+    } catch {
+      setPreview(url);
+      setLastAssetId(match.id);
+      setAdapter("local");
+      toast.info(LOCAL_VISUAL_NOTE);
+      return true;
+    }
   }
 
   async function runGenerate() {
@@ -68,7 +91,7 @@ export function VisualDirectionCard({
         data: { prompt: direction.imagePrompt, ratio, styleHint: styleHint || undefined },
       });
       if (!res.ok) {
-        applyLocalPhoto(lastAssetId);
+        await applyLocalPhoto(Boolean(seedId));
         return;
       }
       setPreview(res.dataUrl);
@@ -84,7 +107,7 @@ export function VisualDirectionCard({
       onImageSaved?.(meta.id, ratio);
       toast.success("圖片已存進素材庫");
     } catch {
-      applyLocalPhoto(lastAssetId);
+      await applyLocalPhoto(Boolean(seedId));
     } finally {
       setBusy(false);
     }
@@ -110,10 +133,10 @@ export function VisualDirectionCard({
         <img
           src={preview}
           alt={adapter === "local" ? `${direction.title} 示範照片` : `${direction.title} 生成結果`}
-          className={cn(
-            "w-full rounded-xl bg-surface-2",
-            assetPreviewFitClass({ seedSrc: preview }, preview),
-          )}
+          data-testid="visual-preview"
+          data-ratio={ratio}
+          className="w-full rounded-xl bg-surface-2 object-cover"
+          style={{ aspectRatio: ratio.replace(":", " / ") }}
         />
       ) : null}
 
@@ -154,7 +177,7 @@ export function VisualDirectionCard({
               type="button"
               onClick={() => setRatio(item.id)}
               className={cn(
-                "rounded-full px-2.5 py-1 text-xs transition-colors",
+                "min-h-9 rounded-full px-2.5 text-xs transition-colors",
                 ratio === item.id ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted hover:text-fg",
               )}
             >
@@ -163,7 +186,7 @@ export function VisualDirectionCard({
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={runGenerate} disabled={busy} data-testid="visual-generate">
+          <Button size="sm" onClick={() => void runGenerate()} disabled={busy} data-testid="visual-generate">
             {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
             {preview ? "換一張" : "生成圖片"}
           </Button>
@@ -190,9 +213,14 @@ export function VisualDirectionCard({
           ) : null}
         </div>
         {adapter === "local" ? (
-          <p className="text-xs text-subtle" data-testid="visual-local-note">
-            {LOCAL_VISUAL_NOTE}
-          </p>
+          <div className="space-y-1">
+            <p className="text-xs text-subtle" data-testid="visual-local-note">
+              {localVisualNote(ratioLabel)}
+            </p>
+            <p className="text-xs text-subtle" data-testid="visual-local-ratio">
+              {localVisualRatioLine(ratioLabel)}
+            </p>
+          </div>
         ) : null}
         {onImageSaved ? (
           <div className="space-y-1.5">

@@ -18,7 +18,10 @@ function blobOf(hint: LocalVisualHint): string {
 }
 
 function photosOf(assets: AssetMeta[]): AssetMeta[] {
-  return assets.filter((asset) => !isStampAsset(asset));
+  const photos = assets.filter((asset) => !isStampAsset(asset));
+  const seeds = photos.filter((asset) => asset.source === "seed");
+  if (seeds.length) return seeds;
+  return photos.filter((asset) => !asset.tags.includes("本機素材"));
 }
 
 function findById(photos: AssetMeta[], id: string): AssetMeta | undefined {
@@ -66,3 +69,11 @@ export function nextLocalVisualAsset(
 }
 
 export const LOCAL_VISUAL_NOTE = "目前沒有生圖服務，先套示範照片。不是 AI 生成的畫面。";
+
+export function localVisualNote(ratioLabel: string): string {
+  return `目前沒有生圖服務，先套示範照片並排成 ${ratioLabel}。不是 AI 生成的畫面。`;
+}
+
+export function localVisualRatioLine(ratioLabel: string): string {
+  return `已排成 ${ratioLabel}（只改構圖比例與留白）`;
+}
