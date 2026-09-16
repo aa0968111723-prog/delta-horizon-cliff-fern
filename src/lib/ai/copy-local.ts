@@ -58,17 +58,33 @@ export type CopyBriefLocal = {
   signupUrl: string;
 };
 
-function pickHook(brief: CopyBriefLocal): string {
-  const pain = brief.painPoint.trim();
-  if (pain) {
-    if (brief.topic === "countdown") return `${pain}？明天晚上有個地方可以放一下。`;
-    return `${pain}？`;
-  }
+/** 每個語氣要有自己的第一句，不然三個版本看起來一樣。 */
+const TONE_HOOK: Record<CopyTone, (pain: string, trigger: string) => string> = {
+  short: (pain) => (pain ? `${pain}。` : "先坐一下再說。"),
+  normal: (pain, trigger) => (pain ? `${pain}？` : trigger),
+  emotional: (pain, trigger) =>
+    pain ? `有些累不是睡一覺就好——${pain}的那種。` : trigger,
+  student: (pain) => (pain ? `說真的，${pain}的時候最難的不是事情本身。` : "講真的，最近你有好好休息嗎？"),
+  life: (pain, trigger) => (pain ? `走上克難坡的時候在想什麼？大概就是${pain}。` : trigger),
+  humor: (pain) =>
+    pain ? `龜龜也${pain}，但牠本來就走很慢，所以看不出來。` : "龜龜今天也不想動，但牠說這叫修行。",
+};
+
+function baseTrigger(brief: CopyBriefLocal): string {
   const seg = AUDIENCE_SEGMENTS.find((s) => brief.audienceIds.includes(s.id));
   if (seg) return seg.trigger.replace(/^「|」$/g, "");
   const index =
     brief.topic === "emotion" ? 0 : brief.topic === "knowledge" ? 4 : brief.topic === "campus" ? 3 : 1;
   return HOOK_PATTERNS[index].example;
+}
+
+function pickHook(brief: CopyBriefLocal, tone: CopyTone = brief.tone): string {
+  const pain = brief.painPoint.trim().replace(/[？?。]$/, "");
+  const trigger = baseTrigger(brief);
+  if (brief.topic === "countdown") {
+    return pain ? `${pain}？明天晚上有個地方可以放一下。` : "明天晚上，位子留著。";
+  }
+  return TONE_HOOK[tone](pain, trigger);
 }
 
 function whenWhere(brief: CopyBriefLocal): string {
@@ -83,10 +99,20 @@ function bodyFor(brief: CopyBriefLocal, tone: CopyTone): string {
   const name = brief.eventName.trim();
   const lines: string[] = [];
 
-  if (tone === "life") lines.push(`${phase.label}，${phase.mood}`);
-  if (tone === "emotional") lines.push("不是每件事都需要馬上解決，有些只需要先放下來看看。");
-  if (tone === "student") lines.push("講真的，這種時候最需要的就是一段沒有人要求你做什麼的時間。");
-  if (tone === "humor") lines.push("龜龜說牠也很累，但牠本來就走得很慢，所以看不出來。");
+  // 每個語氣先有自己的一段，不然版本之間只差開頭。
+  if (tone === "life") lines.push(`${phase.label}了，${phase.mood}`);
+  if (tone === "emotional") lines.push("不是每件事都要馬上解決，有些只需要先放下來看看。");
+  if (tone === "student") lines.push("這種時候最需要的，是一段沒有人要求你做什麼的時間。");
+  if (tone === "humor") lines.push("我們沒有要教你什麼，就是找個位子坐著，順便放空。");
+  if (tone === "normal" && brief.painPoint.trim()) lines.push("你不是懶，只是很久沒有真的休息了。");
+
+  // 短版只留最必要的：一句活動說明＋時間地點。
+  if (tone === "short") {
+    const compact = [name && where ? `${name}：${where}。` : where ? `${where}。` : "", brief.cta.trim()]
+      .filter(Boolean)
+      .join("\n");
+    return compact || detail.slice(0, 60) || CLUB_INTRO_SHORT;
+  }
 
   if (detail) lines.push(detail);
   if (name && where) lines.push(`${name}：${where}。`);
@@ -97,9 +123,7 @@ function bodyFor(brief: CopyBriefLocal, tone: CopyTone): string {
   }
   if (brief.signupUrl.trim()) lines.push("報名連結放在資訊欄。");
 
-  const text = lines.filter(Boolean).join("\n\n");
-  if (tone === "short") return lines.slice(0, 2).filter(Boolean).join("\n");
-  return text || CLUB_INTRO_SHORT;
+  return lines.filter(Boolean).join("\n\n") || CLUB_INTRO_SHORT;
 }
 
 function hashtagsFor(brief: CopyBriefLocal): string[] {
@@ -116,7 +140,7 @@ export function buildLocalCopyDraft(brief: CopyBriefLocal, tone: CopyTone): Copy
   return {
     id: uid("copy"),
     tone,
-    hook: pickHook(brief),
+    hook: pickHook(brief, tone),
     body: bodyFor(brief, tone),
     cta: brief.cta.trim() || CLUB_CTAS[0],
     hashtags: hashtagsFor(brief),

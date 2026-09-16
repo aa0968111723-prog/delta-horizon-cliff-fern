@@ -12,10 +12,10 @@ var install_page_default = "<!DOCTYPE html>\n<html lang=\"en\" class=\"device-de
 //#endregion
 //#region \0virtual:grok-og-identity
 var grokOgIdentity = { "site": {
-	"title": "構幀",
+	"title": "禪光工作室 · 淡江大學禪學社",
 	"type": "website",
 	"card": "custom",
-	"color": "1E4A45",
+	"color": "3F9E93",
 	"image": "/og.jpg"
 } };
 //#endregion

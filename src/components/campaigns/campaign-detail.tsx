@@ -97,7 +97,10 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
       });
       if (!res.ok) {
         // 沒有 AI 時仍然給一份可以編輯的節奏，並誠實標成本機草稿。
-        updateCampaign(campaign!.id, { waves: defaultWavePlan(campaign!), planSource: "mock" });
+        updateCampaign(campaign!.id, {
+          waves: mergeWaves(campaign!.waves, defaultWavePlan(campaign!)),
+          planSource: "mock",
+        });
         toast.warning(`${res.error}已放上本機節奏草稿。`);
         return;
       }
