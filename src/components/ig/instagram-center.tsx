@@ -23,6 +23,8 @@ import { useStudio } from "@/stores/studio-store";
 import type { ScheduleItem } from "@/lib/studio/types";
 import { previewMediaId } from "@/lib/ai/reels-asset";
 import { VisionCard } from "@/components/create/vision-card";
+import { VisionActions } from "@/components/create/vision-actions";
+import { hookLine } from "@/lib/zen/insights";
 import { AssetMedia } from "@/components/shared/asset-media";
 import { analyzeClubStill } from "@/lib/zen/analyze-still";
 import { igStillHref } from "@/lib/zen/source-style";
@@ -355,31 +357,7 @@ export function InstagramCenter() {
             ) : null}
             {vision ? (
               <VisionCard vision={vision}>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {vision.suggestions.map((item) => (
-                    <Button
-                      key={item}
-                      size="sm"
-                      variant="secondary"
-                      onClick={() =>
-                        void navigate({
-                          to: "/create",
-                          search: createSearchFromHit({
-                            id: post.id,
-                            source: "instagram",
-                            title: post.caption,
-                            subtitle: post.date,
-                            kind: "過去 IG",
-                            score: 1,
-                            assetId: post.assetId,
-                          }),
-                        })
-                      }
-                    >
-                      {item}
-                    </Button>
-                  ))}
-                </div>
+                <VisionActions idea={hookLine(post.caption)} assetId={post.assetId} />
               </VisionCard>
             ) : null}
           </article>

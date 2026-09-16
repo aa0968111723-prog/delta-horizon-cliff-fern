@@ -40,6 +40,7 @@ import { groupCreativeHits, igSearchHookBlock, sourceLabelOf, type CreativeHit }
 import { analyzeClubStill } from "@/lib/zen/analyze-still";
 import { loadSourceEmbed, pickSourceRefs, sourceCreditFromHits, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
+import { ideaForVisionAction, type VisionActionId } from "@/lib/zen/vision-action";
 import {
   suggestWaves,
   eventKindFromText,
@@ -64,6 +65,7 @@ import { saveKitStills, saveIgPreviewStills } from "@/lib/ai/kit-stills";
 import { WaveList } from "@/components/create/wave-list";
 import { StudentReviewCard } from "@/components/create/student-review-card";
 import { VisionCard } from "@/components/create/vision-card";
+import { VisionActions } from "@/components/create/vision-actions";
 import { PhotoDrop } from "@/components/shared/photo-drop";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -103,6 +105,7 @@ export function CreateStudio() {
     asset?: string;
     campaign?: string;
     remote?: string;
+    into?: "story" | "carousel" | "reels" | "threads";
   };
   const navigate = useNavigate();
   const brands = useStudio((s) => s.brands);
@@ -271,15 +274,10 @@ export function CreateStudio() {
 
   useEffect(() => {
     if (!status || !brand || !hydrated || autoRan.current) return;
-    if (mode === "from-image" && search.asset) {
-      autoRan.current = true;
-      void analyzeSourceAsset(search.asset);
-      return;
-    }
-    if (mode === "from-image" && !search.idea) return;
+    if (mode === "from-image" && !search.asset && !search.idea) return;
     autoRan.current = true;
-    void runKit(search.idea || undefined, true);
-  }, [status, brand, hydrated, mode, search.asset, search.idea, search.campaign, search.remote]);
+    void bootKit();
+  }, [status, brand, hydrated, mode, search.asset, search.idea, search.campaign, search.remote, search.into]);
 
   useEffect(() => {
     if (!lastImage) return;
@@ -560,7 +558,7 @@ export function CreateStudio() {
   }
 
   async function runKit(ideaOverride?: string, silent = false) {
-    if (!brand) return;
+    if (!brand) return null;
     const workingIdea = ideaOverride ?? idea;
     const hits = await gatherHits(`${workingIdea} ${typedEventName()}`.trim());
     const refs = pickSourceRefs(mode, hits, { remoteId: search.remote, assetId: search.asset });
@@ -569,7 +567,22 @@ export function CreateStudio() {
     if (nextPins.length) setPinned(nextPins);
     const previewHit = nextPins[0];
     const credit = sourceCreditFromHits(nextPins);
-    if (previewHit?.thumbnail) {
+    const kept = sourcePhotoRef.current;
+    const sameAsset = Boolean(search.asset && previewHit?.assetId === search.asset);
+    if (kept.embed && !sameAsset) {
+      setSourceCredit(kept.credit || credit);
+      setSourceEmbed(kept.embed);
+      if (previewHit) {
+        setSourcePreview({
+          id: previewHit.remoteId || previewHit.assetId || previewHit.id,
+          name: previewHit.title,
+          mime: "image/*",
+          base64: "",
+          src: previewHit.thumbnail,
+          source: previewHit.source,
+        });
+      }
+    } else if (previewHit?.thumbnail) {
       const embed = await loadSourceEmbed(previewHit.thumbnail);
       sourcePhotoRef.current = { embed: embed || "", credit };
       setSourceCredit(credit);
@@ -584,6 +597,9 @@ export function CreateStudio() {
         src: previewHit.thumbnail,
         source: previewHit.source,
       });
+    } else if (kept.embed) {
+      setSourceCredit(kept.credit || credit);
+      setSourceEmbed(kept.embed);
     } else {
       sourcePhotoRef.current = { embed: "", credit };
       setSourceCredit(credit);
@@ -618,7 +634,7 @@ export function CreateStudio() {
       });
       if (!result.ok) {
         toast.error(result.error);
-        return;
+        return null;
       }
       setPlan(result.plan);
       setPacks(result.plan.copyPacks ?? []);
@@ -629,8 +645,30 @@ export function CreateStudio() {
       if (!silent) toast.success(result.adapter === "mock" ? "本機宣傳草案" : "已生成完整宣傳");
       if (dirs[0]) await saveGeneratedImage(dirs[0], { silent: true, kind: directionLookOf(0) });
       setVision((current) => current ?? visionFromHits(refs.length ? refs : hits));
+      return { plan: result.plan, dirs };
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function bootKit() {
+    const kit =
+      search.asset && (mode === "from-image" || search.into)
+        ? await analyzeSourceAsset(search.asset)
+        : await runKit(search.idea || undefined, true);
+    if (kit?.dirs[0] && search.into) {
+      await realizeDirection(kit.dirs[0], kit.plan);
+      const target =
+        search.into === "story"
+          ? "story-board"
+          : search.into === "carousel"
+            ? "carousel-board"
+            : search.into === "reels"
+              ? "reels-board"
+              : "share-board";
+      requestAnimationFrame(() => {
+        document.querySelector(`[data-testid="${target}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
     }
   }
 
@@ -638,8 +676,7 @@ export function CreateStudio() {
     const meta = assets.find((item) => item.id === assetId);
     if (!meta) {
       toast.error("找不到這張素材。");
-      await runKit(undefined, true);
-      return;
+      return runKit(undefined, true);
     }
     setBusy(true);
     try {
@@ -658,16 +695,22 @@ export function CreateStudio() {
       }
       if (!blob) {
         toast.error("這張圖還沒有檔案可分析。");
-        await runKit(undefined, true);
-        return;
+        return runKit(undefined, true);
       }
       const mime = blob.type || meta.mime || "image/jpeg";
       const buf = await blob.arrayBuffer();
       const b64 = bytesToBase64(new Uint8Array(buf));
       if (b64.length > 1_800_000) {
         toast.error("圖檔太大，請用較小的照片。");
-        return;
+        return null;
       }
+      const embed = mime.includes("svg")
+        ? new TextDecoder().decode(buf).slice(0, 80_000)
+        : `data:${mime};base64,${b64}`;
+      const credit = `本機／品牌記憶 / ${meta.name}`;
+      sourcePhotoRef.current = { embed, credit };
+      setSourceEmbed(embed);
+      setSourceCredit(credit);
       setSourcePreview({ id: assetId, name: meta.name, mime, base64: b64 });
       const hit: CreativeHit = {
         id: `asset:${meta.id}`,
@@ -686,15 +729,15 @@ export function CreateStudio() {
       });
       if (!result.ok) {
         toast.error(result.error);
-        await runKit(search.idea || idea, true);
-        return;
+        return runKit(search.idea || idea, true);
       }
       setVision(result.analysis);
       updateAsset(assetId, { tags: tagsFromVision(result.analysis, meta.tags) });
-      const nextIdea = ideaFromVision(result.analysis, search.idea || `延續「${meta.name}」的風格，做新的活動，不要複製舊作品。`);
+      const spoken = search.idea || `延續「${meta.name}」的風格，做新的活動，不要複製舊作品。`;
+      const nextIdea = search.into ? spoken : ideaFromVision(result.analysis, spoken);
       setIdea(nextIdea);
       toast.success("已理解這張圖，接著生成文案與方向");
-      await runKit(nextIdea, true);
+      return runKit(nextIdea, true);
     } finally {
       setBusy(false);
     }
@@ -730,6 +773,12 @@ export function CreateStudio() {
         return;
       }
       setSourcePreview({ id, name: file.name.replace(/\.[^.]+$/, "") || "上傳圖片", mime: file.type || "image/jpeg", base64: b64 });
+      const embed = (file.type.includes("svg") || file.name.endsWith(".svg"))
+        ? new TextDecoder().decode(buf).slice(0, 80_000)
+        : `data:${file.type || "image/jpeg"};base64,${b64}`;
+      sourcePhotoRef.current = { embed, credit: `本機上傳 / ${file.name}` };
+      setSourceEmbed(embed);
+      setSourceCredit(`本機上傳 / ${file.name}`);
       const result = await analyzeStudioImage({
         data: { imageBase64: b64, mime: file.type, sourceNote: `本機上傳 / ${file.name}` },
       });
@@ -1259,12 +1308,12 @@ export function CreateStudio() {
     if (!silent) toast.success(`已選「${dir.name}」，文案與視覺會跟著走`);
   }
 
-  async function realizeDirection(dir: VisualDirection) {
-    if (!plan) return;
-    const directed = applyDirectionToPlan(plan, dir);
+  async function realizeDirection(dir: VisualDirection, fromPlan = plan) {
+    if (!fromPlan) return;
+    const directed = applyDirectionToPlan(fromPlan, dir);
     const cleaned = rewriteCopyPack(
       { hook: directed.hook, body: captionBody(directed), cta: directed.cta, hashtags: directed.hashtags },
-      plan.hook,
+      fromPlan.hook,
     );
     const next = { ...directed, hook: cleaned.hook, body: cleaned.body };
     adoptDirection(dir, true);
@@ -1307,7 +1356,17 @@ export function CreateStudio() {
       setBusy(false);
       toast.success("已用這個方向做出整套：主視覺、文案、Carousel、限動、Reels、Threads、LINE、月曆");
       requestAnimationFrame(() => {
-        document.querySelector('[data-testid="kit-ready"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+        const intoTarget =
+          search.into === "story"
+            ? "story-board"
+            : search.into === "carousel"
+              ? "carousel-board"
+              : search.into === "reels"
+                ? "reels-board"
+                : search.into === "threads"
+                  ? "share-board"
+                  : "kit-ready";
+        document.querySelector(`[data-testid="${intoTarget}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       });
       await saveKitStills(next, previewOpts, { skipPreview: true }).catch(() => undefined);
     } finally {
@@ -1351,6 +1410,30 @@ export function CreateStudio() {
     });
     toast.success(`${pack.title}已進月曆`);
     toast.message(rhythmHint([...recentKinds, pack.kind]));
+  }
+
+  async function handleVisionAction(action: VisionActionId) {
+    const spoken = ideaForVisionAction(action, idea);
+    if (action === "continue-style") {
+      await runKit(idea, false);
+      return;
+    }
+    if (action === "redesign") {
+      setIdea(spoken);
+      await runKit(spoken, false);
+      return;
+    }
+    if (action === "similar") {
+      await runDirections();
+      return;
+    }
+    const kind = action === "reels" ? "reels" : action === "story" ? "story" : action === "carousel" ? "carousel" : "threads";
+    if (plan) {
+      schedulePack(convertPlan(plan, kind));
+      return;
+    }
+    const kit = await runKit(spoken, true);
+    if (kit) schedulePack(convertPlan(kit.plan, kind));
   }
 
   const converted = useMemo(() => {
@@ -1558,38 +1641,13 @@ export function CreateStudio() {
 
       {vision ? (
         <VisionCard vision={vision}>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => void runKit()}>
-              延續這個風格
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={busy || !plan}
-              onClick={() => plan && schedulePack(convertPlan(plan, "story"))}
-            >
-              做成限動
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={busy || !plan}
-              onClick={() => plan && schedulePack(convertPlan(plan, "carousel"))}
-            >
-              做成 Carousel
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={busy || !plan}
-              onClick={() => plan && schedulePack(convertPlan(plan, "reels"))}
-            >
-              做成 Reels Cover
-            </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void runDirections()}>
-              生成相似視覺
-            </Button>
-          </div>
+          <VisionActions
+            idea={idea}
+            assetId={search.asset || sourcePreview?.id}
+            remoteId={search.remote}
+            busy={busy}
+            onAction={(action) => void handleVisionAction(action)}
+          />
         </VisionCard>
       ) : null}
 

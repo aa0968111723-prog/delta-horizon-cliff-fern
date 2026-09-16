@@ -36,6 +36,13 @@ import { groupCreativeHits, sourceLabelOf, type CreativeHit } from "@/lib/zen/se
 import { analyzeClubStill } from "@/lib/zen/analyze-still";
 import { loadSourceEmbed, pickSourceRefs, sourceCreditFromHits, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
+import {
+  createSearchFromVision,
+  ideaForVisionAction,
+  staysOnImageStudio,
+  type VisionActionId,
+} from "@/lib/zen/vision-action";
+import { VisionActions } from "@/components/create/vision-actions";
 import type { CopyPack, FormatId, StudentReview, VisualDirection } from "@/lib/studio/types";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { useStudio } from "@/stores/studio-store";
@@ -90,6 +97,7 @@ export function ImageStudioPage() {
   const [liveNote, setLiveNote] = useState("");
   const [sourceCredit, setSourceCredit] = useState("");
   const [sourceEmbed, setSourceEmbed] = useState("");
+  const [sourceAssetId, setSourceAssetId] = useState<string | undefined>();
   const autoRan = useRef(false);
   const regenTick = useRef<Record<string, number>>({});
   const photoEmbedRef = useRef("");
@@ -128,6 +136,7 @@ export function ImageStudioPage() {
     const visual = refs.find((hit) => hit.thumbnail) ?? refs[0];
     const nextPins = visual ? [visual, ...refs.filter((hit) => hit.id !== visual.id)].slice(0, 6) : [];
     setPinned(nextPins);
+    setSourceAssetId(visual?.assetId);
     const credit = sourceCreditFromHits(nextPins);
     const href = visual?.thumbnail;
     const embed = href ? (await loadSourceEmbed(href)) || "" : "";
@@ -354,6 +363,32 @@ export function ImageStudioPage() {
     }
   }
 
+  async function handleVisionAction(action: VisionActionId) {
+    if (staysOnImageStudio(action)) {
+      const next = ideaForVisionAction(action, idea);
+      setIdea(next);
+      if (action === "reels") {
+        setFormat("reels-cover");
+        const dirs = await directionsGo(next, "reels-cover");
+        if (dirs[0]) await gen(dirs[0], directionLookOf(0), "reels-cover");
+        return;
+      }
+      const dirs = await directionsGo(next);
+      await copyGo(next);
+      if (dirs[0]) await gen(dirs[0], directionLookOf(0));
+      return;
+    }
+    void navigate({
+      to: "/create",
+      search: createSearchFromVision({
+        action,
+        idea,
+        assetId: sourceAssetId || pinned[0]?.assetId,
+        remoteId: pinned[0]?.remoteId,
+      }),
+    });
+  }
+
   async function onFile(file: File) {
     const buf = await file.arrayBuffer();
     const b64 = bytesToBase64(new Uint8Array(buf));
@@ -370,6 +405,7 @@ export function ImageStudioPage() {
     try {
       const id = uid("asset");
       await putAssetBlob(id, file);
+      setSourceAssetId(id);
       addAsset({
         id,
         name: file.name.replace(/\.[^.]+$/, "") || "上傳圖片",
@@ -618,49 +654,13 @@ export function ImageStudioPage() {
         <PhotoDrop disabled={busy} onFile={(file) => void onFile(file)} />
         {vision ? (
           <VisionCard vision={vision}>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                onClick={() => {
-                  const next = `${vision.content}。延續這個品牌 DNA，做新的活動，不要複製舊作品。`;
-                  setIdea(next);
-                  void directionsGo(next);
-                  void copyGo(next);
-                }}
-              >
-                生成相似視覺
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  const next = `${vision.content}。保留畫面內容，重新設計成適合淡江學生停留的 IG 主視覺，不要複製舊作品。`;
-                  setIdea(next);
-                  void directionsGo(next);
-                }}
-              >
-                保留內容重新設計
-              </Button>
-              <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: vision.content } })}>
-                延續這個風格
-              </Button>
-              <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/create", search: { mode: "story", idea: vision.content } })}>
-                做成限動
-              </Button>
-              <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/create", search: { mode: "carousel", idea: vision.content } })}>
-                做成 Carousel
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  setFormat("reels-cover");
-                  void directionsGo(vision.content, "reels-cover");
-                }}
-              >
-                做成 Reels Cover
-              </Button>
-            </div>
+            <VisionActions
+              idea={idea}
+              assetId={sourceAssetId || pinned[0]?.assetId}
+              remoteId={pinned[0]?.remoteId}
+              busy={busy}
+              onAction={(action) => void handleVisionAction(action)}
+            />
           </VisionCard>
         ) : null}
       </section>

@@ -13,6 +13,7 @@ export type CreateSearch = {
   asset?: string;
   campaign?: string;
   remote?: string;
+  into?: "story" | "carousel" | "reels" | "threads";
 };
 
 /** Omit empty keys so optional search params stay out of the URL. */
@@ -23,6 +24,7 @@ export function createSearchParams(input: CreateSearch): CreateSearch {
   if (input.asset) next.asset = input.asset;
   if (input.campaign) next.campaign = input.campaign;
   if (input.remote) next.remote = input.remote;
+  if (input.into) next.into = input.into;
   return next;
 }
 

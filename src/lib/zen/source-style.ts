@@ -45,7 +45,7 @@ export function pickSourceRefs(
   if (mode === "from-canva") add(hits.filter((h) => h.source === "canva"));
   else if (mode === "from-drive") add(hits.filter((h) => h.source === "drive"));
   else if (mode === "from-ig") add(hits.filter((h) => h.source === "instagram"));
-  else if (mode === "from-image") add(hits.filter((h) => h.source === "generated" || h.source === "local"));
+  else if (mode === "from-image") add(hits.filter((h) => h.source === "generated" || h.source === "local" || h.source === "instagram"));
   else add(hits);
   return out.slice(0, 6);
 }

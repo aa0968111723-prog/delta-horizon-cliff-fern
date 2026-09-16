@@ -12,6 +12,10 @@ export const Route = createFileRoute("/create")({
       asset: typeof search.asset === "string" ? search.asset : undefined,
       campaign: typeof search.campaign === "string" ? search.campaign : undefined,
       remote: typeof search.remote === "string" ? search.remote : undefined,
+      into:
+        search.into === "story" || search.into === "carousel" || search.into === "reels" || search.into === "threads"
+          ? search.into
+          : undefined,
     });
   },
   component: CreateStudio,

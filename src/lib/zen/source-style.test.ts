@@ -65,6 +65,16 @@ test("igStillHref prefers the hydrated blob then the seed file", () => {
   assert.equal(igStillHref({ mediaUrl: "https://ig/x.jpg" }, {}), "https://ig/x.jpg");
 });
 
+test("from-image can keep a past IG still as the source photo", () => {
+  const hits = [
+    { id: "ig", source: "instagram" as const, title: "有時候", subtitle: "", kind: "x", score: 10, assetId: "asset_tamsui" },
+    { id: "drive", source: "drive" as const, title: "企劃", subtitle: "", kind: "x", score: 8 },
+  ];
+  const picked = pickSourceRefs("from-image", hits, { assetId: "asset_tamsui" });
+  assert.equal(picked[0]?.assetId, "asset_tamsui");
+  assert.ok(picked.some((row) => row.source === "instagram"));
+});
+
 test("visionFromHits reads Drive/Canva/IG as style DNA, not a copy", () => {
   const vision = visionFromHits([
     hit("drive", "2025 茶會現場"),
