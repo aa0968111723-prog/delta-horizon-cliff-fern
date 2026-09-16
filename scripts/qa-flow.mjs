@@ -244,6 +244,7 @@ try {
     "排程後日曆沒有更新",
   );
   await expectText("日曆型態晶片", "IG 貼文");
+  await expectText("日曆全套晶片", "全套 ·");
   await page.screenshot({ path: `${prefix}-calendar.png` });
 
   // 8. 活動詳情 + AI 生成完整宣傳

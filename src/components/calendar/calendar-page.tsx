@@ -21,11 +21,12 @@ import { PackFlowBar } from "@/components/shared/pack-flow";
 import { PageHeader, SectionHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
+import { groupSameNightPacks } from "@/lib/studio/calendar-groups";
 import { campaignDateMs, waveDateMs } from "@/lib/studio/campaign";
 import { suggestSchedule, offsetDaysFromEventDate } from "@/lib/studio/schedule";
-import { contentKindLabel } from "@/lib/studio/status";
+import { CONTENT_KIND_ORDER, contentKindLabel } from "@/lib/studio/status";
 import { unscheduledDonePacks } from "@/lib/studio/today-post";
-import type { Campaign, Project } from "@/lib/studio/types";
+import type { Campaign, ContentKind, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 
@@ -36,9 +37,25 @@ type DayItem =
   | { type: "wave"; campaign: Campaign; waveId: string; title: string; stage: string; at: number }
   | { type: "event"; campaign: Campaign; at: number };
 
+type PackDayItem = { type: "pack"; rootId: string; members: Project[]; at: number };
+type CellItem = DayItem | PackDayItem;
+
 type MoveTarget =
   | { kind: "content"; id: string }
+  | { kind: "pack"; ids: string[] }
   | { kind: "wave"; campaignId: string; waveId: string };
+
+function packChipLabel(members: Array<Pick<Project, "contentKind">>): string {
+  const kinds = [...new Set(members.map((item) => item.contentKind))].sort(
+    (a, b) => kindOrder(a) - kindOrder(b),
+  );
+  return `全套 · ${kinds.map((kind) => contentKindLabel(kind)).join(" · ")}`;
+}
+
+function kindOrder(kind: ContentKind): number {
+  const index = CONTENT_KIND_ORDER.indexOf(kind);
+  return index < 0 ? 99 : index;
+}
 
 function initialView(): View {
   if (typeof window === "undefined") return "month";
@@ -111,16 +128,44 @@ export function CalendarPage() {
     return items.filter((item) => isSameDay(item.at, day));
   }
 
+  function cellsOn(day: Date): CellItem[] {
+    const raw = itemsOn(day);
+    const contents = raw.filter((item): item is Extract<DayItem, { type: "content" }> => item.type === "content");
+    const others = raw.filter((item) => item.type !== "content");
+    return [...groupSameNightPacks(contents), ...others].sort((a, b) => a.at - b.at);
+  }
+
+  function stampOnDay(project: Project, day: Date): number {
+    const prev = project.scheduledAt ? new Date(project.scheduledAt) : project.publishedAt ? new Date(project.publishedAt) : null;
+    const next = new Date(day);
+    next.setHours(prev?.getHours() ?? 19, prev?.getMinutes() ?? 0, 0, 0);
+    return next.getTime();
+  }
+
   function moveProject(projectId: string, day: Date) {
     const project = projects.find((p) => p.id === projectId);
     if (!project) return;
-    const prev = project.scheduledAt ? new Date(project.scheduledAt) : null;
-    const next = new Date(day);
-    next.setHours(prev?.getHours() ?? 19, prev?.getMinutes() ?? 0, 0, 0);
-    setSchedule(project.id, next.getTime());
+    const at = stampOnDay(project, day);
+    setSchedule(project.id, at);
     setDrag(null);
     setPick(null);
-    toast.success(`已改到 ${format(next, "M/d HH:mm")}`);
+    toast.success(`已改到 ${format(at, "M/d HH:mm")}`);
+  }
+
+  function movePack(ids: string[], day: Date) {
+    const entries = ids.flatMap((id) => {
+      const project = projects.find((item) => item.id === id);
+      if (!project || project.status === "published") return [];
+      return [{ projectId: id, at: stampOnDay(project, day) }];
+    });
+    if (!entries.length) {
+      toast.info("這套已經發出去了，改期不會動它。");
+      return;
+    }
+    applySchedule(entries);
+    setDrag(null);
+    setPick(null);
+    toast.success(`全套改到 ${format(day, "M/d")}，同一晚一起發。`);
   }
 
   function moveWave(campaignId: string, waveId: string, day: Date) {
@@ -141,6 +186,7 @@ export function CalendarPage() {
     const target = drag ?? pick;
     if (!target) return;
     if (target.kind === "content") moveProject(target.id, day);
+    else if (target.kind === "pack") movePack(target.ids, day);
     else moveWave(target.campaignId, target.waveId, day);
   }
 
@@ -157,6 +203,10 @@ export function CalendarPage() {
   const pickedLabel = (() => {
     if (!pick) return null;
     if (pick.kind === "content") return projects.find((p) => p.id === pick.id)?.name ?? null;
+    if (pick.kind === "pack") {
+      const first = projects.find((item) => item.id === pick.ids[0]);
+      return first ? packChipLabel(pick.ids.flatMap((id) => projects.filter((item) => item.id === id))) : "全套";
+    }
     const campaign = campaigns.find((item) => item.id === pick.campaignId);
     return campaign?.waves.find((wave) => wave.id === pick.waveId)?.title ?? campaign?.name ?? null;
   })();
@@ -291,7 +341,7 @@ export function CalendarPage() {
           </div>
           <div className="mt-1 grid grid-cols-7 gap-1">
             {days.map((day) => {
-              const dayItems = itemsOn(day);
+              const dayCells = cellsOn(day);
               const dim = view === "month" && !isSameMonth(day, cursor);
               return (
                 <div
@@ -314,26 +364,19 @@ export function CalendarPage() {
                 >
                   <p className="px-0.5 text-xs tabular-nums text-muted">{format(day, "d")}</p>
                   <ul className="mt-1 space-y-1">
-                    {dayItems.slice(0, 3).map((item) => (
+                    {dayCells.slice(0, 3).map((item) => (
                       <li key={keyOf(item)}>
                         <CalendarChip
                           item={item}
-                          selected={
-                            (item.type === "content" &&
-                              pick?.kind === "content" &&
-                              pick.id === item.project.id) ||
-                            (item.type === "wave" &&
-                              pick?.kind === "wave" &&
-                              pick.waveId === item.waveId)
-                          }
+                          selected={isCellSelected(item, pick)}
                           tapMove={tapMove}
                           onDragStart={setDrag}
                           onPick={setPick}
                         />
                       </li>
                     ))}
-                    {dayItems.length > 3 ? (
-                      <li className="px-1 text-xs text-subtle">+{dayItems.length - 3}</li>
+                    {dayCells.length > 3 ? (
+                      <li className="px-1 text-xs text-subtle">+{dayCells.length - 3}</li>
                     ) : null}
                   </ul>
                 </div>
@@ -342,8 +385,8 @@ export function CalendarPage() {
           </div>
           <p className="mt-3 text-xs text-subtle">
             {tapMove
-              ? "點一則內容或灰色節奏再點日期就能改期。"
-              : "已排程的內容和還沒建立的節奏都可以拖到別的日期。手機點再點日期也能改。"}
+              ? "點一則內容、全套或灰色節奏再點日期就能改期。"
+              : "已排程的內容和還沒建立的節奏都可以拖到別的日期。同一套會併成一格，拖過去就整晚一起改。手機點再點日期也能改。"}
           </p>
         </>
       )}
@@ -372,10 +415,21 @@ export function CalendarPage() {
   );
 }
 
-function keyOf(item: DayItem): string {
+function keyOf(item: CellItem): string {
   if (item.type === "content") return `c_${item.project.id}`;
+  if (item.type === "pack") return `p_${item.rootId}_${item.at}`;
   if (item.type === "wave") return `w_${item.waveId}`;
   return `e_${item.campaign.id}`;
+}
+
+function isCellSelected(item: CellItem, pick: MoveTarget | null): boolean {
+  if (!pick) return false;
+  if (item.type === "pack" && pick.kind === "pack") {
+    return pick.ids.some((id) => item.members.some((member) => member.id === id));
+  }
+  if (item.type === "content" && pick.kind === "content") return pick.id === item.project.id;
+  if (item.type === "wave" && pick.kind === "wave") return pick.waveId === item.waveId;
+  return false;
 }
 
 function CalendarChip({
@@ -385,7 +439,7 @@ function CalendarChip({
   onDragStart,
   onPick,
 }: {
-  item: DayItem;
+  item: CellItem;
   selected?: boolean;
   tapMove?: boolean;
   onDragStart: (target: MoveTarget | null) => void;
@@ -425,6 +479,36 @@ function CalendarChip({
         title={tapMove ? "點選後再點日期改期" : `${item.stage}·${item.title}（還沒建立，可拖去改期）`}
       >
         {item.title || item.stage}
+      </Link>
+    );
+  }
+  if (item.type === "pack") {
+    const primary = item.members.find((member) => member.id === item.rootId) ?? item.members[0]!;
+    const target: MoveTarget = { kind: "pack", ids: item.members.map((member) => member.id) };
+    const label = packChipLabel(item.members);
+    return (
+      <Link
+        to="/studio/$projectId"
+        params={{ projectId: primary.id }}
+        draggable={!tapMove}
+        onDragStart={() => onDragStart(target)}
+        onDragEnd={() => onDragStart(null)}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!tapMove && !e.metaKey && !e.ctrlKey) return;
+          if (e.metaKey || e.ctrlKey) return;
+          e.preventDefault();
+          onPick(target);
+        }}
+        className={cn(
+          "block truncate rounded-lg px-1.5 py-1 text-xs font-medium",
+          selected
+            ? "bg-accent text-accent-fg"
+            : "bg-[color-mix(in_oklab,var(--color-clear)_22%,transparent)]",
+        )}
+        title={tapMove ? "點選後再點日期，全套一起改期" : `${primary.name} · ${label}`}
+      >
+        {label}
       </Link>
     );
   }
