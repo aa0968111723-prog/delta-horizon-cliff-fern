@@ -603,7 +603,7 @@ export function ImageStudio() {
                 src={previews[dir.id]!.url}
                 alt=""
                 data-testid={`image-dir-thumb-${dir.id}`}
-                className="mt-3 h-36 w-full rounded-xl object-cover"
+                className="mt-3 h-40 w-full rounded-xl object-contain bg-bg"
               />
             ) : null}
             <Button

@@ -833,7 +833,7 @@ export function InstagramCenter() {
               ) : null}
             </div>
             <div className="order-first min-w-0 space-y-3 lg:order-none">
-              {!previewBind?.overlay && lastPack && lastVisualAssetId ? (
+              {!previewBind?.overlay && lastPack && lastVisualAssetId && lastSequence ? (
                 <div className="min-w-0 overflow-hidden rounded-2xl bg-bg p-3" data-testid="preview-after-suite">
                   <div className="flex min-w-0 gap-3">
                     {previewImageSrc ? (
@@ -1019,7 +1019,7 @@ export function InstagramCenter() {
                   </div>
                 </>
               ) : null}
-              {(!lastPack || !lastVisualAssetId) && !previewBind?.overlay ? (
+              {((!lastPack || !lastVisualAssetId || !lastSequence) && !previewBind?.overlay) ? (
                 <>
                   <Button
                     size="sm"
