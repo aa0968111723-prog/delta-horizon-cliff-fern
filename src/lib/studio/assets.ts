@@ -1,3 +1,4 @@
+import { matchHit } from "../club/rank.ts";
 import type {
   Artboard,
   AssetCategory,
@@ -125,17 +126,18 @@ export function createGeneratedAsset(input: {
   width: number;
   height: number;
   category?: AssetCategory;
+  tags?: string[];
 }): AssetMeta {
   const now = Date.now();
   return migrateAsset({
     id: input.id,
     name: input.name,
-    kind: kindFromCategory(input.category ?? "icon"),
-    category: input.category ?? "icon",
+    kind: kindFromCategory(input.category ?? "poster"),
+    category: input.category ?? "poster",
     mime: input.mime,
     width: input.width,
     height: input.height,
-    tags: ["生成", "QR"],
+    tags: input.tags ?? ["AI生成"],
     createdAt: now,
     updatedAt: now,
     source: "generated",
@@ -145,12 +147,47 @@ export function createGeneratedAsset(input: {
 }
 
 export function matchesAssetQuery(asset: AssetMeta, query: string) {
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   if (!q) return true;
-  const blob = [asset.name, asset.category, categoryLabel(asset.category), asset.licenseNotes, ...(asset.tags ?? [])]
-    .join(" ")
-    .toLowerCase();
-  return q.split(/\s+/).every((part) => blob.includes(part));
+  return matchHit(
+    {
+      title: asset.name,
+      notes: asset.licenseNotes,
+      tags: asset.tags,
+      subtitle: `${categoryLabel(asset.category)} ${sourceLabel(asset.source)}`,
+    },
+    q,
+  );
+}
+
+export function uniqueAssets(items: AssetMeta[]) {
+  return items.filter((item, index, all) => item.id && all.findIndex((row) => row.id === item.id) === index);
+}
+
+export function assetsByIds(assets: AssetMeta[], ids: string[]) {
+  const map = new Map(assets.map((item) => [item.id, item]));
+  return ids
+    .filter((id, index, all) => id && all.indexOf(id) === index)
+    .map((id) => map.get(id))
+    .filter((item): item is AssetMeta => Boolean(item));
+}
+
+export function upsertAssetList(assets: AssetMeta[], meta: AssetMeta): AssetMeta[] {
+  const next = migrateAsset(meta);
+  const idx = assets.findIndex((item) => item.id === next.id);
+  if (idx === -1) return [next, ...assets];
+  const prev = assets[idx];
+  const merged = migrateAsset({
+    ...prev,
+    ...next,
+    createdAt: prev.createdAt,
+    useCount: Math.max(prev.useCount ?? 0, next.useCount ?? 0),
+    lastUsedAt: next.lastUsedAt ?? prev.lastUsedAt,
+    favorite: Boolean(prev.favorite || next.favorite),
+    tags: [...new Set([...(prev.tags ?? []), ...(next.tags ?? [])])],
+    updatedAt: Date.now(),
+  });
+  return [merged, ...assets.filter((_, index) => index !== idx)];
 }
 
 function collectFromBoard(board: Artboard | undefined, ids: Set<string>) {

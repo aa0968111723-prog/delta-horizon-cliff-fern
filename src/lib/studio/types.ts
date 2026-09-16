@@ -3,7 +3,106 @@ export type FormatId =
   | "feed-portrait"
   | "feed-landscape"
   | "story"
-  | "reels-cover";
+  | "reels-cover"
+  | "threads"
+  | "line-promo";
+
+export type ContentKind =
+  | "ig-post"
+  | "carousel"
+  | "story"
+  | "reels"
+  | "threads"
+  | "line"
+  | "poster"
+  | "recap"
+  | "member-story"
+  | "countdown"
+  | "qa"
+  | "poll"
+  | "knowledge";
+
+export type ContentStatus = "idea" | "creating" | "done" | "scheduled" | "published";
+
+export type CreativeSourceKind = "drive" | "canva" | "instagram" | "generated" | "brand";
+
+export type SourceRef = {
+  kind: CreativeSourceKind;
+  label: string;
+  id?: string;
+};
+
+export type CreativeDirection = {
+  id: string;
+  name: string;
+  concept: string;
+  palette: string;
+  composition: string;
+  typeDirection: string;
+  imagePrompt: string;
+  headline: string;
+  subhead: string;
+};
+
+export type WavePurpose =
+  | "tease"
+  | "emotion"
+  | "hero"
+  | "info"
+  | "reason"
+  | "story"
+  | "countdown"
+  | "dayof"
+  | "recap"
+  | "life"
+  | "interact"
+  | "knowledge";
+
+export type CampaignWave = {
+  id: string;
+  offsetDays: number;
+  label: string;
+  purpose: WavePurpose;
+  contentKind: ContentKind;
+  topic: string;
+  hook: string;
+};
+
+export type StudentReview = {
+  wouldStop: string;
+  understood: string;
+  tooReligious: string;
+  tooSerious: string;
+  tooLiterary: string;
+  tooAi: string;
+  tooLong: string;
+  knowsWhat: string;
+  knowsWhenWhere: string;
+  wouldBringFriend: string;
+  knowsSignup: string;
+  revisions: string[];
+};
+
+export type ReelsBeat = {
+  start: number;
+  end: number;
+  visual: string;
+  caption: string;
+  voiceover: string;
+  transition: string;
+  assetHint: string;
+};
+
+export type ThreadsPost = {
+  caption: string;
+  visualNote: string;
+};
+
+export type LineCopy = {
+  title: string;
+  body: string;
+  cta: string;
+};
 
 export type TemplateId = "editorial" | "product" | "offer" | "quote";
 
@@ -153,7 +252,13 @@ export type AssetCategory =
   | "reels"
   | "archive"
   | "template"
-  | "history";
+  | "history"
+  | "campus"
+  | "tamsui"
+  | "poster"
+  | "story-asset"
+  | "reels-asset"
+  | "event";
 
 export type AssetSourceKind = "upload" | "seed" | "generated" | "drive" | "canva" | "instagram";
 
@@ -382,6 +487,13 @@ export type CampaignPlan = {
   qaNotes: string[];
   generatedAt: number;
   source: PlanSource;
+  directions?: CreativeDirection[];
+  waves?: CampaignWave[];
+  studentReview?: StudentReview | null;
+  reelsScript?: ReelsBeat[];
+  threadsPost?: ThreadsPost | null;
+  lineCopy?: LineCopy | null;
+  sources?: SourceRef[];
 };
 
 export type PlanVersion = {
@@ -424,6 +536,11 @@ export type Project = {
   templateId: TemplateId;
   activeFormatId: FormatId;
   status: ProjectStatus;
+  campaignId: string | null;
+  contentKind: ContentKind;
+  contentStatus: ContentStatus;
+  scheduledAt: number | null;
+  publishedAt: number | null;
   brief: Brief;
   copy: CopyDeck;
   plan: CampaignPlan | null;

@@ -106,7 +106,7 @@ add-text{text,name,role,x,y,w,h,fontSize,align,color,label}
 add-qr{payload,caption,x,y,size,label}
 replace-image{layerId,prefer:brighter|people|background|other,assetId,label}
 set-background{color,color2,label}
-set-format{formatId:feed-square|feed-portrait|feed-landscape|story|reels-cover,label}
+set-format{formatId:feed-square|feed-portrait|feed-landscape|story|reels-cover|threads|line-promo,label}
 apply-template{templateId:editorial|product|offer|quote,label}
 set-copy{patch{eyebrow,headline,subhead,body,cta},label}
 whitespace{amount:more|less,label}

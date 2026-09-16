@@ -15,6 +15,11 @@ type UiState = {
   setSaveStatus: (status: SaveStatus) => void;
   setEditorPanel: (panel: EditorPanel | null) => void;
   setCarouselPreview: (open: boolean) => void;
+  createOpen: boolean;
+  createIntent: string | null;
+  setCreateOpen: (open: boolean, intent?: string | null) => void;
+  searchOpen: boolean;
+  setSearchOpen: (open: boolean) => void;
 };
 
 export const useUi = create<UiState>((set) => ({
@@ -29,4 +34,9 @@ export const useUi = create<UiState>((set) => ({
   setSaveStatus: (saveStatus) => set({ saveStatus }),
   setEditorPanel: (editorPanel) => set({ editorPanel }),
   setCarouselPreview: (carouselPreview) => set({ carouselPreview }),
+  createOpen: false,
+  createIntent: null,
+  setCreateOpen: (open, intent = null) => set({ createOpen: open, createIntent: open ? intent : null }),
+  searchOpen: false,
+  setSearchOpen: (searchOpen) => set({ searchOpen }),
 }));

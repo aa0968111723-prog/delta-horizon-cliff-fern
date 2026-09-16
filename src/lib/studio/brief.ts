@@ -22,7 +22,7 @@ export function emptyBrief(): Brief {
     schedule: "",
     location: "",
     offer: "",
-    audience: "",
+    audience: "淡江大學學生",
     goal: "awareness",
     features: "",
     style: "",
@@ -133,6 +133,13 @@ export function migratePlan(raw?: Partial<CampaignPlan> | null): CampaignPlan | 
     qaNotes: Array.isArray(raw.qaNotes) ? raw.qaNotes : [],
     generatedAt: raw.generatedAt ?? Date.now(),
     source: raw.source === "mock" || raw.source === "live" ? raw.source : "live",
+    directions: Array.isArray(raw.directions) ? raw.directions : undefined,
+    waves: Array.isArray(raw.waves) ? raw.waves : undefined,
+    studentReview: raw.studentReview ?? undefined,
+    reelsScript: Array.isArray(raw.reelsScript) ? raw.reelsScript : undefined,
+    threadsPost: raw.threadsPost ?? undefined,
+    lineCopy: raw.lineCopy ?? undefined,
+    sources: Array.isArray(raw.sources) ? raw.sources : undefined,
   };
 }
 
