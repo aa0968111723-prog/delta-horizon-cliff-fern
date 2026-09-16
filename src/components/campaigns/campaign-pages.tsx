@@ -12,7 +12,8 @@ import { migrateBrief } from "@/lib/studio/brief";
 import { CAMPAIGN_TYPES } from "@/lib/zen/types";
 import type { CampaignType } from "@/lib/zen/types";
 import { igDnaBlock } from "@/lib/zen/insights";
-import { clientMemoryLines } from "@/lib/zen/ingest";
+import { clientMemoryLines, composeMemoryNotes } from "@/lib/zen/ingest";
+import { searchCreativeKnowledge } from "@/lib/zen/search";
 import {
   emptyCampaign,
   applyPackToWaves,
@@ -168,6 +169,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   const navigate = useNavigate();
   const campaign = useCreative((s) => s.campaigns.find((c) => c.id === campaignId));
   const brands = useStudio((s) => s.brands);
+  const assets = useStudio((s) => s.assets);
   const createProject = useStudio((s) => s.createProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const attach = useCreative((s) => s.attachProject);
@@ -247,10 +249,18 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               offer: campaign.cta,
               deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
             });
+            const world = searchCreativeKnowledge(`${campaign.name} ${campaign.theme} ${campaign.tagline}`, {
+              assets,
+              campaigns: useCreative.getState().campaigns,
+              igPosts,
+              memory,
+            });
             const result = await generateCreativePack({
               data: toBriefInput(brief, brand, {
                 dnaNotes: igDnaBlock(igPosts),
-                memoryNotes: clientMemoryLines(memory),
+                memoryNotes: composeMemoryNotes([world.memoryNotes, clientMemoryLines(memory)]),
+                foundCount: world.foundCount,
+                citedSources: world.sources,
               }),
             });
             if (!result.ok) {

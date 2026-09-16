@@ -26,8 +26,9 @@ import type { AssetCategory, VisualDirection } from "@/lib/studio/types";
 import type { VisionAnalysis } from "@/lib/ai/image";
 import { canvaDraftNotes, canvaPresetForAspect } from "@/lib/zen/canva-draft";
 import { materializeCampaignFromPack, parseEventIdea } from "@/lib/zen/from-idea";
-import { clientMemoryLines, parseDataUrl } from "@/lib/zen/ingest";
+import { clientMemoryLines, composeMemoryNotes, parseDataUrl } from "@/lib/zen/ingest";
 import { igDnaBlock } from "@/lib/zen/insights";
+import { searchCreativeKnowledge } from "@/lib/zen/search";
 import { seasonContext } from "@/lib/zen/season";
 import {
   isStubVision,
@@ -275,11 +276,19 @@ export function ImageStudio() {
           .slice(0, 400),
         deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
       });
+      const world = searchCreativeKnowledge(prompt, {
+        assets: useStudio.getState().assets,
+        campaigns,
+        igPosts,
+        memory,
+      });
       const result = await generateCreativePack({
-        data: {
-          ...toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
-          memoryNotes: clientMemoryLines(memory),
-        },
+        data: toBriefInput(brief, brand, {
+          dnaNotes: igDnaBlock(igPosts),
+          memoryNotes: composeMemoryNotes([world.memoryNotes, clientMemoryLines(memory)]),
+          foundCount: world.foundCount,
+          citedSources: world.sources,
+        }),
       });
       if (!result.ok) {
         toast.error(result.error);

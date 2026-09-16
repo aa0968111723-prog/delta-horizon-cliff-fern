@@ -141,6 +141,17 @@ export const BriefInputSchema = z.object({
   forceMock: z.boolean().optional(),
   dnaNotes: z.string().max(2000).optional(),
   memoryNotes: z.string().max(4000).optional(),
+  foundCount: z.number().int().min(0).max(99).optional(),
+  citedSources: z
+    .array(
+      z.object({
+        source: z.enum(["drive", "canva", "instagram", "generated", "brand"]).catch("brand"),
+        label: z.string().max(80).catch(""),
+        detail: z.string().max(160).catch(""),
+      }),
+    )
+    .max(16)
+    .optional(),
 });
 
 export type BriefInput = z.infer<typeof BriefInputSchema>;

@@ -246,6 +246,22 @@ export function InstagramCenter() {
                 );
               })}
             </div>
+            {upcoming.length > 0 ? (
+              <div className="mt-6">
+                <p className="text-sm font-medium">即將發布</p>
+                <div className="mt-2 grid grid-cols-3 gap-1">
+                  {upcoming.slice(0, 6).map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex aspect-square flex-col justify-end bg-surface p-2 shadow-[var(--shadow-border)]"
+                    >
+                      <p className="text-xs text-muted">{format(item.scheduledAt, "M/d", { locale: zhTW })}</p>
+                      <p className="mt-1 line-clamp-3 text-xs">{item.captionPreview || item.title}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {post ? (
               <article className="mt-6 rounded-[1.5rem] bg-surface p-5 shadow-[var(--shadow-border)]">
                 <p className="text-xs text-muted">

@@ -26,17 +26,18 @@ export const generateCreativePack = createServerFn({ method: "POST" })
     const result = await generateCampaignPlan({ data: { ...data, memoryNotes } });
     if (!result.ok) return result;
     const plan = result.plan.visualDirections?.length ? result.plan : { ...result.plan, ...enrich(data.eventName) };
-    const sources: CitedSource[] = mergeCitedSources(
+    const primary: CitedSource[] = mergeCitedSources(
+      data.citedSources ?? [],
       live.sources,
       sourcesFromMemoryNotes(memoryNotes),
       plan.citedSources ?? [],
-      defaultSources(memoryNotes),
     );
+    const sources: CitedSource[] = primary.length ? primary : defaultSources(memoryNotes);
     const pack: CreativePack = {
       campaignName: plan.campaignName,
       insight: plan.insight,
       studentContext: data.audience,
-      foundCount: Math.max(sources.length, live.sources.length),
+      foundCount: Math.max(data.foundCount ?? 0, live.sources.length, sources.length),
       citedSources: sources,
       directions: plan.visualDirections,
       plan,

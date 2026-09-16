@@ -1,11 +1,17 @@
 import { migrateBrief } from "@/lib/studio/brief";
-import type { BrandKit, Brief } from "@/lib/studio/types";
+import type { BrandKit, Brief, CitedSource } from "@/lib/studio/types";
 import type { BriefInput } from "./schema";
 
 export function toBriefInput(
   brief: Brief,
   brand: BrandKit,
-  extra?: { forceMock?: boolean; dnaNotes?: string; memoryNotes?: string },
+  extra?: {
+    forceMock?: boolean;
+    dnaNotes?: string;
+    memoryNotes?: string;
+    foundCount?: number;
+    citedSources?: CitedSource[];
+  },
 ): BriefInput {
   const b = migrateBrief(brief);
   const eventName = b.eventName.trim() || b.product.trim();
@@ -42,5 +48,7 @@ export function toBriefInput(
     ...(extra?.forceMock ? { forceMock: true } : {}),
     ...(extra?.dnaNotes ? { dnaNotes: extra.dnaNotes } : {}),
     ...(extra?.memoryNotes ? { memoryNotes: extra.memoryNotes } : {}),
+    ...(typeof extra?.foundCount === "number" ? { foundCount: extra.foundCount } : {}),
+    ...(extra?.citedSources?.length ? { citedSources: extra.citedSources } : {}),
   };
 }

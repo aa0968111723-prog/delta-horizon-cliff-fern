@@ -19,12 +19,12 @@ import { searchCreativeWorld } from "@/lib/ai/oauth";
 import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
 import { APP_NAME, APP_TAGLINE, CLUB_SHORT } from "@/lib/zen/club";
+import { clientMemoryLines, composeMemoryNotes } from "@/lib/zen/ingest";
 import { igDnaBlock } from "@/lib/zen/insights";
-import { clientMemoryLines } from "@/lib/zen/ingest";
+import { creativeSearch, groupSearchHits, searchCreativeKnowledge, type SearchHit } from "@/lib/zen/search";
 import { inspirationFeed } from "@/lib/zen/inspiration";
 import { applyPackToWaves } from "@/lib/zen/schedule";
 import { daysUntil, formatMd, seasonContext } from "@/lib/zen/season";
-import { creativeSearch, groupSearchHits, type SearchHit } from "@/lib/zen/search";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -110,11 +110,19 @@ export function HomePage() {
         notes: featured.studentPain,
         deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
       });
+      const world = searchCreativeKnowledge(`${featured.name} ${featured.tagline} ${featured.theme}`, {
+        assets,
+        campaigns,
+        igPosts,
+        memory,
+      });
       const result = await generateCreativePack({
-        data: {
-          ...toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
-          memoryNotes: clientMemoryLines(memory),
-        },
+        data: toBriefInput(brief, brand, {
+          dnaNotes: igDnaBlock(igPosts),
+          memoryNotes: composeMemoryNotes([world.memoryNotes, clientMemoryLines(memory)]),
+          foundCount: world.foundCount,
+          citedSources: world.sources,
+        }),
       });
       if (!result.ok) {
         toast.error(result.error);

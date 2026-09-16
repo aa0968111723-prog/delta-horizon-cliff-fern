@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SEED_MEMORY } from "./memory.ts";
-import { creativeSearch, expandCreativeQuery, groupSearchHits, searchTerms } from "./search.ts";
+import { creativeSearch, expandCreativeQuery, groupSearchHits, knowledgeFromHits, searchCreativeKnowledge, searchTerms } from "./search.ts";
 import { applyPackToWaves, contentKindForWave, copyKindForWave, emptyCampaign, nextWaveAngle, nextWaveVisual, rhythmHint, scheduleItemsFromCampaign, suggestWaves, waveOffsets } from "./schedule.ts";
 import { canvaDraftNotes, canvaDraftTitle, canvaPresetForAspect, canvaPresetForKind } from "./canva-draft.ts";
 import { convertFromPlan, CONVERT_TARGETS, briefFlagsForTarget, captionForTarget } from "./convert.ts";
@@ -263,6 +263,54 @@ test("natural language search finds tea night and ranks turtle first", () => {
   const turtle = creativeSearch("找有龜龜的素材", input);
   assert.ok(turtle[0]?.title.includes("龜龜"));
   assert.ok(turtle.length >= 2);
+});
+
+test("searchCreativeKnowledge cites Drive Canva and IG for tea", () => {
+  const world = searchCreativeKnowledge("下週有一場茶會", {
+    assets: [
+      {
+        id: "asset_tea_night",
+        name: "夜晚茶會",
+        kind: "image" as const,
+        category: "photo" as const,
+        mime: "image/svg+xml",
+        width: 1,
+        height: 1,
+        tags: ["茶會", "晚上"],
+        createdAt: 1,
+        updatedAt: 1,
+        source: "seed" as const,
+        licenseNotes: "",
+        licenseOwner: "",
+        favorite: false,
+        lastUsedAt: null,
+        useCount: 0,
+      },
+    ],
+    campaigns: [],
+    igPosts: [
+      {
+        id: "ig_tea",
+        mediaType: "image",
+        caption: "茶會晚上，來坐一下不用先懂禪。",
+        postedAt: 1,
+        assetId: "asset_tea_night",
+        likes: 10,
+        comments: 1,
+        saves: 8,
+        reach: 400,
+        hook: "來坐一下",
+      },
+    ],
+    memory: SEED_MEMORY,
+  });
+  assert.ok(world.foundCount >= 3);
+  assert.ok(world.sources.some((src) => src.source === "drive" && src.label.includes("茶會")));
+  assert.ok(world.sources.some((src) => src.source === "canva"));
+  assert.ok(world.sources.some((src) => src.source === "instagram"));
+  assert.match(world.notes, /Google Drive/);
+  const cited = knowledgeFromHits(world.hits);
+  assert.equal(cited.foundCount, world.foundCount);
 });
 
 test("ideaFromHit turns each source into a creation brief", () => {

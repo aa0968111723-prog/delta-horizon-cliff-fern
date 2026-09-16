@@ -6,7 +6,7 @@ import { clientMemoryLines, composeMemoryNotes } from "@/lib/zen/ingest";
 import { ingestHitPixels } from "@/lib/zen/ingest-client";
 import { ideaFromHit, memorySourceFromHit } from "@/lib/zen/from-hit";
 import { igDnaBlock } from "@/lib/zen/insights";
-import type { SearchHit } from "@/lib/zen/search";
+import { searchCreativeKnowledge, type SearchHit } from "@/lib/zen/search";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
@@ -16,8 +16,8 @@ export async function createFromHit(hit: SearchHit) {
     toast.error("還沒有品牌記憶。");
     return false;
   }
-  const { memory, igPosts, addMemory, setLastPack } = useCreative.getState();
-  const addAsset = useStudio.getState().addAsset;
+  const { memory, igPosts, campaigns, addMemory, setLastPack } = useCreative.getState();
+  const { addAsset, assets } = useStudio.getState();
   const thumbAssetId = (await ingestHitPixels(hit, addAsset)) ?? hit.thumbAssetId;
   addMemory({
     id: hit.id,
@@ -39,14 +39,30 @@ export async function createFromHit(hit: SearchHit) {
     notes: idea,
     deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
   });
+  const world = searchCreativeKnowledge(`${hit.title} ${hit.subtitle}`, {
+    assets,
+    campaigns,
+    igPosts,
+    memory,
+  });
   const result = await generateCreativePack({
-    data: {
-      ...toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
+    data: toBriefInput(brief, brand, {
+      dnaNotes: igDnaBlock(igPosts),
       memoryNotes: composeMemoryNotes([
         `${hit.subtitle} / ${hit.title}`,
+        world.memoryNotes,
         clientMemoryLines(memory),
       ]),
-    },
+      foundCount: Math.max(world.foundCount, 1),
+      citedSources: [
+        {
+          source: memorySourceFromHit(hit),
+          label: hit.subtitle.includes("/") ? hit.subtitle : hit.title,
+          detail: hit.title,
+        },
+        ...world.sources,
+      ].slice(0, 16),
+    }),
   });
   if (!result.ok) {
     toast.error(result.error);

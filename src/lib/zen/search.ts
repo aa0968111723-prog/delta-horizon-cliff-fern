@@ -1,4 +1,5 @@
-import type { AssetMeta } from "../studio/types.ts";
+import type { AssetMeta, CitedSource } from "../studio/types.ts";
+import { composeMemoryNotes } from "./ingest.ts";
 import type { ClubCampaign, IgMemoryPost, MemoryItem } from "./types.ts";
 
 export type SearchHit = {
@@ -167,4 +168,62 @@ export function creativeSearch(query: string, input: {
     .sort((a, b) => b.score - a.score)
     .slice(0, 48)
     .map((row) => row.hit);
+}
+
+function citeSource(hit: SearchHit): CitedSource["source"] {
+  if (
+    hit.source === "drive" ||
+    hit.source === "canva" ||
+    hit.source === "instagram" ||
+    hit.source === "generated" ||
+    hit.source === "brand"
+  ) {
+    return hit.source;
+  }
+  return "brand";
+}
+
+function citeLabel(hit: SearchHit) {
+  if (hit.subtitle.includes("/")) return hit.subtitle;
+  const pretty =
+    hit.source === "drive"
+      ? "Google Drive"
+      : hit.source === "canva"
+        ? "Canva"
+        : hit.source === "instagram"
+          ? "Instagram"
+          : hit.source === "generated"
+            ? "AI Generated"
+            : hit.source === "campaign"
+              ? "活動"
+              : "Brand";
+  return `${pretty} / ${hit.title}`;
+}
+
+export function knowledgeFromHits(hits: SearchHit[]) {
+  const sources: CitedSource[] = hits.slice(0, 16).map((hit) => ({
+    source: citeSource(hit),
+    label: citeLabel(hit),
+    detail: [hit.title, hit.tags.slice(0, 4).join(" ")].filter(Boolean).join(" · "),
+  }));
+  const notes = hits.slice(0, 12).map((hit) => citeLabel(hit)).join("\n");
+  return { foundCount: hits.length, sources, notes };
+}
+
+export function searchCreativeKnowledge(
+  query: string,
+  input: {
+    assets: AssetMeta[];
+    campaigns: ClubCampaign[];
+    igPosts: IgMemoryPost[];
+    memory: MemoryItem[];
+  },
+) {
+  const hits = creativeSearch(query, input);
+  const knowledge = knowledgeFromHits(hits);
+  return {
+    hits,
+    ...knowledge,
+    memoryNotes: composeMemoryNotes([knowledge.notes]),
+  };
 }

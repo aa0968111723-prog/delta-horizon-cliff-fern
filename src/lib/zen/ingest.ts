@@ -189,7 +189,7 @@ export function mergeCitedSources(...lists: CitedSource[][]) {
       out.push(item);
     }
   }
-  return out.slice(0, 10);
+  return out.slice(0, 16);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
