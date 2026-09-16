@@ -19,28 +19,6 @@ export async function runPublish(target: DueTarget) {
     graph = { ok: false, message: "IG 暫時發不出去，先標記進記憶。" };
   }
 
-  if (graph.ok) {
-    useCreative.getState().ingestIgPosts([
-      {
-        id: `ig_${graph.mediaId}`,
-        source: "instagram",
-        mediaType: target.kind === "carousel" ? "carousel" : target.kind === "reels" ? "reels" : "image",
-        caption: target.caption,
-        takenAt: Date.now(),
-        assetIds: [],
-        analysis: {
-          hook: target.caption.split("\n").find(Boolean) ?? target.title,
-          visual: "已發到官方 IG，等 Insights",
-          theme: target.title,
-          captionLength: target.caption.length,
-          cta: /來坐|留言|連結|報名/.test(target.caption) ? "有 CTA" : "弱",
-          direction: "這篇已發到帳號，下次生成會參考。",
-          improve: ["發布後看收藏與停留"],
-        },
-      },
-    ]);
-  }
-
   const post = useCreative.getState().markPublished({
     campaignId: target.campaignId,
     waveId: target.waveId,
@@ -49,6 +27,15 @@ export async function runPublish(target: DueTarget) {
     caption: target.caption,
     kind: target.kind,
   });
+  if (graph.ok && post) {
+    useCreative.getState().ingestIgPosts([
+      {
+        ...post,
+        id: `ig_${graph.mediaId}`,
+        source: "instagram",
+      },
+    ]);
+  }
   if (target.projectId) {
     const studio = useStudio.getState();
     if (studio.projects.some((item) => item.id === target.projectId)) {

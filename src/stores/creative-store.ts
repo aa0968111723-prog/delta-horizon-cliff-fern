@@ -55,6 +55,7 @@ type CreativeState = {
   addMemory: (item: MemoryItem) => void;
   ingestIgPosts: (posts: IgMemoryPost[]) => void;
   analyzeIg: (id: string, analysis: IgMemoryPost["analysis"]) => void;
+  rememberLearn: (hook: string, caption: string, mediaType?: IgMemoryPost["mediaType"]) => void;
   addInspiration: (item: Inspiration) => void;
   markPublished: (opts: {
     campaignId?: string;
@@ -249,10 +250,18 @@ export const useCreative = create<CreativeState>()(
             get().igPosts,
             result.post.analysis?.hook || result.post.caption,
             result.post.takenAt,
+            { caption: result.post.caption, mediaType: result.post.mediaType },
           ),
         });
         return result.post;
       },
+      rememberLearn: (hook, caption, mediaType) =>
+        set({
+          lastLearn: lastLearnFromPosts(get().igPosts, hook, Date.now(), {
+            caption,
+            mediaType,
+          }),
+        }),
     }),
     {
       name: "tkz-creative-v1",

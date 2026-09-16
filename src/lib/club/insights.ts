@@ -1,4 +1,5 @@
 import type { IgMemoryPost, LastLearn } from "../creative/types.ts";
+import { analyzeIgMemoryPost } from "./ig-analyze.ts";
 
 export type ClubInsights = {
   hookLesson: string;
@@ -107,15 +108,19 @@ export function lastLearnFromPosts(
   posts: Parameters<typeof clubInsightsFromPosts>[0],
   publishedHook: string,
   at: number,
+  published?: { caption: string; mediaType?: IgMemoryPost["mediaType"] },
 ): LastLearn {
   const insights = clubInsightsFromPosts(posts);
   const hook = publishedHook.split("\n").map((line) => line.trim()).find(Boolean) ?? insights.winningHooks[0] ?? "";
+  const fresh = published?.caption
+    ? analyzeIgMemoryPost({ caption: published.caption, mediaType: published.mediaType ?? "image" })
+    : undefined;
   return {
     at,
     hook,
     mixLesson: insights.mixLesson,
-    hookLesson: insights.hookLesson,
-    visualLesson: insights.visualLesson,
+    hookLesson: fresh?.improve[0] ? `${fresh.improve[0]} ${insights.hookLesson}` : insights.hookLesson,
+    visualLesson: fresh?.visual ?? insights.visualLesson,
   };
 }
 

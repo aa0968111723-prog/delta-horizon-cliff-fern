@@ -12,6 +12,9 @@ test("published post becomes IG memory without reviewer fields", () => {
   assert.equal(post.mediaType, "carousel");
   assert.equal(post.analysis?.hook.includes("誠摯邀請"), false);
   assert.ok(post.analysis?.direction.includes("Content Memory"));
+  assert.ok(post.analysis?.hook.includes("很久沒坐好"));
+  assert.equal(post.analysis?.visual.includes("等官方 Insights"), false);
+  assert.ok(post.analysis?.studentSim);
   assert.equal("assignee" in post, false);
 });
 

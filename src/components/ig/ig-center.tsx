@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { clubDnaFromMemory } from "@/lib/club/dna";
 import { clubInsightsFromPosts } from "@/lib/club/insights";
-import { analyzeIgMemoryPost } from "@/lib/club/ig-analyze";
+import { analyzeIgMemoryPost, applyStudentSimToCopy } from "@/lib/club/ig-analyze";
+import { captionFromProject } from "@/lib/creative/publish";
 import { igGridSlots, upcomingSlotId, upcomingStatusCopy, type IgGridSlot } from "@/lib/creative/ig-feed";
 import { planPreviewSchedule } from "@/lib/creative/schedule";
 import type { IgMemoryPost } from "@/lib/creative/types";
@@ -22,12 +23,14 @@ import type { BrandKit, Project } from "@/lib/studio/types";
 export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
   const igPosts = useCreative((s) => s.igPosts);
   const analyzeIg = useCreative((s) => s.analyzeIg);
+  const rememberLearn = useCreative((s) => s.rememberLearn);
   const campaigns = useCreative((s) => s.campaigns);
   const addCampaign = useCreative((s) => s.addCampaign);
   const generateWaves = useCreative((s) => s.generateWaves);
   const bindScheduledWave = useCreative((s) => s.bindScheduledWave);
   const projects = useStudio((s) => s.projects);
   const updateProject = useStudio((s) => s.updateProject);
+  const setCopy = useStudio((s) => s.setCopy);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
   const urls = useAssetUrls(assets.map((a) => a.id));
@@ -63,23 +66,59 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
     if (active.origin === "published" && active.postId) {
       const post = igPosts.find((item) => item.id === active.postId);
       if (!post) return;
-      analyzeIg(post.id, analyzeIgMemoryPost(post));
+      const report = analyzeIgMemoryPost(post);
+      analyzeIg(post.id, report);
+      rememberLearn(report.hook, post.caption, post.mediaType);
       toast.success("已用淡江學生視角看過這篇");
       return;
     }
     const campaign = activeProject?.campaignId
       ? campaigns.find((item) => item.id === activeProject.campaignId)
       : undefined;
+    const report = analyzeIgMemoryPost({
+      caption: active.caption,
+      mediaType: active.mediaType,
+      when: campaign ? `${campaign.date} ${campaign.time}` : undefined,
+      where: campaign?.location,
+    });
     setDraftAnalysis((prev) => ({
       ...prev,
-      [active.id]: analyzeIgMemoryPost({
-        caption: active.caption,
-        mediaType: active.mediaType,
-        when: campaign ? `${campaign.date} ${campaign.time}` : undefined,
-        where: campaign?.location,
-      }),
+      [active.id]: report,
     }));
+    rememberLearn(report.hook, active.caption, active.mediaType);
     toast.success("已用淡江學生視角看過這篇");
+  }
+
+  function applyDraftFixes() {
+    if (!active || !activeProject || !shownAnalysis?.studentSim) {
+      toast.message("先分析這一則");
+      return;
+    }
+    const campaign = activeProject.campaignId
+      ? campaigns.find((item) => item.id === activeProject.campaignId)
+      : undefined;
+    const nextCopy = applyStudentSimToCopy(
+      activeProject.copy,
+      shownAnalysis.studentSim,
+      campaign ? `${campaign.date} ${campaign.time}` : undefined,
+      campaign?.location,
+    );
+    setCopy(activeProject.id, {
+      headline: nextCopy.headline,
+      caption: nextCopy.caption,
+      body: nextCopy.body,
+      cta: nextCopy.cta,
+    });
+    const caption = captionFromProject({ name: activeProject.name, copy: nextCopy });
+    const report = analyzeIgMemoryPost({
+      caption,
+      mediaType: active.mediaType,
+      when: campaign ? `${campaign.date} ${campaign.time}` : undefined,
+      where: campaign?.location,
+    });
+    setDraftAnalysis((prev) => ({ ...prev, [active.id]: report }));
+    rememberLearn(report.hook, caption, active.mediaType);
+    toast.success("已依淡江學生視角改過 Caption");
   }
 
   function scheduleActive() {
@@ -181,6 +220,11 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
             <Button className="min-h-11" variant={active.origin === "published" ? "default" : "secondary"} onClick={analyze}>
               AI 分析
             </Button>
+            {active.origin === "upcoming" && shownAnalysis?.studentSim ? (
+              <Button className="min-h-11" variant="secondary" onClick={applyDraftFixes}>
+                照學生視角改一版
+              </Button>
+            ) : null}
             {active.origin === "upcoming" ? (
               <PublishButton
                 projectId={active.projectId}

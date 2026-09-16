@@ -32,6 +32,11 @@ test("insights prefer high-save life posts over club invitations", () => {
   assert.ok(nextQuery.startsWith("下一篇不要重複"));
   assert.equal(nextQuery.includes("年輕人"), false);
   assert.ok(/畫面|停/.test(nextQuery));
+  const fromThisPost = lastLearnFromPosts(SEED_IG_POSTS, "淡江大學禪學社誠摯邀請您", 2, {
+    caption: "淡江大學禪學社誠摯邀請您蒞臨本週活動。",
+    mediaType: "image",
+  });
+  assert.ok(/生活|官方/.test(fromThisPost.hookLesson));
 });
 
 test("too many event ads produces a mix warning", () => {

@@ -150,29 +150,8 @@ export function HomePage() {
         </div>
       ) : null}
 
-      {lastLearn ? (
-        <section className="mt-6 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
-          <p className="text-xs tracking-[0.16em] text-muted uppercase">
-            {Date.now() - lastLearn.at < 15 * 60 * 1000 ? "上次發布後學到" : "目前 IG 學到"}
-          </p>
-          <p className="mt-2 font-display text-xl leading-snug">「{lastLearn.hook}」</p>
-          <p className="mt-2 text-sm text-muted">{lastLearn.hookLesson}</p>
-          <p className="mt-1 text-xs text-muted">{lastLearn.mixLesson}</p>
-          {lastLearn.visualLesson || insights.visualLesson ? (
-            <p className="mt-1 text-xs text-muted">{lastLearn.visualLesson || insights.visualLesson}</p>
-          ) : null}
-          <Button asChild className="mt-4 min-h-11 rounded-full">
-            <Link to="/create" search={{ q: nextCreateFromLearn(lastLearn), go: "1" }}>
-              用這次學到的再創作
-            </Link>
-          </Button>
-        </section>
-      ) : null}
-
-      <DuePublishBar />
-
       {featured ? (
-        <section className="mt-8 overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-artboard)]">
+        <section className="mt-6 overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-artboard)]">
           <div className="grid gap-0 md:grid-cols-[minmax(0,1.1fr)_0.9fr]">
             <div className="p-5 md:p-7">
               <p className="text-xs tracking-[0.16em] text-muted">今天推薦創作</p>
@@ -204,6 +183,27 @@ export function HomePage() {
           </div>
         </section>
       ) : null}
+
+      {lastLearn ? (
+        <section className="mt-6 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+          <p className="text-xs tracking-[0.16em] text-muted uppercase">
+            {Date.now() - lastLearn.at < 15 * 60 * 1000 ? "上次發布後學到" : "目前 IG 學到"}
+          </p>
+          <p className="mt-2 font-display text-xl leading-snug">「{lastLearn.hook}」</p>
+          <p className="mt-2 text-sm text-muted">{lastLearn.hookLesson}</p>
+          <p className="mt-1 text-xs text-muted">{lastLearn.mixLesson}</p>
+          {lastLearn.visualLesson || insights.visualLesson ? (
+            <p className="mt-1 text-xs text-muted">{lastLearn.visualLesson || insights.visualLesson}</p>
+          ) : null}
+          <Button asChild className="mt-4 min-h-11 rounded-full">
+            <Link to="/create" search={{ q: nextCreateFromLearn(lastLearn), go: "1" }}>
+              用這次學到的再創作
+            </Link>
+          </Button>
+        </section>
+      ) : null}
+
+      <DuePublishBar />
 
       <section className="mt-10">
         <h2 className="text-sm font-medium">快速開始</h2>

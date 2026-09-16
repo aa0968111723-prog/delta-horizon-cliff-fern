@@ -1,5 +1,7 @@
 import type { IgMemoryPost } from "../creative/types.ts";
-import { mockStudentSim } from "../ai/pack-mock.ts";
+import { applyStudentRevisions, mockStudentSim } from "../ai/pack-mock.ts";
+import { HOOK_BANK, VOICE } from "./identity.ts";
+import type { CopyDeck, StudentSim } from "../studio/types.ts";
 
 function firstLine(caption: string) {
   return caption.split("\n").map((line) => line.trim()).find(Boolean) ?? "";
@@ -64,5 +66,42 @@ export function analyzeIgMemoryPost(
         : "延續自己的 IG DNA，不要套一般品牌模板。",
     improve: unique.length ? unique : ["Hook 可以更生活"],
     studentSim: sim,
+  };
+}
+
+function needsLivingHook(hook: string, sim?: StudentSim) {
+  return Boolean(sim?.tooSerious) || VOICE.forbiddenOpeners.some((opener) => hook.includes(opener));
+}
+
+function stripOfficialVoice(text: string) {
+  return text
+    .replace(/淡江大學禪學社誠摯邀請您?蒞臨?/g, "")
+    .replace(/誠摯邀請您?/g, "")
+    .replace(/敬邀蒞臨/g, "")
+    .replace(/歡迎蒞臨/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** 把學生視角修改寫回即將發的 Caption，不要只停在分析卡片。 */
+export function applyStudentSimToCopy(copy: CopyDeck, sim: StudentSim, when?: string, where?: string): CopyDeck {
+  const caption = copy.caption.trim() || copy.body;
+  const hook = needsLivingHook(copy.headline || firstLine(caption), sim)
+    ? (HOOK_BANK.find((line) => line !== copy.headline) ?? HOOK_BANK[0])
+    : copy.headline;
+  const revised = applyStudentRevisions(
+    { tone: "student", hook, body: caption, cta: copy.cta, hashtags: copy.hashtags },
+    sim,
+    when,
+    where,
+  );
+  const body = stripOfficialVoice(revised.body);
+  const nextCaption = [needsLivingHook(firstLine(body), sim) ? revised.hook : null, body].filter(Boolean).join("\n");
+  return {
+    ...copy,
+    headline: revised.hook,
+    caption: nextCaption.trim(),
+    body: copy.body && copy.body !== copy.caption ? stripOfficialVoice(copy.body) : nextCaption.trim(),
+    cta: revised.cta,
   };
 }

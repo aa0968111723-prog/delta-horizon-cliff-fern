@@ -1,3 +1,4 @@
+import { analyzeIgMemoryPost } from "../club/ig-analyze.ts";
 import type { IgMemoryPost } from "./types.ts";
 import type { ContentKind, Project } from "../studio/types.ts";
 
@@ -25,7 +26,10 @@ export function buildPublishedPost(input: {
 }): IgMemoryPost {
   const publishedAt = input.publishedAt ?? Date.now();
   const caption = input.caption.trim() || input.title;
-  const hook = caption.split("\n").map((line) => line.trim()).find(Boolean) ?? input.title;
+  const analysis = analyzeIgMemoryPost({
+    caption,
+    mediaType: mediaTypeFromKind(input.kind),
+  });
   return {
     id: `pub_${publishedAt}`,
     source: "seed",
@@ -34,13 +38,9 @@ export function buildPublishedPost(input: {
     takenAt: publishedAt,
     assetIds: input.assetIds ?? [],
     analysis: {
-      hook,
-      visual: "剛發布，等官方 Insights 回來再補數字",
-      theme: input.title,
-      captionLength: caption.length,
-      cta: /來坐|留言|連結|報名/.test(caption) ? "有 CTA" : "弱",
-      direction: "這篇已進 Content Memory，下次生成會參考。",
-      improve: ["發布後看收藏與停留，再決定下一則要生活還是倒數"],
+      ...analysis,
+      theme: analysis.theme || input.title,
+      direction: `${analysis.direction} 這篇已進 Content Memory，下次生成會參考。`,
     },
   };
 }
