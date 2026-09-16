@@ -144,9 +144,15 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
         <p className="text-xs tracking-[0.16em] text-muted">相關素材 · Drive / Canva / IG / AI</p>
         {related.length ? (
           <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {related.map((asset) => (
+            {related.map((asset) => {
+              const src = urls[asset.id] || asset.seedSrc;
+              return (
               <li key={asset.id} className="overflow-hidden rounded-2xl bg-bg" data-testid="campaign-related-asset" data-asset-source={asset.source}>
-                <img src={urls[asset.id] || asset.seedSrc || ""} alt={asset.name} className="aspect-square w-full object-cover" />
+                {src ? (
+                  <img src={src} alt={asset.name} className="aspect-square w-full object-cover" />
+                ) : (
+                  <div className="aspect-square w-full bg-bg" />
+                )}
                 <div className="space-y-2 px-2 py-2">
                   <p className="truncate text-xs font-medium">{asset.name}</p>
                   <p className="truncate text-[10px] text-muted">{sourceLabel(asset.source)}</p>
@@ -190,7 +196,8 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                   </div>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         ) : (
           <p className="mt-3 text-sm text-muted">做完整宣傳後，Drive、Canva、IG 與 AI 生成會出現在這裡。</p>

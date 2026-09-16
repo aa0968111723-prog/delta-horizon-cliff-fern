@@ -74,5 +74,6 @@ test("published packs enter IG memory so the next generate can learn the hook", 
   assert.equal(grouped.instagram?.[0]?.source, "instagram");
   assert.ok(grouped.instagram?.[0]?.tags.includes("茶會"));
   assert.match(grouped.instagram?.[0]?.subtitle || "", /Instagram/);
+  assert.match(grouped.instagram?.[0]?.subtitle || "", /剛發布/);
   assert.equal(hitFromIgPost(post).caption, post.caption);
 });

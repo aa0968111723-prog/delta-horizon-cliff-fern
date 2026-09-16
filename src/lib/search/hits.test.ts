@@ -137,6 +137,7 @@ test("just-published tea posts rank into Instagram Content Memory", () => {
   assert.equal(published.source, "instagram");
   assert.ok(published.tags.includes("茶會"));
   assert.match(published.subtitle, /Instagram \/ 2026-09-16/);
+  assert.match(published.subtitle, /剛發布/);
   const turtle = {
     id: "ig_turtle",
     mediaType: "image" as const,
@@ -165,4 +166,5 @@ test("just-published tea posts rank into Instagram Content Memory", () => {
   assert.ok(extras.some((item) => item.id === published.id));
   const grouped = mergeLocalHits("下週有一場茶會", { instagram: [] }, extras);
   assert.equal(grouped.instagram?.[0]?.id, published.id);
+  assert.match(grouped.instagram?.[0]?.subtitle || "", /剛發布/);
 });

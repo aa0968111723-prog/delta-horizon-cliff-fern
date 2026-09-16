@@ -106,7 +106,11 @@ export function CreativeSearch() {
               <ul className="mt-2 space-y-2">
                 {list.map((item) => (
                   <li key={item.id} className="flex gap-3 rounded-xl bg-surface-2 p-2">
-                    <img src={item.thumb} alt="" className="size-14 rounded-lg object-cover" />
+                    {item.thumb ? (
+                      <img src={item.thumb} alt="" className="size-14 rounded-lg object-cover" />
+                    ) : (
+                      <div className="size-14 rounded-lg bg-bg" />
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{item.title}</p>
                       <p className="truncate text-xs text-muted" data-testid={item.source === "instagram" ? "search-ig-source" : undefined}>

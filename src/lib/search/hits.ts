@@ -208,12 +208,13 @@ export function hitFromIgPost(post: {
   const date = isoTaipei(new Date(post.takenAt || Date.now()));
   const hook = (post.caption || "").split("\n")[0]?.trim() || "IG 貼文";
   const blob = `${post.caption} ${post.analysis || ""}`;
+  const published = (post.analysis || "").includes("剛發布");
   return {
     id: post.id,
     source: "instagram",
     title: hook.slice(0, 42),
-    subtitle: `Instagram / ${date}`,
-    tags: [...new Set(["instagram", ...clubTagsFromText(blob)])],
+    subtitle: published ? `Instagram / ${date} · 剛發布` : `Instagram / ${date}`,
+    tags: [...new Set(["instagram", ...(published ? ["剛發布"] : []), ...clubTagsFromText(blob)])],
     kind: kindFromIgMedia(post.mediaType),
     date,
     thumb: post.thumb || "/seed/tea.svg",

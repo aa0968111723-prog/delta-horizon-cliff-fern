@@ -703,7 +703,11 @@ if (seedAutoRun) return;
                 className="overflow-hidden rounded-xl bg-bg"
                 onClick={() => adoptHit(item)}
               >
-                <img src={item.thumb} alt="" className="aspect-square w-full object-cover" />
+                {item.thumb ? (
+                  <img src={item.thumb} alt="" className="aspect-square w-full object-cover" />
+                ) : (
+                  <div className="aspect-square w-full bg-bg" />
+                )}
               </button>
             </li>
           ))}
