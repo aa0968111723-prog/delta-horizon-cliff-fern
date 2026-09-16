@@ -586,6 +586,7 @@ export const SEED_SCHEDULE: ScheduleItem[] = [
     status: "scheduled",
     caption: "最近是不是很久沒有好好坐下來？\n9/24 晚上，淡水校園。來坐一下。",
     hashtags: ["#淡江禪學社", "#浮游禪光", "#淡水"],
+    imageAssetId: SEED_LIGHT_ID,
   },
   {
     id: "sch_story",
@@ -596,6 +597,7 @@ export const SEED_SCHEDULE: ScheduleItem[] = [
     scheduledAt: Date.parse("2026-09-16T21:00:00+08:00"),
     publishedAt: null,
     status: "creating",
+    imageAssetId: SEED_TAMSUI_ID,
   },
 ];
 

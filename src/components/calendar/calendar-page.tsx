@@ -24,11 +24,11 @@ export function CalendarPage() {
   const setCreateOpen = useUi((s) => s.setCreateOpen);
   const urls = useAssetUrls(schedule.map((item) => item.imageAssetId).filter((id): id is string => Boolean(id)));
   const [cursor, setCursor] = useState(() => new Date());
-  const [view, setView] = useState<View>("month");
+  const [view, setView] = useState<View>("agenda");
   const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (window.matchMedia("(max-width: 767px)").matches) setView("agenda");
+    if (window.matchMedia("(min-width: 768px)").matches) setView("month");
   }, []);
 
   const days = useMemo(() => {
@@ -73,14 +73,14 @@ export function CalendarPage() {
 
   if (!hydrated) {
     return (
-      <main className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
+      <main data-testid="calendar-loading" className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
         <PageHeader kicker="排程" title="什麼時候要發？" description="讀取排程…" />
       </main>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
+    <main data-testid="calendar-ready" className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
       <PageHeader
         kicker="排程"
         title="什麼時候要發？"
@@ -134,6 +134,14 @@ export function CalendarPage() {
                         <p className="truncate">
                           {contentKindLabel(item.kind)} · {item.title}
                         </p>
+                        {view === "week" && item.imageAssetId && urls[item.imageAssetId] ? (
+                          <img
+                            src={urls[item.imageAssetId]}
+                            alt=""
+                            data-testid="schedule-thumb"
+                            className="mt-1 size-10 rounded-lg object-cover"
+                          />
+                        ) : null}
                         {view === "month" ? (
                           <button
                             type="button"
@@ -176,14 +184,19 @@ export function CalendarPage() {
           })}
         </div>
       ) : (
-        <ul className="mt-4 space-y-2">
+        <ul data-testid="calendar-agenda" className="mt-4 space-y-2">
           {schedule
             .slice()
             .sort((a, b) => a.scheduledAt - b.scheduledAt)
             .map((item) => (
               <li key={item.id} className="flex gap-3 rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
                 {item.imageAssetId && urls[item.imageAssetId] ? (
-                  <img src={urls[item.imageAssetId]} alt="" className="size-14 shrink-0 rounded-xl object-cover" />
+                  <img
+                    src={urls[item.imageAssetId]}
+                    alt=""
+                    data-testid="schedule-thumb"
+                    className="size-14 shrink-0 rounded-xl object-cover"
+                  />
                 ) : null}
                 <div className="min-w-0 flex-1">
                 <p className="text-sm">{item.title}</p>

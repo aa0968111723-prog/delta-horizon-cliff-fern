@@ -209,6 +209,7 @@ function migrateAssetRecord(raw: AssetMeta): AssetMeta {
   if (!seed) return next;
   return {
     ...next,
+    seedSrc: next.seedSrc || seed.seedSrc,
     category: raw.category ?? seed.category,
     tags: next.tags.length ? next.tags : seed.tags,
     licenseNotes: next.licenseNotes || seed.licenseNotes,
@@ -277,10 +278,12 @@ function withPages(project: Project, formatId: FormatId, pages: Artboard[], slid
 }
 
 function migrateScheduleItem(raw: ScheduleItem): ScheduleItem {
+  const seed = SEED_SCHEDULE.find((item) => item.id === raw.id);
   return {
     ...raw,
-    caption: raw.caption ?? "",
-    hashtags: raw.hashtags ?? [],
+    caption: raw.caption ?? seed?.caption ?? "",
+    hashtags: raw.hashtags ?? seed?.hashtags ?? [],
+    imageAssetId: raw.imageAssetId ?? seed?.imageAssetId,
   };
 }
 

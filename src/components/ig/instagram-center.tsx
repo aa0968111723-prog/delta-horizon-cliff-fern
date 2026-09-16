@@ -189,7 +189,12 @@ export function InstagramCenter() {
           {upcoming.slice(0, 6).map((item) => (
               <li key={item.id} className="flex gap-3 rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]">
                 {item.imageAssetId && urls[item.imageAssetId] ? (
-                  <img src={urls[item.imageAssetId]} alt="" className="size-16 shrink-0 rounded-xl object-cover" />
+                  <img
+                    src={urls[item.imageAssetId]}
+                    alt=""
+                    data-testid="schedule-thumb"
+                    className="size-16 shrink-0 rounded-xl object-cover"
+                  />
                 ) : null}
                 <div className="min-w-0 flex-1">
                 {item.title}

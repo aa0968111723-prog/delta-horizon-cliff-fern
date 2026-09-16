@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { objectUrlForAsset } from "@/lib/studio/assets-idb";
+import { resolveAssetSrc, seedSrcById } from "@/lib/studio/asset-src";
+import { useStudio } from "@/stores/studio-store";
 
 export function useAssetUrls(ids: string[]): Record<string, string> {
-  const list = useMemo(() => [...new Set(ids.filter(Boolean))].sort(), [ids]);
-  const key = list.join("|");
-  const [urls, setUrls] = useState<Record<string, string>>({});
+  const assets = useStudio((s) => s.assets);
+  const key = [...new Set(ids.filter(Boolean))].sort().join("|");
+  const list = useMemo(() => (key ? key.split("|") : []), [key]);
+  const seeds = useMemo(() => seedSrcById(assets), [assets]);
+
+  const [blobUrls, setBlobUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -14,7 +19,7 @@ export function useAssetUrls(ids: string[]): Record<string, string> {
       await Promise.all(
         list.map(async (id) => {
           try {
-            const url = await objectUrlForAsset(id);
+            const url = await objectUrlForAsset(id, seeds[id]);
             if (url) next[id] = url;
           } catch {
             /* ignore missing blobs */
@@ -22,8 +27,8 @@ export function useAssetUrls(ids: string[]): Record<string, string> {
         }),
       );
       if (cancelled) return;
-      setUrls(next);
-      const missing = list.filter((id) => !next[id]);
+      setBlobUrls(next);
+      const missing = list.filter((id) => !next[id] && !seeds[id]);
       if (missing.length && attempts < 10) {
         attempts += 1;
         window.setTimeout(() => {
@@ -35,7 +40,14 @@ export function useAssetUrls(ids: string[]): Record<string, string> {
     return () => {
       cancelled = true;
     };
-  }, [key, list]);
+  }, [key, list, seeds]);
 
-  return urls;
+  return useMemo(() => {
+    const merged: Record<string, string> = {};
+    for (const id of list) {
+      const url = resolveAssetSrc(id, blobUrls, seeds);
+      if (url) merged[id] = url;
+    }
+    return merged;
+  }, [list, blobUrls, seeds]);
 }

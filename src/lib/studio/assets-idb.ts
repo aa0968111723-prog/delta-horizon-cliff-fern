@@ -65,11 +65,19 @@ export async function hydrateSeedAsset(id: string, src: string): Promise<void> {
 
 const urlCache = new Map<string, string>();
 
-export async function objectUrlForAsset(id: string): Promise<string | null> {
+export async function objectUrlForAsset(id: string, seedSrc?: string): Promise<string | null> {
   const cached = urlCache.get(id);
   if (cached) return cached;
-  const blob = await getAssetBlob(id);
-  if (!blob) return null;
+  let blob = await getAssetBlob(id);
+  if (!blob && seedSrc) {
+    try {
+      await hydrateSeedAsset(id, seedSrc);
+      blob = await getAssetBlob(id);
+    } catch {
+      return seedSrc;
+    }
+  }
+  if (!blob) return seedSrc ?? null;
   const url = URL.createObjectURL(blob);
   urlCache.set(id, url);
   return url;

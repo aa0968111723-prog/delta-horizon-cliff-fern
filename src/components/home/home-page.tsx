@@ -163,7 +163,7 @@ export function HomePage() {
         </ul>
       </section>
 
-      <section className="mt-10">
+      <section className="mt-10" data-testid="home-scheduled">
         <SectionHeader title="已排程內容" action={<Link to="/calendar" className="text-sm text-muted">月曆</Link>} />
         {scheduled.length === 0 ? (
           <p className="rounded-2xl bg-surface px-4 py-8 text-center text-sm text-muted">還沒有排程。</p>
@@ -173,7 +173,12 @@ export function HomePage() {
               <li key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
                 <div className="flex min-w-0 items-center gap-3">
                   {item.imageAssetId && urls[item.imageAssetId] ? (
-                    <img src={urls[item.imageAssetId]} alt="" className="size-12 shrink-0 rounded-xl object-cover" />
+                    <img
+                      src={urls[item.imageAssetId]}
+                      alt=""
+                      data-testid="schedule-thumb"
+                      className="size-12 shrink-0 rounded-xl object-cover"
+                    />
                   ) : null}
                   <div className="min-w-0">
                   <p className="truncate text-sm">{item.title}</p>

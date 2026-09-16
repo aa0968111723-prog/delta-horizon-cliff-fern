@@ -687,7 +687,7 @@ export function CreateStudio() {
       ) : null}
 
       {found.length ? (
-        <section className="mt-8">
+        <section className="mt-8" data-testid="found-sources">
           <h2 className="text-sm font-medium">找到 {found.length} 個相關素材</h2>
           <p className="mt-1 text-xs text-muted">
             可釘選給 AI 當風格參考。來源會標出來。
@@ -705,7 +705,7 @@ export function CreateStudio() {
                   return (
                     <li key={hit.id} className="flex items-center gap-3 rounded-2xl bg-surface px-3 py-2 text-sm shadow-[var(--shadow-border)]">
                       {thumb ? (
-                        <img src={thumb} alt="" className="size-12 shrink-0 rounded-xl object-cover" />
+                        <img src={thumb} alt="" data-testid="found-thumb" className="size-12 shrink-0 rounded-xl object-cover" />
                       ) : (
                         <span className="size-12 shrink-0 rounded-xl bg-surface-2" />
                       )}
