@@ -70,13 +70,14 @@ export function CreativeSearch() {
             onChange={(e) => setQ(e.target.value)}
             placeholder="浮游禪光、茶會照片、龜龜…"
             autoFocus
+            data-testid="creative-search-input"
           />
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} data-testid="creative-search-submit">
             <Search className="size-4" />
             搜尋
           </Button>
         </form>
-        <p className="mt-2 text-xs text-muted">{busy ? "搜尋中…" : found ? `找到 ${found} 個相關素材。${detail}` : detail}</p>
+        <p className="mt-2 text-xs text-muted" data-testid="creative-search-found">{busy ? "搜尋中…" : found ? `找到 ${found} 個相關素材。${detail}` : detail}</p>
         {driveLoginUrl ? (
           <Button
             className="mt-3"

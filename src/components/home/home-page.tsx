@@ -23,6 +23,10 @@ import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
+function uniqueById<T extends { id: string }>(items: T[]) {
+  return items.filter((item, index, all) => all.findIndex((row) => row.id === item.id) === index);
+}
+
 export function HomePage() {
   const navigate = useNavigate();
   const projects = useStudio((s) => s.projects);
@@ -44,9 +48,9 @@ export function HomePage() {
   const featured = campaigns.find((c) => c.id === FEATURED_EVENT.id) ?? campaigns[0];
 
   const urls = useAssetUrls([...assets.map((a) => a.id), ...packAssetIds(lastPack)]);
-  const recent = useMemo(() => [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6), [projects]);
-  const due = useMemo(() => publishableScheduleRows(schedule), [schedule]);
-  const upcoming = [...schedule].sort((a, b) => a.plannedAt - b.plannedAt).filter((row) => row.status !== "published").slice(0, 4);
+  const recent = useMemo(() => uniqueById([...projects].sort((a, b) => b.updatedAt - a.updatedAt)).slice(0, 6), [projects]);
+  const due = useMemo(() => uniqueById(publishableScheduleRows(schedule)), [schedule]);
+  const upcoming = uniqueById([...schedule].sort((a, b) => a.plannedAt - b.plannedAt).filter((row) => row.status !== "published")).slice(0, 4);
   const strong = [...igPosts].sort((a, b) => (b.metrics?.saves ?? 0) - (a.metrics?.saves ?? 0))[0];
   const lessons = lessonsFromIg(igPosts);
 
@@ -168,8 +172,8 @@ export function HomePage() {
               }
             />
             <ul className="space-y-2 text-sm">
-              {ctx.whoIsListening.map((who) => (
-                <li key={who} className="rounded-2xl bg-bg px-3 py-2">
+              {ctx.whoIsListening.map((who, index) => (
+                <li key={`${who}-${index}`} className="rounded-2xl bg-bg px-3 py-2">
                   {who}
                 </li>
               ))}
@@ -186,7 +190,7 @@ export function HomePage() {
               }
             />
             <ul className="space-y-2">
-              {campaigns.slice(0, 3).map((campaign) => (
+              {uniqueById(campaigns).slice(0, 3).map((campaign) => (
                 <li key={campaign.id}>
                   <Link to="/campaigns/$campaignId" params={{ campaignId: campaign.id }} className="block rounded-2xl bg-bg px-3 py-3">
                     <p className="font-medium">{campaign.name}</p>
@@ -331,7 +335,7 @@ export function HomePage() {
               }
             />
             <ul className="grid grid-cols-4 gap-2">
-              {assets.slice(0, 8).map((asset) => (
+              {uniqueById(assets).slice(0, 8).map((asset) => (
                 <li key={asset.id} className="overflow-hidden rounded-xl bg-bg">
                   <Link to="/assets">
                     {urls[asset.id] ? (

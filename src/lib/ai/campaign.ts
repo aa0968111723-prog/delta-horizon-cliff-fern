@@ -174,6 +174,7 @@ headline 可換行，最多兩行，每行不超過 12 字。cta 2-8 字。`;
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
+    signal: AbortSignal.timeout(18_000),
     body: JSON.stringify({
       model: "grok-4.5",
       temperature: 0.6,
@@ -224,5 +225,11 @@ export const generateCampaignPlan = createServerFn({ method: "POST" })
     if (!hasKey || data.forceMock) {
       return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
     }
-    return generateLive(data);
+    try {
+      const live = await generateLive(data);
+      if (live.ok) return live;
+      return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
+    } catch {
+      return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
+    }
   });
