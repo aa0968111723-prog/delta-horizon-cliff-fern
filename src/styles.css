@@ -87,6 +87,16 @@
     container-type: inline-size;
   }
 
+  .ig-cover-board {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 140px;
+    transform: translate(-50%, -50%) scale(calc(100cqi / 140px));
+    transform-origin: center;
+    pointer-events: none;
+  }
+
   .text-balance {
     text-wrap: balance;
   }

@@ -633,13 +633,7 @@ function GridCover({
   urls: Record<string, string>;
 }) {
   return (
-    <span
-      className="pointer-events-none absolute top-1/2 left-1/2 origin-center"
-      style={{
-        width: 140,
-        transform: "translate(-50%, -50%) scale(calc(100cqw / 140))",
-      }}
-    >
+    <span className="ig-cover-board">
       <ArtboardView artboard={artboard} brand={brand} urls={urls} width={140} />
     </span>
   );

@@ -713,6 +713,22 @@ try {
         : `格子 ${gridKinds.join("、")}`
       : "九宮格是空的",
   );
+  const gridCover = await page
+    .locator("[data-testid=ig-grid-cell]")
+    .first()
+    .evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const board = el.querySelector("[data-ratio]");
+      const art = board?.getBoundingClientRect();
+      if (!art) return { ok: false, detail: "格子裡沒有畫面" };
+      const fills = art.width >= box.width * 0.95 && art.height >= box.height * 0.95;
+      return {
+        ok: fills,
+        detail: `格子 ${Math.round(box.width)}×${Math.round(box.height)} 畫面 ${Math.round(art.width)}×${Math.round(art.height)}`,
+      };
+    })
+    .catch(() => ({ ok: false, detail: "量不到格子" }));
+  record("IG 網格鋪滿正方形", Boolean(gridCover.ok), gridCover.detail);
   await page.screenshot({ path: `${prefix}-ig-profile.png` });
   await page.getByRole("button", { name: "貼文" }).evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
