@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { daysUntil, academicMoment } from "@/lib/club/season";
 import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { CalendarThumb } from "@/components/calendar/calendar-thumb";
-import { compactSeasonSteer, featuredHookForNow } from "@/lib/club/featured";
+import { compactSeasonSteer, featuredHookForNow, learnCardForNow } from "@/lib/club/featured";
 import { clubInsightsFromPosts, nextCreateFromLearn } from "@/lib/club/insights";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { gatherStatusLine, searchCreative } from "@/lib/creative/search";
@@ -87,6 +87,7 @@ export function HomePage() {
     : null;
   const featuredHook = featuredSuggest?.hook || "最近是不是很久沒有好好坐下來？";
   const latestPublished = [...igPosts].sort((a, b) => b.takenAt - a.takenAt)[0];
+  const learnCard = learnCardForNow({ season, lastLearn });
 
   const featuredProject = projects.find((p) => p.id === featured?.projectIds[0]);
   const featuredBoard = featuredProject?.artboards[featuredProject.activeFormatId];
@@ -158,7 +159,7 @@ export function HomePage() {
       ) : null}
 
       {featured ? (
-        <section className="mt-6 overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-artboard)]">
+        <section className="mt-6 overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-artboard)]" data-home-featured="">
           <div className="grid gap-0 md:grid-cols-[minmax(0,1.1fr)_0.9fr]">
             <div className="p-5 md:p-7">
               <p className="text-xs tracking-[0.16em] text-muted">今天推薦創作</p>
@@ -189,31 +190,6 @@ export function HomePage() {
               )}
             </div>
           </div>
-        </section>
-      ) : null}
-
-      {lastLearn ? (
-        <section className="mt-6 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
-          <p className="text-xs tracking-[0.16em] text-muted uppercase">
-            {Date.now() - lastLearn.at < 15 * 60 * 1000 ? "剛才學到" : "目前 IG 學到"}
-          </p>
-          <p className="mt-2 font-display text-xl leading-snug">「{lastLearn.hook}」</p>
-          <p className="mt-2 text-sm text-muted">{lastLearn.hookLesson}</p>
-          <p className="mt-1 text-xs text-muted">{lastLearn.mixLesson}</p>
-          {lastLearn.visualLesson || insights.visualLesson ? (
-            <p className="mt-1 text-xs text-muted">{lastLearn.visualLesson || insights.visualLesson}</p>
-          ) : null}
-          <Button asChild className="mt-4 min-h-11 rounded-full">
-            <Link
-              to="/create"
-              search={{
-                q: nextCreateFromLearn(lastLearn, { seasonNote: compactSeasonSteer(season, lastLearn.hook) }),
-                go: "1",
-              }}
-            >
-              用這次學到的再創作
-            </Link>
-          </Button>
         </section>
       ) : null}
 
@@ -324,6 +300,29 @@ export function HomePage() {
           {scheduled.length === 0 ? <p className="text-sm text-muted">還沒有排程。生成後可以丟進月曆。</p> : null}
         </ul>
       </section>
+
+      {learnCard && lastLearn ? (
+        <section className="mt-10 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]" data-home-learn="">
+          <p className="text-xs tracking-[0.16em] text-muted uppercase">{learnCard.label}</p>
+          <p className="mt-2 font-display text-xl leading-snug">「{learnCard.quote}」</p>
+          <p className="mt-2 text-sm text-muted">{learnCard.detail}</p>
+          <p className="mt-1 text-xs text-muted">{learnCard.mix}</p>
+          {learnCard.visual || insights.visualLesson ? (
+            <p className="mt-1 text-xs text-muted">{learnCard.visual || insights.visualLesson}</p>
+          ) : null}
+          <Button asChild className="mt-4 min-h-11 rounded-full">
+            <Link
+              to="/create"
+              search={{
+                q: nextCreateFromLearn(lastLearn, { seasonNote: compactSeasonSteer(season, lastLearn.hook) }),
+                go: "1",
+              }}
+            >
+              {learnCard.stale ? "用現在的生活寫下一篇" : "用這次學到的再創作"}
+            </Link>
+          </Button>
+        </section>
+      ) : null}
 
       <section className="mt-10">
         <h2 className="text-sm font-medium">最近 AI 生成</h2>

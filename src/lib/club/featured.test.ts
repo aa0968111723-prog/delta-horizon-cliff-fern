@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SEED_IG_POSTS } from "../creative/memory-seed.ts";
-import { compactSeasonSteer, featuredHookForNow, hookFitsSeason, seasonCreateNote } from "./featured.ts";
+import { compactSeasonSteer, featuredHookForNow, hookFitsSeason, learnCardForNow, seasonCreateNote } from "./featured.ts";
 import { academicMoment } from "./season.ts";
 
 test("期末高收藏句不能當開學的今天推薦", () => {
@@ -33,6 +33,46 @@ test("浮游禪光在開學週推薦坐好，不推薦期末", () => {
   assert.match(steer, /開學/);
   assert.match(steer, /不要沿用/);
   assert.equal(steer.includes("大一剛到淡水"), false);
+});
+
+test("開學的學到卡不把期末句當成今天的第一句", () => {
+  const season = academicMoment(new Date("2026-09-16T12:00:00+08:00"));
+  const card = learnCardForNow({
+    season,
+    lastLearn: {
+      hook: "期末不是要你更努力。",
+      hookLesson: "問句和生活判斷句比較會被收藏。",
+      mixLesson: "生活與陪伴文撐住停留。",
+      visualLesson: "淡水黃昏比較停。",
+      at: Date.parse("2026-06-10T20:00:00+08:00"),
+    },
+    now: Date.parse("2026-09-16T12:00:00+08:00"),
+  });
+  assert.ok(card);
+  assert.equal(card.stale, true);
+  assert.equal(card.quote.includes("期末"), false);
+  assert.match(card.quote, /坐|淡水|課表|朋友/);
+  assert.match(card.label, /別沿用/);
+  assert.match(card.detail, /期末/);
+  assert.match(card.detail, /開學/);
+});
+
+test("合季的學到卡沿用那句", () => {
+  const season = academicMoment(new Date("2026-09-16T12:00:00+08:00"));
+  const card = learnCardForNow({
+    season,
+    lastLearn: {
+      hook: "最近是不是很久沒有好好坐下來？",
+      hookLesson: "問句比較會停。",
+      mixLesson: "生活文撐住停留。",
+      at: Date.parse("2026-09-16T12:00:00+08:00") - 60_000,
+    },
+    now: Date.parse("2026-09-16T12:00:00+08:00"),
+  });
+  assert.ok(card);
+  assert.equal(card.stale, false);
+  assert.match(card.quote, /坐/);
+  assert.equal(card.label, "剛才學到");
 });
 
 test("期末週可以沿用期末那句的節奏", () => {

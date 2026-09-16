@@ -118,3 +118,51 @@ export function compactSeasonSteer(season: AcademicMoment, lastHook?: string) {
   }
   return `現在是${season.label}。下一篇不要重複「${hook || "同一句"}」。`;
 }
+
+export type LearnCard = {
+  quote: string;
+  label: string;
+  detail: string;
+  mix: string;
+  visual?: string;
+  stale: boolean;
+  pastHook?: string;
+};
+
+/** 高收藏句可以是上學期的。首頁／IG 學到卡要講「現在」怎麼用，不能把過季句當成今天的第一句。 */
+export function learnCardForNow(input: {
+  season: AcademicMoment;
+  lastLearn?: {
+    hook: string;
+    hookLesson: string;
+    mixLesson: string;
+    visualLesson?: string;
+    at: number;
+  } | null;
+  now?: number;
+}): LearnCard | null {
+  const learn = input.lastLearn;
+  if (!learn?.hook) return null;
+  const at = input.now ?? Date.now();
+  const stale = !hookFitsSeason(learn.hook, input.season.id);
+  if (!stale) {
+    return {
+      quote: learn.hook,
+      label: at - learn.at < 15 * 60 * 1000 ? "剛才學到" : "目前 IG 學到",
+      detail: learn.hookLesson,
+      mix: learn.mixLesson,
+      visual: learn.visualLesson,
+      stale: false,
+    };
+  }
+  const next = featuredHookForNow({ season: input.season });
+  return {
+    quote: next.hook,
+    label: "過去有效，現在別沿用",
+    detail: `「${learn.hook}」收藏高，但現在是${input.season.label}。下一篇用現在的生活，不要沿用過季句。`,
+    mix: learn.mixLesson,
+    visual: learn.visualLesson,
+    stale: true,
+    pastHook: learn.hook,
+  };
+}

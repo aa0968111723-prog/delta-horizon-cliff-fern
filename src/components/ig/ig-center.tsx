@@ -8,7 +8,7 @@ import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { clubDnaFromMemory } from "@/lib/club/dna";
-import { compactSeasonSteer } from "@/lib/club/featured";
+import { compactSeasonSteer, learnCardForNow } from "@/lib/club/featured";
 import { clubInsightsFromPosts, nextCreateFromLearn } from "@/lib/club/insights";
 import { academicMoment } from "@/lib/club/season";
 import { analyzeIgMemoryPost, applyStudentSimToCopy } from "@/lib/club/ig-analyze";
@@ -69,6 +69,8 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
   const memory = useCreative((s) => s.memory);
   const dna = clubDnaFromMemory({ igPosts, memory });
   const insights = clubInsightsFromPosts(igPosts);
+  const season = academicMoment();
+  const learnCard = learnCardForNow({ season, lastLearn });
   const shownAnalysis = active
     ? (active.origin === "published" ? active.analysis : draftAnalysis[active.id])
     : undefined;
@@ -375,16 +377,17 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
       )}
 
       <section className="mt-8 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]" data-ig-learn="">
-        <p className="text-xs tracking-[0.16em] text-muted uppercase">這次 IG 學到</p>
+        <p className="text-xs tracking-[0.16em] text-muted uppercase">{learnCard?.label || "這次 IG 學到"}</p>
         <p className="mt-2 font-display text-xl leading-snug">
-          「{lastLearn?.hook || insights.winningHooks[0] || "問句比社團介紹更容易停"}」
+          「{learnCard?.quote || lastLearn?.hook || insights.winningHooks[0] || "問句比社團介紹更容易停"}」
         </p>
+        {learnCard?.detail ? <p className="mt-2 text-sm text-muted">{learnCard.detail}</p> : null}
         <ul className="mt-3 space-y-1 text-sm text-muted">
           {insights.answers.map((line) => (
             <li key={line}>{line}</li>
           ))}
         </ul>
-        <p className="mt-3 text-xs text-muted">{insights.mixLesson}</p>
+        <p className="mt-3 text-xs text-muted">{learnCard?.mix || insights.mixLesson}</p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button className="min-h-11 rounded-full" disabled={syncingInsights} onClick={() => void pullInsights()}>
             {syncingInsights ? "正在讀成效…" : "讀取成效"}
@@ -400,12 +403,12 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
                     mixLesson: insights.mixLesson,
                     visualLesson: insights.visualLesson,
                   },
-                  { seasonNote: compactSeasonSteer(academicMoment(), lastLearn?.hook ?? insights.winningHooks[0]) },
+                  { seasonNote: compactSeasonSteer(season, lastLearn?.hook ?? insights.winningHooks[0]) },
                 ),
                 go: "1",
               }}
             >
-              用這次學到創作下一篇
+              {learnCard?.stale ? "用現在的生活寫下一篇" : "用這次學到創作下一篇"}
             </Link>
           </Button>
         </div>
