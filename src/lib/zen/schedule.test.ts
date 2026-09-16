@@ -15,6 +15,7 @@ import {
   waveLabel,
   waveVisualVariation,
   heroScheduleItem,
+  suggestWaves,
 } from "./schedule.ts";
 
 test("soonestScheduled surfaces the next tea-party IG post, not a later LINE draft", () => {
@@ -221,4 +222,23 @@ test("heroScheduleItem finds the 主視覺 row for a tea-party campaign", () => 
     "camp_1",
   );
   assert.equal(hero?.id, "h");
+});
+
+test("a 7-day tea-party still keeps 預熱 instead of jumping straight to ads", () => {
+  const waves = suggestWaves(
+    { date: "2026-09-23", type: "tea", name: "茶會" },
+    new Date("2026-09-16T10:00:00+08:00"),
+  );
+  assert.ok(waves.some((wave) => wave.kind === "warmup"));
+  assert.ok(waves.some((wave) => wave.kind === "emotion"));
+  assert.ok(waves.some((wave) => wave.kind === "hero"));
+  assert.equal(waves.filter((wave) => wave.kind === "warmup").length, 1);
+});
+
+test("浮游禪光 8 days out still includes 預熱", () => {
+  const waves = suggestWaves(
+    { date: "2026-09-24", type: "light", name: "浮游禪光" },
+    new Date("2026-09-16T10:00:00+08:00"),
+  );
+  assert.ok(waves.some((wave) => wave.kind === "warmup"));
 });

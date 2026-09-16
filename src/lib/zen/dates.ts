@@ -94,9 +94,44 @@ export function parseEventTime(text: string, fallback = "19:00"): string {
   return one?.[1] ?? fallback;
 }
 
+/** Spoken or written when/where — not a year in a filename like「2025 茶會現場」. */
+export function hasScheduleCue(text: string) {
+  return /今天|今日|明天|後天|下週|下周|下星期|下個禮拜|這週|本週|這周|這個禮拜/.test(text)
+    || /(\d{4})[-/.年]\d{1,2}/.test(text)
+    || /(?:^|[^\d])\d{1,2}[/-]\d{1,2}(?:[^\d]|$)/.test(text);
+}
+
+/** Drive / Canva 歷屆檔有活動名、沒有要辦的日子 → 當成要開一場新的，不要排今天. */
+export function isArchivalEventIdea(text: string) {
+  return Boolean(guessEventName(text)) && !hasScheduleCue(text);
+}
+
 /** Prefill the time field from spoken copy like「下週有一場茶會」. */
 export function defaultScheduleText(idea: string, now = new Date()): string {
-  const date = parseEventDate(idea, now);
+  const date = parseEventDate(isArchivalEventIdea(idea) ? "下週" : idea, now);
   const time = parseEventTime(idea);
   return `${date.replaceAll("-", "/")} ${time}`;
+}
+
+/**
+ * Reopening 茶會 from a 2025 Drive file must not keep a leftover「today」date.
+ * Opening the same campaign from Calendar keeps the date that was already set.
+ */
+export function preferredScheduleText(
+  idea: string,
+  opts?: {
+    existing?: { date?: string; time?: string } | null;
+    campaignId?: string | null;
+    now?: Date;
+  },
+): string {
+  const now = opts?.now ?? new Date();
+  const next = defaultScheduleText(idea, now);
+  const existing = opts?.existing;
+  if (!existing?.date) return next;
+  const keep = `${existing.date.replaceAll("-", "/")} ${existing.time ?? ""}`.trim();
+  if (opts?.campaignId) return keep;
+  if (hasScheduleCue(idea)) return next;
+  if (isArchivalEventIdea(idea) && existing.date <= formatIsoDate(now)) return next;
+  return keep;
 }

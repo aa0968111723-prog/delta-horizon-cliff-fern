@@ -41,21 +41,23 @@ export function suggestWaves(
   const kinds: Array<{ kind: CampaignWaveKind; offset: number; hour: number; notes: string }> = [];
   const recent = opts?.recentKinds ?? [];
   const needsBreath = recent.length >= 2 && ["member-story", "knowledge"].includes(nextKindAfter(recent));
+  const span = Math.max(lead - 1, 1);
 
-  if (longLead || needsBreath) {
-    kinds.push({
-      kind: "warmup",
-      offset: -Math.min(14, lead - 1),
-      hour: 20,
-      notes: needsBreath ? "最近連續宣傳，先插一則生活。" : "生活感，不硬推活動名。",
-    });
-    kinds.push({ kind: "emotion", offset: -Math.min(10, lead - 1), hour: 21, notes: "讓學生覺得被看見。" });
-  } else {
-    kinds.push({ kind: "emotion", offset: -Math.min(6, Math.max(lead - 1, 1)), hour: 21, notes: "先共鳴再宣傳。" });
-  }
+  kinds.push({
+    kind: "warmup",
+    offset: -Math.min(longLead ? 14 : 6, span),
+    hour: 20,
+    notes: needsBreath ? "最近連續宣傳，先插一則生活。" : longLead ? "生活感，不硬推活動名。" : "短宣傳期，先生活再活動。",
+  });
+  kinds.push({
+    kind: "emotion",
+    offset: -Math.min(longLead ? 10 : 5, span),
+    hour: 21,
+    notes: "讓學生覺得被看見。",
+  });
 
-  kinds.push({ kind: "hero", offset: -Math.min(7, Math.max(lead - 1, 1)), hour: 19, notes: "主視覺進 Feed。" });
-  kinds.push({ kind: "detail", offset: -Math.min(5, Math.max(lead - 1, 1)), hour: 18, notes: "時間地點內容一次講完。" });
+  kinds.push({ kind: "hero", offset: -Math.min(7, span), hour: 19, notes: "主視覺進 Feed。" });
+  kinds.push({ kind: "detail", offset: -Math.min(5, Math.max(span - 1, 1)), hour: 18, notes: "時間地點內容一次講完。" });
 
   if (campaign.type !== "recruit") {
     kinds.push({ kind: "reason", offset: -Math.min(3, Math.max(lead - 1, 1)), hour: 20, notes: "為什麼今晚要出門。" });

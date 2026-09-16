@@ -98,7 +98,7 @@ export function HomePage() {
               <p className="mt-3 font-display text-3xl md:text-4xl" data-testid="home-recommend-name">
                 {format(new Date(`${upcoming.date}T00:00:00`), "MM/dd", { locale: zhTW })} {upcoming.name}
               </p>
-              <p className="mt-2 text-sm text-accent-fg/80">
+              <p className="mt-2 text-sm text-accent-fg/80" data-testid="home-recommend-days">
                 {days !== null && days >= 0 ? `還有 ${days} 天` : days !== null && days < 0 ? "活動已過，可以做回顧" : null}
               </p>
               <p className="mt-5 text-lg leading-snug">

@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { campaignMatchingIdea, campaignNameForIdea, guessEventName, shouldReopenCampaign } from "./dates.ts";
+import {
+  campaignMatchingIdea,
+  campaignNameForIdea,
+  defaultScheduleText,
+  guessEventName,
+  hasScheduleCue,
+  isArchivalEventIdea,
+  preferredScheduleText,
+  shouldReopenCampaign,
+} from "./dates.ts";
 
 test("下週有一場茶會 maps to 茶會, not an abstract youth label", () => {
   assert.equal(guessEventName("下週有一場茶會"), "茶會");
@@ -63,5 +72,42 @@ test("from-ig keeps the learned Hook as the name, not last week's 茶會", () =>
   assert.equal(
     campaignNameForIdea({ mode: "from-ig", campaignId: "camp_tea", idea: "可以自己來？", eventName: "茶會" }),
     "茶會",
+  );
+});
+
+test("a 2025 Drive tea file is archival, not a date to hold the event today", () => {
+  const now = new Date("2026-09-16T10:00:00+08:00");
+  assert.equal(hasScheduleCue("2025 茶會現場"), false);
+  assert.equal(isArchivalEventIdea("2025 茶會現場"), true);
+  assert.equal(isArchivalEventIdea("可以自己來？"), false);
+  assert.equal(hasScheduleCue("下週有一場茶會"), true);
+  assert.equal(defaultScheduleText("2025 茶會現場", now), "2026/09/23 19:00");
+  assert.equal(defaultScheduleText("可以自己來？", now), "2026/09/16 19:00");
+  assert.equal(defaultScheduleText("下週有一場茶會", now), "2026/09/23 19:00");
+});
+
+test("reopening 茶會 from an archival Drive file bumps a leftover today date to 下週", () => {
+  const now = new Date("2026-09-16T10:00:00+08:00");
+  assert.equal(
+    preferredScheduleText("2025 茶會現場", {
+      existing: { date: "2026-09-16", time: "19:00" },
+      now,
+    }),
+    "2026/09/23 19:00",
+  );
+  assert.equal(
+    preferredScheduleText("2025 茶會現場", {
+      existing: { date: "2026-09-23", time: "19:00" },
+      now,
+    }),
+    "2026/09/23 19:00",
+  );
+  assert.equal(
+    preferredScheduleText("2025 茶會現場", {
+      existing: { date: "2026-09-16", time: "19:00" },
+      campaignId: "camp_tea",
+      now,
+    }),
+    "2026/09/16 19:00",
   );
 });

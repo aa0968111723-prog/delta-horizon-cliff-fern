@@ -32,6 +32,7 @@ test("suggestWaves includes recap after the event and avoids owner fields", () =
     new Date("2026-09-16T10:00:00+08:00"),
   );
   assert.ok(waves.some((w) => w.kind === "hero"));
+  assert.ok(waves.some((w) => w.kind === "warmup"));
   assert.ok(waves.some((w) => w.kind === "recap"));
   assert.equal(
     waves.every((w) => !("assignee" in w) && !("reviewer" in w)),

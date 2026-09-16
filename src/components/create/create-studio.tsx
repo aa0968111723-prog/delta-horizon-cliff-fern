@@ -26,7 +26,7 @@ import { persistGeneratedImage } from "@/lib/studio/raster";
 import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById, FORMATS } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
-import { parseEventDate, parseEventTime, guessEventName, defaultScheduleText, campaignMatchingIdea, campaignNameForIdea, shouldReopenCampaign } from "@/lib/zen/dates";
+import { parseEventDate, parseEventTime, guessEventName, defaultScheduleText, preferredScheduleText, campaignMatchingIdea, campaignNameForIdea, shouldReopenCampaign } from "@/lib/zen/dates";
 import { DEFAULT_AUDIENCE, academicBeat } from "@/lib/zen/context";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
@@ -232,7 +232,12 @@ export function CreateStudio() {
       setOneLiner(existing.oneLiner);
       setDescription(existing.description);
       setTheme(existing.theme);
-      if (existing.date) setSchedule(`${existing.date.replaceAll("-", "/")} ${existing.time}`.trim());
+      setSchedule(
+        preferredScheduleText(search.idea || "", {
+          existing,
+          campaignId: search.campaign,
+        }),
+      );
       const looks = looksFromCampaign(existing);
       if (Object.keys(looks).length) setWaveLookIds((current) => ({ ...looks, ...current }));
     } else if (search.idea) {
@@ -1337,7 +1342,11 @@ export function CreateStudio() {
             />
           </Field>
           <Field label="時間">
-            <Input value={schedule} onChange={(e) => setSchedule(e.target.value)} />
+            <Input
+              value={schedule}
+              onChange={(e) => setSchedule(e.target.value)}
+              data-testid="event-schedule"
+            />
           </Field>
           <Field label="地點">
             <Input value={location} onChange={(e) => setLocation(e.target.value)} />
