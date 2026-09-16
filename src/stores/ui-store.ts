@@ -5,10 +5,12 @@ export type EditorPanel = "layers" | "assets" | "copy" | "inspect" | "ai" | "ver
 
 type UiState = {
   assistantOpen: boolean;
+  createOpen: boolean;
   saveStatus: SaveStatus;
   editorPanel: EditorPanel | null;
   carouselPreview: boolean;
   setAssistantOpen: (open: boolean) => void;
+  setCreateOpen: (open: boolean) => void;
   toggleAssistant: () => void;
   setSaveStatus: (status: SaveStatus) => void;
   setEditorPanel: (panel: EditorPanel | null) => void;
@@ -17,10 +19,12 @@ type UiState = {
 
 export const useUi = create<UiState>((set) => ({
   assistantOpen: false,
+  createOpen: false,
   saveStatus: "idle",
   editorPanel: null,
   carouselPreview: false,
   setAssistantOpen: (open) => set({ assistantOpen: open }),
+  setCreateOpen: (open) => set({ createOpen: open }),
   toggleAssistant: () => set((s) => ({ assistantOpen: !s.assistantOpen })),
   setSaveStatus: (saveStatus) => set({ saveStatus }),
   setEditorPanel: (editorPanel) => set({ editorPanel }),

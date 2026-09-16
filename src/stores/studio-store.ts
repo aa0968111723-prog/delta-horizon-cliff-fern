@@ -30,7 +30,17 @@ import {
   normalizeArtboard,
   pagesOf,
 } from "@/lib/studio/layers";
-import { SEED_ASSETS, SEED_BRAND, SEED_BRAND_ID, SEED_PROJECT_ID, createSeedDraft, createSeedProject } from "@/lib/studio/seed";
+import {
+  SEED_ASSETS,
+  SEED_BRAND,
+  SEED_BRAND_ID,
+  SEED_CAMPAIGN,
+  SEED_CONTENTS,
+  SEED_PROJECT_ID,
+  createSeedDraft,
+  createSeedProject,
+} from "@/lib/studio/seed";
+import { migrateCampaign, migrateContent } from "@/lib/studio/campaigns";
 import { templateById } from "@/lib/studio/templates";
 import type {
   AlignMode,
@@ -38,7 +48,10 @@ import type {
   AssetMeta,
   BrandKit,
   Brief,
+  Campaign,
   CampaignPlan,
+  ContentItem,
+  ContentStatus,
   CopyDeck,
   EditorTool,
   ExportVersion,
@@ -51,7 +64,7 @@ import type {
   TemplateId,
 } from "@/lib/studio/types";
 
-const STORAGE_KEY = "kouzhen-studio-v1";
+const STORAGE_KEY = "tku-zen-studio-v1";
 const AUTO_SNAP_MS = 20000;
 
 type EditorState = {
@@ -73,6 +86,8 @@ type StudioState = {
   brands: BrandKit[];
   assets: AssetMeta[];
   projects: Project[];
+  campaigns: Campaign[];
+  contents: ContentItem[];
   lastProjectId: string | null;
   editor: EditorState;
   history: Record<string, HistoryEntry[]>;
@@ -80,6 +95,15 @@ type StudioState = {
   historyPaused: boolean;
   setHydrated: (v: boolean) => void;
   setLastProjectId: (id: string | null) => void;
+  createCampaign: (input: Partial<Campaign> & { name: string }) => Campaign;
+  updateCampaign: (id: string, patch: Partial<Campaign> | ((c: Campaign) => Campaign)) => void;
+  deleteCampaign: (id: string) => void;
+  createContent: (input: Partial<ContentItem> & { type: ContentItem["type"] }) => ContentItem;
+  updateContent: (id: string, patch: Partial<ContentItem> | ((c: ContentItem) => ContentItem)) => void;
+  setContentStatus: (id: string, status: ContentStatus) => void;
+  scheduleContent: (id: string, at: number | null) => void;
+  deleteContent: (id: string) => void;
+  duplicateContent: (id: string) => ContentItem | null;
   createBrand: (name: string) => BrandKit;
   updateBrand: (id: string, patch: Partial<BrandKit>) => void;
   deleteBrand: (id: string) => void;
@@ -159,6 +183,7 @@ function migrateBrandRecord(raw: BrandKit): BrandKit {
     logos: next.logos.length ? next.logos : SEED_BRAND.logos,
     imageStyle: next.imageStyle.mood ? next.imageStyle : SEED_BRAND.imageStyle,
     rules: next.rules.notes ? next.rules : { ...SEED_BRAND.rules, ...next.rules },
+    memory: next.memory.mission ? next.memory : SEED_BRAND.memory,
   };
 }
 
@@ -268,6 +293,8 @@ export const useStudio = create<StudioState>()(
       brands: [SEED_BRAND],
       assets: SEED_ASSETS,
       projects: [createSeedProject(), createSeedDraft()],
+      campaigns: [SEED_CAMPAIGN],
+      contents: SEED_CONTENTS,
       lastProjectId: SEED_PROJECT_ID,
       editor: {
         selectedId: null,
@@ -282,6 +309,82 @@ export const useStudio = create<StudioState>()(
       historyPaused: false,
       setHydrated: (v) => set({ hydrated: v }),
       setLastProjectId: (id) => set({ lastProjectId: id }),
+      createCampaign: (input) => {
+        const campaign = migrateCampaign({ ...input, id: input.id ?? uid("camp") });
+        set((s) => ({ campaigns: [campaign, ...s.campaigns] }));
+        return campaign;
+      },
+      updateCampaign: (id, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) => {
+            if (c.id !== id) return c;
+            const next = typeof patch === "function" ? patch(c) : { ...c, ...patch };
+            return { ...next, updatedAt: Date.now() };
+          }),
+        })),
+      deleteCampaign: (id) =>
+        set((s) => ({
+          campaigns: s.campaigns.filter((c) => c.id !== id),
+          contents: s.contents.map((c) => (c.campaignId === id ? { ...c, campaignId: null } : c)),
+        })),
+      createContent: (input) => {
+        const content = migrateContent({ ...input, id: input.id ?? uid("content") });
+        set((s) => ({ contents: [content, ...s.contents] }));
+        return content;
+      },
+      updateContent: (id, patch) =>
+        set((s) => ({
+          contents: s.contents.map((c) => {
+            if (c.id !== id) return c;
+            const next = typeof patch === "function" ? patch(c) : { ...c, ...patch };
+            return { ...next, updatedAt: Date.now() };
+          }),
+        })),
+      setContentStatus: (id, status) =>
+        get().updateContent(id, (c) => ({
+          ...c,
+          status,
+          publishedAt: status === "published" ? (c.publishedAt ?? Date.now()) : c.publishedAt,
+        })),
+      scheduleContent: (id, at) =>
+        get().updateContent(id, (c) => ({
+          ...c,
+          scheduledAt: at,
+          status: at ? (c.status === "published" ? "published" : "scheduled") : c.status === "scheduled" ? "done" : c.status,
+        })),
+      deleteContent: (id) =>
+        set((s) => ({
+          contents: s.contents.filter((c) => c.id !== id),
+          campaigns: s.campaigns.map((camp) =>
+            camp.strategy
+              ? {
+                  ...camp,
+                  strategy: {
+                    ...camp.strategy,
+                    waves: camp.strategy.waves.map((w) => (w.contentId === id ? { ...w, contentId: null } : w)),
+                  },
+                }
+              : camp,
+          ),
+        })),
+      duplicateContent: (id) => {
+        const src = get().contents.find((c) => c.id === id);
+        if (!src) return null;
+        const copy: ContentItem = {
+          ...clone(src),
+          id: uid("content"),
+          title: `${src.title} 副本`,
+          status: "drafting",
+          scheduledAt: null,
+          publishedAt: null,
+          metrics: null,
+          projectId: null,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        set((s) => ({ contents: [copy, ...s.contents] }));
+        return copy;
+      },
       createBrand: (name) => {
         const brand = createEmptyBrand(name);
         set((s) => ({ brands: [...s.brands, brand] }));
@@ -1058,11 +1161,13 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 6,
+      version: 1,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,
         projects: s.projects,
+        campaigns: s.campaigns,
+        contents: s.contents,
         lastProjectId: s.lastProjectId,
       }),
       merge: (persisted, current) => {
@@ -1070,17 +1175,23 @@ export const useStudio = create<StudioState>()(
           brands: BrandKit[];
           assets: AssetMeta[];
           projects: Project[];
+          campaigns: Campaign[];
+          contents: ContentItem[];
           lastProjectId: string | null;
         }>;
         const brands = (p.brands ?? current.brands).map(migrateBrandRecord);
         const assets = (p.assets ?? current.assets).map(migrateAssetRecord);
         const projects = (p.projects ?? current.projects).map(migrateProject);
+        const campaigns = (p.campaigns ?? current.campaigns).map((c) => migrateCampaign(c));
+        const contents = (p.contents ?? current.contents).map((c) => migrateContent(c));
         return {
           ...current,
           ...p,
           brands,
           assets,
           projects,
+          campaigns,
+          contents,
           lastProjectId: p.lastProjectId ?? projects[0]?.id ?? current.lastProjectId,
         };
       },
@@ -1089,6 +1200,8 @@ export const useStudio = create<StudioState>()(
           brands?: BrandKit[];
           assets?: AssetMeta[];
           projects?: Project[];
+          campaigns?: Campaign[];
+          contents?: ContentItem[];
           lastProjectId?: string | null;
         };
         const brands = (state.brands ?? []).map(migrateBrandRecord);
@@ -1098,6 +1211,8 @@ export const useStudio = create<StudioState>()(
           brands,
           assets,
           projects,
+          campaigns: (state.campaigns ?? []).map((c) => migrateCampaign(c)),
+          contents: (state.contents ?? []).map((c) => migrateContent(c)),
           lastProjectId: state.lastProjectId ?? projects[0]?.id ?? null,
         };
       },

@@ -13,10 +13,20 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AssetsRouteImport } from './routes/assets'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as BrandRouteImport } from './routes/brand'
+import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as CampaignsRouteImport } from './routes/campaigns'
+import { Route as ConnectionsRouteImport } from './routes/connections'
+import { Route as CreateRouteImport } from './routes/create'
 import { Route as ExportRouteImport } from './routes/export'
+import { Route as InstagramRouteImport } from './routes/instagram'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
+import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
 import { Route as StudioIndexRouteImport } from './routes/studio.index'
 import { Route as StudioProjectIdRouteImport } from './routes/studio.$projectId'
+import { Route as ApiConnectionsProviderCallbackRouteImport } from './routes/api/connections/$provider/callback'
+import { Route as ApiConnectionsProviderStartRouteImport } from './routes/api/connections/$provider/start'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -38,15 +48,55 @@ const BrandRoute = BrandRouteImport.update({
   path: '/brand',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CampaignsRoute = CampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnectionsRoute = ConnectionsRouteImport.update({
+  id: '/connections',
+  path: '/connections',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CreateRoute = CreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExportRoute = ExportRouteImport.update({
   id: '/export',
   path: '/export',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstagramRoute = InstagramRouteImport.update({
+  id: '/instagram',
+  path: '/instagram',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudioRoute = StudioRouteImport.update({
   id: '/studio',
   path: '/studio',
   getParentRoute: () => rootRouteImport,
+} as any)
+const CampaignsIndexRoute = CampaignsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CampaignsRoute,
+} as any)
+const CampaignsCampaignIdRoute = CampaignsCampaignIdRouteImport.update({
+  id: '/$campaignId',
+  path: '/$campaignId',
+  getParentRoute: () => CampaignsRoute,
 } as any)
 const StudioIndexRoute = StudioIndexRouteImport.update({
   id: '/',
@@ -58,25 +108,56 @@ const StudioProjectIdRoute = StudioProjectIdRouteImport.update({
   path: '/$projectId',
   getParentRoute: () => StudioRoute,
 } as any)
+const ApiConnectionsProviderCallbackRoute =
+  ApiConnectionsProviderCallbackRouteImport.update({
+    id: '/api/connections/$provider/callback',
+    path: '/api/connections/$provider/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiConnectionsProviderStartRoute =
+  ApiConnectionsProviderStartRouteImport.update({
+    id: '/api/connections/$provider/start',
+    path: '/api/connections/$provider/start',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
+  '/calendar': typeof CalendarRoute
+  '/campaigns': typeof CampaignsRouteWithChildren
+  '/connections': typeof ConnectionsRoute
+  '/create': typeof CreateRoute
   '/export': typeof ExportRoute
+  '/instagram': typeof InstagramRoute
+  '/search': typeof SearchRoute
   '/studio': typeof StudioRouteWithChildren
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns/': typeof CampaignsIndexRoute
   '/studio/': typeof StudioIndexRoute
+  '/api/connections/$provider/callback': typeof ApiConnectionsProviderCallbackRoute
+  '/api/connections/$provider/start': typeof ApiConnectionsProviderStartRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
+  '/calendar': typeof CalendarRoute
+  '/connections': typeof ConnectionsRoute
+  '/create': typeof CreateRoute
   '/export': typeof ExportRoute
+  '/instagram': typeof InstagramRoute
+  '/search': typeof SearchRoute
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns': typeof CampaignsIndexRoute
   '/studio': typeof StudioIndexRoute
+  '/api/connections/$provider/callback': typeof ApiConnectionsProviderCallbackRoute
+  '/api/connections/$provider/start': typeof ApiConnectionsProviderStartRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -84,10 +165,20 @@ export interface FileRoutesById {
   '/assets': typeof AssetsRoute
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
+  '/calendar': typeof CalendarRoute
+  '/campaigns': typeof CampaignsRouteWithChildren
+  '/connections': typeof ConnectionsRoute
+  '/create': typeof CreateRoute
   '/export': typeof ExportRoute
+  '/instagram': typeof InstagramRoute
+  '/search': typeof SearchRoute
   '/studio': typeof StudioRouteWithChildren
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns/': typeof CampaignsIndexRoute
   '/studio/': typeof StudioIndexRoute
+  '/api/connections/$provider/callback': typeof ApiConnectionsProviderCallbackRoute
+  '/api/connections/$provider/start': typeof ApiConnectionsProviderStartRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -96,29 +187,58 @@ export interface FileRouteTypes {
     | '/assets'
     | '/assistant'
     | '/brand'
+    | '/calendar'
+    | '/campaigns'
+    | '/connections'
+    | '/create'
     | '/export'
+    | '/instagram'
+    | '/search'
     | '/studio'
+    | '/campaigns/$campaignId'
     | '/studio/$projectId'
+    | '/campaigns/'
     | '/studio/'
+    | '/api/connections/$provider/callback'
+    | '/api/connections/$provider/start'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/assets'
     | '/assistant'
     | '/brand'
+    | '/calendar'
+    | '/connections'
+    | '/create'
     | '/export'
+    | '/instagram'
+    | '/search'
+    | '/campaigns/$campaignId'
     | '/studio/$projectId'
+    | '/campaigns'
     | '/studio'
+    | '/api/connections/$provider/callback'
+    | '/api/connections/$provider/start'
   id:
     | '__root__'
     | '/'
     | '/assets'
     | '/assistant'
     | '/brand'
+    | '/calendar'
+    | '/campaigns'
+    | '/connections'
+    | '/create'
     | '/export'
+    | '/instagram'
+    | '/search'
     | '/studio'
+    | '/campaigns/$campaignId'
     | '/studio/$projectId'
+    | '/campaigns/'
     | '/studio/'
+    | '/api/connections/$provider/callback'
+    | '/api/connections/$provider/start'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -126,8 +246,16 @@ export interface RootRouteChildren {
   AssetsRoute: typeof AssetsRoute
   AssistantRoute: typeof AssistantRoute
   BrandRoute: typeof BrandRoute
+  CalendarRoute: typeof CalendarRoute
+  CampaignsRoute: typeof CampaignsRouteWithChildren
+  ConnectionsRoute: typeof ConnectionsRoute
+  CreateRoute: typeof CreateRoute
   ExportRoute: typeof ExportRoute
+  InstagramRoute: typeof InstagramRoute
+  SearchRoute: typeof SearchRoute
   StudioRoute: typeof StudioRouteWithChildren
+  ApiConnectionsProviderCallbackRoute: typeof ApiConnectionsProviderCallbackRoute
+  ApiConnectionsProviderStartRoute: typeof ApiConnectionsProviderStartRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -160,11 +288,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BrandRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campaigns': {
+      id: '/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof CampaignsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connections': {
+      id: '/connections'
+      path: '/connections'
+      fullPath: '/connections'
+      preLoaderRoute: typeof ConnectionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/create': {
+      id: '/create'
+      path: '/create'
+      fullPath: '/create'
+      preLoaderRoute: typeof CreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/export': {
       id: '/export'
       path: '/export'
       fullPath: '/export'
       preLoaderRoute: typeof ExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/instagram': {
+      id: '/instagram'
+      path: '/instagram'
+      fullPath: '/instagram'
+      preLoaderRoute: typeof InstagramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio': {
@@ -173,6 +343,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/studio'
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/campaigns/': {
+      id: '/campaigns/'
+      path: '/'
+      fullPath: '/campaigns/'
+      preLoaderRoute: typeof CampaignsIndexRouteImport
+      parentRoute: typeof CampaignsRoute
+    }
+    '/campaigns/$campaignId': {
+      id: '/campaigns/$campaignId'
+      path: '/$campaignId'
+      fullPath: '/campaigns/$campaignId'
+      preLoaderRoute: typeof CampaignsCampaignIdRouteImport
+      parentRoute: typeof CampaignsRoute
     }
     '/studio/': {
       id: '/studio/'
@@ -188,8 +372,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioProjectIdRouteImport
       parentRoute: typeof StudioRoute
     }
+    '/api/connections/$provider/callback': {
+      id: '/api/connections/$provider/callback'
+      path: '/api/connections/$provider/callback'
+      fullPath: '/api/connections/$provider/callback'
+      preLoaderRoute: typeof ApiConnectionsProviderCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/$provider/start': {
+      id: '/api/connections/$provider/start'
+      path: '/api/connections/$provider/start'
+      fullPath: '/api/connections/$provider/start'
+      preLoaderRoute: typeof ApiConnectionsProviderStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
+
+interface CampaignsRouteChildren {
+  CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRoute
+  CampaignsIndexRoute: typeof CampaignsIndexRoute
+}
+
+const CampaignsRouteChildren: CampaignsRouteChildren = {
+  CampaignsCampaignIdRoute: CampaignsCampaignIdRoute,
+  CampaignsIndexRoute: CampaignsIndexRoute,
+}
+
+const CampaignsRouteWithChildren = CampaignsRoute._addFileChildren(
+  CampaignsRouteChildren,
+)
 
 interface StudioRouteChildren {
   StudioProjectIdRoute: typeof StudioProjectIdRoute
@@ -209,8 +421,16 @@ const rootRouteChildren: RootRouteChildren = {
   AssetsRoute: AssetsRoute,
   AssistantRoute: AssistantRoute,
   BrandRoute: BrandRoute,
+  CalendarRoute: CalendarRoute,
+  CampaignsRoute: CampaignsRouteWithChildren,
+  ConnectionsRoute: ConnectionsRoute,
+  CreateRoute: CreateRoute,
   ExportRoute: ExportRoute,
+  InstagramRoute: InstagramRoute,
+  SearchRoute: SearchRoute,
   StudioRoute: StudioRouteWithChildren,
+  ApiConnectionsProviderCallbackRoute: ApiConnectionsProviderCallbackRoute,
+  ApiConnectionsProviderStartRoute: ApiConnectionsProviderStartRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

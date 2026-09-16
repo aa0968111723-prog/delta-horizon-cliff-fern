@@ -17,20 +17,32 @@ export const ASSET_CATEGORIES: {
   hint: string;
   virtual?: boolean;
 }[] = [
-  { id: "photo", label: "活動照片", hint: "商品、場景、活動紀實" },
-  { id: "people", label: "人物", hint: "人像、手部、服務瞬間" },
-  { id: "background", label: "背景", hint: "桌面、材質、留白場景" },
-  { id: "illustration", label: "插圖", hint: "手繪、裝飾、編輯素材" },
-  { id: "icon", label: "圖示", hint: "小圖、符號、徽章" },
   { id: "logo", label: "Logo", hint: "標誌與變體" },
+  { id: "mascot", label: "龜龜", hint: "吉祥物、角色、表情" },
+  { id: "photo", label: "活動照片", hint: "茶會、社課、講座紀實" },
+  { id: "people", label: "社員照片", hint: "人物、合照、互動瞬間" },
+  { id: "campus", label: "淡江校園", hint: "宮燈大道、海事館、教室" },
+  { id: "tamsui", label: "淡水", hint: "河岸、老街、夕陽、捷運" },
+  { id: "poster", label: "海報", hint: "歷屆文宣、Canva 設計" },
+  { id: "background", label: "背景", hint: "三色光、材質、留白場景" },
+  { id: "generated", label: "AI 生成", hint: "AI 主視覺與延伸素材" },
+  { id: "ig", label: "IG", hint: "過去貼文與截圖" },
+  { id: "story", label: "Story", hint: "限動素材" },
+  { id: "reels", label: "Reels", hint: "封面與片段" },
+  { id: "archive", label: "歷屆活動", hint: "Drive 舊資料" },
+  { id: "illustration", label: "插圖", hint: "手繪、裝飾" },
+  { id: "icon", label: "圖示", hint: "小圖、符號" },
   { id: "template", label: "模板", hint: "可套用的版型起點", virtual: true },
-  { id: "history", label: "歷史素材", hint: "曾放到畫布的檔案", virtual: true },
+  { id: "history", label: "用過的", hint: "曾放到畫布的檔案", virtual: true },
 ];
 
 export const ASSET_SOURCES: { id: AssetSourceKind; label: string }[] = [
   { id: "upload", label: "本機上傳" },
   { id: "seed", label: "示範素材" },
-  { id: "generated", label: "生成" },
+  { id: "generated", label: "AI 生成" },
+  { id: "drive", label: "Google Drive" },
+  { id: "canva", label: "Canva" },
+  { id: "instagram", label: "Instagram" },
 ];
 
 export function categoryLabel(id: AssetCategory) {
@@ -62,8 +74,13 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
   const tags = (raw.tags ?? []).join(" ").toLowerCase();
   const name = (raw.name ?? "").toLowerCase();
   const blob = `${tags} ${name}`;
-  if (/人物|人像|portrait|people/.test(blob)) return "people";
-  if (/背景|場景|材質|background|texture/.test(blob)) return "background";
+  if (/龜龜|龜|mascot|turtle|gugu/.test(blob)) return "mascot";
+  if (/淡水|河岸|老街|夕陽|tamsui|river/.test(blob)) return "tamsui";
+  if (/校園|淡江|宮燈|campus|tku/.test(blob)) return "campus";
+  if (/海報|poster|文宣|canva/.test(blob)) return "poster";
+  if (/ai 生成|generated/.test(blob)) return "generated";
+  if (/人物|人像|社員|合照|portrait|people/.test(blob)) return "people";
+  if (/背景|場景|材質|三色光|glow|background|texture/.test(blob)) return "background";
   if (/插圖|illustration|handdrawn/.test(blob)) return "illustration";
   if (/圖示|icon|badge/.test(blob)) return "icon";
   if (/logo|標誌/.test(blob)) return "logo";
@@ -84,13 +101,21 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
     createdAt: raw.createdAt ?? Date.now(),
     updatedAt: raw.updatedAt ?? raw.createdAt ?? Date.now(),
     seedSrc: raw.seedSrc,
-    source: raw.source === "seed" || raw.source === "generated" || raw.source === "upload" ? raw.source : "upload",
+    source: isAssetSource(raw.source) ? raw.source : "upload",
     licenseNotes: raw.licenseNotes ?? "",
     licenseOwner: raw.licenseOwner ?? "",
     favorite: Boolean(raw.favorite),
     lastUsedAt: raw.lastUsedAt ?? null,
     useCount: raw.useCount ?? 0,
+    insight: raw.insight ?? null,
+    externalRef: raw.externalRef ?? null,
   };
+}
+
+const ASSET_SOURCE_IDS: AssetSourceKind[] = ["upload", "seed", "generated", "drive", "canva", "instagram"];
+
+function isAssetSource(v: unknown): v is AssetSourceKind {
+  return typeof v === "string" && ASSET_SOURCE_IDS.includes(v as AssetSourceKind);
 }
 
 export function createGeneratedAsset(input: {
@@ -114,7 +139,7 @@ export function createGeneratedAsset(input: {
     createdAt: now,
     updatedAt: now,
     source: "generated",
-    licenseNotes: "由構幀依報名網址在本機產生，僅供畫面使用。",
+    licenseNotes: "由禪光 Studio 依報名網址在本機產生，僅供畫面使用。",
     licenseOwner: "本機產生",
   });
 }
@@ -137,7 +162,11 @@ function collectFromBoard(board: Artboard | undefined, ids: Set<string>) {
   }
 }
 
-export function collectUsedAssetIds(projects: Project[], brands: BrandKit[]): Set<string> {
+export function collectUsedAssetIds(
+  projects: Project[],
+  brands: BrandKit[],
+  covers: { coverAssetId?: string | null }[] = [],
+): Set<string> {
   const ids = new Set<string>();
   for (const project of projects) {
     for (const board of Object.values(project.artboards)) collectFromBoard(board, ids);
@@ -148,6 +177,10 @@ export function collectUsedAssetIds(projects: Project[], brands: BrandKit[]): Se
   for (const brand of brands) {
     if (brand.logoAssetId) ids.add(brand.logoAssetId);
     for (const logo of brand.logos ?? []) ids.add(logo.assetId);
+    if (brand.memory?.mascotAssetId) ids.add(brand.memory.mascotAssetId);
+  }
+  for (const row of covers) {
+    if (row.coverAssetId) ids.add(row.coverAssetId);
   }
   return ids;
 }
