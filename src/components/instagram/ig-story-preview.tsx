@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
+import { indexOfId } from "@/lib/studio/ig-profile";
 import { pagesOf } from "@/lib/studio/layers";
 import { contentKindLabel } from "@/lib/studio/status";
 import type { BrandKit, Project } from "@/lib/studio/types";
@@ -11,20 +12,28 @@ import { cn } from "@/lib/utils";
 /**
  * IG 限動預覽：直式 9:16，點右邊進下一頁／下一則。
  * 沒有限動時誠實說，不拿貼文硬塞進直式框。
+ * 精選圓圈點進來時，從 initialProjectId 那一則開始。
  */
 export function IgStoryPreview({
   projects,
   brand,
   urls,
+  initialProjectId,
 }: {
   projects: Project[];
   brand?: BrandKit;
   urls: Record<string, string>;
+  initialProjectId?: string | null;
 }) {
-  const [storyIdx, setStoryIdx] = useState(0);
+  const [storyIdx, setStoryIdx] = useState(() => indexOfId(projects, initialProjectId));
   const [pageIdx, setPageIdx] = useState(0);
   const story = projects[Math.min(storyIdx, Math.max(projects.length - 1, 0))];
   const pages = story ? pagesOf(story) : [];
+
+  useEffect(() => {
+    setStoryIdx(indexOfId(projects, initialProjectId));
+    setPageIdx(0);
+  }, [initialProjectId, projects]);
 
   useEffect(() => {
     setPageIdx(0);
@@ -66,8 +75,12 @@ export function IgStoryPreview({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[18rem]">
-      <p className="mb-2 text-xs text-subtle">
+    <div
+      className="mx-auto w-full max-w-[18rem]"
+      data-testid="ig-story-viewer"
+      data-story-id={story.id}
+    >
+      <p className="mb-2 pr-12 text-xs text-subtle">
         限動預覽 · {contentKindLabel(story.contentKind)} · {storyIdx + 1}/{projects.length}
       </p>
       <div className="relative overflow-hidden rounded-[1.75rem] bg-surface shadow-[var(--shadow-lift)]">

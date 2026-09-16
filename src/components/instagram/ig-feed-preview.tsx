@@ -26,8 +26,12 @@ export function IgFeedPreview({
   if (!projects.length) return null;
 
   return (
-    <div className="mx-auto w-full max-w-sm">
-      <p className="mb-2 text-xs text-subtle">動態預覽 · {CLUB_HANDLE}</p>
+    <div
+      className="mx-auto w-full max-w-sm"
+      data-testid="ig-post-viewer"
+      data-post-id={projects.length === 1 ? projects[0]?.id : undefined}
+    >
+      <p className="mb-2 pr-12 text-xs text-subtle">動態預覽 · {CLUB_HANDLE}</p>
       <div className="overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-lift)]">
         <ul>
           {projects.map((project) => (

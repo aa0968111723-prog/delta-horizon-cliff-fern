@@ -49,3 +49,10 @@ export function igFeedPostCount(projects: Array<Pick<Project, "status" | "conten
 export function storyPreviewProjects<T extends Pick<Project, "status" | "contentKind">>(projects: T[]): T[] {
   return projects.filter((project) => project.status !== "idea" && HIGHLIGHT_KINDS.has(project.contentKind));
 }
+
+/** 精選圓圈點開時，從那一則開始看。找不到就從頭。 */
+export function indexOfId<T extends { id: string }>(rows: T[], id: string | null | undefined): number {
+  if (!id) return 0;
+  const index = rows.findIndex((row) => row.id === id);
+  return index >= 0 ? index : 0;
+}

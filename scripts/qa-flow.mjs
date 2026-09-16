@@ -801,6 +801,67 @@ try {
     })
     .catch(() => ({ ok: false, detail: "量不到格子" }));
   record("IG 網格鋪滿正方形", Boolean(gridCover.ok), gridCover.detail);
+  const highlightId = await page.locator("[data-testid=ig-highlight-open]").first().getAttribute("data-project-id");
+  record("IG 精選可點開", Boolean(highlightId), highlightId ? `精選 ${highlightId}` : "沒有精選按鈕");
+  await page.locator("[data-testid=ig-highlight-open]").first().evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForSelector("[data-testid=ig-story-viewer]", { timeout: 8000 });
+  await expectText("精選打開限動", "限動預覽");
+  const peekStoryId = await page.locator("[data-testid=ig-story-viewer]").getAttribute("data-story-id");
+  record(
+    "精選打開同一則",
+    Boolean(highlightId) && peekStoryId === highlightId,
+    `打開 ${peekStoryId ?? "沒有"} 精選 ${highlightId ?? "沒有"}`,
+  );
+  const peekPortrait = await page.evaluate(() => {
+    const viewer = document.querySelector("[data-testid=ig-story-viewer]");
+    const board = viewer?.querySelector('[data-ratio="9:16"]');
+    const box = board?.getBoundingClientRect();
+    if (!box) return { ok: false, detail: "沒有 9:16 畫面" };
+    return {
+      ok: box.height > box.width && box.height >= 180,
+      detail: `${Math.round(box.width)}×${Math.round(box.height)}`,
+    };
+  });
+  record("精選限動是直式", Boolean(peekPortrait.ok), peekPortrait.detail);
+  await page.screenshot({ path: `${prefix}-ig-highlight-viewer.png` });
+  await page.getByTestId("ig-peek-close").evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForSelector("[data-testid=ig-peek]", { state: "hidden", timeout: 8000 }).catch(() => null);
+
+  const gridPostId = await page.locator("[data-testid=ig-grid-open]").first().getAttribute("data-project-id");
+  record("IG 格子可點開", Boolean(gridPostId), gridPostId ? `格子 ${gridPostId}` : "沒有格子按鈕");
+  await page.locator("[data-testid=ig-grid-open]").first().evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForSelector("[data-testid=ig-post-viewer]", { timeout: 8000 });
+  await expectText("格子打開貼文", "動態預覽");
+  const peekPostId = await page.locator("[data-testid=ig-post-viewer]").getAttribute("data-post-id");
+  record(
+    "格子打開同一則",
+    Boolean(gridPostId) && peekPostId === gridPostId,
+    `打開 ${peekPostId ?? "沒有"} 格子 ${gridPostId ?? "沒有"}`,
+  );
+  const peekFeed = await page.evaluate(() => {
+    const viewer = document.querySelector("[data-testid=ig-post-viewer]");
+    const board = viewer?.querySelector("[data-ratio]");
+    const box = board?.getBoundingClientRect();
+    const ratio = board?.getAttribute("data-ratio") ?? "";
+    if (!box) return { ok: false, detail: "沒有貼文畫面" };
+    return {
+      ok: (ratio === "4:5" || ratio === "1:1") && box.width >= 160,
+      detail: `${ratio} ${Math.round(box.width)}×${Math.round(box.height)}`,
+    };
+  });
+  record("格子貼文看得到畫面", Boolean(peekFeed.ok), peekFeed.detail);
+  await page.screenshot({ path: `${prefix}-ig-post-viewer.png` });
+  await page.getByTestId("ig-peek-close").evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForSelector("[data-testid=ig-peek]", { state: "hidden", timeout: 8000 }).catch(() => null);
+
   await page.screenshot({ path: `${prefix}-ig-profile.png` });
   await page.getByRole("button", { name: "貼文" }).evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,

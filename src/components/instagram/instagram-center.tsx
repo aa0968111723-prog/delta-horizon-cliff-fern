@@ -25,6 +25,7 @@ import {
 } from "@/lib/studio/ig-profile";
 import type { Artboard, BrandKit, Project } from "@/lib/studio/types";
 import { IgFeedPreview } from "@/components/instagram/ig-feed-preview";
+import { IgPeek } from "@/components/instagram/ig-peek";
 import { IgStoryPreview } from "@/components/instagram/ig-story-preview";
 import { cn } from "@/lib/utils";
 import { CLUB_HANDLE, CLUB_INTRO_SHORT, CLUB_NAME } from "@/lib/zen/club";
@@ -49,6 +50,8 @@ export function InstagramCenter() {
   const urls = useAssetUrls(assets.map((a) => a.id));
   const [tab, setTab] = useState<Tab>("grid");
   const [gridView, setGridView] = useState<"grid" | "feed" | "story">("grid");
+  const [watchStoryId, setWatchStoryId] = useState<string | null>(null);
+  const [watchPostId, setWatchPostId] = useState<string | null>(null);
   const [connection, setConnection] = useState<ConnectionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [readingBusy, setReadingBusy] = useState(false);
@@ -90,6 +93,7 @@ export function InstagramCenter() {
     [projects],
   );
   const phoneStories = useMemo(() => storyPreviewProjects(feed), [feed]);
+  const watchPost = watchPostId ? (projectById[watchPostId] ?? null) : null;
   const connected = connection?.state === "connected";
   const reading = brand?.memory.igReading;
   const readingText = formatIgReading(reading);
@@ -175,10 +179,13 @@ export function InstagramCenter() {
           <ul className="mt-4 flex gap-3 overflow-x-auto pb-1" data-testid="ig-highlights">
             {highlights.map((item) => (
               <li key={item.id} className="w-14 shrink-0 text-center">
-                <Link
-                  to="/studio/$projectId"
-                  params={{ projectId: item.projectId }}
-                  className="flex flex-col items-center gap-1"
+                <button
+                  type="button"
+                  data-testid="ig-highlight-open"
+                  data-project-id={item.projectId}
+                  aria-label={`看精選 ${item.label}`}
+                  className="flex w-full flex-col items-center gap-1"
+                  onClick={() => setWatchStoryId(item.projectId)}
                 >
                   <HighlightCover
                     project={projectById[item.projectId]}
@@ -187,12 +194,12 @@ export function InstagramCenter() {
                     fallback={contentKindLabel(item.kind).slice(0, 2)}
                   />
                   <span className="w-full truncate text-xs text-muted">{item.label}</span>
-                </Link>
+                </button>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-xs text-subtle">做成限動或 Reels 之後，這裡會出現精選圓圈。</p>
+          <p className="mt-3 text-xs text-subtle">做成限動或 Reels 之後，這裡會出現精選圓圈。點圓圈會用 9:16 看。</p>
         )}
       </section>
 
@@ -223,7 +230,7 @@ export function InstagramCenter() {
         <section className="mt-6">
           <SectionHeader
             title="版面預覽"
-            hint="九宮格只放貼文與輪播。限動與 Reels 在上面的精選圓圈。"
+            hint="九宮格只放貼文與輪播。點格子打開貼文；限動與 Reels 在上面的精選圓圈，點圓圈用 9:16 看。"
             action={
               <div className="flex gap-1 rounded-full bg-surface-2 p-0.5">
                 <button
@@ -275,7 +282,7 @@ export function InstagramCenter() {
             <IgStoryPreview projects={phoneStories} brand={brand} urls={urls} />
           ) : gridPosts.length === 0 ? (
             <EmptyBlock
-              text="還沒有貼文可以排進九宮格。限動與 Reels 會出現在上面的精選圓圈。"
+              text="還沒有貼文可以排進九宮格。限動與 Reels 會出現在上面的精選圓圈，點圓圈就能看。"
               action={
                 <Button asChild size="sm">
                   <Link to="/create" search={{ from: "idea" }}>
@@ -296,10 +303,13 @@ export function InstagramCenter() {
                     data-testid="ig-grid-cell"
                     data-kind={project.contentKind}
                   >
-                    <Link
-                      to="/studio/$projectId"
-                      params={{ projectId: project.id }}
+                    <button
+                      type="button"
+                      data-testid="ig-grid-open"
+                      data-project-id={project.id}
+                      aria-label={`看貼文 ${project.name}`}
                       className="absolute inset-0"
+                      onClick={() => setWatchPostId(project.id)}
                     >
                       {board && brand ? (
                         <GridCover artboard={board} brand={brand} urls={urls} />
@@ -308,7 +318,7 @@ export function InstagramCenter() {
                           {project.name}
                         </span>
                       )}
-                    </Link>
+                    </button>
                     <span className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-fg/55 px-1.5 py-1 text-xs text-accent-fg">
                       {contentKindLabel(project.contentKind)}
                     </span>
@@ -619,6 +629,33 @@ export function InstagramCenter() {
           </ul>
         </section>
       ) : null}
+
+      <IgPeek
+        open={Boolean(watchStoryId)}
+        onOpenChange={(open) => {
+          if (!open) setWatchStoryId(null);
+        }}
+        title="限動預覽"
+        width="story"
+      >
+        <IgStoryPreview
+          key={watchStoryId ?? "story"}
+          projects={phoneStories}
+          brand={brand}
+          urls={urls}
+          initialProjectId={watchStoryId}
+        />
+      </IgPeek>
+      <IgPeek
+        open={Boolean(watchPost)}
+        onOpenChange={(open) => {
+          if (!open) setWatchPostId(null);
+        }}
+        title="貼文預覽"
+        width="feed"
+      >
+        {watchPost ? <IgFeedPreview projects={[watchPost]} brand={brand} urls={urls} /> : null}
+      </IgPeek>
     </main>
   );
 }

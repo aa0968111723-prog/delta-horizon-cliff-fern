@@ -4,6 +4,7 @@ import {
   igFeedPostCount,
   igGridProjects,
   igHighlights,
+  indexOfId,
   isHighlightKind,
   isIgFeedKind,
   storyPreviewProjects,
@@ -74,6 +75,13 @@ test("igFeedPostCount skips ideas, highlights, LINE and Threads", () => {
     ]),
     2,
   );
+});
+
+test("indexOfId starts the story viewer on the tapped highlight", () => {
+  const rows = [{ id: "story-a" }, { id: "story-b" }, { id: "reels-c" }];
+  assert.equal(indexOfId(rows, "reels-c"), 2);
+  assert.equal(indexOfId(rows, "missing"), 0);
+  assert.equal(indexOfId(rows, null), 0);
 });
 
 test("igGridProjects only returns Instagram feed posts", () => {
