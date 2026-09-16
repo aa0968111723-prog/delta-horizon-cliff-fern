@@ -1,5 +1,6 @@
 import type { CampaignWaveKind, CopyPack } from "../studio/types.ts";
 import { waveLabel } from "../zen/schedule.ts";
+import { tidyCopy } from "../zen/review.ts";
 
 export type WaveDraft = {
   kind: CampaignWaveKind;
@@ -29,6 +30,7 @@ export function mockWaveDraft(input: {
   location?: string;
   idea?: string;
   learnedHook?: string;
+  body?: string;
 }): WaveDraft {
   const when = [input.schedule, input.location].filter(Boolean).join(" · ");
   const hooks: Record<CampaignWaveKind, string> = {
@@ -41,22 +43,30 @@ export function mockWaveDraft(input: {
     dayof: "今晚有位子。",
     recap: "有時候我們需要的不是答案，只是一個安靜的晚上。",
   };
+  const bodies: Record<CampaignWaveKind, string> = {
+    warmup: "行程一直往前加，連躺平都會心虛。先讓自己有一個晚上，不用交作業。",
+    emotion: "不是來聽課，也不是來變正能量。就是找一個晚上，把身體先放下來。",
+    hero: input.body || "不需要會禪，來坐一下就好。",
+    detail: `${input.name}${when ? `，${when}` : ""}。不需要會禪，來坐一下就好。`,
+    reason: "想找人一起的話，把這則傳給他。可以自己來。",
+    countdown: "短一則就好。明天晚上。",
+    dayof: when ? `今天。${when}。現在過來就好。` : "今晚有位子，現在過來就好。",
+    recap: "燈還在，人比較慢。下一次想去的話，把這則留給自己。",
+  };
   const hook = hooks[input.kind];
-  const body =
-    input.kind === "detail"
-      ? `${input.name}${when ? `，${when}` : ""}。不需要會禪，來坐一下就好。`
-      : input.kind === "recap"
-        ? "燈還在，人比較慢。下一次想去的話，把這則留給自己。"
-        : `${input.idea || input.name}\n${when}`;
   return {
     kind: input.kind,
     title: `${waveLabel(input.kind)} · ${input.name}`,
     hook,
-    body,
+    body: bodies[input.kind],
     cta: input.kind === "dayof" ? "現在過來" : "來坐一下",
     visualNote: WAVE_ANGLE[input.kind],
     angle: WAVE_ANGLE[input.kind],
   };
+}
+
+export function captionFromWave(draft: WaveDraft) {
+  return tidyCopy([draft.hook, draft.body, draft.cta].filter(Boolean).join("\n"));
 }
 
 export function waveToPack(draft: WaveDraft): CopyPack {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { attachStoryAssets, convertedRowOfKind, countdownStillLine, isCountdownStillItem, storyFrameLines, storyPosterInput, storyRowsForFrames } from "./story-frames.ts";
+import { attachStoryAssets, convertedRowOfKind, countdownStillLine, isCountdownStillItem, sharesKitCaption, storyFrameLines, storyPosterInput, storyRowsForFrames } from "./story-frames.ts";
 import { directionPosterSvg } from "./poster.ts";
 
 test("tea-party stories are 3–5 student frames, first is the hook", () => {
@@ -90,4 +90,13 @@ test("converted Carousel does not reuse the 主視覺 wave row", () => {
   assert.equal(convertedRowOfKind([hero], "carousel"), undefined);
   assert.equal(convertedRowOfKind([hero, pack], "carousel")?.id, "pack");
   assert.equal(convertedRowOfKind([{ id: "emo", kind: "ig-post", title: "情緒共鳴 · 茶會" }], "ig-post"), undefined);
+});
+
+test("kit caption writes to 主視覺 and converted Carousel, not 預熱", () => {
+  assert.equal(sharesKitCaption({ kind: "carousel", title: "主視覺 · 茶會" }), true);
+  assert.equal(sharesKitCaption({ kind: "carousel", title: "Carousel · 茶會" }), true);
+  assert.equal(sharesKitCaption({ kind: "ig-post", title: "IG Post · 茶會" }), true);
+  assert.equal(sharesKitCaption({ kind: "member-story", title: "預熱 · 茶會" }), false);
+  assert.equal(sharesKitCaption({ kind: "ig-post", title: "情緒共鳴 · 茶會" }), false);
+  assert.equal(sharesKitCaption({ kind: "knowledge", title: "參加理由 · 茶會" }), false);
 });

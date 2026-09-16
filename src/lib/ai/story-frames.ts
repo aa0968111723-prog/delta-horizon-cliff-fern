@@ -63,6 +63,12 @@ export function convertedRowOfKind<T extends { kind: string; title?: string }>(
   return items.find((item) => item.kind === kind && !isCampaignWaveTitle(item.title));
 }
 
+/** 改這句 / 選方向只寫進主視覺與格式轉換，不要把預熱也改成活動廣告. */
+export function sharesKitCaption(item: { title?: string; kind: string }) {
+  if (isCampaignWaveTitle(item.title)) return /^(主視覺)( ·|$)/.test(item.title || "");
+  return item.kind === "ig-post" || item.kind === "carousel" || item.kind === "reels";
+}
+
 export function isCountdownStillItem(item: { kind: string; title?: string }) {
   if (item.kind === "countdown") return true;
   return item.kind === "story" && isCampaignWaveTitle(item.title) && /^(倒數|當日提醒)/.test(item.title || "");

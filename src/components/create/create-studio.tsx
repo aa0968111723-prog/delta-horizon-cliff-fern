@@ -57,7 +57,8 @@ import { HeroVisual } from "@/components/create/hero-visual";
 import { ReelsBoard } from "@/components/create/reels-board";
 import { ShareBoard } from "@/components/create/share-board";
 import { StoryBoard } from "@/components/create/story-board";
-import { storyFrameLines, storyPosterInput, storyRowsForFrames, convertedRowOfKind } from "@/lib/ai/story-frames";
+import { storyFrameLines, storyPosterInput, storyRowsForFrames, convertedRowOfKind, sharesKitCaption } from "@/lib/ai/story-frames";
+import { captionFromWave, mockWaveDraft } from "@/lib/ai/wave-draft";
 import { saveKitStills, saveIgPreviewStills } from "@/lib/ai/kit-stills";
 import { WaveList } from "@/components/create/wave-list";
 import { StudentReviewCard } from "@/components/create/student-review-card";
@@ -381,7 +382,7 @@ export function CreateStudio() {
       updateCampaign(currentCampaign.id, { oneLiner: hook });
       setCampaign({ ...currentCampaign, oneLiner: hook });
       for (const item of useStudio.getState().schedule.filter((row) => row.campaignId === currentCampaign.id)) {
-        if (item.kind === "story" || item.kind === "countdown" || item.kind === "threads" || item.kind === "line") continue;
+        if (!sharesKitCaption(item)) continue;
         upsertSchedule({
           ...item,
           caption,
@@ -894,11 +895,25 @@ export function CreateStudio() {
       campaigns.find((row) => row.name === name && row.date === date) ??
       (campaign && campaign.name === name ? campaign : undefined);
     const fresh = asPiece ? [] : suggestWaves({ date, type, name }, new Date(), { recentKinds });
-    const waves = mergeCampaignWaves(existing?.waves, fresh).map((wave) => ({
-      ...wave,
-      imageAssetId: wave.imageAssetId ?? assetId,
-      projectId: projectId ?? wave.projectId,
-    }));
+    const waves = mergeCampaignWaves(existing?.waves, fresh).map((wave) => {
+      const draft = mockWaveDraft({
+        kind: wave.kind,
+        name,
+        schedule,
+        location,
+        learnedHook: nextPlan?.hook,
+        body: nextPlan?.body,
+      });
+      const caption = wave.kind === "hero"
+        ? oneLiner || nextPlan?.hook || idea
+        : captionFromWave(draft);
+      return {
+        ...wave,
+        caption,
+        imageAssetId: wave.imageAssetId ?? assetId,
+        projectId: projectId ?? wave.projectId,
+      };
+    });
     const patch = {
       name,
       type,
@@ -926,6 +941,14 @@ export function CreateStudio() {
     }
     for (const wave of waves) {
       if (!wave.scheduledAt) continue;
+      const draft = mockWaveDraft({
+        kind: wave.kind,
+        name,
+        schedule,
+        location,
+        learnedHook: nextPlan?.hook,
+        body: nextPlan?.body,
+      });
       upsertSchedule({
         id: wave.id,
         projectId,
@@ -935,8 +958,8 @@ export function CreateStudio() {
         scheduledAt: wave.scheduledAt,
         publishedAt: null,
         status: "scheduled",
-        caption: wave.caption || oneLiner || nextPlan?.hook || idea,
-        body: description || nextPlan?.body,
+        caption: wave.caption || captionFromWave(draft),
+        body: wave.kind === "hero" ? description || nextPlan?.body || draft.body : draft.body,
         hashtags: nextPlan?.hashtags,
         imageAssetId: wave.imageAssetId ?? assetId,
         ...(wave.kind === "hero" && lastCanva
@@ -1230,7 +1253,7 @@ export function CreateStudio() {
         await attachWaveLooks(created, dir, imageId);
       }
       for (const item of useStudio.getState().schedule.filter((row) => row.campaignId === created.id)) {
-        if (item.kind === "story" || item.kind === "countdown" || item.kind === "threads" || item.kind === "line") continue;
+        if (!sharesKitCaption(item)) continue;
         upsertSchedule({
           ...item,
           caption: cleaned.caption,
