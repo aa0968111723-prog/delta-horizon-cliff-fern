@@ -54,7 +54,7 @@ export function InstagramCenter({ initialTab }: { initialTab?: Tab }) {
   const published = useMemo(
     () =>
       [...contents]
-        .filter((c) => c.status === "published" || c.type === "ig-post" || c.type === "carousel" || c.type === "recap")
+        .filter((c) => c.status === "published" || c.type === "ig-post" || c.type === "carousel" || c.type === "recap" || c.type === "reels")
         .sort((a, b) => (b.publishedAt ?? b.scheduledAt ?? b.createdAt) - (a.publishedAt ?? a.scheduledAt ?? a.createdAt)),
     [contents],
   );

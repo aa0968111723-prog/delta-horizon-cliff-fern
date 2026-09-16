@@ -13,6 +13,7 @@ import type {
 } from "@/lib/studio/types";
 import { TONES, contentTypeLabel, campaignTypeLabel, painPointLabel, WAVE_ROLES } from "@/lib/zen/labels";
 import { personasPrompt } from "@/lib/zen/context";
+import { normalizeReelsBeats, reelsCoverPrompt } from "@/lib/zen/reels";
 import { AVOID_WORDS, deformalize, localStudentReview, toneInstruction, ZEN_TRANSLATIONS } from "@/lib/zen/voice";
 import {
   localCaptionFromCarousel,
@@ -32,6 +33,8 @@ import {
   ConvertJsonSchema,
   ConvertRequestSchema,
   CopyRequestSchema,
+  ReelsJsonSchema,
+  ReelsRequestSchema,
   CopyResponseSchema,
   IgAnalyzeJsonSchema,
   IgAnalyzeRequestSchema,
@@ -277,7 +280,7 @@ function localConvert(data: z.infer<typeof ConvertRequestSchema>): ConvertResult
     source: "mock",
     carousel,
     storyFrames: localStory(data.campaign, copy),
-    reels: localReels(data.campaign, copy),
+    reels: normalizeReelsBeats(localReels(data.campaign, copy)),
     threads: localThreads(data.campaign, copy),
     line: localLine(data.campaign, copy),
     caption: localCaptionFromCarousel(carousel, copy),
@@ -313,10 +316,81 @@ JSON：{ "carousel":[],"storyFrames":[],"reels":[],"threads","line","caption" }`
       source: "live",
       carousel: res.data.carousel.length ? res.data.carousel.map((s, i) => ({ index: i, ...s })) : local.carousel,
       storyFrames: res.data.storyFrames.length ? res.data.storyFrames.map((s, i) => ({ index: i, ...s })) : local.storyFrames,
-      reels: res.data.reels.length ? res.data.reels : local.reels,
+      reels: normalizeReelsBeats(res.data.reels.length ? res.data.reels : local.reels),
       threads: res.data.threads || local.threads,
       line: res.data.line || local.line,
       caption: res.data.caption || local.caption,
+    };
+  });
+
+/* ------------------------------------------------------------------ */
+/* Reels 20 秒腳本                                                      */
+/* ------------------------------------------------------------------ */
+
+export type ReelsResult = {
+  ok: true;
+  source: PlanSource;
+  reels: ReelsBeat[];
+  coverPrompt: string;
+  hook: string;
+  body: string;
+  cta: string;
+} | { ok: false; error: string };
+
+function copyForReels(data: z.infer<typeof ReelsRequestSchema>): CopyDraft {
+  if (data.from?.hook) {
+    return { hook: data.from.hook, body: data.from.body, cta: data.from.cta, hashtags: data.from.hashtags, tone: "normal" };
+  }
+  return localCopy(data.campaign, "normal", 0, data.idea);
+}
+
+function localReelsResult(data: z.infer<typeof ReelsRequestSchema>): ReelsResult {
+  const copy = copyForReels(data);
+  return {
+    ok: true,
+    source: "mock",
+    reels: normalizeReelsBeats(localReels(data.campaign, copy)),
+    coverPrompt: reelsCoverPrompt(localImagePrompt(data.campaign), copy.hook),
+    hook: copy.hook,
+    body: copy.body,
+    cta: copy.cta,
+  };
+}
+
+export const generateZenReels = createServerFn({ method: "POST" })
+  .validator((input: unknown) => ReelsRequestSchema.parse(unwrap(input)))
+  .handler(async ({ data }): Promise<ReelsResult> => {
+    if (!process.env.XAI_API_KEY || data.forceMock) return localReelsResult(data);
+    const copy = copyForReels(data);
+    const user = `${campaignBlock(data.campaign)}
+
+現有 Hook：${copy.hook || "（還沒有，請寫一句讓淡江學生停下來的第一句）"}
+正文：${copy.body || data.idea || "（可依活動重寫）"}
+CTA：${copy.cta || "直接來就好"}
+
+請寫一支 20 秒 IG Reels 拍攝腳本，給一個人拿手機拍：
+- hook：畫面上第一句字幕（≤22 字，先講學生狀態）
+- body：Reels caption 用的短正文（時間地點怎麼來）
+- cta：最後一句
+- coverPrompt：英文 9:16 封面生圖提示，no text
+- reels：正好 5 段 [{from,to,visual,caption,voiceover,transition,assetHint}]
+  0–3 Hook（質問或生活畫面）/ 3–7 校園情境 / 7–12 為什麼值得進來 / 12–17 現場（茶、燈、人）/ 17–20 時間地點 CTA
+  caption 是畫面上的字，短；voiceover 可空；assetHint 寫要準備哪種素材（自拍 / 校園夜景 / 社辦 / 茶杯 / 龜龜）
+  transition 用：硬切 / 慢推 / 跟拍 / 疊化 / 定格
+
+JSON：{ "hook","body","cta","coverPrompt","reels":[] }`;
+    const res = await xaiJson(ReelsJsonSchema, SYSTEM_VOICE, user, { maxTokens: 2200 });
+    if (!res.ok) return { ok: false, error: res.error };
+    const local = localReelsResult(data);
+    if (!local.ok) return local;
+    return {
+      ok: true,
+      source: "live",
+      reels: normalizeReelsBeats(res.data.reels.length ? res.data.reels : local.reels),
+      coverPrompt: res.data.coverPrompt || local.coverPrompt,
+      hook: res.data.hook || local.hook,
+      body: res.data.body || local.body,
+      cta: res.data.cta || local.cta,
     };
   });
 

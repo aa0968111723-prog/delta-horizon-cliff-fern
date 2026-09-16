@@ -1184,6 +1184,10 @@ export const useStudio = create<StudioState>()(
         const projects = (p.projects ?? current.projects).map(migrateProject);
         const campaigns = (p.campaigns ?? current.campaigns).map((c) => migrateCampaign(c));
         const contents = (p.contents ?? current.contents).map((c) => migrateContent(c));
+        const have = new Set(contents.map((c) => c.id));
+        for (const seed of SEED_CONTENTS) {
+          if (!have.has(seed.id)) contents.push(migrateContent(seed));
+        }
         return {
           ...current,
           ...p,

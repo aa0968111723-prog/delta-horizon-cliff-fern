@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { localCopy, localDirections, localStrategy, whenLine } from "./zen-local.ts";
+import { localCopy, localDirections, localReels, localStrategy, whenLine } from "./zen-local.ts";
 import type { CampaignContextInput } from "./zen-schema.ts";
 
 const ctx: CampaignContextInput = {
@@ -46,6 +46,16 @@ test("localDirections returns three distinct directions with prompts", () => {
   assert.equal(dirs.length, 3);
   assert.ok(dirs.every((d) => d.imagePrompt.length > 20));
   assert.ok(new Set(dirs.map((d) => d.title)).size >= 2);
+});
+
+test("localReels is a 20 second five-beat script", () => {
+  const copy = localCopy(ctx, "normal", 0);
+  const beats = localReels(ctx, copy);
+  assert.equal(beats.length, 5);
+  assert.equal(beats[0]?.from, 0);
+  assert.equal(beats[4]?.to, 20);
+  assert.ok(beats[0]?.caption);
+  assert.match(beats[4]?.caption ?? "", /B302|19:00|9\/24/);
 });
 
 test("localStrategy mixes life/interactive into the wave rhythm", () => {

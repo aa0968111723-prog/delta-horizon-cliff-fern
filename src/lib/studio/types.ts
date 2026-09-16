@@ -595,6 +595,8 @@ export type ReelsBeat = {
   voiceover: string;
   transition: string;
   assetHint: string;
+  /** 素材庫裡對應這一秒的畫面，可空。 */
+  assetId?: string | null;
 };
 
 export type StudentReview = {

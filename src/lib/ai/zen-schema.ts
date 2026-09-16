@@ -207,6 +207,28 @@ export const ConvertJsonSchema = z.object({
   caption: str(1200),
 });
 
+export const ReelsRequestSchema = z.object({
+  campaign: CampaignContextSchema,
+  from: z
+    .object({
+      hook: z.string().max(200),
+      body: z.string().max(2000),
+      cta: z.string().max(80),
+      hashtags: z.array(z.string()).max(20),
+    })
+    .optional(),
+  idea: z.string().max(400).optional(),
+  forceMock: z.boolean().optional(),
+});
+
+export const ReelsJsonSchema = z.object({
+  hook: str(120),
+  body: str(800),
+  cta: str(80),
+  coverPrompt: str(800),
+  reels: ConvertJsonSchema.shape.reels,
+});
+
 export const ReviewRequestSchema = z.object({
   campaign: CampaignContextSchema,
   hook: z.string().max(200),

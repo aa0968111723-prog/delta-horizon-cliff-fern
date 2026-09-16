@@ -27,7 +27,10 @@ export function ContentCard({
   return (
     <Link
       to="/create"
-      search={{ contentId: content.id }}
+      search={{
+        contentId: content.id,
+        mode: content.type === "reels" ? "reels" : content.type === "story" ? "story" : content.type === "carousel" ? "carousel" : "post",
+      }}
       className={cn(
         "group flex gap-3 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-border-hover)]",
         compact ? "min-w-[15rem]" : "",

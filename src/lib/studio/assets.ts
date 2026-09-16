@@ -165,7 +165,7 @@ function collectFromBoard(board: Artboard | undefined, ids: Set<string>) {
 export function collectUsedAssetIds(
   projects: Project[],
   brands: BrandKit[],
-  covers: { coverAssetId?: string | null }[] = [],
+  covers: { coverAssetId?: string | null; reels?: { assetId?: string | null }[] }[] = [],
 ): Set<string> {
   const ids = new Set<string>();
   for (const project of projects) {
@@ -181,6 +181,9 @@ export function collectUsedAssetIds(
   }
   for (const row of covers) {
     if (row.coverAssetId) ids.add(row.coverAssetId);
+    for (const beat of row.reels ?? []) {
+      if (beat.assetId) ids.add(beat.assetId);
+    }
   }
   return ids;
 }

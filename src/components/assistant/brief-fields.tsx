@@ -60,7 +60,7 @@ export function BriefFields({ brief, onChange, compact }: Props) {
           <Input
             value={brief.location}
             onChange={(e) => onChange({ location: e.target.value })}
-            placeholder="門市、線上或城市"
+            placeholder="B302 教室 / 社辦 / 淡水河邊"
           />
         </Field>
       </div>
@@ -69,7 +69,7 @@ export function BriefFields({ brief, onChange, compact }: Props) {
         <Input
           value={brief.audience}
           onChange={(e) => onChange({ audience: e.target.value })}
-          placeholder="誰會停下來看這則"
+          placeholder="淡江學生、大一新生、住宿生"
         />
       </Field>
 

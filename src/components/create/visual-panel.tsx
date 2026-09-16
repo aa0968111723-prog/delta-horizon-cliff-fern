@@ -1,5 +1,5 @@
 import { Camera, ImagePlus, RefreshCw, Sparkles, Upload, Wand2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DirectionCard } from "@/components/campaigns/campaign-detail";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
@@ -33,6 +33,7 @@ export function VisualPanel({
   busyImage,
   busyAnalyze,
   imageUnavailable,
+  defaultAspect = "4:5",
   onDirections,
   onChoose,
   onPrompt,
@@ -50,6 +51,7 @@ export function VisualPanel({
   busyImage: boolean;
   busyAnalyze: boolean;
   imageUnavailable: boolean;
+  defaultAspect?: AspectId;
   onDirections: () => void;
   onChoose: (d: CreativeDirection) => void;
   onPrompt: (v: string) => void;
@@ -58,16 +60,22 @@ export function VisualPanel({
   onExtend: () => void;
   onUseInsightForCopy: () => void;
 }) {
-  const [aspect, setAspect] = useState<AspectId>("4:5");
+  const [aspect, setAspect] = useState<AspectId>(defaultAspect);
   const fileRef = useRef<HTMLInputElement>(null);
   const ratio = ASPECTS.find((a) => a.id === aspect)?.ratio ?? "aspect-[4/5]";
+
+  useEffect(() => {
+    setAspect(defaultAspect);
+  }, [defaultAspect]);
 
   return (
     <section className="rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)] md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-medium">主視覺</h2>
-          <p className="text-xs text-muted">AI 先想學生情境、淡水、夜晚、品牌色、龜龜，再給三個方向</p>
+          <h2 className="text-sm font-medium">{defaultAspect === "9:16" ? "Reels / Story 封面" : "主視覺"}</h2>
+          <p className="text-xs text-muted">
+            {defaultAspect === "9:16" ? "9:16、不要把字烤進圖裡，字幕另外疊。" : "AI 先想學生情境、淡水、夜晚、品牌色、龜龜，再給三個方向"}
+          </p>
         </div>
         <Button size="sm" variant="secondary" className="rounded-full" onClick={onDirections} disabled={busyDirections}>
           {busyDirections ? <RefreshCw className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}

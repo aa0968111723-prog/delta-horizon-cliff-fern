@@ -13,6 +13,7 @@ import type {
   ContentStatus,
   ContentType,
   CopyDraft,
+  ReelsBeat,
   ToneId,
 } from "./types.ts";
 
@@ -27,6 +28,20 @@ const strList = (v: unknown, max = 20) =>
 
 export function emptyCopyDraft(tone: ToneId = "normal"): CopyDraft {
   return { hook: "", body: "", cta: "", hashtags: [], tone };
+}
+
+export function migrateReelsBeat(raw: unknown): ReelsBeat {
+  const b = (raw && typeof raw === "object" ? raw : {}) as Partial<ReelsBeat>;
+  return {
+    from: Number(b.from) || 0,
+    to: Number(b.to) || 3,
+    visual: String(b.visual ?? ""),
+    caption: String(b.caption ?? ""),
+    voiceover: String(b.voiceover ?? ""),
+    transition: String(b.transition ?? "硬切"),
+    assetHint: String(b.assetHint ?? ""),
+    assetId: typeof b.assetId === "string" && b.assetId ? b.assetId : null,
+  };
 }
 
 export function migrateCopyDraft(raw: unknown): CopyDraft {
@@ -111,7 +126,7 @@ export function migrateContent(raw: Partial<ContentItem> & { id: string }): Cont
     visualDirection: raw.visualDirection ?? "",
     carousel: Array.isArray(raw.carousel) ? raw.carousel : [],
     storyFrames: Array.isArray(raw.storyFrames) ? raw.storyFrames : [],
-    reels: Array.isArray(raw.reels) ? raw.reels : [],
+    reels: Array.isArray(raw.reels) ? raw.reels.map(migrateReelsBeat) : [],
     threads: raw.threads ?? "",
     line: raw.line ?? "",
     review: raw.review ?? null,

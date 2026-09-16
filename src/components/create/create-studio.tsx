@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CopyPanel } from "@/components/create/copy-panel";
 import { FormatsPanel } from "@/components/create/formats-panel";
+import { ReelsPanel } from "@/components/create/reels-panel";
 import { type AspectId, VisualPanel } from "@/components/create/visual-panel";
 import { ContentStatusBadge } from "@/components/content/content-card";
 import { igCaption, IgPostPreview } from "@/components/content/ig-preview";
@@ -18,6 +19,7 @@ import {
   generateVisualDirections,
   generateZenCopy,
   generateZenImage,
+  generateZenReels,
   getZenAiStatus,
   reviewAsStudent,
 } from "@/lib/ai/zen";
@@ -29,6 +31,7 @@ import type { AssetInsight, ContentItem, ContentStatus, ContentType, CopyDraft, 
 import { studentContext } from "@/lib/zen/context";
 import { type CreateMode, MODE_LABEL, modeToContentType } from "@/lib/zen/create-modes";
 import { CONTENT_STATUS, CONTENT_STATUS_ORDER, CONTENT_TYPES, contentTypeLabel, WAVE_ROLES } from "@/lib/zen/labels";
+import { reelsCoverPrompt } from "@/lib/zen/reels";
 import { pickHooks } from "@/lib/zen/voice";
 import type { CreateSearch } from "@/routes/create";
 import { useStudio } from "@/stores/studio-store";
@@ -39,6 +42,7 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
   const brand = useStudio((s) => s.brands[0]);
   const campaigns = useStudio((s) => s.campaigns);
   const contents = useStudio((s) => s.contents);
+  const assets = useStudio((s) => s.assets);
   const createContent = useStudio((s) => s.createContent);
   const updateContent = useStudio((s) => s.updateContent);
   const setContentStatus = useStudio((s) => s.setContentStatus);
@@ -48,6 +52,7 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
   const updateCampaign = useStudio((s) => s.updateCampaign);
   const addAsset = useStudio((s) => s.addAsset);
   const updateAsset = useStudio((s) => s.updateAsset);
+  const markAssetUsed = useStudio((s) => s.markAssetUsed);
   const createProject = useStudio((s) => s.createProject);
   const setCopy = useStudio((s) => s.setCopy);
 
@@ -80,7 +85,13 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
     if (content) setType(content.type);
   }, [content?.id, content?.type]);
 
-  const urls = useAssetUrls(useMemo(() => [content?.coverAssetId ?? "", campaign?.coverAssetId ?? ""], [content?.coverAssetId, campaign?.coverAssetId]));
+  const urls = useAssetUrls(
+    useMemo(() => {
+      const ids = [content?.coverAssetId ?? "", campaign?.coverAssetId ?? ""];
+      for (const b of content?.reels ?? []) if (b.assetId) ids.push(b.assetId);
+      return ids;
+    }, [content?.coverAssetId, campaign?.coverAssetId, content?.reels]),
+  );
   const cover = content?.coverAssetId ? urls[content.coverAssetId] : undefined;
 
   const ctx = useMemo<CampaignContextInput | null>(() => {
@@ -240,7 +251,7 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
       }
       const meta = await saveGeneratedImage({
         src: res.url,
-        name: `${target.title} · 主視覺 ${aspect}`,
+        name: `${target.title} · ${aspect === "9:16" ? "封面" : "主視覺"} ${aspect}`,
         prompt,
         tags: [campaign?.name ?? "日常", contentTypeLabel(target.type), aspect],
       });
@@ -323,6 +334,59 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
     }
   }
 
+  async function runReels() {
+    if (!ctx) {
+      toast.message("先選一個活動，或寫一句你想講的。");
+      return;
+    }
+    const target = ensureContent();
+    if (!target) return;
+    setBusy((b) => ({ ...b, conv: true }));
+    try {
+      const res = await generateZenReels({
+        data: {
+          campaign: ctx,
+          from: target.copy.hook ? target.copy : undefined,
+          idea: idea || undefined,
+        },
+      });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      setType("reels");
+      updateContent(target.id, (c) => ({
+        ...c,
+        type: "reels",
+        reels: res.reels,
+        imagePrompt: c.imagePrompt || res.coverPrompt,
+        copy: {
+          ...c.copy,
+          hook: c.copy.hook || res.hook,
+          body: c.copy.body || res.body,
+          cta: c.copy.cta || res.cta,
+        },
+        generatedBy: c.generatedBy ?? res.source,
+        sources: c.sources.some((s) => s.label.startsWith("AI Reels"))
+          ? c.sources
+          : [...c.sources, { kind: "ai", label: `AI Reels / ${res.source === "live" ? "Grok" : "本機規則"}` }],
+      }));
+      toast.success(res.source === "live" ? "20 秒腳本寫好了，可以預覽、改字幕、出封面" : "已用本機規則寫出 20 秒腳本（AI 連線後更貼校園）");
+      if (!target.copy.hook) void runReview({ hook: res.hook, body: res.body, cta: res.cta, hashtags: target.copy.hashtags, tone: "normal" }, target.id);
+    } finally {
+      setBusy((b) => ({ ...b, conv: false }));
+    }
+  }
+
+  function patchBeat(index: number, patch: Partial<ContentItem["reels"][number]>) {
+    if (!content) return;
+    if (patch.assetId) markAssetUsed(patch.assetId);
+    updateContent(content.id, (c) => ({
+      ...c,
+      reels: c.reels.map((b, i) => (i === index ? { ...b, ...patch } : b)),
+    }));
+  }
+
   function openCanvas() {
     if (!content || !brand) return;
     let projectId = content.projectId;
@@ -374,7 +438,8 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
   useEffect(() => {
     if (!hydrated || autoRan.current || content || !campaign || !wave || !ctx) return;
     autoRan.current = true;
-    void runCopy("normal");
+    if (mode === "reels" || type === "reels") void runReels();
+    else void runCopy("normal");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, campaign?.id, wave?.id, ctx]);
 
@@ -386,6 +451,8 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
   if (!hydrated || !brand) return null;
 
   const scheduledLabel = content?.scheduledAt ? formatDate(content.scheduledAt, "M/d HH:mm") : null;
+  const isReels = type === "reels" || mode === "reels";
+  const visualAspect: AspectId = isReels || type === "story" ? "9:16" : "4:5";
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
@@ -573,9 +640,9 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
             )}
             {!content ? (
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button className="rounded-full" onClick={() => void runCopy("normal")} disabled={busy.copy || !ctx}>
+                <Button className="rounded-full" onClick={() => void (isReels ? runReels() : runCopy("normal"))} disabled={busy.copy || busy.conv || !ctx}>
                   <Sparkles className="size-4" />
-                  {busy.copy ? "AI 正在寫…" : "AI 幫我創作"}
+                  {busy.copy || (isReels && busy.conv) ? (isReels ? "AI 正在寫腳本…" : "AI 正在寫…") : isReels ? "AI 生成 20 秒腳本" : "AI 幫我創作"}
                 </Button>
                 <Button variant="secondary" className="rounded-full" onClick={() => photoRef.current?.click()} disabled={busy.ana}>
                   從一張圖片開始
@@ -594,6 +661,26 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
               </div>
             ) : null}
           </section>
+
+          {isReels ? (
+            <ReelsPanel
+              beats={content?.reels ?? []}
+              cover={cover}
+              handle={brand.handle}
+              assets={assets}
+              assetUrls={urls}
+              busy={Boolean(busy.conv)}
+              onGenerate={() => void runReels()}
+              onPatchBeat={patchBeat}
+              onGenerateCover={() => {
+                const t = ensureContent();
+                if (!t) return;
+                const prompt = t.imagePrompt.trim() || reelsCoverPrompt(t.visualDirection, t.copy.hook);
+                if (!t.imagePrompt.trim()) updateContent(t.id, { imagePrompt: prompt });
+                void runImage("9:16", prompt);
+              }}
+            />
+          ) : null}
 
           <CopyPanel
             copy={content?.copy ?? { hook: wave?.hook ?? "", body: "", cta: campaign?.cta ?? "", hashtags: [], tone: "normal" }}
@@ -618,6 +705,7 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
             busyImage={Boolean(busy.img)}
             busyAnalyze={Boolean(busy.ana)}
             imageUnavailable={imageUnavailable}
+            defaultAspect={visualAspect}
             onDirections={() => void runDirections()}
             onChoose={chooseDirection}
             onPrompt={(v) => {
@@ -628,7 +716,7 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
             onPhoto={(f) => void onPhoto(f)}
             onExtend={() => {
               const t = ensureContent();
-              if (t && insight) void runImage("4:5", t.imagePrompt || `same visual style: ${insight.summary}`);
+              if (t && insight) void runImage(visualAspect, t.imagePrompt || `same visual style: ${insight.summary}`);
             }}
             onUseInsightForCopy={() => {
               if (insight) setIdea(`依這張圖寫：${insight.summary}`);
@@ -636,14 +724,33 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
             }}
           />
 
-          {content ? <FormatsPanel content={content} busy={Boolean(busy.conv)} onConvert={() => void runConvert()} /> : null}
+          {content ? (
+            <FormatsPanel
+              content={content}
+              busy={Boolean(busy.conv)}
+              hideReels={isReels}
+              onConvert={() => void runConvert()}
+              onOpenReels={() => {
+                setType("reels");
+                updateContent(content.id, { type: "reels" });
+              }}
+            />
+          ) : null}
         </div>
 
         {/* Right rail */}
         <aside className="space-y-4 lg:sticky lg:top-6">
           {content ? (
             <>
-              <IgPostPreview content={content} cover={cover} handle={brand.handle} />
+              {isReels ? (
+                <section className="rounded-[24px] bg-night p-5 text-night-fg">
+                  <p className="text-xs tracking-[0.16em] text-night-fg/60 uppercase">拍攝順序</p>
+                  <p className="mt-2 font-display text-xl leading-snug">左邊時間軸就是 20 秒。</p>
+                  <p className="mt-2 text-sm text-night-fg/75">改字幕、選素材、出封面，然後排進 Calendar。一個人拿手機就能拍。</p>
+                </section>
+              ) : (
+                <IgPostPreview content={content} cover={cover} handle={brand.handle} />
+              )}
               <section className="rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)]">
                 <h2 className="text-sm font-medium">狀態與排程</h2>
                 <div className="mt-3 flex flex-wrap gap-1.5">
@@ -703,7 +810,8 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
                 <li>· 6 個語氣的 IG 文案（Hook / 正文 / CTA / Hashtags）</li>
                 <li>· 淡江學生視角的檢查與重寫建議</li>
                 <li>· 3 個視覺方向 + 圖片 Prompt，一鍵出圖</li>
-                <li>· 轉成 Carousel、Story、Reels 腳本、Threads、LINE</li>
+                <li>· 20 秒 Reels：時間軸、字幕、旁白、封面</li>
+                <li>· 轉成 Carousel、Story、Threads、LINE</li>
                 <li>· IG 預覽 → 排進 Calendar</li>
               </ul>
             </section>

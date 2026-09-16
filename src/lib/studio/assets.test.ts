@@ -45,10 +45,14 @@ test("collectUsedAssetIds includes covers, logos, and mascot", () => {
     },
     slides: {},
   } as unknown as Project;
-  const ids = collectUsedAssetIds([project], [brand], [{ coverAssetId: "cover-1" }, { coverAssetId: null }]);
+  const ids = collectUsedAssetIds([project], [brand], [
+    { coverAssetId: "cover-1" },
+    { coverAssetId: null, reels: [{ assetId: "reel-shot" }] },
+  ]);
   assert.equal(ids.has("logo"), true);
   assert.equal(ids.has("mark"), true);
   assert.equal(ids.has("gugu"), true);
   assert.equal(ids.has("on-canvas"), true);
   assert.equal(ids.has("cover-1"), true);
+  assert.equal(ids.has("reel-shot"), true);
 });

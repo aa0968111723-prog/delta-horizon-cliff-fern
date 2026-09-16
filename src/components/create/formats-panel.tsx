@@ -10,14 +10,28 @@ type FormatTab = "carousel" | "story" | "reels" | "threads" | "line";
 export function FormatsPanel({
   content,
   busy,
+  hideReels,
   onConvert,
+  onOpenReels,
 }: {
   content: ContentItem;
   busy: boolean;
+  hideReels?: boolean;
   onConvert: () => void;
+  onOpenReels?: () => void;
 }) {
   const [tab, setTab] = useState<FormatTab>(
-    content.type === "story" ? "story" : content.type === "reels" ? "reels" : content.type === "threads" ? "threads" : content.type === "line" ? "line" : "carousel",
+    hideReels
+      ? "carousel"
+      : content.type === "story"
+        ? "story"
+        : content.type === "reels"
+          ? "reels"
+          : content.type === "threads"
+            ? "threads"
+            : content.type === "line"
+              ? "line"
+              : "carousel",
   );
   const has = content.carousel.length || content.storyFrames.length || content.reels.length || content.threads || content.line;
 
@@ -48,11 +62,11 @@ export function FormatsPanel({
           先有文案，再按「AI 一鍵轉換」。Carousel 會拆成 Hook → 情境 → 痛點 → 活動 → CTA；Reels 會拆成 0–3 / 3–7 / 7–12 / 12–17 / 17–20 秒。
         </p>
       ) : (
-        <Tabs value={tab} onValueChange={(v) => setTab(v as FormatTab)} className="mt-3">
+        <Tabs value={hideReels && tab === "reels" ? "carousel" : tab} onValueChange={(v) => setTab(v as FormatTab)} className="mt-3">
           <TabsList className="no-scrollbar h-auto w-full justify-start overflow-x-auto">
             <TabsTrigger value="carousel">Carousel {content.carousel.length ? `· ${content.carousel.length}` : ""}</TabsTrigger>
             <TabsTrigger value="story">Story {content.storyFrames.length ? `· ${content.storyFrames.length}` : ""}</TabsTrigger>
-            <TabsTrigger value="reels">Reels</TabsTrigger>
+            {hideReels ? null : <TabsTrigger value="reels">Reels</TabsTrigger>}
             <TabsTrigger value="threads">Threads</TabsTrigger>
             <TabsTrigger value="line">LINE</TabsTrigger>
           </TabsList>
@@ -118,6 +132,11 @@ export function FormatsPanel({
                 </li>
               ))}
             </ol>
+            {content.reels.length && onOpenReels ? (
+              <Button size="sm" className="mt-3 rounded-full" onClick={onOpenReels}>
+                在 Reels 工作台編輯
+              </Button>
+            ) : null}
           </TabsContent>
 
           <TabsContent value="threads" className="mt-3">

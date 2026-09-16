@@ -1,5 +1,6 @@
 import { Bookmark, Heart, MessageCircle, Send } from "lucide-react";
 import { useState } from "react";
+import { ReelsPreview } from "@/components/content/reels-preview";
 import type { ContentItem } from "@/lib/studio/types";
 import { CLUB_HANDLE } from "@/lib/zen/labels";
 import { cn } from "@/lib/utils";
@@ -23,7 +24,10 @@ export function IgPostPreview({
 }) {
   const [expanded, setExpanded] = useState(false);
   const caption = igCaption(content);
-  const isStory = content.type === "story" || content.type === "reels" || content.type === "poll";
+  if (content.type === "reels") {
+    return <ReelsPreview beats={content.reels} cover={cover} handle={handle} className={className} />;
+  }
+  const isStory = content.type === "story" || content.type === "poll";
   const slides = content.type === "carousel" && content.carousel.length ? content.carousel : null;
 
   return (

@@ -363,11 +363,11 @@ export function localStory(c: CampaignContextInput, copy: CopyDraft): StoryFrame
 export function localReels(c: CampaignContextInput, copy: CopyDraft): ReelsBeat[] {
   const when = whenLine(c);
   return [
-    { from: 0, to: 3, visual: "手機畫面：凌晨 1:47，滑 IG。", caption: copy.hook, voiceover: "", transition: "硬切", assetHint: "自拍手機畫面" },
-    { from: 3, to: 7, visual: "宿舍走廊 / 圖書館空鏡，很安靜。", caption: painLine(c).slice(0, 24), voiceover: "有時候不是想睡，是停不下來。", transition: "慢推", assetHint: "校園夜景素材" },
-    { from: 7, to: 12, visual: "社辦門口，燈亮著，有人推門。", caption: `${c.name}`, voiceover: "有一個地方，去了不用做什麼。", transition: "跟拍", assetHint: "社辦 / 教室照片" },
-    { from: 12, to: 17, visual: "茶杯、坐墊、學生放鬆的側臉。", caption: c.oneLiner || "坐著就好", voiceover: "不用會打坐，不用信什麼。", transition: "疊化", assetHint: "歷屆活動照片" },
-    { from: 17, to: 20, visual: "純色卡：時間地點 + 龜龜。", caption: `${when}｜${c.location || "社辦"}`, voiceover: signupLine(c), transition: "定格", assetHint: "龜龜 + 三色光" },
+    { from: 0, to: 3, visual: "手機畫面：凌晨 1:47，滑 IG。", caption: copy.hook, voiceover: "", transition: "硬切", assetHint: "自拍手機畫面", assetId: null },
+    { from: 3, to: 7, visual: "宿舍走廊 / 圖書館空鏡，很安靜。", caption: painLine(c).slice(0, 24), voiceover: "有時候不是想睡，是停不下來。", transition: "慢推", assetHint: "校園夜景素材", assetId: null },
+    { from: 7, to: 12, visual: "社辦門口，燈亮著，有人推門。", caption: `${c.name}`, voiceover: "有一個地方，去了不用做什麼。", transition: "跟拍", assetHint: "社辦 / 教室照片", assetId: null },
+    { from: 12, to: 17, visual: "茶杯、坐墊、學生放鬆的側臉。", caption: c.oneLiner || "坐著就好", voiceover: "不用會打坐，不用信什麼。", transition: "疊化", assetHint: "歷屆活動照片", assetId: null },
+    { from: 17, to: 20, visual: "純色卡：時間地點 + 龜龜。", caption: `${when}｜${c.location || "社辦"}`, voiceover: signupLine(c), transition: "定格", assetHint: "龜龜 + 三色光", assetId: null },
   ];
 }
 
