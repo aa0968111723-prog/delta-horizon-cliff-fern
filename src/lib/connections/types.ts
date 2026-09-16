@@ -80,3 +80,25 @@ export function providerLabel(provider: ExternalMemoryProvider) {
 export function canvaProvenanceLabel(collection = "浮游禪光") {
   return `Canva / ${collection}`;
 }
+
+export type InstagramInsightRow = {
+  metric: string;
+  label: string;
+  value: number;
+  period: string;
+};
+
+export type InstagramInsightsSnapshot = {
+  period: string;
+  rows: InstagramInsightRow[];
+  fetchedAt: number;
+};
+
+export type CanvaStyleAnalysis = {
+  summary: string;
+  colors: string[];
+  composition: string;
+  studentFit: string;
+  recommendations: string[];
+  suggestedTags: string[];
+};

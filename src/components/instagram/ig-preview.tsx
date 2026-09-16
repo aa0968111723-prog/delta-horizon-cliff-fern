@@ -19,6 +19,7 @@ export function IgPreview({ projectId }: { projectId?: string }) {
   const projects = useStudio((state) => state.projects);
   const brands = useStudio((state) => state.brands);
   const setActiveFormat = useStudio((state) => state.setActiveFormat);
+  const setSlide = useStudio((state) => state.setSlide);
   const project = projects.find((item) => item.id === projectId) ?? projects[0];
   const brand = brands.find((item) => item.id === project?.brandId) ?? brands[0];
   const artboard = project ? activeArtboard(project) : undefined;
@@ -88,7 +89,21 @@ export function IgPreview({ projectId }: { projectId?: string }) {
           </div>
         </div>
         {pages.length > 1 ? (
-          <p className="text-xs text-muted">Carousel 共 {pages.length} 頁，現在預覽這一頁。</p>
+          <div>
+            <p className="text-xs text-muted">Carousel 共 {pages.length} 頁，現在預覽第 {(project.slideIndex ?? 0) + 1} 頁。</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {pages.map((page, index) => (
+                <Button
+                  key={`${page.role ?? "page"}-${index}`}
+                  size="sm"
+                  variant={(project.slideIndex ?? 0) === index ? "default" : "secondary"}
+                  onClick={() => setSlide(project.id, index)}
+                >
+                  {index + 1}
+                </Button>
+              ))}
+            </div>
+          </div>
         ) : null}
         {pack ? (
           <div>

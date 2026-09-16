@@ -24,6 +24,18 @@ test("normalizes Canva Connect designs and drops credential-shaped fields", () =
   assert.equal(JSON.stringify(designs).includes("must-not-survive"), false);
 });
 
+test("drops credential-shaped Canva rows instead of indexing them", () => {
+  const designs = normalizeCanvaDesigns({
+    items: [
+      { id: "token-row", title: "secret", access_token: "must-not-survive" },
+      { id: "DAFok", title: "浮游禪光主視覺" },
+    ],
+  });
+  assert.equal(designs.length, 1);
+  assert.equal(designs[0]?.id, "DAFok");
+  assert.equal(JSON.stringify(designs).includes("must-not-survive"), false);
+});
+
 test("labels 浮游禪光 designs with Canva provenance collection", () => {
   assert.equal(inferCanvaCollection("09/24 浮游禪光主視覺"), "浮游禪光");
   const designs = normalizeCanvaDesigns({

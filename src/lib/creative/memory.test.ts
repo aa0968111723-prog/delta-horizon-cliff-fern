@@ -124,6 +124,30 @@ test("searchCreativeMemory includes Canva designs with provenance", () => {
   assert.equal(results[0]?.webUrl?.includes("canva.com"), true);
 });
 
+test("searchCreativeMemory includes Instagram content memory", () => {
+  const results = searchCreativeMemory("淡江禪學社", {
+    assets: [],
+    campaigns: [],
+    contentItems: [],
+    externalItems: [{
+      id: "ig-1",
+      provider: "instagram",
+      title: "最近是不是很久沒有好好坐下來？",
+      mimeType: "IMAGE",
+      isFolder: false,
+      modifiedAt: "",
+      webUrl: "https://www.instagram.com/p/abc/",
+      thumbnailUrl: "",
+      parentId: "instagram",
+      snippet: "#淡江禪學社 夜間茶會",
+      syncedAt: 1,
+      collection: "IG 內容記憶",
+    }],
+  });
+  assert.equal(results[0]?.provider, "Instagram");
+  assert.equal(results[0]?.providerKind, "instagram");
+});
+
 test("searchCreativeMemory includes synced external references with attribution", () => {
   const results = searchCreativeMemory("歷屆 茶會", {
     assets: [],

@@ -5,15 +5,19 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { generateCopyPack } from "@/lib/ai/copy";
+import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
 import { buildBrandMemoryPrompt } from "@/lib/creative/memory";
 import type { CopyTone } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
+import { useConnectionStore } from "@/stores/connection-store";
 import { useStudio } from "@/stores/studio-store";
 
 export function CopyStudio({ projectId }: { projectId: string }) {
   const project = useStudio((state) => state.projects.find((item) => item.id === projectId));
   const brand = useStudio((state) => state.brands.find((item) => item.id === project?.brandId));
   const patchPlan = useStudio((state) => state.patchPlan);
+  const instagramItems = useConnectionStore((state) => state.instagramItems);
+  const memoryHashtags = hashtagsFromInstagramMemory(instagramItems);
   const [busy, setBusy] = useState(false);
   const [activeTone, setActiveTone] = useState<CopyTone>("學生版");
   const pack = project?.plan?.copyPack;
@@ -37,8 +41,8 @@ export function CopyStudio({ projectId }: { projectId: string }) {
           cta: project.plan.cta,
           registrationUrl,
           brandVoice: brand.voice,
-          brandMemory: buildBrandMemoryPrompt(brand),
-          hashtags: project.plan.hashtags,
+          brandMemory: `${buildBrandMemoryPrompt(brand)}${memoryHashtags.length ? `\nIG 內容記憶 hashtags：${memoryHashtags.join(" ")}` : ""}`,
+          hashtags: [...new Set([...(project.plan.hashtags ?? []), ...memoryHashtags])].slice(0, 20),
           forceMock: false,
         },
       });
@@ -99,6 +103,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
           </div>
           <p className="mt-1 text-xs leading-5 text-muted">
             一次產生六種語氣、學生視角檢查與跨平台版本。只有按下按鈕才會呼叫 AI。
+            {memoryHashtags.length ? ` 已帶入 IG 內容記憶 hashtags：${memoryHashtags.slice(0, 5).join(" ")}` : ""}
           </p>
         </div>
         <Button size="sm" disabled={busy} onClick={() => void generate()}>
@@ -158,6 +163,28 @@ export function CopyStudio({ projectId }: { projectId: string }) {
               ))}
             </ul>
           </div>
+
+          {memoryHashtags.length ? (
+            <div>
+              <p className="text-xs font-medium">從 IG 內容記憶建議</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {memoryHashtags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className="min-h-10 rounded-full bg-surface px-3 text-xs shadow-[var(--shadow-border)]"
+                    onClick={() => {
+                      const next = [...new Set([...(project.plan?.hashtags ?? []), tag])];
+                      patchPlan(projectId, { hashtags: next });
+                      toast.success(`已加入 ${tag}`);
+                    }}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div>
             <p className="text-xs font-medium">一鍵轉換</p>

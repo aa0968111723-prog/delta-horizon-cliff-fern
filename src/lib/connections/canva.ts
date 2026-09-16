@@ -88,3 +88,45 @@ export const copyCanvaBrief = createServerFn({ method: "POST" })
     autofill: false as const,
     note: "Design Autofill 需要 Canva Enterprise，目前未開通。請把 brief 貼進 Canva 手動套用。",
   }));
+
+const StyleSchema = z.object({
+  designId: z.string().trim().min(1).max(80),
+});
+
+export const analyzeCanvaStyle = createServerFn({ method: "POST" })
+  .validator((input: unknown) => StyleSchema.parse(unwrapServerInput(input)))
+  .handler(async ({ data }): Promise<ConnectorResult<{
+    snippet: string;
+    title: string;
+    collection: string;
+    analysis: import("./types.ts").CanvaStyleAnalysis;
+  }>> => {
+    try {
+      const { readCanvaDesignThumbnail } = await import("./canva-oauth.server.ts");
+      const thumb = await readCanvaDesignThumbnail(data.designId);
+      if (!thumb.ok) return thumb;
+      const { runVisionAnalysis } = await import("@/lib/ai/multimodal");
+      const vision = await runVisionAnalysis(thumb.data.dataUrl);
+      if (!vision.ok) return genericError(vision.error);
+      const { canvaProvenanceLabel } = await import("./types.ts");
+      const snippet = `${canvaProvenanceLabel(thumb.data.collection)}｜${vision.analysis.summary}`;
+      return {
+        ok: true,
+        data: {
+          snippet,
+          title: thumb.data.title,
+          collection: thumb.data.collection,
+          analysis: {
+            summary: vision.analysis.summary,
+            colors: vision.analysis.colors,
+            composition: vision.analysis.composition,
+            studentFit: vision.analysis.studentFit,
+            recommendations: vision.analysis.recommendations,
+            suggestedTags: vision.analysis.suggestedTags,
+          },
+        },
+      };
+    } catch (error) {
+      return genericError(error instanceof Error ? error.message : "風格分析失敗");
+    }
+  });

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { redirectToLoginIfRequired } from "@/lib/app-data";
 import { canvaProvenanceLabel, type ConnectorUiState, type ExternalMemoryItem, type OfficialProviderStatus } from "@/lib/connections/types";
-import { copyCanvaBrief, disconnectCanva, getCanvaStatus, listCanvaDesigns, searchCanvaDesigns, startCanvaConnect } from "@/lib/connections/canva";
+import { copyCanvaBrief, disconnectCanva, getCanvaStatus, listCanvaDesigns, searchCanvaDesigns, startCanvaConnect, analyzeCanvaStyle } from "@/lib/connections/canva";
 import { canvaDesignOpenUrl } from "@/lib/connections/canva-normalize";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
@@ -21,6 +21,7 @@ export function CanvaCard() {
   const lastSyncAt = useConnectionStore((state) => state.canvaLastSyncAt);
   const syncItems = useConnectionStore((state) => state.syncCanvaItems);
   const rememberItems = useConnectionStore((state) => state.rememberCanvaItems);
+  const updateSnippet = useConnectionStore((state) => state.updateCanvaSnippet);
   const disconnectMemory = useConnectionStore((state) => state.disconnectCanvaMemory);
   const addStyleReference = useConnectionStore((state) => state.addStyleReference);
   const setStylePrompt = useUi((state) => state.setStylePrompt);
@@ -32,6 +33,7 @@ export function CanvaCard() {
   const [visibleItems, setVisibleItems] = useState<ExternalMemoryItem[]>(savedItems);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
 
   function acceptError(result: Extract<ListResult, { ok: false }>) {
     setLastResult(result);
@@ -82,6 +84,12 @@ export function CanvaCard() {
         window.history.replaceState({}, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
         return;
       }
+      if (params.get("canva") === "error") {
+        toast.error("Canva 授權未完成");
+        params.delete("canva");
+        params.delete("reason");
+        window.history.replaceState({}, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
+      }
       if (availability.connected) await sync(true);
     })();
     // Availability is checked when the Connection Center opens.
@@ -128,6 +136,33 @@ export function CanvaCard() {
     toast.success(result.note);
   }
 
+  async function analyze(item: ExternalMemoryItem) {
+    setAnalyzingId(item.id);
+    try {
+      const result = await analyzeCanvaStyle({ data: { designId: item.id } });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      updateSnippet(item.id, result.data.snippet);
+      setVisibleItems((items) => items.map((row) => (
+        row.id === item.id ? { ...row, snippet: result.data.snippet } : row
+      )));
+      addStyleReference({ ...item, snippet: result.data.snippet }, result.data.snippet);
+      setStylePrompt({
+        title: result.data.title,
+        collection: result.data.collection,
+        notes: result.data.analysis.summary,
+        provider: canvaProvenanceLabel(result.data.collection),
+      });
+      toast.success("風格分析已加入 Creative Brain");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "風格分析失敗");
+    } finally {
+      setAnalyzingId(null);
+    }
+  }
+
   function addReference(item: ExternalMemoryItem) {
     const collection = item.collection || "浮游禪光";
     addStyleReference(item, `${canvaProvenanceLabel(collection)}｜${item.snippet || item.title}`);
@@ -163,15 +198,22 @@ export function CanvaCard() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {unavailable ? null : connected || provider?.mode === "mcp" ? (
-            <Button variant="secondary" disabled={status === "checking"} onClick={() => void sync()}>
-              <RefreshCw className={cn("size-4", status === "checking" && "animate-spin")} />
-              {status === "checking" ? "檢查中…" : connected ? "同步" : "重新檢查"}
-            </Button>
-          ) : (
-            <Button disabled={busy} onClick={() => void connect()}>
-              {busy ? "準備連接…" : provider?.connected ? "重新授權" : "連接 Canva"}
-            </Button>
+          {unavailable ? null : (
+            <>
+              {connected || provider?.mode === "mcp" ? (
+                <Button variant="secondary" disabled={status === "checking"} onClick={() => void sync()}>
+                  <RefreshCw className={cn("size-4", status === "checking" && "animate-spin")} />
+                  {status === "checking" ? "檢查中…" : connected ? "同步" : "重新檢查"}
+                </Button>
+              ) : (
+                <Button disabled={busy} onClick={() => void connect()}>
+                  {busy ? "準備連接…" : "連接 Canva"}
+                </Button>
+              )}
+              {provider?.mode === "oauth" && connected ? (
+                <Button variant="outline" disabled={busy} onClick={() => void connect()}>重新授權</Button>
+              ) : null}
+            </>
           )}
         </div>
       </div>
@@ -243,11 +285,21 @@ export function CanvaCard() {
             <ul className="mt-3 grid gap-2 md:grid-cols-2">
               {visibleItems.map((item) => (
                 <li key={item.id} className="rounded-2xl bg-bg p-3">
-                  <p className="truncate text-sm font-medium">{item.title}</p>
-                  <p className="mt-0.5 truncate text-xs text-muted">{canvaProvenanceLabel(item.collection)}</p>
+                  <div className="flex items-start gap-3">
+                    {item.thumbnailUrl ? (
+                      <img src={item.thumbnailUrl} alt="" className="size-14 shrink-0 rounded-xl object-cover" />
+                    ) : null}
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{item.title}</p>
+                      <p className="mt-0.5 truncate text-xs text-muted">{canvaProvenanceLabel(item.collection)}</p>
+                    </div>
+                  </div>
                   {item.snippet ? <p className="mt-2 line-clamp-3 text-xs leading-5 text-muted">{item.snippet}</p> : null}
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button size="sm" variant="secondary" onClick={() => addReference(item)}>加入風格參考</Button>
+                    <Button size="sm" variant="secondary" disabled={analyzingId === item.id} onClick={() => void analyze(item)}>
+                      {analyzingId === item.id ? "分析中…" : "分析風格"}
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => window.open(canvaDesignOpenUrl(item), "_blank", "noopener,noreferrer")}>
                       在 Canva 開啟
                     </Button>
@@ -264,10 +316,10 @@ export function CanvaCard() {
         </div>
       )}
 
-      {savedItems.length ? (
+      {(savedItems.length || connected) && !unavailable ? (
         <div className="border-t border-border p-5 md:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs leading-5 text-muted">只保存設計名稱、縮圖來源與連結，不保存 OAuth Token。</p>
+            <p className="text-xs leading-5 text-muted">只保存設計名稱、縮圖來源與連結，不保存 OAuth Token。Design Autofill 需要 Canva Enterprise，目前未開通。</p>
             <Button
               variant="outline"
               onClick={async () => {

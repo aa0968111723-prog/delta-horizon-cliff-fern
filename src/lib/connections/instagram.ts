@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { unwrapServerInput } from "./json.ts";
-import type { ConnectorResult, ExternalMemoryItem, OfficialProviderStatus } from "./types.ts";
+import type { ConnectorResult, ExternalMemoryItem, InstagramInsightsSnapshot, OfficialProviderStatus } from "./types.ts";
 import { genericError, unavailableError } from "./safe-result.ts";
 
 const SearchSchema = z.object({
@@ -54,7 +54,7 @@ export const disconnectInstagram = createServerFn({ method: "POST" }).handler(as
   return { ok: true, data: { cleared: true } };
 });
 
-export const getInstagramInsightsStatus = createServerFn({ method: "POST" }).handler(async () => {
+export const getInstagramInsightsStatus = createServerFn({ method: "POST" }).handler(async (): Promise<ConnectorResult<InstagramInsightsSnapshot>> => {
   const { readInstagramInsights } = await import("./instagram-oauth.server.ts");
   return readInstagramInsights();
 });

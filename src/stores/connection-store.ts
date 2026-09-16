@@ -30,6 +30,7 @@ type ConnectionState = {
   disconnectDriveMemory: () => void;
   syncCanvaItems: (items: ExternalMemoryItem[]) => void;
   rememberCanvaItems: (items: ExternalMemoryItem[]) => void;
+  updateCanvaSnippet: (id: string, snippet: string) => void;
   disconnectCanvaMemory: () => void;
   syncInstagramItems: (items: ExternalMemoryItem[]) => void;
   disconnectInstagramMemory: () => void;
@@ -99,6 +100,12 @@ export const useConnectionStore = create<ConnectionState>()(
           for (const item of incoming) merged.set(item.id, { ...merged.get(item.id), ...item });
           return { canvaItems: [...merged.values()], canvaLastSyncAt: Date.now() };
         }),
+      updateCanvaSnippet: (id, snippet) =>
+        set((state) => ({
+          canvaItems: state.canvaItems.map((item) =>
+            item.id === id ? { ...item, snippet, syncedAt: Date.now() } : item,
+          ),
+        })),
       disconnectCanvaMemory: () => set({ canvaItems: [], canvaLastSyncAt: null }),
       syncInstagramItems: (incoming) =>
         set({ instagramItems: incoming, instagramLastSyncAt: Date.now() }),

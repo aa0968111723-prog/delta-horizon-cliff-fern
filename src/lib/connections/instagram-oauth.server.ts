@@ -143,17 +143,39 @@ async function persistInstagramToken(token: OAuthTokenSet) {
   cookies.writeTokenSet(IG_TOKEN_COOKIE, token, secret, IG_TOKEN_SALT);
 }
 
+async function refreshInstagramToken(token: OAuthTokenSet) {
+  const response = await fetch(`https://graph.instagram.com/refresh_access_token?${new URLSearchParams({
+    grant_type: "ig_refresh_token",
+    access_token: token.accessToken,
+  })}`);
+  const json = await response.json() as { access_token?: string; expires_in?: number };
+  if (!response.ok || !json.access_token) return token;
+  const next: OAuthTokenSet = {
+    accessToken: json.access_token,
+    refreshToken: token.refreshToken,
+    expiresAt: Date.now() + Math.max(60, (json.expires_in ?? 60 * 60 * 24 * 50) - 60) * 1000,
+    scope: token.scope || IG_SCOPES,
+  };
+  await persistInstagramToken(next);
+  return next;
+}
+
 async function exchangeInstagramCode(code: string) {
   const { oauth } = await readInstagramEnv();
   const redirectUri = await instagramRedirectUri();
   if (!oauth || !redirectUri) throw new Error("Instagram OAuth 尚未設定");
-  const shortLived = await instagramTokenRequest(new URLSearchParams({
+  const { secret } = await readInstagramEnv();
+  const cookies = await import("./oauth-cookies.server.ts");
+  const pkce = cookies.readPkce(IG_PKCE_COOKIE, secret, IG_PKCE_SALT);
+  const body = new URLSearchParams({
     client_id: oauth.clientId,
     client_secret: oauth.clientSecret,
     grant_type: "authorization_code",
     redirect_uri: redirectUri,
     code,
-  }), "https://api.instagram.com/oauth/access_token");
+  });
+  if (pkce?.verifier) body.set("code_verifier", pkce.verifier);
+  const shortLived = await instagramTokenRequest(body, "https://api.instagram.com/oauth/access_token");
   const longLived = await fetch(`https://graph.instagram.com/access_token?${new URLSearchParams({
     grant_type: "ig_exchange_token",
     client_secret: oauth.clientSecret,
@@ -173,8 +195,11 @@ async function exchangeInstagramCode(code: string) {
 async function authorizedInstagramFetch(path: string) {
   const { secret } = await readInstagramEnv();
   const cookies = await import("./oauth-cookies.server.ts");
-  const token = cookies.readTokenSet(IG_TOKEN_COOKIE, secret, IG_TOKEN_SALT);
+  let token = cookies.readTokenSet(IG_TOKEN_COOKIE, secret, IG_TOKEN_SALT);
   if (!token) return null;
+  if (token.expiresAt && token.expiresAt < Date.now() + 10 * 24 * 60 * 60 * 1000) {
+    token = await refreshInstagramToken(token);
+  }
   return fetch(`https://graph.instagram.com/v21.0${path}`, {
     headers: { Authorization: `Bearer ${token.accessToken}`, Accept: "application/json" },
   });
@@ -240,6 +265,8 @@ export async function startInstagramOAuthUrl(): Promise<ConnectorResult<{ url: s
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", IG_SCOPES);
   url.searchParams.set("state", pkce.state);
+  url.searchParams.set("code_challenge", pkce.challenge);
+  url.searchParams.set("code_challenge_method", "S256");
   return { ok: true, data: { url: url.toString() } };
 }
 
@@ -249,9 +276,16 @@ export async function revokeInstagramSession() {
   cookies.clearAuthCookie(IG_PKCE_COOKIE);
 }
 
-export async function readInstagramInsights(): Promise<ConnectorResult<null>> {
+export async function readInstagramInsights(): Promise<ConnectorResult<import("./types.ts").InstagramInsightsSnapshot>> {
   const status = await currentInstagramStatus();
-  if (!status.capabilities.insights) {
+  if (!status.available) {
+    return unavailableError("Instagram 尚未在此環境提供", "沒有官方 OAuth 或 MCP catalog，不會顯示模擬成效。");
+  }
+  if (status.mode === "oauth" && !status.connected) {
+    return oauthNeededError("請先連接 Instagram", "授權完成後，若帳號真的有 Insights 權限才會讀取官方數據。");
+  }
+  const response = await authorizedInstagramFetch("/me/insights?metric=views,reach,profile_views,total_interactions&period=day");
+  if (!response) {
     return {
       ok: false,
       kind: "unavailable",
@@ -259,5 +293,29 @@ export async function readInstagramInsights(): Promise<ConnectorResult<null>> {
       detail: "需要 Instagram 的 insights 權限才會顯示成效。這裡不會用模擬數據填空。",
     };
   }
-  return genericError("Insights 已授權，但這個版本尚未接上媒體 insights 查詢。");
+  if (response.status === 401) return oauthNeededError("Instagram 授權已過期，請重新授權");
+  if (response.status === 403) {
+    return {
+      ok: false,
+      kind: "unavailable",
+      message: "這個帳號尚未開通官方 Insights",
+      detail: "目前授權不包含 instagram_business_manage_insights。這裡不會用模擬數據填空。",
+    };
+  }
+  if (!response.ok) {
+    return genericError("官方 Insights 暫時無法讀取", "不會顯示模擬成效。稍後再試，或確認帳號是專業帳號。");
+  }
+  const { normalizeInstagramInsights } = await import("./instagram-normalize.ts");
+  const rows = normalizeInstagramInsights(await response.json());
+  if (!rows.length) {
+    return genericError("官方 Insights 沒有回傳可用數據", "沒有數字時不會補假數據。");
+  }
+  return {
+    ok: true,
+    data: {
+      period: rows[0]?.period || "day",
+      rows,
+      fetchedAt: Date.now(),
+    },
+  };
 }

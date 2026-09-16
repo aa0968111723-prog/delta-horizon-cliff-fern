@@ -153,8 +153,28 @@ export function InstagramCard() {
           action={<Button onClick={() => void connect()}>連接 Instagram</Button>}
         />
       ) : status === "connected" ? (
-        <div className="p-5 text-sm leading-6 text-muted md:p-6">
-          已同步 {savedItems.length} 則貼文到 IG 內容記憶。到 IG 中心看格狀預覽、文案與 Reels 工作流。
+        <div className="p-5 md:p-6">
+          <p className="text-sm leading-6 text-muted">
+            已同步 {savedItems.length} 則貼文到 IG 內容記憶。到 IG 中心看格狀預覽、文案與 Reels 工作流。
+          </p>
+          {savedItems.length ? (
+            <ul className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3">
+              {savedItems.slice(0, 6).map((item) => (
+                <li key={item.id} className="overflow-hidden rounded-2xl bg-bg">
+                  <div className="flex aspect-square items-center justify-center">
+                    {item.thumbnailUrl ? (
+                      <img src={item.thumbnailUrl} alt={item.title} className="size-full object-cover" />
+                    ) : (
+                      <span className="px-3 text-center text-xs text-muted">{item.mimeType}</span>
+                    )}
+                  </div>
+                  <p className="line-clamp-2 px-2 py-2 text-xs">{item.title}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-muted">已連接，但目前沒有可顯示的真實貼文。</p>
+          )}
         </div>
       ) : status === "error" ? (
         <ConnectionMessage title="Instagram 暫時無法使用" detail="既有內容記憶仍保留。" />
@@ -162,7 +182,7 @@ export function InstagramCard() {
         <ConnectionMessage title="正在檢查 Instagram" detail="只會讀取官方 API 回傳的真實內容。" />
       )}
 
-      {savedItems.length ? (
+      {(savedItems.length || status === "connected") && !unavailable ? (
         <div className="border-t border-border p-5 md:px-6">
           <Button
             variant="outline"

@@ -121,41 +121,43 @@ export const generateCreativeImage = createServerFn({ method: "POST" })
     }
   });
 
-export const analyzeCreativeImage = createServerFn({ method: "POST" })
-  .validator((input: unknown) => VisionRequestSchema.parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input))
-  .handler(async ({ data }) => {
-    if (!process.env.XAI_API_KEY) return { ok: false as const, error: "這個環境尚未開放 AI 圖片分析" };
-    try {
-      const response = await fetch("https://api.x.ai/v1/responses", {
-        method: "POST",
-        headers: apiHeaders(),
-        body: JSON.stringify({
-          model: "grok-4.5",
-          store: false,
-          max_output_tokens: 1800,
-          input: [{
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: `你是淡江大學禪學社的 Visual Director。分析這張素材能否用於面向淡江學生的 IG。只輸出 JSON，欄位：
+export async function runVisionAnalysis(dataUrl: string) {
+  if (!process.env.XAI_API_KEY) return { ok: false as const, error: "這個環境尚未開放 AI 圖片分析" };
+  try {
+    const response = await fetch("https://api.x.ai/v1/responses", {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({
+        model: "grok-4.5",
+        store: false,
+        max_output_tokens: 1800,
+        input: [{
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: `你是淡江大學禪學社的 Visual Director。分析這張素材能否用於面向淡江學生的 IG。只輸出 JSON，欄位：
 summary, subjects[], colors[], lighting, composition, textHierarchy, brandFit, studentFit, stopPower, risks[], recommendations[], suggestedTags[]。
 具體檢查人物、色彩、光線、構圖、文字比例與層級、品牌感、學生生活感、手機停留感，以及是否太宗教、太老氣、太像 AI。看不到文字就明說，不要臆測。recommendations 要包含可執行的 Post／Story／Carousel／Reels Cover 延伸建議。`,
-              },
-              { type: "input_image", image_url: data.dataUrl },
-            ],
-          }],
-        }),
-      });
-      if (!response.ok) throw new Error(`圖片分析暫時無法使用（${response.status}）`);
-      const body = await response.json();
-      const parsed = AnalysisSchema.parse(extractJson(extractResponseText(body)));
-      const analysis: AssetAnalysis = { ...parsed, analyzedAt: Date.now() };
-      return { ok: true as const, analysis };
-    } catch (error) {
-      return { ok: false as const, error: error instanceof Error ? error.message : "圖片分析失敗" };
-    }
-  });
+            },
+            { type: "input_image", image_url: dataUrl },
+          ],
+        }],
+      }),
+    });
+    if (!response.ok) throw new Error(`圖片分析暫時無法使用（${response.status}）`);
+    const body = await response.json();
+    const parsed = AnalysisSchema.parse(extractJson(extractResponseText(body)));
+    const analysis: AssetAnalysis = { ...parsed, analyzedAt: Date.now() };
+    return { ok: true as const, analysis };
+  } catch (error) {
+    return { ok: false as const, error: error instanceof Error ? error.message : "圖片分析失敗" };
+  }
+}
+
+export const analyzeCreativeImage = createServerFn({ method: "POST" })
+  .validator((input: unknown) => VisionRequestSchema.parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input))
+  .handler(async ({ data }) => runVisionAnalysis(data.dataUrl));
 
 export const editCreativeImage = createServerFn({ method: "POST" })
   .validator((input: unknown) => EditRequestSchema.parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input))

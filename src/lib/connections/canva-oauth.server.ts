@@ -269,3 +269,52 @@ export async function revokeCanvaSession() {
   cookies.clearAuthCookie(CANVA_TOKEN_COOKIE);
   cookies.clearAuthCookie(CANVA_PKCE_COOKIE);
 }
+
+async function thumbnailToDataUrl(url: string): Promise<ConnectorResult<{ dataUrl: string }>> {
+  if (!/^https:\/\//i.test(url)) {
+    return genericError("這個設計沒有可用縮圖，無法分析。");
+  }
+  const response = await fetch(url, { redirect: "follow" });
+  if (!response.ok) return genericError("無法讀取 Canva 縮圖");
+  const mime = response.headers.get("content-type")?.split(";")[0] || "image/jpeg";
+  if (!mime.startsWith("image/")) return genericError("Canva 縮圖不是圖片，無法分析。");
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.byteLength > 1_500_000) return genericError("Canva 縮圖太大，無法分析。");
+  return { ok: true, data: { dataUrl: `data:${mime};base64,${bytes.toString("base64")}` } };
+}
+
+export async function readCanvaDesignThumbnail(designId: string): Promise<ConnectorResult<{
+  dataUrl: string;
+  title: string;
+  collection: string;
+}>> {
+  const status = await currentCanvaStatus();
+  if (!status.available) {
+    return unavailableError("Canva 尚未在此環境提供", "沒有 MCP catalog，也沒有注入的 Canva OAuth 憑證。");
+  }
+  if (status.mode === "mcp") {
+    const listed = await listCanvaViaMcp();
+    if (!listed.ok) return listed;
+    const item = listed.data.find((row) => row.id === designId);
+    if (!item?.thumbnailUrl) return genericError("這個設計沒有可用縮圖，無法分析。可改為在 Canva 開啟。");
+    const thumb = await thumbnailToDataUrl(item.thumbnailUrl);
+    if (!thumb.ok) return thumb;
+    return {
+      ok: true,
+      data: { dataUrl: thumb.data.dataUrl, title: item.title, collection: item.collection || "浮游禪光" },
+    };
+  }
+  const response = await authorizedCanvaFetch(`/designs/${encodeURIComponent(designId)}`);
+  if (!response) return oauthNeededError("請先連接 Canva");
+  if (response.status === 401) return oauthNeededError("Canva 授權已過期，請重新授權");
+  if (response.status === 403) return { ok: false, kind: "scope_denied", message: "目前授權不包含讀取設計 metadata" };
+  if (!response.ok) return genericError("Canva 暫時無法讀取這個設計");
+  const [design] = normalizeCanvaDesigns(await response.json());
+  if (!design?.thumbnailUrl) return genericError("這個設計沒有可用縮圖，無法分析。可改為在 Canva 開啟。這不是 Design Autofill，也不會匯出原稿。");
+  const thumb = await thumbnailToDataUrl(design.thumbnailUrl);
+  if (!thumb.ok) return thumb;
+  return {
+    ok: true,
+    data: { dataUrl: thumb.data.dataUrl, title: design.title, collection: design.collection || "浮游禪光" },
+  };
+}

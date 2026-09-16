@@ -43,7 +43,7 @@ export function normalizeCanvaDesigns(value: unknown): ExternalMemoryItem[] {
     const row = asObject(value);
     if (!row) return [];
     if (asText(row.access_token) || asText(row.refresh_token) || asText(row.client_secret)) {
-      // Drop credential-shaped objects rather than indexing them as designs.
+      return [];
     }
     const id = asText(row.id) || asText(row.design_id) || asText(row.designId);
     const title = asText(row.title) || asText(row.name);

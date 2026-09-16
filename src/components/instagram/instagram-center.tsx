@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { IgPreview } from "@/components/instagram/ig-preview";
@@ -7,9 +7,10 @@ import { ReelsStudio } from "@/components/instagram/reels-studio";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getInstagramInsightsStatus, getInstagramStatus, listInstagramMedia } from "@/lib/connections/instagram";
-import type { ConnectorUiState } from "@/lib/connections/types";
+import type { ConnectorUiState, InstagramInsightsSnapshot } from "@/lib/connections/types";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useStudio } from "@/stores/studio-store";
 
@@ -20,7 +21,9 @@ export function InstagramCenter() {
   const lastProjectId = useStudio((state) => state.lastProjectId);
   const [status, setStatus] = useState<ConnectorUiState>("idle");
   const [insightsNote, setInsightsNote] = useState("官方 Insights 尚未授權。這裡不會顯示模擬數據。");
+  const [insights, setInsights] = useState<InstagramInsightsSnapshot | null>(null);
   const [tab, setTab] = useState("memory");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     void (async () => {
@@ -40,8 +43,14 @@ export function InstagramCenter() {
       }
       syncItems(result.data);
       setStatus("connected");
-      const insights = await getInstagramInsightsStatus();
-      if (!insights.ok) setInsightsNote(insights.detail || insights.message);
+      const nextInsights = await getInstagramInsightsStatus();
+      if (!nextInsights.ok) {
+        setInsights(null);
+        setInsightsNote(nextInsights.detail || nextInsights.message);
+        return;
+      }
+      setInsights(nextInsights.data);
+      setInsightsNote("");
     })();
   }, [syncItems]);
 
@@ -52,8 +61,20 @@ export function InstagramCenter() {
       params.delete("ig");
       window.history.replaceState({}, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
     }
+    if (params.get("ig") === "error") {
+      toast.error("Instagram 授權未完成");
+      params.delete("ig");
+      params.delete("reason");
+      window.history.replaceState({}, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
+    }
     if (params.get("tab")) setTab(params.get("tab") || "memory");
   }, []);
+
+  const visible = useMemo(() => {
+    const needle = query.trim();
+    if (!needle) return items;
+    return items.filter((item) => `${item.title} ${item.snippet}`.includes(needle));
+  }, [items, query]);
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
@@ -85,28 +106,40 @@ export function InstagramCenter() {
               action={<Button asChild><Link to="/connections">去連接</Link></Button>}
             />
           ) : items.length ? (
-            <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
-              {items.map((item) => (
-                <li key={item.id} className="overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-border)]">
-                  <div className="flex aspect-square items-center justify-center bg-bg">
-                    {item.thumbnailUrl ? (
-                      <img src={item.thumbnailUrl} alt={item.title} className="size-full object-cover" />
-                    ) : (
-                      <span className="px-3 text-center text-xs text-muted">{item.mimeType}</span>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <p className="line-clamp-2 text-sm font-medium">{item.title}</p>
-                    <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted">{item.snippet || "沒有 Caption"}</p>
-                    {item.webUrl ? (
-                      <a href={item.webUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-accent">
-                        在 Instagram 開啟
-                      </a>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <>
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="mb-4 h-11"
+                placeholder="搜尋已同步的 Caption、hashtag"
+              />
+              {visible.length ? (
+                <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                  {visible.map((item) => (
+                    <li key={item.id} className="overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-border)]">
+                      <div className="flex aspect-square items-center justify-center bg-bg">
+                        {item.thumbnailUrl ? (
+                          <img src={item.thumbnailUrl} alt={item.title} className="size-full object-cover" />
+                        ) : (
+                          <span className="px-3 text-center text-xs text-muted">{item.mimeType}</span>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p className="line-clamp-2 text-sm font-medium">{item.title}</p>
+                        <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted">{item.snippet || "沒有 Caption"}</p>
+                        {item.webUrl ? (
+                          <a href={item.webUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-accent">
+                            在 Instagram 開啟
+                          </a>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyNote title="沒有符合的貼文" detail="只會搜尋已同步的真實內容，不會補假貼文。" />
+              )}
+            </>
           ) : (
             <EmptyNote title="還沒有 IG 內容記憶" detail={status === "checking" || status === "idle" ? "正在檢查授權…" : "已連接，但目前沒有可顯示的貼文。"} />
           )}
@@ -121,11 +154,27 @@ export function InstagramCenter() {
         </TabsContent>
 
         <TabsContent value="insights" className="mt-5">
-          <div className="rounded-3xl bg-surface p-6 shadow-[var(--shadow-border)] md:p-10">
-            <Badge variant="default">未來狀態</Badge>
-            <h2 className="mt-3 font-display text-2xl">不會顯示模擬成效</h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-muted">{insightsNote}</p>
-          </div>
+          {insights?.rows.length ? (
+            <div className="rounded-3xl bg-surface p-6 shadow-[var(--shadow-border)] md:p-10">
+              <Badge variant="success">官方 Insights</Badge>
+              <h2 className="mt-3 font-display text-2xl">只顯示 Instagram 回傳的數字</h2>
+              <p className="mt-2 text-sm text-muted">期間：{insights.period}。沒有的指標不會補 0。</p>
+              <ul className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+                {insights.rows.map((row) => (
+                  <li key={row.metric} className="rounded-2xl bg-bg p-4">
+                    <p className="text-xs text-muted">{row.label}</p>
+                    <p className="mt-2 text-2xl font-semibold tabular-nums">{row.value.toLocaleString("zh-TW")}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="rounded-3xl bg-surface p-6 shadow-[var(--shadow-border)] md:p-10">
+              <Badge variant="default">未來狀態</Badge>
+              <h2 className="mt-3 font-display text-2xl">不會顯示模擬成效</h2>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-muted">{insightsNote}</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </main>
