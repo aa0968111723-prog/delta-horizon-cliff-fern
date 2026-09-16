@@ -33,7 +33,8 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
   useEffect(() => {
     if (!focusDay) return;
     const el = document.getElementById(`cal-day-${focusDay}`);
-    el?.scrollIntoView({ block: "center", behavior: "smooth" });
+    const mobile = window.matchMedia("(max-width: 767px)").matches;
+    el?.scrollIntoView({ block: mobile ? "start" : "center", behavior: "smooth" });
   }, [focusDay, items.length, view]);
 
   const weeks = useMemo(() => {
@@ -357,7 +358,10 @@ function AgendaRow({
   return (
     <li
       id={focused ? `cal-day-${item.date}` : undefined}
-      className={cn("rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]", focused && "ring-2 ring-primary")}
+      className={cn(
+        "scroll-mt-4 scroll-mb-28 rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]",
+        focused && "ring-2 ring-primary",
+      )}
     >
       <p className="text-xs text-muted">{item.date}</p>
       <p className="text-sm">{item.title}</p>
