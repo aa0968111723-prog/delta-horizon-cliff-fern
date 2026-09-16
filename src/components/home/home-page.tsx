@@ -182,7 +182,7 @@ export function HomePage() {
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="搜尋浮游禪光、茶會、龜龜、Drive／Canva／IG…"
+          placeholder="搜尋茶會、龜龜、浮游禪光…"
           className="h-12 rounded-2xl pl-10"
         />
       </div>
