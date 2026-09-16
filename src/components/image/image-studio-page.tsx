@@ -456,12 +456,14 @@ export function ImageStudioPage() {
         <Button
           variant="secondary"
           data-testid="image-into-create"
-          onClick={() =>
+          onClick={() => {
+            const hit = pinned[0];
+            const search = hit ? createSearchFromHit(hit) : { mode: "idea", idea };
             void navigate({
               to: "/create",
-              search: pinned[0] ? createSearchFromHit(pinned[0]) : { mode: "idea", idea },
-            })
-          }
+              search: { ...search, idea },
+            });
+          }}
         >
           做成完整宣傳
         </Button>
@@ -539,7 +541,7 @@ export function ImageStudioPage() {
             <p className="mt-2 text-xs text-muted">配色 {dir.palette}</p>
             <p className="text-xs text-muted">構圖 {dir.composition}</p>
             <p className="text-xs text-muted">字體 {dir.typeDirection}</p>
-            <p className="mt-2 text-sm">
+            <p className="mt-2 text-sm" data-testid="direction-headline">
               {dir.headline} · {dir.subhead}
             </p>
             <details className="mt-2">

@@ -34,8 +34,9 @@ const heroSource = (await page.locator('[data-testid="hero-visual-source"]').inn
 if (!/Google Drive|Canva|Instagram/.test(heroSource)) {
   issues.push(`主視覺還是空白海報: ${heroSource}`);
 }
-if (/禪風海報|誠摯邀請|寺廟/.test((await page.locator("main").innerText()) ?? "")) {
-  issues.push("Image Studio 出現宗教／禪風海報語氣");
+const headlines = (await page.locator('[data-testid="direction-headline"]').allInnerTexts()).join("\n");
+if (/誠摯邀請|寺廟|佛像/.test(headlines)) {
+  issues.push(`方向 Hook 出現宗教語氣: ${headlines}`);
 }
 await page.locator('[data-testid="direction-look-a"]').screenshot({ path: "/workspace/screenshots/image-tea-look-a.png" });
 await page.screenshot({ path: "/workspace/screenshots/image-tea.png", fullPage: true });
@@ -44,6 +45,8 @@ await page.locator('[data-testid="image-into-create"]').click();
 await page.waitForSelector('[data-testid="found-sources"]', { timeout: 25_000 });
 const createFound = (await page.locator('[data-testid="found-sources"]').innerText()) ?? "";
 if (!/茶會/.test(createFound)) issues.push(`做成完整宣傳沒帶到茶會素材: ${createFound.slice(0, 180)}`);
+const eventName = (await page.locator('[data-testid="event-name"]').inputValue()) ?? "";
+if (eventName !== "茶會") issues.push(`做成完整宣傳活動名不是茶會: ${eventName}`);
 await page.screenshot({ path: "/workspace/screenshots/image-into-create.png", fullPage: true });
 
 await page.setViewportSize({ width: 390, height: 844 });
