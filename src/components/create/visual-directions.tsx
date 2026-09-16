@@ -194,6 +194,7 @@ export function VisualDirectionCard({
             <Button
               size="sm"
               variant="secondary"
+              data-testid="visual-use-hero"
               onClick={() => {
                 const id = lastAssetId;
                 if (id) onImageSaved(id, ratio);

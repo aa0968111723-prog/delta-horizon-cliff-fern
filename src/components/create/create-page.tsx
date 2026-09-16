@@ -40,6 +40,7 @@ import { CONTENT_KIND_META, CONTENT_KIND_ORDER, contentKindLabel, deliverablesFo
 import {
   defaultImageRatio,
   formatIdForRatio,
+  contentKindForRatio,
   pickArrivalWave,
   claimArrivalAutofill,
   shouldAutofillCopy,
@@ -92,7 +93,6 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const addAsset = useStudio((s) => s.addAsset);
   const addSources = useStudio((s) => s.addSources);
   const applyVisualToPack = useStudio((s) => s.applyVisualToPack);
-  const setActiveFormat = useStudio((s) => s.setActiveFormat);
   const layoutFromKind = useStudio((s) => s.layoutFromKind);
   const hydrated = useStudio((s) => s.hydrated);
   const igDnaText = useIgDnaText();
@@ -501,7 +501,9 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       toast.error("找不到品牌設定。");
       return;
     }
-    const formatId = formatIdForRatio(ratio, kind);
+    const nextKind = contentKindForRatio(ratio, kind);
+    const formatId = formatIdForRatio(ratio, nextKind);
+    const ratioLabel = visualRatioLabel(ratio);
     let projectId = linkedProject?.id ?? null;
     if (!projectId) {
       const draft = (usedDraftId ? drafts.find((item) => item.id === usedDraftId) : null) ?? drafts[0];
@@ -513,7 +515,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
         name: (direction.headline.split("\n")[0] || direction.title).slice(0, 18) || "視覺草稿",
         brandId: brand.id,
         formatId,
-        contentKind: kind,
+        contentKind: nextKind,
         campaignId: campaign?.id ?? null,
         status: "making",
         brief: {
@@ -527,7 +529,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           features: idea.trim() || direction.concept,
           style: direction.imagePrompt,
           notes: painPoint.trim(),
-          deliverables: deliverablesForKind(kind),
+          deliverables: deliverablesForKind(nextKind),
         },
         sources: [
           visualAsset
@@ -539,29 +541,47 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       if (direction.headline) {
         setCopy(projectId, { headline: direction.headline, subhead: direction.subhead });
       }
-    } else {
-      setActiveFormat(projectId, formatId);
     }
+    applyVisualToPack(projectId, assetId);
+    layoutFromKind(projectId, nextKind);
     const applied = applyVisualToPack(projectId, assetId);
     if (!applied) {
       toast.error("套不到畫面，再試一次。");
       return;
     }
+    if (visualAsset) {
+      addSources(projectId, [
+        sourceFromAsset(visualAsset, direction.title),
+        ...(visualAsset.source === "generated"
+          ? []
+          : [{ kind: "local" as const, label: localVisualRatioLine(ratioLabel), detail: "本機改版，不是 AI 生成的畫面" }]),
+      ]);
+    }
+    setKind(nextKind);
     if (!linkedProject) {
       void navigate({
         to: "/create",
         search: {
           contentId: projectId,
-          kind,
+          kind: nextKind,
           campaignId: campaign?.id,
           seed: search.seed,
+        },
+      });
+    } else if (linkedProject.contentKind !== nextKind) {
+      void navigate({
+        to: "/create",
+        search: {
+          ...search,
+          contentId: projectId,
+          kind: nextKind,
         },
       });
     }
     toast.success(
       applied > 1
-        ? `主視覺已套成 ${ratio}，全套畫面也換了。`
-        : `已套成 ${ratio} 主視覺，可以下載圖或進畫面編輯。`,
+        ? `主視覺已套成 ${ratioLabel}，全套畫面也換了。`
+        : `已套成 ${ratioLabel} 主視覺，可以下載圖或進畫面編輯。`,
     );
   }
 

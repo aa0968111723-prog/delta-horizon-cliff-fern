@@ -4,6 +4,7 @@ import {
   claimArrivalAutofill,
   defaultImageRatio,
   formatIdForRatio,
+  contentKindForRatio,
   pickArrivalWave,
   shouldAutofillCopy,
   shouldAutofillReels,
@@ -116,6 +117,17 @@ test("formatIdForRatio maps 1:1 / 9:16 / LINE onto the matching canvas", () => {
   assert.equal(formatIdForRatio("9:16", "ig-post"), "story");
   assert.equal(formatIdForRatio("9:16", "reels"), "reels-cover");
   assert.equal(formatIdForRatio("1.91:1", "line"), "feed-landscape");
+});
+
+test("contentKindForRatio turns a 9:16 visual into a story, not a feed post", () => {
+  assert.equal(contentKindForRatio("9:16", "ig-post"), "story");
+  assert.equal(contentKindForRatio("9:16", "carousel"), "story");
+  assert.equal(contentKindForRatio("9:16", "reels"), "reels");
+  assert.equal(contentKindForRatio("1.91:1", "ig-post"), "line");
+  assert.equal(contentKindForRatio("1:1", "story"), "ig-post");
+  assert.equal(contentKindForRatio("4:5", "story"), "ig-post");
+  assert.equal(contentKindForRatio("4:5", "carousel"), "carousel");
+  assert.equal(contentKindForRatio("4:5", "ig-post"), "ig-post");
 });
 
 test("visualIntent falls back to the club, not an empty prompt", () => {

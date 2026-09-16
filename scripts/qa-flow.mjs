@@ -150,6 +150,25 @@ try {
   record("生圖預覽比例", previewRatio === "9:16", `預覽是 ${previewRatio ?? "沒有"}`);
   await page.getByTestId("visual-local-ratio").first().scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${prefix}-visual.png` });
+  await page.getByTestId("visual-use-hero").first().evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await expectText("視覺套成主視覺", "主視覺");
+  await expectText("視覺套成限動來源", "這則用到的來源");
+  const afterHeroUrl = page.url();
+  if ((await text()).includes("進畫面編輯")) {
+    await tap(page.getByRole("button", { name: "進畫面編輯" }).first());
+    await page.waitForURL(/\/studio\//, { timeout: 20000 });
+    await page.waitForSelector('[data-testid="artboard"]', { timeout: 15000 });
+    const visualStoryRatio = await page.getByTestId("artboard").first().getAttribute("data-ratio");
+    record("視覺主視覺畫布比例", visualStoryRatio === "9:16", `畫布是 ${visualStoryRatio ?? "沒有比例"}`);
+    await page.waitForSelector("[data-testid=slide-count]", { timeout: 8000 });
+    const visualSlides = ((await page.getByTestId("slide-count").first().textContent()) ?? "").trim();
+    record("視覺主視覺限動頁數", /\/[3-5]\b/.test(visualSlides), `頁數是 ${visualSlides || "沒有"}`);
+    await page.screenshot({ path: `${prefix}-visual-story.png` });
+    await page.goto(afterHeroUrl, { waitUntil: "networkidle" });
+    await page.waitForSelector("text=一句想法", { timeout: 15000 });
+  }
 
   // 6. 用這版 → 建立內容。從首頁節奏進來時已經有內容跟「進畫面編輯」。
   if (!(await text()).includes("進畫面編輯")) {

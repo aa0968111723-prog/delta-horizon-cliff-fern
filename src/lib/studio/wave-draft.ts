@@ -130,6 +130,18 @@ export function formatIdForRatio(ratio: ImageRatio, kind: ContentKind): FormatId
   return kind === "line" ? "feed-landscape" : "feed-portrait";
 }
 
+/** 視覺卡片選的比例決定內容型態：9:16 是限動，1.91:1 是 LINE。輪播維持 4:5。 */
+export function contentKindForRatio(ratio: ImageRatio, kind: ContentKind): ContentKind {
+  if (ratio === "9:16") return kind === "reels" ? "reels" : "story";
+  if (ratio === "1.91:1") return "line";
+  if (ratio === "1:1") return kind === "threads" || kind === "qa" ? kind : "ig-post";
+  if (kind === "carousel" || kind === "knowledge" || kind === "recap") return kind;
+  if (kind === "story" || kind === "countdown" || kind === "poll" || kind === "reels" || kind === "line") {
+    return "ig-post";
+  }
+  return kind;
+}
+
 function campaignDateMs(date: string): number {
   const parsed = Date.parse(`${date}T00:00:00`);
   return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
