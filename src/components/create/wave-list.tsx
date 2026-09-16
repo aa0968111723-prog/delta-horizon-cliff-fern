@@ -11,14 +11,18 @@ export function WaveList({
   schedule,
   location,
   idea,
+  looks,
   onApplyDraft,
+  onSwapVisual,
 }: {
   waves: CampaignWave[];
   name: string;
   schedule: string;
   location: string;
   idea: string;
+  looks?: Partial<Record<CampaignWaveKind, string>>;
   onApplyDraft?: (draft: WaveDraft) => void;
+  onSwapVisual?: (kind: CampaignWaveKind) => Promise<void>;
 }) {
   const [drafts, setDrafts] = useState<Partial<Record<CampaignWaveKind, WaveDraft>>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -34,7 +38,12 @@ export function WaveList({
         return;
       }
       setDrafts((prev) => ({ ...prev, [kind]: result.draft }));
-      toast.success(`${waveLabel(kind)}已重寫`);
+      if (twist === "visual" && onSwapVisual) {
+        await onSwapVisual(kind);
+        toast.success(`${waveLabel(kind)}已換視覺`);
+      } else {
+        toast.success(`${waveLabel(kind)}已重寫`);
+      }
     } catch {
       toast.error("這波暫時無法重寫，可再試一次。");
     } finally {
@@ -43,14 +52,20 @@ export function WaveList({
   }
 
   return (
-    <section className="mt-8">
+    <section className="mt-8" data-testid="wave-list">
       <h2 className="text-sm font-medium">宣傳節奏</h2>
       <p className="mt-1 text-xs text-muted">每一波可單獨重寫、換視覺、換角度。沒有審核人。</p>
       <ul className="mt-3 space-y-2">
         {waves.map((wave) => {
           const draft = drafts[wave.kind];
+          const look = looks?.[wave.kind];
           return (
             <li key={wave.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <div className="flex gap-3">
+                {look ? (
+                  <img src={look} alt="" data-testid="wave-visual" className="size-16 shrink-0 rounded-xl object-cover" />
+                ) : null}
+                <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">{wave.title}</p>
               <p className="mt-1 text-xs text-muted">{wave.notes}</p>
               {draft ? (
@@ -60,6 +75,8 @@ export function WaveList({
                   <p className="mt-1 text-xs text-subtle">{draft.visualNote}</p>
                 </div>
               ) : null}
+                </div>
+              </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {draft && onApplyDraft ? (
                   <Button size="sm" onClick={() => onApplyDraft(draft)}>
@@ -69,7 +86,13 @@ export function WaveList({
                 <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => void regen(wave.kind, "rewrite")}>
                   重新生成
                 </Button>
-                <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => void regen(wave.kind, "visual")}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy !== null}
+                  data-testid={wave.kind === "hero" ? "wave-swap-visual" : undefined}
+                  onClick={() => void regen(wave.kind, "visual")}
+                >
                   換視覺
                 </Button>
                 <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => void regen(wave.kind, "angle")}>

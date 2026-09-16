@@ -32,8 +32,8 @@ import { offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
 import { searchCreative, groupCreativeHits, type CreativeHit } from "@/lib/zen/search";
 import { pickSourceRefs, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
-import { suggestWaves, eventKindFromText, waveLabel, contentKindForWave } from "@/lib/zen/schedule";
-import type { CampaignPlan, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
+import { suggestWaves, eventKindFromText, waveLabel, contentKindForWave, waveVisualVariation } from "@/lib/zen/schedule";
+import type { CampaignPlan, CampaignWaveKind, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
 import { HeroVisual } from "@/components/create/hero-visual";
 import { ReelsBoard } from "@/components/create/reels-board";
 import { WaveList } from "@/components/create/wave-list";
@@ -116,6 +116,7 @@ export function CreateStudio() {
   const [pickedDirection, setPickedDirection] = useState<VisualDirection | null>(null);
   const [campaign, setCampaign] = useState<ClubCampaign | null>(null);
   const [vision, setVision] = useState<VisionAnalysis | null>(null);
+  const [waveLookIds, setWaveLookIds] = useState<Partial<Record<CampaignWaveKind, string>>>({});
   const research = useMemo(
     () =>
       researchInspiration({
@@ -220,7 +221,44 @@ export function CreateStudio() {
   }
 
   function togglePin(hit: CreativeHit) {
-    setPinned((rows) => (rows.some((row) => row.id === hit.id) ? rows.filter((row) => row.id !== hit.id) : [...rows, hit]));
+    const next = pinned.some((row) => row.id === hit.id) ? pinned.filter((row) => row.id !== hit.id) : [...pinned, hit];
+    setPinned(next);
+    void refreshDirections(next);
+  }
+
+  async function refreshDirections(refs: CreativeHit[]) {
+    if (!idea.trim()) return;
+    setBusy(true);
+    try {
+      const notes = (refs.length ? refs : found).map((hit) => `${sourceLine(hit)}/${hit.title}`).join("、");
+      const result = await generateVisualDirections({
+        data: {
+          idea: `${idea}。參考：${notes || "品牌記憶"}`.slice(0, 400),
+          eventName,
+          memoryHint: `${memoryHint}\n${research.promptBlock}`.slice(0, 800),
+          forceMock: !status?.available,
+        },
+      });
+      if (!result.ok) return;
+      setDirections(result.directions);
+      toast.success("已依參考素材換三個方向");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function swapWaveVisual(kind: CampaignWaveKind) {
+    const dir = pickedDirection || directions[0];
+    if (!dir) return;
+    const assetId = await saveGeneratedImage(dir, { kind: waveVisualVariation(kind), silent: true });
+    if (!assetId) return;
+    setWaveLookIds((current) => ({ ...current, [kind]: assetId }));
+    const label = waveLabel(kind);
+    for (const item of calendar) {
+      if (campaign && item.campaignId === campaign.id && item.title.startsWith(label)) {
+        upsertSchedule({ ...item, imageAssetId: assetId });
+      }
+    }
   }
 
   async function runCopy() {
@@ -675,6 +713,11 @@ export function CreateStudio() {
       const project = applyToCanvas(next, false, imageId);
       const created = saveCampaignAndWaves(next, imageId, project?.id ?? null, { silent: true });
       scheduleConverted(next, created, project?.id ?? null, imageId);
+      if (imageId) {
+        const looks: Partial<Record<CampaignWaveKind, string>> = {};
+        for (const wave of created.waves) looks[wave.kind] = imageId;
+        setWaveLookIds(looks);
+      }
       toast.success("已用這個方向做出整套：主視覺、文案、各平台、月曆");
       requestAnimationFrame(() => {
         document.querySelector('[data-testid="kit-ready"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1044,6 +1087,13 @@ export function CreateStudio() {
           schedule={schedule}
           location={location}
           idea={idea}
+          looks={Object.fromEntries(
+            (Object.entries(waveLookIds) as Array<[CampaignWaveKind, string]>).flatMap(([kind, assetId]) => {
+              const src = urls[assetId];
+              return src ? [[kind, src]] : [];
+            }),
+          )}
+          onSwapVisual={(kind) => swapWaveVisual(kind)}
           onApplyDraft={(draft) => {
             setPacks((rows) =>
               rows.map((pack) => ({
@@ -1076,7 +1126,7 @@ export function CreateStudio() {
                   const pinnedHit = pinned.some((row) => row.id === hit.id);
                   const thumb = hit.thumbnail || (hit.assetId ? urls[hit.assetId] : undefined);
                   return (
-                    <li key={hit.id} className="flex items-center gap-3 rounded-2xl bg-surface px-3 py-2 text-sm shadow-[var(--shadow-border)]">
+                    <li key={hit.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-surface px-3 py-2 text-sm shadow-[var(--shadow-border)]">
                       {thumb ? (
                         <img src={thumb} alt="" data-testid="found-thumb" className="size-12 shrink-0 rounded-xl object-cover" />
                       ) : (
@@ -1088,8 +1138,31 @@ export function CreateStudio() {
                           {sourceLine(hit)} · {hit.subtitle}
                         </p>
                       </div>
-                      <Button size="sm" variant={pinnedHit ? "default" : "secondary"} onClick={() => togglePin(hit)}>
+                      <Button
+                        size="sm"
+                        variant={pinnedHit ? "default" : "secondary"}
+                        data-testid={hit.source === "canva" ? "pin-canva" : undefined}
+                        onClick={() => togglePin(hit)}
+                      >
                         {pinnedHit ? "已參考" : "加入參考"}
+                      </Button>
+                      {hit.url ? (
+                        <Button size="sm" variant="ghost" asChild>
+                          <a href={hit.url} target="_blank" rel="noreferrer">
+                            開啟
+                          </a>
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        data-testid={hit.source === "canva" ? "extend-canva" : undefined}
+                        onClick={() => {
+                          if (!pinnedHit) togglePin(hit);
+                          else toast.success(`已用${sourceLine(hit)}延伸`);
+                        }}
+                      >
+                        延伸新設計
                       </Button>
                     </li>
                   );

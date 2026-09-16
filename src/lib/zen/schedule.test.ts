@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { soonestScheduled } from "./schedule.ts";
+import { soonestScheduled, waveVisualVariation } from "./schedule.ts";
 
 test("soonestScheduled surfaces the next tea-party IG post, not a later LINE draft", () => {
   const items = [
@@ -14,4 +14,10 @@ test("soonestScheduled surfaces the next tea-party IG post, not a later LINE dra
     next.map((item) => item.id),
     ["ig", "carousel"],
   );
+});
+
+test("waveVisualVariation gives each tea-party wave a different axis", () => {
+  assert.equal(waveVisualVariation("hero"), "composition");
+  assert.equal(waveVisualVariation("warmup"), "mood");
+  assert.notEqual(waveVisualVariation("hero"), waveVisualVariation("recap"));
 });

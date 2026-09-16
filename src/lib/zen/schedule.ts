@@ -82,6 +82,26 @@ export function suggestWaves(
     }));
 }
 
+/** Each campaign wave swaps a different visual axis so 換視覺 is not the same poster. */
+export function waveVisualVariation(
+  kind: CampaignWaveKind,
+): "composition" | "mood" | "background" | "style" | "text" {
+  switch (kind) {
+    case "hero":
+      return "composition";
+    case "warmup":
+    case "dayof":
+      return "mood";
+    case "emotion":
+    case "countdown":
+      return "text";
+    case "reason":
+      return "style";
+    default:
+      return "background";
+  }
+}
+
 export function contentKindForWave(kind: CampaignWaveKind): ContentKind {
   switch (kind) {
     case "warmup":

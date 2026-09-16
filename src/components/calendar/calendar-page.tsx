@@ -175,7 +175,7 @@ export function CalendarPage() {
                           </button>
                           <Link
                             to="/create"
-                            search={{ mode: "idea", idea: item.title }}
+                            search={{ mode: "idea", idea: item.caption || item.title }}
                             className="text-[10px] text-accent"
                           >
                             AI 延伸
@@ -226,7 +226,7 @@ export function CalendarPage() {
                     標記已發布
                   </Button>
                   <Button size="sm" variant="secondary" asChild>
-                    <Link to="/create" search={{ mode: "idea", idea: item.title }}>
+                    <Link to="/create" search={{ mode: "idea", idea: item.caption || item.title }}>
                       AI 延伸
                     </Link>
                   </Button>

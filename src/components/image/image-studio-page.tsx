@@ -91,7 +91,7 @@ export function ImageStudioPage() {
         data: {
           idea: nextIdea,
           format: toImageFormat(formatOverride ?? format),
-          memoryHint: dna.promptBlock,
+          memoryHint: `${dna.promptBlock}\n${learning.promptBlock}`.slice(0, 800),
         },
       });
       if (!result.ok) {
@@ -158,6 +158,7 @@ export function ImageStudioPage() {
             palette: dir.palette,
             name: dir.name,
             variation: kind,
+            memoryHint: `${dna.promptBlock}\n${learning.promptBlock}`.slice(0, 800),
           },
         });
         if (result.ok) payload = { imageBase64: result.imageBase64, mime: result.mime };
