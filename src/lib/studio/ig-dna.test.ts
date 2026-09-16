@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildIgInsights, engagementScore } from "./ig-dna.ts";
+import { buildIgInsights, engagementScore, formatIgDna } from "./ig-dna.ts";
 import type { RemoteItem } from "../connections/remote.ts";
 
 test("engagementScore weights save and share above likes", () => {
@@ -38,6 +38,32 @@ test("buildIgInsights ranks hooks from real metrics and never invents numbers", 
   assert.equal(insights.totalSaved, 8);
   assert.equal(insights.topPosts[0]?.title.includes("休息"), true);
   assert.ok(insights.hookWins.some((row) => row.kind === "提問"));
+});
+
+test("formatIgDna is empty without samples and never invents metrics", () => {
+  const empty = formatIgDna({
+    captionLength: { min: 0, max: 0, avg: 0 },
+    topHashtags: [],
+    topCtas: [],
+    kinds: [],
+    colors: [],
+    hookStarts: [],
+    sampleCount: 0,
+  });
+  assert.equal(empty, "");
+  const filled = formatIgDna({
+    captionLength: { min: 40, max: 90, avg: 60 },
+    topHashtags: [{ tag: "#淡江大學", count: 3 }],
+    topCtas: [{ cta: "來坐一下", count: 2 }],
+    kinds: [{ kind: "ig-post", count: 2 }],
+    colors: ["#3F9E93"],
+    hookStarts: ["最近是不是連休息都覺得有罪惡感？"],
+    sampleCount: 2,
+  });
+  assert.match(filled, /樣本 2/);
+  assert.match(filled, /#淡江大學/);
+  assert.match(filled, /來坐一下/);
+  assert.doesNotMatch(filled, /假數據|mock/i);
 });
 
 test("empty remote posts stay empty instead of fabricating reach", () => {

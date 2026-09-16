@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Eye, Loader2, Repeat2, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Eye, Loader2, PenLine, Repeat2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ImageRevisionBar } from "@/components/create/image-revision";
@@ -43,12 +43,19 @@ export function ImageUnderstanding({
   onUseCaption,
   onUseStylePrompt,
   onMakeKind,
+  onGenerateCopy,
 }: {
   audienceIds: string[];
   initialAssetId?: string;
   onUseCaption?: (caption: string) => void;
   onUseStylePrompt?: (prompt: string) => void;
   onMakeKind?: (payload: ImageMakePayload) => void | Promise<void>;
+  onGenerateCopy?: (payload: {
+    preview: string;
+    summary: string;
+    caption: string;
+    assetId: string | null;
+  }) => void | Promise<void>;
 }) {
   const assets = useStudio((s) => s.assets);
   const brand = useStudio((s) => s.brands[0]);
@@ -266,27 +273,47 @@ export function ImageUnderstanding({
         </div>
       ) : null}
 
-      {preview && onMakeKind ? (
+      {preview && (onMakeKind || onGenerateCopy) ? (
         <div className="mt-4 space-y-4">
           <div>
             <p className="text-xs text-muted">用這張圖直接開始</p>
             <div className="mt-1.5 flex flex-wrap gap-2">
-              {MAKE_KINDS.map((item) => (
+              {onGenerateCopy ? (
                 <Button
-                  key={item.id}
                   size="sm"
-                  aria-label={item.label}
+                  aria-label="用這張寫文案"
                   disabled={making !== null}
-                  onClick={() => void make(item.id)}
+                  onClick={() =>
+                    void onGenerateCopy({
+                      preview,
+                      summary: analysis?.summary ?? "",
+                      caption: analysis?.captionIdea ?? "",
+                      assetId: pickedAssetId,
+                    })
+                  }
                 >
-                  {making === item.id ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Repeat2 className="size-4" />
-                  )}
-                  {item.label}
+                  <PenLine className="size-4" />
+                  用這張寫文案
                 </Button>
-              ))}
+              ) : null}
+              {onMakeKind
+                ? MAKE_KINDS.map((item) => (
+                    <Button
+                      key={item.id}
+                      size="sm"
+                      aria-label={item.label}
+                      disabled={making !== null}
+                      onClick={() => void make(item.id)}
+                    >
+                      {making === item.id ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Repeat2 className="size-4" />
+                      )}
+                      {item.label}
+                    </Button>
+                  ))
+                : null}
             </div>
           </div>
           <ImageRevisionBar

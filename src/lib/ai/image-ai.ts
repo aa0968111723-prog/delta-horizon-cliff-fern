@@ -27,6 +27,7 @@ const DirectionBriefSchema = z.object({
   audienceIds: z.array(z.string().max(40)).max(8).catch([]),
   imageStyle: z.string().max(600).optional(),
   brandMemoryText: z.string().max(2500).optional(),
+  igDnaText: z.string().max(1500).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -117,6 +118,7 @@ export const generateVisualDirections = createServerFn({ method: "POST" })
         audienceIds: data.audienceIds,
         imageStyle: data.imageStyle,
         brandMemoryText: data.brandMemoryText,
+        igDnaText: data.igDnaText,
       }),
       "",
       "【使用者想做的事】",

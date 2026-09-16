@@ -140,6 +140,7 @@ try {
   await page.locator('input[type="file"][accept="image/*"]').setInputFiles("/tmp/qa-image.png");
   await page.waitForSelector('img[alt="待分析的圖片"]', { timeout: 10000 });
   await expectText("做成限動入口", "做成限動");
+  await expectText("用這張寫文案", "用這張寫文案");
   await expectText("改這張圖", "改這張圖");
   await expectText("改版預設", "更像淡江生活");
   await page
@@ -152,6 +153,10 @@ try {
   await page.getByRole("tab", { name: "文字" }).click();
   await expectText("做成限動來源", "這則用到的來源");
   await page.screenshot({ path: `${prefix}-from-image.png` });
+
+  await page.goto(`${base}/instagram`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "IG DNA" }).click();
+  await expectText("IG DNA 寫新的一篇", "用這個習慣寫新的一篇");
 
   await page.goto(`${base}/search`, { waitUntil: "networkidle" });
   await expectText("搜尋用這張創作", "用這張創作");

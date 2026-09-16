@@ -102,6 +102,23 @@ export function engagementScore(metrics?: RemoteItem["metrics"]): number {
   );
 }
 
+/** 給文案／視覺／活動生成讀的帳號習慣。沒有樣本就空字串，不編造數據。 */
+export function formatIgDna(dna: IgDna): string {
+  if (!dna.sampleCount) return "";
+  return [
+    `樣本 ${dna.sampleCount} 則自己的內容`,
+    dna.captionLength.avg
+      ? `文案長度大約 ${dna.captionLength.avg} 字（${dna.captionLength.min}–${dna.captionLength.max}）`
+      : "",
+    dna.topHashtags.length ? `常用標籤：${dna.topHashtags.map((row) => row.tag).join(" ")}` : "",
+    dna.topCtas.length ? `常用行動：${dna.topCtas.map((row) => row.cta).join("、")}` : "",
+    dna.hookStarts.length ? `用過的開頭：${dna.hookStarts.join("／")}` : "",
+    dna.kinds.length ? `常用型態：${dna.kinds.map((row) => row.kind).join("、")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export function buildIgInsights(remotePosts: RemoteItem[]): IgInsightSummary {
   const withMetrics = remotePosts
     .map((post) => ({

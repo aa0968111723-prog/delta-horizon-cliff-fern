@@ -24,6 +24,7 @@ export async function saveDataUrlAsAsset(input: {
   tags?: string[];
   source: "generated" | "upload";
   notes?: string;
+  licenseOwner?: string;
 }): Promise<AssetMeta> {
   const res = await fetch(input.dataUrl);
   const blob = await res.blob();
@@ -41,7 +42,7 @@ export async function saveDataUrlAsAsset(input: {
       category: "illustration",
       tags: ["AI 生成", ...(input.tags ?? [])],
       licenseNotes: input.notes ?? "在本機產生，僅供畫面使用。",
-      licenseOwner: "AI 生成",
+      licenseOwner: input.licenseOwner ?? "AI 生成",
     });
   }
   return migrateAsset({
@@ -56,7 +57,7 @@ export async function saveDataUrlAsAsset(input: {
     source: "upload",
     category: "photo",
     licenseNotes: input.notes ?? "本機上傳，供創作使用。",
-    licenseOwner: "本機上傳",
+    licenseOwner: input.licenseOwner ?? "本機上傳",
   });
 }
 

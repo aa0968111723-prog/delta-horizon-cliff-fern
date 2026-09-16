@@ -8,7 +8,7 @@ import {
   Trash2,
   Wand2,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CampaignForm } from "@/components/campaigns/campaign-form";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -27,6 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useIgDnaText } from "@/hooks/use-ig-dna";
 import { formatBrandMemory } from "@/lib/studio/brand";
 import { generateCampaignStrategy } from "@/lib/ai/campaign-ai";
 import {
@@ -38,10 +39,12 @@ import {
   waveDateLabel,
 } from "@/lib/studio/campaign";
 import { suggestSchedule } from "@/lib/studio/schedule";
+import { SOURCE_KIND_LABEL } from "@/lib/studio/sources";
 import { CONTENT_KIND_META, contentKindLabel } from "@/lib/studio/status";
-import type { Campaign, CampaignWave } from "@/lib/studio/types";
+import type { CampaignWave } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { eventKindLabel } from "@/lib/zen/club";
+import { useRemote } from "@/stores/remote-store";
 import { useStudio } from "@/stores/studio-store";
 
 export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
@@ -49,6 +52,9 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
   const campaign = useStudio((s) => s.campaigns.find((c) => c.id === campaignId));
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
+  const assets = useStudio((s) => s.assets);
+  const remoteItems = useRemote((s) => s.items);
+  const igDnaText = useIgDnaText();
   const updateCampaign = useStudio((s) => s.updateCampaign);
   const deleteCampaign = useStudio((s) => s.deleteCampaign);
   const createProject = useStudio((s) => s.createProject);
@@ -56,6 +62,14 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(false);
+  const availableAssets = useMemo(
+    () =>
+      [
+        ...assets.slice(0, 12).map((asset) => asset.name),
+        ...remoteItems.slice(0, 8).map((item) => `${item.title}（${SOURCE_KIND_LABEL[item.provider]}）`),
+      ].slice(0, 20),
+    [assets, remoteItems],
+  );
 
   if (!campaign) {
     return (
@@ -95,8 +109,9 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
           signupUrl: campaign!.signupUrl,
           audienceIds: campaign!.audienceIds,
           daysUntil: daysUntil(campaign!) ?? 14,
-          availableAssets: [],
+          availableAssets,
           brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+          igDnaText: igDnaText || undefined,
         },
       });
       if (!res.ok) {

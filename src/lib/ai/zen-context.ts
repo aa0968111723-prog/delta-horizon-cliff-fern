@@ -19,6 +19,8 @@ export type ZenContextInput = {
   imageStyle?: string;
   /** formatBrandMemory() 的產出，會蓋過預設的社團介紹 */
   brandMemoryText?: string;
+  /** formatIgDna() 的產出，讓生成延續這個帳號自己的習慣 */
+  igDnaText?: string;
   /** 覆寫「今天」，測試用 */
   now?: number;
 };
@@ -38,6 +40,9 @@ export function buildZenContext(input: ZenContextInput = {}): string {
     input.brandDontSay ? `使用者設定不要說：${input.brandDontSay}` : "",
     input.forbiddenWords?.length ? `禁用詞：${input.forbiddenWords.join("、")}` : "",
     input.imageStyle ? `使用者設定的視覺風格：${input.imageStyle}` : "",
+    input.igDnaText?.trim()
+      ? `【這個帳號自己的 IG DNA】\n${input.igDnaText.trim()}\n生成時優先延續這些習慣，不要變成一般品牌帳號。`
+      : "",
     "",
     "【唯一客群：淡江大學學生】",
     describeAudience((input.audienceIds ?? []) as never),

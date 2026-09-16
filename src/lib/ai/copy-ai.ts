@@ -33,6 +33,8 @@ const CopyBriefSchema = z.object({
   brandDontSay: z.string().max(300).optional(),
   forbiddenWords: z.array(z.string().max(40)).max(20).optional(),
   brandMemoryText: z.string().max(2500).optional(),
+  igDnaText: z.string().max(1500).optional(),
+  imageUrl: z.string().min(8).max(3_000_000).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -99,6 +101,7 @@ export const generateIgCopy = createServerFn({ method: "POST" })
         brandDontSay: data.brandDontSay,
         forbiddenWords: data.forbiddenWords,
         brandMemoryText: data.brandMemoryText,
+        igDnaText: data.igDnaText,
       }),
       "",
       "【這次要寫的內容】",
@@ -118,11 +121,17 @@ export const generateIgCopy = createServerFn({ method: "POST" })
       "body 是 IG 內文，用 \\n 分段，2-4 段，短版只要 1-2 段。有活動就一定要寫清楚時間、地點、怎麼參加。",
       "cta 4-10 個字，用社團自己的口氣。",
       "hashtags 6-8 個，要含 #淡江大學 與社團標籤，不要塞滿。",
+      data.imageUrl ? "有附一張圖：先看畫面裡的人、光、地方，再寫文案。不要描述成「一張海報」。" : "",
     ]
       .filter(Boolean)
       .join("\n");
 
-    const res = await zenChat({ prompt, maxTokens: 2400, temperature: 0.8 });
+    const res = await zenChat({
+      prompt,
+      maxTokens: 2400,
+      temperature: 0.8,
+      imageUrls: data.imageUrl ? [data.imageUrl] : undefined,
+    });
     if (!res.ok) {
       return { ok: false, error: res.error === "no-key" ? "目前沒有連上 AI" : res.error, drafts: fallback, adapter: "local" };
     }
@@ -255,6 +264,7 @@ const ReelsSchema = z.object({
   cta: z.string().max(60).catch(""),
   audienceIds: z.array(z.string().max(40)).max(8).catch([]),
   brandMemoryText: z.string().max(2500).optional(),
+  igDnaText: z.string().max(1500).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -301,7 +311,7 @@ export const generateReelsScript = createServerFn({ method: "POST" })
     }
 
     const prompt = [
-      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText }),
+      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText, igDnaText: data.igDnaText }),
       "",
       "【任務】寫一支 20 秒的 Reels 腳本，拍攝者只有一個人、只有手機。",
       data.eventName ? `活動：${data.eventName}｜${data.schedule}｜${data.location}` : "",

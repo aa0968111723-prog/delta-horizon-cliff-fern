@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { ImportMediaResult } from "./media";
 import type { ProviderId } from "./providers";
 import type { RemoteItem, SyncResult } from "./remote";
 
+export type { ImportMediaResult } from "./media";
 export type { RemoteItem, RemoteItemKind, SyncResult } from "./remote";
 
 function unwrapId(input: unknown): ProviderId {
@@ -38,4 +40,20 @@ export const searchRemote = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ items: RemoteItem[]; note: string }> => {
     const { runSearch } = await import("./sync.server");
     return runSearch(data.query, data.id);
+  });
+
+export const importRemoteMedia = createServerFn({ method: "POST" })
+  .validator((input: unknown) => {
+    const schema = z.object({
+      id: z.enum(["drive", "canva", "instagram"]),
+      remoteId: z.string().min(1).max(200),
+    });
+    if (input && typeof input === "object" && "data" in input) {
+      return schema.parse((input as { data: unknown }).data);
+    }
+    return schema.parse(input);
+  })
+  .handler(async ({ data }): Promise<ImportMediaResult> => {
+    const { fetchRemoteMedia } = await import("./sync.server");
+    return fetchRemoteMedia(data.id, data.remoteId);
   });

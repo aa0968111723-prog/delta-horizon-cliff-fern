@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Grid3x3, Instagram, Link2, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { BringRemoteButton } from "@/components/search/bring-remote-button";
 import { PageHeader, SectionHeader } from "@/components/shared/page-header";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Badge } from "@/components/ui/badge";
@@ -172,13 +173,19 @@ export function InstagramCenter() {
           ) : igPosts.length ? (
             <ul className="space-y-2">
               {igPosts.map((post) => (
-                <li key={post.id} className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
-                  <p className="text-sm font-medium">{post.title}</p>
-                  <p className="mt-1 line-clamp-2 text-xs text-muted">{post.detail}</p>
-                  <p className="mt-1 text-xs text-subtle">
-                    {post.metrics?.likes != null ? `${post.metrics.likes} 個讚` : ""}
-                    {post.metrics?.comments != null ? ` · ${post.metrics.comments} 則留言` : ""}
-                  </p>
+                <li
+                  key={post.id}
+                  className="flex flex-wrap items-start justify-between gap-2 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{post.title}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-muted">{post.detail}</p>
+                    <p className="mt-1 text-xs text-subtle">
+                      {post.metrics?.likes != null ? `${post.metrics.likes} 個讚` : ""}
+                      {post.metrics?.comments != null ? ` · ${post.metrics.comments} 則留言` : ""}
+                    </p>
+                  </div>
+                  <BringRemoteButton item={post} />
                 </li>
               ))}
             </ul>
@@ -214,6 +221,22 @@ export function InstagramCenter() {
           <SectionHeader
             title="IG DNA"
             hint={`從 ${dna.sampleCount} 則自己的內容抽出來的習慣。生成新內容時會優先參考這些。`}
+            action={
+              <Button asChild size="sm">
+                <Link
+                  to="/create"
+                  search={
+                    dna.hookStarts[0]
+                      ? { from: "idea", seed: dna.hookStarts[0] }
+                      : { from: "idea" }
+                  }
+                  aria-label="用這個習慣寫新的一篇"
+                >
+                  <Sparkles className="size-4" />
+                  用這個習慣寫新的一篇
+                </Link>
+              </Button>
+            }
           />
           <div className="grid gap-3 sm:grid-cols-2">
             <Card title="Caption 長度">

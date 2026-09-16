@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Images, Instagram, Link2, Palette, Search, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { BringRemoteButton } from "@/components/search/bring-remote-button";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -335,28 +336,27 @@ function RemoteList({ items }: { items: RemoteItem[] }) {
 }
 
 function RemoteRow({ item }: { item: RemoteItem }) {
-  const body = (
-    <span className="flex min-w-0 items-center gap-3">
-      {item.thumbnailUrl ? (
-        <img src={item.thumbnailUrl} alt="" className="size-12 shrink-0 rounded-lg object-cover bg-surface-2" />
-      ) : null}
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-medium">{item.title}</span>
-        <span className="block truncate text-xs text-muted">{item.detail}</span>
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
+      <span className="flex min-w-0 items-center gap-3">
+        {item.thumbnailUrl ? (
+          <img src={item.thumbnailUrl} alt="" className="size-12 shrink-0 rounded-lg bg-surface-2 object-cover" />
+        ) : null}
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-medium">{item.title}</span>
+          <span className="block truncate text-xs text-muted">{item.detail}</span>
+        </span>
       </span>
-    </span>
+      <span className="flex shrink-0 flex-wrap items-center gap-2">
+        {item.href ? (
+          <Button asChild size="sm" variant="ghost">
+            <a href={item.href} target="_blank" rel="noreferrer">
+              開啟原檔
+            </a>
+          </Button>
+        ) : null}
+        <BringRemoteButton item={item} />
+      </span>
+    </div>
   );
-  if (item.href) {
-    return (
-      <a
-        href={item.href}
-        target="_blank"
-        rel="noreferrer"
-        className="block rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
-      >
-        {body}
-      </a>
-    );
-  }
-  return <div className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">{body}</div>;
 }

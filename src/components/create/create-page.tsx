@@ -36,6 +36,7 @@ import type { ContentKind, CopyDraft, CopyTone, StudentReview } from "@/lib/stud
 import { cn } from "@/lib/utils";
 import { AUDIENCE_SEGMENTS, DEFAULT_AUDIENCE_IDS } from "@/lib/zen/audience";
 import { semesterPhaseAt } from "@/lib/zen/semester";
+import { useIgDnaText } from "@/hooks/use-ig-dna";
 import { useStudio } from "@/stores/studio-store";
 
 type StartFrom = "idea" | "image";
@@ -69,6 +70,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const addSources = useStudio((s) => s.addSources);
   const applyCoverAsset = useStudio((s) => s.applyCoverAsset);
   const applyVisualAsset = useStudio((s) => s.applyVisualAsset);
+  const igDnaText = useIgDnaText();
 
   const brand = brands[0];
   const phase = semesterPhaseAt();
@@ -116,6 +118,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const [directions, setDirections] = useState<VisualDirection[]>([]);
   const [directionAdapter, setDirectionAdapter] = useState<"live" | "local">("local");
   const [reelsBusy, setReelsBusy] = useState(false);
+  const [imageSourceAssetId, setImageSourceAssetId] = useState<string | null>(search.asset ?? null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -150,8 +153,9 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       brandDontSay: brand?.dontSay,
       forbiddenWords: brand?.forbiddenWords ?? [],
       brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+      igDnaText: igDnaText || undefined,
     }),
-    [topic, eventName, schedule, location, idea, painPoint, signupUrl, audienceIds, brand, campaign],
+    [topic, eventName, schedule, location, idea, painPoint, signupUrl, audienceIds, brand, campaign, igDnaText],
   );
 
   async function runCopy() {
@@ -193,6 +197,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
             ? `${brand.imageStyle.mood}｜${brand.imageStyle.lighting}｜${brand.imageStyle.composition}`
             : undefined,
           brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+          igDnaText: igDnaText || undefined,
         },
       });
       setDirections(res.directions);
@@ -268,6 +273,10 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     useCopyDraft(target.id, draft.id);
     if (review) setStudentReview(target.id, review);
     setUsedDraftId(draft.id);
+    if (imageSourceAssetId) {
+      const asset = useStudio.getState().assets.find((item) => item.id === imageSourceAssetId);
+      if (asset) addSources(target.id, [sourceFromAsset(asset, "圖片寫文案")]);
+    }
 
     if (campaign) {
       const wave = campaign.waves.find((w) => !w.contentId && w.kind === kind);
@@ -345,6 +354,55 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     }
   }
 
+  async function copyFromImage(payload: {
+    preview: string;
+    summary: string;
+    caption: string;
+    assetId: string | null;
+  }) {
+    if (payload.caption) setIdea(payload.caption);
+    else if (payload.summary) setIdea(payload.summary);
+    else setIdea("從這張圖開始");
+    setFrom("idea");
+    setCopyBusy(true);
+    try {
+      let assetId = payload.assetId;
+      if (!assetId) {
+        try {
+          const meta = await saveDataUrlAsAsset({
+            dataUrl: payload.preview,
+            name: (payload.caption || payload.summary).slice(0, 18) || "圖片寫文案",
+            tags: ["圖片理解"],
+            source: "upload",
+            notes: payload.summary || "從圖片寫文案",
+          });
+          addAsset(meta);
+          assetId = meta.id;
+        } catch {
+          // 圖存不進素材庫時，文案還是可以寫
+        }
+      }
+      if (assetId) setImageSourceAssetId(assetId);
+      const imageUrl = payload.preview.length <= 3_000_000 ? payload.preview : undefined;
+      const res = await generateIgCopy({
+        data: {
+          ...briefPayload,
+          detail: [payload.summary, payload.caption, briefPayload.detail].filter(Boolean).join("\n"),
+          imageUrl,
+          tones,
+        },
+      });
+      setDrafts(res.drafts);
+      if (!res.ok) toast.warning(res.error);
+      else if (res.adapter === "local") toast.info("目前是本機草稿，可以直接編輯。");
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch {
+      toast.error("從圖片寫文案時出錯了，再試一次。");
+    } finally {
+      setCopyBusy(false);
+    }
+  }
+
   async function runReels(draft?: CopyDraft) {
     setReelsBusy(true);
     try {
@@ -358,6 +416,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           cta: draft?.cta ?? "",
           audienceIds,
           brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+          igDnaText: igDnaText || undefined,
         },
       });
       if (!res.ok) toast.warning(res.error);
@@ -455,6 +514,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
               setIdea(caption);
               setFrom("idea");
             }}
+            onGenerateCopy={(payload) => void copyFromImage(payload)}
             onUseStylePrompt={(prompt) =>
               setDirections([
                 {

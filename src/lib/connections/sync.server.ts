@@ -1,9 +1,22 @@
 import { getAccessToken } from "./oauth.server";
+import {
+  canvaDesignUrl,
+  canvaExportBody,
+  canvaExportJobUrl,
+  canvaExportUrl,
+  driveDownloadUrl,
+  driveMetaUrl,
+  enlargeDriveThumbnail,
+  instagramMediaUrl,
+  MEDIA_MAX_BYTES,
+  type ImportMediaResult,
+} from "./media";
 import type { ProviderId } from "./providers";
 import type { RemoteItem, RemoteItemKind, SyncResult } from "./remote";
 import { readConnection, writeConnection } from "./token-store.server";
 
 export type { RemoteItem, RemoteItemKind } from "./remote";
+export type { ImportMediaResult } from "./media";
 
 /** 同步單一來源。token 只在伺服器端使用。 */
 export async function runSync(id: ProviderId): Promise<SyncResult> {
@@ -202,4 +215,235 @@ async function attachInsights(token: string, items: RemoteItem[]): Promise<void>
       }
     }),
   );
+}
+
+/** 把遠端圖片拉成 data URL，讓本機素材庫／創作頁能用。token 不出伺服器。 */
+export async function fetchRemoteMedia(provider: ProviderId, remoteId: string): Promise<ImportMediaResult> {
+  const token = await getAccessToken(provider);
+  if (!token) {
+    return { ok: false, error: "還沒授權，或授權已經失效。" };
+  }
+  try {
+    if (provider === "drive") return await importDrive(token, remoteId);
+    if (provider === "canva") return await importCanva(token, remoteId);
+    return await importInstagram(token, remoteId);
+  } catch {
+    return { ok: false, error: "讀不到這張圖，稍後再試。" };
+  }
+}
+
+function authHeaders(token: string): HeadersInit {
+  return { Authorization: `Bearer ${token}` };
+}
+
+async function importDrive(token: string, fileId: string): Promise<ImportMediaResult> {
+  const metaRes = await fetch(driveMetaUrl(fileId), { headers: authHeaders(token) });
+  if (!metaRes.ok) return { ok: false, error: "讀不到 Drive 檔案。" };
+  const meta = (await metaRes.json()) as {
+    name?: string;
+    mimeType?: string;
+    thumbnailLink?: string;
+    webViewLink?: string;
+  };
+  const name = meta.name || "Drive 檔案";
+  const mime = meta.mimeType ?? "";
+  if (mime.startsWith("image/")) {
+    const fileRes = await fetch(driveDownloadUrl(fileId), { headers: authHeaders(token) });
+    const converted = await responseToDataUrl(fileRes);
+    if (converted.ok) {
+      return {
+        ok: true,
+        dataUrl: converted.dataUrl,
+        name,
+        mime: converted.mime,
+        provider: "drive",
+        title: name,
+        href: meta.webViewLink,
+      };
+    }
+  }
+  if (meta.thumbnailLink) {
+    const thumb = await fetchThumbnail(enlargeDriveThumbnail(meta.thumbnailLink), token);
+    if (thumb) {
+      return {
+        ok: true,
+        dataUrl: thumb.dataUrl,
+        name,
+        mime: thumb.mime,
+        provider: "drive",
+        title: name,
+        href: meta.webViewLink,
+      };
+    }
+  }
+  if (mime.startsWith("video/")) {
+    return { ok: false, error: "影片還不能直接帶進創作，先在 Drive 截一張封面。" };
+  }
+  return { ok: false, error: "這份 Drive 檔案不是圖片，沒辦法直接帶進創作。" };
+}
+
+async function importCanva(token: string, designId: string): Promise<ImportMediaResult> {
+  const metaRes = await fetch(canvaDesignUrl(designId), { headers: authHeaders(token) });
+  const meta = metaRes.ok
+    ? ((await metaRes.json()) as {
+        design?: { title?: string; urls?: { edit_url?: string; view_url?: string }; thumbnail?: { url?: string } };
+      })
+    : null;
+  const name = meta?.design?.title || "Canva 設計";
+  const href = meta?.design?.urls?.edit_url || meta?.design?.urls?.view_url;
+
+  const exported = await exportCanvaPng(token, designId);
+  if (exported) {
+    return {
+      ok: true,
+      dataUrl: exported.dataUrl,
+      name,
+      mime: exported.mime,
+      provider: "canva",
+      title: name,
+      href,
+    };
+  }
+
+  const thumbUrl = meta?.design?.thumbnail?.url;
+  if (thumbUrl) {
+    const thumb = await fetchThumbnail(thumbUrl, token);
+    if (thumb) {
+      return {
+        ok: true,
+        dataUrl: thumb.dataUrl,
+        name,
+        mime: thumb.mime,
+        provider: "canva",
+        title: name,
+        href,
+      };
+    }
+  }
+  return { ok: false, error: "讀不到這個 Canva 設計的圖。可能還沒授權匯出，或設計是空的。" };
+}
+
+async function exportCanvaPng(
+  token: string,
+  designId: string,
+): Promise<{ dataUrl: string; mime: string } | null> {
+  const start = await fetch(canvaExportUrl(), {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(canvaExportBody(designId)),
+  });
+  if (!start.ok) return null;
+  const started = (await start.json()) as { job?: { id?: string; status?: string; urls?: string[] } };
+  const jobId = started.job?.id;
+  if (!jobId) return null;
+  for (let i = 0; i < 6; i++) {
+    if (i > 0) await sleep(700);
+    const poll = await fetch(canvaExportJobUrl(jobId), { headers: authHeaders(token) });
+    if (!poll.ok) return null;
+    const body = (await poll.json()) as { job?: { status?: string; urls?: string[] } };
+    const status = body.job?.status;
+    const fileUrl = body.job?.urls?.[0];
+    if (status === "success" && fileUrl) {
+      const file = await fetch(fileUrl);
+      const converted = await responseToDataUrl(file);
+      return converted.ok ? converted : null;
+    }
+    if (status === "failed") return null;
+  }
+  return null;
+}
+
+async function importInstagram(token: string, mediaId: string): Promise<ImportMediaResult> {
+  const res = await fetch(instagramMediaUrl(mediaId), { headers: authHeaders(token) });
+  if (!res.ok) return { ok: false, error: "讀不到這則 Instagram 貼文。" };
+  const post = (await res.json()) as {
+    caption?: string;
+    media_type?: string;
+    media_url?: string;
+    thumbnail_url?: string;
+    permalink?: string;
+  };
+  const title = (post.caption ?? "IG 貼文").split("\n")[0]!.slice(0, 48);
+  const imageUrl =
+    post.media_type === "VIDEO" ? post.thumbnail_url || post.media_url : post.media_url || post.thumbnail_url;
+  if (!imageUrl) {
+    return { ok: false, error: "這則貼文沒有可以帶進來的圖片。" };
+  }
+  const file = await fetch(imageUrl);
+  const converted = await responseToDataUrl(file);
+  if (!converted.ok) {
+    const withAuth = await fetchThumbnail(imageUrl, token);
+    if (!withAuth) return { ok: false, error: "讀不到這則貼文的圖片。" };
+    return {
+      ok: true,
+      dataUrl: withAuth.dataUrl,
+      name: title,
+      mime: withAuth.mime,
+      provider: "instagram",
+      title,
+      href: post.permalink,
+    };
+  }
+  return {
+    ok: true,
+    dataUrl: converted.dataUrl,
+    name: title,
+    mime: converted.mime,
+    provider: "instagram",
+    title,
+    href: post.permalink,
+  };
+}
+
+async function fetchThumbnail(
+  url: string,
+  token: string,
+): Promise<{ dataUrl: string; mime: string } | null> {
+  const direct = await fetch(url, { headers: authHeaders(token) });
+  const first = await responseToDataUrl(direct);
+  if (first.ok) return first;
+  try {
+    const fallback = new URL(url);
+    fallback.searchParams.set("access_token", token);
+    const second = await fetch(fallback);
+    const converted = await responseToDataUrl(second);
+    return converted.ok ? converted : null;
+  } catch {
+    return null;
+  }
+}
+
+async function responseToDataUrl(
+  res: Response,
+): Promise<{ ok: true; dataUrl: string; mime: string } | { ok: false }> {
+  if (!res.ok) return { ok: false };
+  const headerMime = (res.headers.get("content-type") ?? "application/octet-stream").split(";")[0]!.trim().toLowerCase();
+  if (headerMime.includes("json") || headerMime.includes("text/html") || headerMime.includes("text/plain")) {
+    return { ok: false };
+  }
+  const buf = new Uint8Array(await res.arrayBuffer());
+  if (!buf.byteLength) return { ok: false };
+  if (buf.byteLength > MEDIA_MAX_BYTES) return { ok: false };
+  const sniffed = sniffImageMime(buf);
+  const mime = headerMime.startsWith("image/") ? headerMime : sniffed;
+  if (!mime) return { ok: false };
+  const dataUrl = `data:${mime};base64,${Buffer.from(buf).toString("base64")}`;
+  if (dataUrl.length > 3_200_000) return { ok: false };
+  return { ok: true, dataUrl, mime };
+}
+
+function sniffImageMime(buf: Uint8Array): string | null {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8) return "image/jpeg";
+  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50) return "image/png";
+  if (buf.length >= 6 && buf[0] === 0x47 && buf[1] === 0x49) return "image/gif";
+  if (buf.length >= 12 && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) {
+    return "image/webp";
+  }
+  return null;
+}
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
