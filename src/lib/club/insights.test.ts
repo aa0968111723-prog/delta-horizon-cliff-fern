@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lessonsFromIg, formatLessons, quotedHookFromLessons, lessonPrompt } from "./insights.ts";
+import { lessonsFromIg, formatLessons, quotedHookFromLessons, lessonPrompt, nextCreateIdeaFromLessons } from "./insights.ts";
 
 test("empty metrics become honest next-step advice, not a dashboard", () => {
   const lessons = lessonsFromIg([]);
@@ -40,4 +40,6 @@ test("formatLessons and quotedHookFromLessons feed the next generate", () => {
   assert.match(text, /Hook：/);
   assert.equal(quotedHookFromLessons(text), "最近是不是連休息都覺得有罪惡感？");
   assert.match(lessonPrompt(posts), /Hook：/);
+  assert.match(nextCreateIdeaFromLessons(posts, "茶會"), /連休息都覺得有罪惡感/);
+  assert.match(nextCreateIdeaFromLessons(posts, "茶會"), /茶會/);
 });

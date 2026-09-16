@@ -43,6 +43,17 @@ export function quotedHookFromLessons(text: string) {
   return hook.includes("？") || hook.length >= 8 ? hook : "";
 }
 
+/** Home / IG Center: turn performance advice into the next create prompt. */
+export function nextCreateIdeaFromLessons(posts: IgLessonPost[], eventName?: string) {
+  const lessons = lessonsFromIg(posts);
+  const hook = quotedHookFromLessons(formatLessons(lessons));
+  const event = eventName?.trim() || "下一場活動";
+  if (hook) {
+    return `延續這個比較讓人停下來的第一句：「${hook}」。幫${event}做新的 IG。`;
+  }
+  return `根據過去 IG 表現來寫。${lessons.hook} 活動是${event}。`;
+}
+
 /** Turn IG metrics into next-generation advice, not a dashboard. */
 export function lessonsFromIg(posts: IgLessonPost[]): IgLessons {
   const scored = posts.filter((post) => post.metrics).sort((a, b) => score(b) - score(a));

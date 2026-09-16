@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseIdea } from "./idea.ts";
 import { featuredCampaignIdea, searchMemory } from "./memory.ts";
+import { nextCreateIdeaFromLessons } from "./insights.ts";
 
 const FROM = new Date("2026-09-16T12:00:00+08:00");
 
@@ -23,10 +24,21 @@ test("parseIdea keeps 浮游禪光 and explicit dates", () => {
   assert.equal(parsed.date, "2026-09-24");
 });
 
-test("featured campaign idea still parses as 浮游禪光", () => {
-  const parsed = parseIdea(featuredCampaignIdea(), FROM);
+test("lesson idea still parses as 浮游禪光 on the event date", () => {
+  const idea = nextCreateIdeaFromLessons(
+    [
+      {
+        mediaType: "image",
+        caption: "有時候我們需要的不是答案，只是一個安靜的晚上。",
+        metrics: { reach: 1800, likes: 90, comments: 12, saves: 40 },
+      },
+    ],
+    "09/24 浮游禪光",
+  );
+  const parsed = parseIdea(idea, FROM);
   assert.equal(parsed.eventName, "浮游禪光");
-  assert.match(parsed.raw, /最近是不是很久沒有好好坐下來？/);
+  assert.equal(parsed.date, "2026-09-24");
+  assert.match(idea, /安靜的晚上/);
 });
 
 test("tea idea search query finds Drive, Canva, and IG memory", () => {

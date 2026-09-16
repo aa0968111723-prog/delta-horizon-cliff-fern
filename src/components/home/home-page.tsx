@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { IgThumb } from "@/components/create/ig-thumb";
 import { lastPackPreviewSrc } from "@/lib/club/last-pack";
+import { lessonsFromIg, nextCreateIdeaFromLessons } from "@/lib/club/insights";
 import { FEATURED_EVENT, featuredCampaignIdea } from "@/lib/club/memory";
 import { handoffFromQuickStart, QUICK_STARTS } from "@/lib/club/quick-starts";
 import { formatDaysUntil, studentContext } from "@/lib/club/season";
@@ -39,6 +40,7 @@ export function HomePage() {
   const recent = useMemo(() => [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6), [projects]);
   const upcoming = [...schedule].sort((a, b) => a.plannedAt - b.plannedAt).filter((row) => row.status !== "published").slice(0, 4);
   const strong = [...igPosts].sort((a, b) => (b.metrics?.saves ?? 0) - (a.metrics?.saves ?? 0))[0];
+  const lessons = lessonsFromIg(igPosts);
 
   function startFeatured() {
     if (!featured) return;
@@ -223,7 +225,15 @@ export function HomePage() {
 
         <section className="mt-10 grid gap-4 md:grid-cols-2">
           <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
-            <SectionHeader title="過去表現不錯" hint="用來改善下一次，不是報表牆" />
+            <SectionHeader
+              title="過去表現不錯"
+              hint="用來改善下一次，不是報表牆"
+              action={
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/instagram">IG 記憶</Link>
+                </Button>
+              }
+            />
             {strong ? (
               <div className="flex gap-3">
                 <img src={strong.thumb} alt="" className="size-20 rounded-xl object-cover" />
@@ -233,6 +243,30 @@ export function HomePage() {
                 </div>
               </div>
             ) : null}
+            <ul className="mt-3 space-y-2 text-sm" data-testid="home-ig-lessons">
+              <li>Hook：{lessons.hook}</li>
+              <li>圖片：{lessons.visual}</li>
+              <li>Carousel：{lessons.carousel}</li>
+            </ul>
+            <Button
+              className="mt-3"
+              size="sm"
+              data-testid="home-lesson-create"
+              onClick={() => {
+                writeHandoff({
+                  idea: nextCreateIdeaFromLessons(
+                    igPosts,
+                    featured ? `${featured.date.slice(5).replace("-", "/")} ${featured.name}` : undefined,
+                  ),
+                  tab: "campaign",
+                  autoRun: true,
+                  sourceLabel: strong ? `Instagram / ${strong.caption.split("\n")[0]}` : "Instagram / 成效",
+                });
+                void navigate({ to: "/create", search: { tab: "campaign" } });
+              }}
+            >
+              用這個 Hook 創作
+            </Button>
           </article>
           <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
             <SectionHeader
