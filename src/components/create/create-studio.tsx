@@ -24,7 +24,7 @@ import { persistGeneratedImage } from "@/lib/studio/raster";
 import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById, FORMATS } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
-import { parseEventDate, parseEventTime, guessEventName, defaultScheduleText } from "@/lib/zen/dates";
+import { parseEventDate, parseEventTime, guessEventName, defaultScheduleText, campaignMatchingIdea } from "@/lib/zen/dates";
 import { DEFAULT_AUDIENCE, academicBeat } from "@/lib/zen/context";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
@@ -181,12 +181,11 @@ export function CreateStudio() {
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
     if (search.idea) setIdea(search.idea);
     const guessed = guessEventName(search.idea || "");
     if (guessed) setEventName(guessed);
-    const existing =
-      campaigns.find((c) => search.campaign && c.id === search.campaign) ??
-      campaigns.find((c) => search.idea && (c.name === search.idea || c.oneLiner === search.idea));
+    const existing = campaignMatchingIdea(useStudio.getState().campaigns, search.idea || "", search.campaign);
     if (existing) {
       setCampaign(existing);
       setEventName(existing.name);
@@ -202,7 +201,7 @@ export function CreateStudio() {
     } else if (search.idea) {
       setSchedule(defaultScheduleText(search.idea));
     }
-  }, [search.idea, search.campaign]);
+  }, [search.idea, search.campaign, hydrated]);
 
   const activePack = packs.find((p) => p.tone === tone) ?? packs[0];
   const mode = search.mode || "idea";

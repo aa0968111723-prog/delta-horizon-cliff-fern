@@ -46,6 +46,25 @@ export function guessEventName(text: string): string {
   return "";
 }
 
+/** Re-open「下週有一場茶會」onto the campaign that kit already made, not a leftover seed. */
+export function campaignMatchingIdea<T extends { id: string; name: string; oneLiner?: string; updatedAt: number }>(
+  campaigns: T[],
+  idea: string,
+  campaignId?: string | null,
+): T | undefined {
+  if (campaignId) {
+    const hit = campaigns.find((row) => row.id === campaignId);
+    if (hit) return hit;
+  }
+  const guessed = guessEventName(idea);
+  const matches = campaigns.filter(
+    (row) =>
+      (idea && (row.name === idea || row.oneLiner === idea)) ||
+      (guessed && (row.name === guessed || row.name.includes(guessed))),
+  );
+  return matches.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+}
+
 export function parseEventTime(text: string, fallback = "19:00"): string {
   const range = text.match(/(\d{1,2}:\d{2})\s*[–\-到至]\s*(\d{1,2}:\d{2})/);
   if (range) return `${range[1]}–${range[2]}`;

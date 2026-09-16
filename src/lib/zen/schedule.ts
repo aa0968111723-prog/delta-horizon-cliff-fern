@@ -137,6 +137,21 @@ export function soonestScheduled<T extends { status: string; scheduledAt: number
     .slice(0, limit);
 }
 
+/** Story strip should keep 倒數 even when Feed waves fill the generic upcoming list. */
+export function igStoryStrip<T extends { status: string; scheduledAt: number; kind: string }>(items: T[], limit = 8): T[] {
+  return soonestScheduled(
+    items.filter((item) => item.kind === "story" || item.kind === "countdown"),
+    limit,
+  );
+}
+
+export function igNextReels<T extends { status: string; scheduledAt: number; kind: string }>(items: T[], limit = 3): T[] {
+  return soonestScheduled(
+    items.filter((item) => item.kind === "reels"),
+    limit,
+  );
+}
+
 /** 到時間發布：沒有 cron，過了預計時間就出現「現在可以發」。 */
 export function isDue<T extends { status: string; scheduledAt: number }>(item: T, now = Date.now()) {
   return item.status === "scheduled" && item.scheduledAt <= now;

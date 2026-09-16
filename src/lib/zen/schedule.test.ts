@@ -5,6 +5,8 @@ import {
   dueScheduled,
   firstPublishable,
   isDue,
+  igNextReels,
+  igStoryStrip,
   mergeCampaignWaves,
   scheduleItemsForWave,
   soonestScheduled,
@@ -25,6 +27,28 @@ test("soonestScheduled surfaces the next tea-party IG post, not a later LINE dra
   assert.deepEqual(
     next.map((item) => item.id),
     ["ig", "carousel"],
+  );
+});
+
+test("igStoryStrip keeps 倒數 even when Feed waves fill the upcoming list", () => {
+  const items = [
+    ...Array.from({ length: 12 }, (_, i) => ({
+      id: `wave_${i}`,
+      status: "scheduled" as const,
+      scheduledAt: i,
+      kind: "ig-post",
+    })),
+    { id: "count", status: "scheduled" as const, scheduledAt: 80, kind: "countdown" },
+    { id: "story", status: "scheduled" as const, scheduledAt: 90, kind: "story" },
+    { id: "reels", status: "scheduled" as const, scheduledAt: 85, kind: "reels" },
+  ];
+  assert.deepEqual(
+    igStoryStrip(items, 8).map((item) => item.id),
+    ["count", "story"],
+  );
+  assert.deepEqual(
+    igNextReels(items).map((item) => item.id),
+    ["reels"],
   );
 });
 

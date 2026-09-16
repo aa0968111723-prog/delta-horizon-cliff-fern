@@ -14,7 +14,7 @@ import { pagesOf } from "@/lib/studio/layers";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { feelLabel, type PostFeel } from "@/lib/zen/feel";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
-import { soonestScheduled } from "@/lib/zen/schedule";
+import { igNextReels, igStoryStrip, soonestScheduled } from "@/lib/zen/schedule";
 import { igHookAnalysis } from "@/lib/zen/review";
 import { useStudio } from "@/stores/studio-store";
 import type { ScheduleItem } from "@/lib/studio/types";
@@ -44,8 +44,8 @@ export function InstagramCenter() {
   const urls = useAssetUrls(assets.map((a) => a.id));
   const gridProjects = projects.filter((p) => p.activeFormatId.startsWith("feed") || p.contentKind === "carousel");
   const upcoming = soonestScheduled(schedule, 12);
-  const stories = upcoming.filter((item) => item.kind === "story" || item.kind === "countdown");
-  const reels = upcoming.filter((item) => item.kind === "reels");
+  const stories = igStoryStrip(schedule, 8);
+  const reels = igNextReels(schedule);
   const videoIds = assets.filter((asset) => asset.kind === "video" || asset.mime.startsWith("video/")).map((asset) => asset.id);
   const post = igMemory.find((p) => p.id === selected);
 
