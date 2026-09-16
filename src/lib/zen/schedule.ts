@@ -137,6 +137,41 @@ export function soonestScheduled<T extends { status: string; scheduledAt: number
     .slice(0, limit);
 }
 
+/**
+ * Home 已排程: due pieces you just wrote first (到時間發布),
+ * then the recommended 活動. Seed 浮游禪光 stays out when a live event is focused.
+ */
+export function homeScheduled<
+  T extends { id: string; status: string; scheduledAt: number; campaignId?: string | null },
+>(
+  items: T[],
+  opts: { eventId?: string | null; pieceIds?: string[] },
+  now = Date.now(),
+  limit = 6,
+): T[] {
+  const unpublished = items.filter((item) => item.status === "scheduled");
+  const pieceIds = new Set(opts.pieceIds ?? []);
+  const pieceDue = dueScheduled(
+    unpublished.filter((item) => item.campaignId && pieceIds.has(item.campaignId)),
+    now,
+  );
+  const eventRows = opts.eventId
+    ? soonestScheduled(
+        unpublished.filter((item) => item.campaignId === opts.eventId),
+        limit,
+      )
+    : [];
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const row of [...pieceDue, ...eventRows]) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    out.push(row);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 /** Story strip should keep 倒數 even when Feed waves fill the generic upcoming list. */
 export function igStoryStrip<T extends { status: string; scheduledAt: number; kind: string }>(items: T[], limit = 8): T[] {
   return soonestScheduled(

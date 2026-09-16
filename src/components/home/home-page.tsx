@@ -7,15 +7,15 @@ import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { calendarSearchParams, scheduleForCampaign } from "@/lib/studio/calendar-search";
+import { calendarSearchParams } from "@/lib/studio/calendar-search";
 import { contentKindLabel } from "@/lib/studio/content";
 import { academicBeat, academicBeatLabel, daysUntil } from "@/lib/zen/context";
 import { ideaFromInspiration, inspirationForBeat } from "@/lib/zen/inspiration";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { feelLabel, type PostFeel } from "@/lib/zen/feel";
 import { awaitingFeel, hookLine, learnFromIg } from "@/lib/zen/insights";
-import { recommendCampaign, recommendHook } from "@/lib/zen/recommend";
-import { soonestScheduled, isDue } from "@/lib/zen/schedule";
+import { recommendCampaign, recommendHook, isEventCampaign } from "@/lib/zen/recommend";
+import { isDue, homeScheduled } from "@/lib/zen/schedule";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 import { ProjectCard } from "@/components/shared/project-card";
@@ -37,7 +37,11 @@ export function HomePage() {
 
   const upcoming = useMemo(() => recommendCampaign(campaigns), [campaigns]);
   const days = upcoming ? daysUntil(upcoming.date) : null;
-  const scheduled = soonestScheduled(scheduleForCampaign(schedule, upcoming?.id), 6);
+  const pieceIds = useMemo(
+    () => campaigns.filter((row) => !isEventCampaign(row)).map((row) => row.id),
+    [campaigns],
+  );
+  const scheduled = homeScheduled(schedule, { eventId: upcoming?.id, pieceIds });
   const calendarSearch = calendarSearchParams({ campaign: upcoming?.id });
   const generated = [...projects].filter((p) => p.plan).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
   const generatedLooks = assets.filter((asset) => asset.source === "generated").slice(0, 4);
@@ -222,7 +226,9 @@ export function HomePage() {
                     />
                   ) : null}
                   <div className="min-w-0">
-                  <p className="truncate text-sm">{item.title}</p>
+                  <p className="truncate text-sm" data-testid="home-scheduled-title">
+                    {item.title}
+                  </p>
                   <p className="text-xs text-muted">
                     {contentKindLabel(item.kind)} · {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })}
                   </p>
@@ -231,7 +237,7 @@ export function HomePage() {
                 {isDue(item) ? (
                   <Link
                     to="/calendar"
-                    search={calendarSearch}
+                    search={calendarSearchParams({ campaign: item.campaignId ?? upcoming?.id })}
                     data-testid={item.id === scheduled.find((row) => isDue(row))?.id ? "home-due" : undefined}
                     className="shrink-0 rounded-full bg-amber/20 px-2.5 py-1 text-[11px] text-warn"
                   >

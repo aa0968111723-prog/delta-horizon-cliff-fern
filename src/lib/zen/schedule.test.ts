@@ -10,6 +10,7 @@ import {
   mergeCampaignWaves,
   scheduleItemsForWave,
   soonestScheduled,
+  homeScheduled,
   waveFormatId,
   waveLabel,
   waveVisualVariation,
@@ -27,6 +28,31 @@ test("soonestScheduled surfaces the next tea-party IG post, not a later LINE dra
   assert.deepEqual(
     next.map((item) => item.id),
     ["ig", "carousel"],
+  );
+});
+
+test("homeScheduled puts a due learned-Hook piece first, not seed 浮游禪光", () => {
+  const now = 100;
+  const rows = [
+    { id: "seed", status: "scheduled", scheduledAt: 10, campaignId: "camp_light", title: "主視覺 · 浮游禪光" },
+    { id: "tea", status: "scheduled", scheduledAt: 80, campaignId: "camp_tea", title: "主視覺 · 茶會" },
+    { id: "piece", status: "scheduled", scheduledAt: 50, campaignId: "camp_hook", title: "Carousel · 可以自己來？" },
+  ];
+  const next = homeScheduled(rows, { eventId: "camp_tea", pieceIds: ["camp_hook"] }, now, 6);
+  assert.equal(next[0]?.id, "piece");
+  assert.ok(next.some((row) => row.id === "tea"));
+  assert.ok(next.every((row) => row.id !== "seed"));
+});
+
+test("homeScheduled without pieces is just the tea-party cadence", () => {
+  const rows = [
+    { id: "seed", status: "scheduled", scheduledAt: 10, campaignId: "camp_light" },
+    { id: "tea", status: "scheduled", scheduledAt: 80, campaignId: "camp_tea" },
+  ];
+  const next = homeScheduled(rows, { eventId: "camp_tea", pieceIds: [] }, 100, 6);
+  assert.deepEqual(
+    next.map((row) => row.id),
+    ["tea"],
   );
 });
 
