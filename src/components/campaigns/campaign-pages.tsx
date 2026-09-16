@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/input";
 import { generateCampaignPlan } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
 import { generateCopyPack } from "@/lib/copy/generate";
+import { generateImageDirections } from "@/lib/image/studio";
 import { emptyBrief } from "@/lib/studio/brief";
 import { buildCampaignRhythm } from "@/lib/club/schedule";
 import { CONTENT_KIND_META } from "@/lib/studio/status";
@@ -105,7 +106,8 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
         toast.error(result.error);
         return;
       }
-      if (result.plan.waves) setWaves(current.id, result.plan.waves);
+      if (result.plan.waves?.length) setWaves(current.id, result.plan.waves, { syncCalendar: true });
+      else setWaves(current.id, buildCampaignRhythm({ eventDate: current.date, eventType: current.type || current.name }), { syncCalendar: true });
       if (result.plan.directions) setDirections(current.id, result.plan.directions);
       const project = createProject({
         name: result.plan.campaignName,
@@ -169,7 +171,11 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => setWaves(current.id, buildCampaignRhythm({ eventDate: current.date, eventType: current.type || current.name }))}
+              onClick={() =>
+                setWaves(current.id, buildCampaignRhythm({ eventDate: current.date, eventType: current.type || current.name }), {
+                  syncCalendar: true,
+                })
+              }
             >
               依活動重排節奏
             </Button>
@@ -182,10 +188,10 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                 </p>
                 <p className="font-medium">{wave.label} · {wave.topic}</p>
                 <p className="text-sm text-muted">{wave.hook}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="mt-2"
                   disabled={busy}
                   onClick={() => {
                     void (async () => {
@@ -219,6 +225,56 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
                 >
                   改寫這一波
                 </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => {
+                    void (async () => {
+                      setBusy(true);
+                      try {
+                        const result = await generateCopyPack({
+                          data: {
+                            idea: wave.hook,
+                            intent: wave.label,
+                            tone: "生活版",
+                            eventName: current.name,
+                            schedule: `${current.date} ${current.time}`,
+                            location: current.location,
+                          },
+                        });
+                        if (!result.ok) {
+                          toast.error(result.error);
+                          return;
+                        }
+                        setWaves(
+                          current.id,
+                          current.waves.map((row) =>
+                            row.id === wave.id ? { ...row, hook: result.pack.hook, topic: result.pack.body.split("\n")[0] ?? row.topic } : row,
+                          ),
+                        );
+                      } finally {
+                        setBusy(false);
+                      }
+                    })();
+                  }}
+                >
+                  換角度
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  asChild
+                >
+                  <Link
+                    to="/create"
+                    search={{ tab: "image" }}
+                    onClick={() => window.sessionStorage.setItem("zen-idea", `${wave.hook} ${current.name}`)}
+                  >
+                    換視覺
+                  </Link>
+                </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -226,13 +282,55 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
       ) : null}
       {current.directions.length ? (
         <section className="mt-8">
-          <h2 className="font-medium">3 個創意方向</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-medium">3 個創意方向</h2>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => {
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    const result = await generateImageDirections({
+                      data: { idea: current.oneLiner || current.name, eventName: current.name },
+                    });
+                    if (!result.ok) {
+                      toast.error(result.error);
+                      return;
+                    }
+                    setDirections(current.id, result.directions);
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
+              }}
+            >
+              換視覺方向
+            </Button>
+          </div>
           <ul className="mt-3 space-y-3">
             {current.directions.map((dir) => (
               <li key={dir.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
                 <p className="font-display text-lg">{dir.name}</p>
                 <p className="mt-1 text-sm">{dir.concept}</p>
-                <p className="mt-2 text-xs text-muted">{dir.palette} · {dir.composition}</p>
+                <p className="mt-2 text-xs text-muted">{dir.palette} · {dir.composition} · {dir.typeDirection}</p>
+                <p className="mt-2 text-sm">{dir.headline}</p>
+                <p className="text-xs text-muted">{dir.subhead}</p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="mt-3"
+                  asChild
+                >
+                  <Link
+                    to="/create"
+                    search={{ tab: "image" }}
+                    onClick={() => window.sessionStorage.setItem("zen-idea", dir.imagePrompt)}
+                  >
+                    用這個方向生成圖片
+                  </Link>
+                </Button>
               </li>
             ))}
           </ul>

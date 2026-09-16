@@ -158,6 +158,14 @@ function ImageStudio() {
   const [urls, setUrls] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    const stored = window.sessionStorage.getItem("zen-idea");
+    if (stored) {
+      setIdea(stored.split("\n")[0] || stored);
+      window.sessionStorage.removeItem("zen-idea");
+    }
+  }, []);
+
   async function directions() {
     setBusy(true);
     try {

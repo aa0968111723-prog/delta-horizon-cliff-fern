@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
@@ -38,6 +38,15 @@ export function CreativeSearch() {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (!open) return;
+    if (!lastSearch) return;
+    setQ(lastSearch);
+    void run(lastSearch);
+    // Open with a preset query from 快速開始 / 創作選單.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={setSearchOpen}>

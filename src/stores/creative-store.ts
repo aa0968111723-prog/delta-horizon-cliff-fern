@@ -72,7 +72,7 @@ type CreativeState = {
   upsertCampaign: (input: Partial<ClubCampaign> & Pick<ClubCampaign, "name">) => ClubCampaign;
   removeCampaign: (id: string) => void;
   attachProject: (campaignId: string, projectId: string) => void;
-  setWaves: (campaignId: string, waves: CampaignWave[]) => void;
+  setWaves: (campaignId: string, waves: CampaignWave[], opts?: { syncCalendar?: boolean }) => void;
   setDirections: (campaignId: string, directions: CreativeDirection[]) => void;
   upsertSchedule: (item: Partial<ScheduleItem> & Pick<ScheduleItem, "title" | "plannedAt" | "contentKind">) => ScheduleItem;
   moveSchedule: (id: string, plannedAt: number) => void;
@@ -227,10 +227,14 @@ export const useCreative = create<CreativeState>()(
               : c,
           ),
         })),
-      setWaves: (campaignId, waves) =>
-        set((s) => ({
-          campaigns: s.campaigns.map((c) => (c.id === campaignId ? { ...c, waves, updatedAt: Date.now() } : c)),
-        })),
+      setWaves: (campaignId, waves, opts) =>
+        set((s) => {
+          const campaigns = s.campaigns.map((c) => (c.id === campaignId ? { ...c, waves, updatedAt: Date.now() } : c));
+          const campaign = campaigns.find((c) => c.id === campaignId);
+          if (!opts?.syncCalendar || !campaign) return { campaigns };
+          const kept = s.schedule.filter((row) => row.campaignId !== campaignId);
+          return { campaigns, schedule: [...seedSchedule({ ...campaign, waves }), ...kept] };
+        }),
       setDirections: (campaignId, directions) =>
         set((s) => ({
           campaigns: s.campaigns.map((c) => (c.id === campaignId ? { ...c, directions, updatedAt: Date.now() } : c)),

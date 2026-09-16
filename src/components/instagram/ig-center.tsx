@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { IG_DNA } from "@/lib/club/memory";
+import { lessonsFromIg } from "@/lib/club/insights";
 import { listConnectedMedia } from "@/lib/connections/oauth";
 import { useCreative, type IgMemoryPost } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -47,6 +48,7 @@ export function InstagramCenter() {
   }, []);
 
   const grid = live.length ? live : posts;
+  const lessons = lessonsFromIg(grid);
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
@@ -120,6 +122,18 @@ export function InstagramCenter() {
           </div>
         </section>
       ) : null}
+
+      <section className="mt-10 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+        <h2 className="font-display text-xl">下一次可以怎麼寫</h2>
+        <p className="mt-1 text-xs text-muted">用過去表現改善生成，不是報表牆。</p>
+        <ul className="mt-4 space-y-3 text-sm">
+          <li>Hook：{lessons.hook}</li>
+          <li>圖片：{lessons.visual}</li>
+          <li>活動文案：{lessons.activity}</li>
+          <li>Carousel：{lessons.carousel}</li>
+          <li>Story：{lessons.story}</li>
+        </ul>
+      </section>
 
       <section className="mt-10 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
         <h2 className="font-display text-xl">Zen Club IG DNA</h2>

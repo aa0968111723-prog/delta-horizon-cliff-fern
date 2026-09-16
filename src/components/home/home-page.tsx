@@ -12,21 +12,14 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { generateCampaignPlan } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
 import { FEATURED_EVENT } from "@/lib/club/memory";
+import { QUICK_STARTS } from "@/lib/club/quick-starts";
+import { buildCampaignRhythm } from "@/lib/club/schedule";
 import { formatDaysUntil, studentContext } from "@/lib/club/season";
 import { emptyBrief } from "@/lib/studio/brief";
 import { CONTENT_KIND_META, contentStatusOf } from "@/lib/studio/status";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
-
-const QUICK = [
-  { label: "生成 IG 貼文", to: "/assistant" },
-  { label: "生成圖片", to: "/create" },
-  { label: "生成 Story", to: "/assistant" },
-  { label: "生成 Carousel", to: "/assistant" },
-  { label: "生成 Reels", to: "/create" },
-  { label: "建立活動", to: "/campaigns" },
-] as const;
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -38,8 +31,12 @@ export function HomePage() {
   const campaigns = useCreative((s) => s.campaigns);
   const schedule = useCreative((s) => s.schedule);
   const igPosts = useCreative((s) => s.igPosts);
+  const setWaves = useCreative((s) => s.setWaves);
+  const setDirections = useCreative((s) => s.setDirections);
+  const attachProject = useCreative((s) => s.attachProject);
   const setCreateOpen = useUi((s) => s.setCreateOpen);
   const setSearchOpen = useUi((s) => s.setSearchOpen);
+  const setLastSearch = useCreative((s) => s.setLastSearch);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const ctx = studentContext();
@@ -80,6 +77,15 @@ export function HomePage() {
         templateId: result.plan.templateId,
       });
       applyCampaignPlan(project.id, result.plan, brief);
+      attachProject(featured.id, project.id);
+      setWaves(
+        featured.id,
+        result.plan.waves?.length
+          ? result.plan.waves
+          : buildCampaignRhythm({ eventDate: featured.date, eventType: featured.type || featured.name }),
+        { syncCalendar: true },
+      );
+      if (result.plan.directions?.length) setDirections(featured.id, result.plan.directions);
       toast.success(result.adapter === "mock" ? "已用社團規則寫好一版，可接著改" : "已生成文案、輪播與腳本");
       void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
     } catch (err) {
@@ -135,9 +141,25 @@ export function HomePage() {
         <section className="mt-8">
           <SectionHeader title="快速開始" hint="從一個動作進入創作" />
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
-            {QUICK.map((item) => (
-              <Button key={item.label} asChild variant="secondary" className="shrink-0 rounded-full">
-                <Link to={item.to}>{item.label}</Link>
+            {QUICK_STARTS.map((item) => (
+              <Button
+                key={item.id}
+                variant="secondary"
+                className="shrink-0 rounded-full"
+                onClick={() => {
+                  if (item.openSearch) {
+                    setLastSearch(item.id === "canva" ? "茶會 Canva" : "以前晚上的茶會照片");
+                    setSearchOpen(true);
+                    return;
+                  }
+                  if (item.to === "/create") {
+                    void navigate({ to: "/create", search: { tab: item.tab ?? "image" } });
+                    return;
+                  }
+                  void navigate({ to: item.to });
+                }}
+              >
+                {item.label}
               </Button>
             ))}
           </div>

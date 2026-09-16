@@ -1,6 +1,6 @@
 import { addDays, format, startOfMonth, startOfWeek, isSameDay, isSameMonth } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,10 @@ export function CalendarPage() {
   const [view, setView] = useState<"month" | "week" | "agenda">("month");
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<ContentKind>("ig-post");
+
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 640px)").matches) setView("agenda");
+  }, []);
 
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 });
