@@ -18,10 +18,11 @@ export function CampaignList() {
   const [type, setType] = useState<CampaignType>("tea");
   const [oneLiner, setOneLiner] = useState("");
   const [location, setLocation] = useState("淡江校園");
+  const [time, setTime] = useState("19:30");
 
   function create() {
     if (!name.trim()) return;
-    const campaign = addCampaign({ name: name.trim(), date, type, oneLiner, location, time: "19:30" });
+    const campaign = addCampaign({ name: name.trim(), date, type, oneLiner, location, time });
     toast.success("活動已建立，可生成完整宣傳");
     void navigate({ to: "/campaigns/$campaignId", params: { campaignId: campaign.id } });
   }
@@ -58,6 +59,8 @@ export function CampaignList() {
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="例如：浮游禪光" />
           <Label>日期</Label>
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <Label>時間</Label>
+          <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
           <Label>地點</Label>
           <Input value={location} onChange={(e) => setLocation(e.target.value)} />
           <Label>一句介紹</Label>

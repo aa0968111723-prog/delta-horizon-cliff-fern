@@ -52,7 +52,7 @@ export function CalendarPage() {
   function extend(item: CalendarItem) {
     void navigate({
       to: "/create",
-      search: { q: `延續：${item.title}`, run: "1", campaign: item.campaignId },
+      search: { q: `延續：${item.title}`, auto: "1", campaign: item.campaignId },
     });
   }
 
@@ -170,16 +170,54 @@ export function CalendarPage() {
         </div>
       ) : null}
 
-      {view !== "agenda" ? (
+      {view === "month" ? (
         <ul className="mt-6 space-y-2 md:hidden">
-          {items.map((item) => (
-            <AgendaRow
-              key={`m-${item.id}`}
-              item={item}
-              onExtend={() => extend(item)}
-              onCopy={() => item.campaignId && item.waveId && duplicateWave(item.campaignId, item.waveId)}
-            />
-          ))}
+          {weeks
+            .flat()
+            .filter((day) => day.getMonth() === cursor.getMonth())
+            .map((day) => {
+              const iso = format(day, "yyyy-MM-dd");
+              const dayItems = items.filter((item) => item.date === iso);
+              if (!dayItems.length) return null;
+              return (
+                <li key={iso} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+                  <p className="text-xs text-muted">{format(day, "M/d EEE", { locale: zhTW })}</p>
+                  {dayItems.map((item) => (
+                    <div key={item.id} className="mt-2 border-t border-border pt-2">
+                      <p className="text-sm">{item.title}</p>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => extend(item)}>
+                          AI 延伸
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </li>
+              );
+            })}
+        </ul>
+      ) : null}
+
+      {view === "week" ? (
+        <ul className="mt-6 space-y-2 md:hidden">
+          {weekDays.map((day) => {
+            const iso = format(day, "yyyy-MM-dd");
+            const dayItems = items.filter((item) => item.date === iso);
+            return (
+              <li key={iso} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+                <p className="text-xs text-muted">{format(day, "M/d EEE", { locale: zhTW })}</p>
+                {dayItems.length ? (
+                  dayItems.map((item) => (
+                    <p key={item.id} className="mt-1 text-sm">
+                      {item.title}
+                    </p>
+                  ))
+                ) : (
+                  <p className="mt-1 text-xs text-subtle">這天還沒排</p>
+                )}
+              </li>
+            );
+          })}
         </ul>
       ) : null}
     </main>

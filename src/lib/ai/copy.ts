@@ -47,30 +47,33 @@ export const generateCopy = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseFnInput(CopyInput, input))
   .handler(async ({ data }): Promise<{ ok: true; copies: CopyBlock[] } | { ok: false; error: string }> => {
     const tones: CopyTone[] = data.tone ? [data.tone] : ["short", "normal", "emotional", "student", "life", "humor"];
-    if (!hasXai() || data.forceMock) {
-      return { ok: true, copies: tones.map((tone) => mockCopy(data.topic, tone, data.when, data.where)) };
-    }
-    const season = academicMoment();
-    const text = await xaiChat(
-      [
-        { role: "system", content: clubSystemPrompt(season.label, season.weather) },
-        {
-          role: "user",
-          content: `為「${data.topic}」寫 IG 文案，類型 ${data.kind || "活動"}，時間 ${data.when || "未定"}，地點 ${data.where || "淡江"}。
+    const mocked = () => tones.map((tone) => mockCopy(data.topic, tone, data.when, data.where));
+    try {
+      if (!hasXai() || data.forceMock) {
+        return { ok: true, copies: mocked() };
+      }
+      const season = academicMoment();
+      const text = await xaiChat(
+        [
+          { role: "system", content: clubSystemPrompt(season.label, season.weather) },
+          {
+            role: "user",
+            content: `為「${data.topic}」寫 IG 文案，類型 ${data.kind || "活動"}，時間 ${data.when || "未定"}，地點 ${data.where || "淡江"}。
 輸出 JSON {copies:[{tone,hook,body,cta,hashtags}]} tones=${tones.join(",")}。
 hook 必須是生活問句。禁止誠摯邀請。`,
-        },
-      ],
-      { json: true, maxTokens: 1800 },
-    );
-    if (!text) {
-      return { ok: true, copies: tones.map((tone) => mockCopy(data.topic, tone, data.when, data.where)) };
-    }
-    try {
-      const parsed = extractJson(text) as { copies?: CopyBlock[] };
-      if (parsed.copies?.length) return { ok: true, copies: parsed.copies };
+          },
+        ],
+        { json: true, maxTokens: 1800 },
+      );
+      if (!text) return { ok: true, copies: mocked() };
+      try {
+        const parsed = extractJson(text) as { copies?: CopyBlock[] };
+        if (parsed.copies?.length) return { ok: true, copies: parsed.copies };
+      } catch {
+        /* fall through */
+      }
+      return { ok: true, copies: mocked() };
     } catch {
-      /* fall through */
+      return { ok: true, copies: mocked() };
     }
-    return { ok: true, copies: tones.map((tone) => mockCopy(data.topic, tone, data.when, data.where)) };
   });

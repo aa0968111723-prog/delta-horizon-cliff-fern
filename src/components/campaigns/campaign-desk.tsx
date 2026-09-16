@@ -28,7 +28,7 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
     setLastQuery(current.name);
     void navigate({
       to: "/create",
-      search: { q: `幫我做 ${current.name} 完整宣傳`, run: "1", campaign: current.id },
+      search: { q: `幫我做 ${current.name} 完整宣傳`, auto: "1", campaign: current.id },
     });
   }
 
@@ -85,7 +85,7 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
                   onClick={() =>
                     void navigate({
                       to: "/create",
-                      search: { q: `${campaign.name} ${wave.topic}`, campaign: campaign.id, run: "1" },
+                      search: { q: `${campaign.name} ${wave.topic}`, campaign: campaign.id, auto: "1" },
                     })
                   }
                 >

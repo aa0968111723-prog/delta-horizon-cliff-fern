@@ -17,9 +17,13 @@ export const generateStudioImage = createServerFn({ method: "POST" })
       data,
     }): Promise<{ ok: true; src: string; prompt: string; adapter: "live" | "mock" } | { ok: false; error: string }> => {
       const prompt = `${data.prompt}. Tamkang University Tamsui student life, airy, not religious temple, not monk robes, no dense sutra text, cinematic, IG composition.`;
-      if (hasXai()) {
-        const src = await xaiImage(prompt, data.aspect ?? "4:5");
-        if (src) return { ok: true, src, prompt, adapter: "live" };
+      try {
+        if (hasXai()) {
+          const src = await xaiImage(prompt, data.aspect ?? "4:5");
+          if (src) return { ok: true, src, prompt, adapter: "live" };
+        }
+      } catch {
+        /* mock below */
       }
       const dir = mockDirections(data.topic || "禪學社")[0];
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350">

@@ -164,14 +164,22 @@ function parseBriefInput(input: unknown) {
   return BriefInputSchema.parse(input);
 }
 
+function mockPlanResult(data: BriefInput): PlanResult {
+  const directions = mockDirections(data.eventName);
+  const plan = zenish(data) ? buildZenMockPlan(data, directions) : buildMockPlan(data);
+  plan.directions = directions;
+  return { ok: true, plan, adapter: "mock" };
+}
+
 export const generateCampaignPlan = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseBriefInput(input))
   .handler(async ({ data }): Promise<PlanResult> => {
-    if (!hasXai() || data.forceMock) {
-      const directions = mockDirections(data.eventName);
-      const plan = zenish(data) ? buildZenMockPlan(data, directions) : buildMockPlan(data);
-      plan.directions = directions;
-      return { ok: true, plan, adapter: "mock" };
+    try {
+      if (!hasXai() || data.forceMock) return mockPlanResult(data);
+      const live = await generateLive(data);
+      if (live.ok) return live;
+      return mockPlanResult(data);
+    } catch {
+      return mockPlanResult(data);
     }
-    return generateLive(data);
   });

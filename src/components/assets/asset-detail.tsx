@@ -149,7 +149,7 @@ export function AssetDetailSheet({
             onClick={() => {
               void navigate({
                 to: "/create",
-                search: { q: `用「${asset.name}」做新的網宣`, mode: "vision", run: "1" },
+                search: { q: `用「${asset.name}」做新的網宣`, mode: "vision", auto: "1" },
               });
               onOpenChange(false);
             }}
@@ -161,7 +161,7 @@ export function AssetDetailSheet({
             onClick={() => {
               void navigate({
                 to: "/create",
-                search: { q: `延續「${asset.name}」的風格生成相似視覺`, mode: "image", run: "1" },
+                search: { q: `延續「${asset.name}」的風格生成相似視覺`, mode: "image", auto: "1" },
               });
               onOpenChange(false);
             }}

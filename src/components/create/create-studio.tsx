@@ -86,8 +86,8 @@ export function CreateStudio({
     try {
       const sources = hits.slice(0, 12).map((hit) => ({
         source: hit.source,
-        label: hit.sourceLabel,
-        id: hit.id,
+        label: hit.sourceLabel || hit.title,
+        id: hit.id.slice(0, 160),
       }));
       const result = await generateCreativePack({
         data: {
@@ -353,6 +353,12 @@ export function CreateStudio({
                   <Button size="sm" variant="secondary" onClick={() => void runImage(`${activeDir.imagePrompt}, new background campus path`)}>
                     換背景
                   </Button>
+                  <Button size="sm" variant="secondary" onClick={() => void runImage(`${activeDir.imagePrompt}, editorial film still, less illustration more photo`)}>
+                    換風格
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => void runImage(`${activeDir.imagePrompt}, less text, bigger hook, more empty space`)}>
+                    換文字
+                  </Button>
                   <Button size="sm" variant="secondary" onClick={() => void runDirections()}>
                     重新生成方向
                   </Button>
@@ -391,6 +397,9 @@ export function CreateStudio({
                 <li>會停下來 {sim.wouldStop ? "會" : "還不會"}</li>
                 <li>太宗教 {sim.tooReligious ? "是" : "沒有"}</li>
                 <li>太 AI {sim.tooAi ? "是" : "沒有"}</li>
+                <li>太嚴肅 {sim.tooSerious ? "是" : "沒有"}</li>
+                <li>太文青 {sim.tooLiterary ? "是" : "沒有"}</li>
+                <li>太長 {sim.tooLong ? "是" : "沒有"}</li>
                 <li>知道時間地點 {sim.knowsWhenWhere ? "知道" : "不清楚"}</li>
                 <li>會找朋友 {sim.wouldBringFriend ? "可能" : "還不會"}</li>
                 <li>知道怎麼報名 {sim.knowsHowToJoin ? "知道" : "還不會"}</li>
@@ -400,8 +409,10 @@ export function CreateStudio({
             </div>
           ) : null}
 
+          <PackKit pack={pack} />
+
           <div>
-            <h2 className="text-sm font-medium">一鍵轉換</h2>
+            <h2 className="text-sm font-medium">再轉一版</h2>
             <ConvertPreview title={pack.plan.campaignName} hook={pack.plan.hook} when={campaign?.date} where={campaign?.location} />
           </div>
 
@@ -411,6 +422,16 @@ export function CreateStudio({
             </Button>
             <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => applyToStudio(true)}>
               排進月曆
+            </Button>
+            <Button
+              variant="secondary"
+              className="min-h-11 rounded-full"
+              onClick={() => {
+                toast.message("官方 Canva 授權開啟後，會把文案與主視覺送去微調。");
+                void navigate({ to: "/connect" });
+              }}
+            >
+              送進 Canva 微調
             </Button>
           </div>
         </section>
@@ -439,6 +460,65 @@ export function CreateStudio({
         </section>
       ) : null}
     </main>
+  );
+}
+
+function PackKit({ pack }: { pack: CreativePack }) {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-sm font-medium">整套網宣</h2>
+      {pack.plan.scheduleNotes ? <p className="text-xs text-muted">{pack.plan.scheduleNotes}</p> : null}
+      <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <p className="text-xs tracking-[0.14em] text-muted uppercase">Carousel</p>
+        <ol className="mt-2 space-y-2">
+          {pack.conversions.carousel.map((page, index) => (
+            <li key={`${page.role}-${index}`} className="text-sm">
+              <span className="text-xs text-subtle">Page {index + 1}</span>
+              <p className="font-medium">{page.headline.replace(/\n/g, " ")}</p>
+              <p className="text-xs text-muted">{page.body}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <p className="text-xs tracking-[0.14em] text-muted uppercase">Story</p>
+        <ol className="mt-2 space-y-2">
+          {pack.conversions.story.map((frame, index) => (
+            <li key={`${frame.headline}-${index}`} className="text-sm">
+              <p className="font-medium">{frame.headline}</p>
+              <p className="text-xs text-muted">
+                {frame.body} · 畫面：{frame.visualNote}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <p className="text-xs tracking-[0.14em] text-muted uppercase">Threads</p>
+          <pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{pack.conversions.threads}</pre>
+        </div>
+        <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <p className="text-xs tracking-[0.14em] text-muted uppercase">LINE</p>
+          <pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{pack.conversions.line}</pre>
+        </div>
+      </div>
+      <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <p className="text-xs tracking-[0.14em] text-muted uppercase">Reels 腳本</p>
+        <ol className="mt-2 space-y-3">
+          {pack.conversions.reels.map((beat) => (
+            <li key={`${beat.start}-${beat.end}`} className="text-sm">
+              <p className="font-medium">
+                {beat.start}–{beat.end} {beat.caption}
+              </p>
+              <p className="text-xs text-muted">畫面：{beat.visual}</p>
+              <p className="text-xs text-muted">旁白：{beat.voice}</p>
+              <p className="text-xs text-subtle">轉場：{beat.transition} · 素材：{beat.assetHint}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
   );
 }
 

@@ -18,48 +18,58 @@ export async function xaiChat(
 ): Promise<string | null> {
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) return null;
-  const res = await fetch("https://api.x.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "grok-4.5",
-      temperature: opts?.temperature ?? 0.7,
-      max_tokens: opts?.maxTokens ?? 2500,
-      ...(opts?.json ? { response_format: { type: "json_object" } } : {}),
-      messages,
-    }),
-  });
-  if (!res.ok) return null;
-  const body = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  return body.choices?.[0]?.message?.content ?? null;
+  try {
+    const res = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      signal: AbortSignal.timeout(12000),
+      body: JSON.stringify({
+        model: "grok-4.5",
+        temperature: opts?.temperature ?? 0.7,
+        max_tokens: opts?.maxTokens ?? 2500,
+        ...(opts?.json ? { response_format: { type: "json_object" } } : {}),
+        messages,
+      }),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    return body.choices?.[0]?.message?.content ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function xaiImage(prompt: string, aspect: "1:1" | "4:5" | "9:16" = "4:5"): Promise<string | null> {
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) return null;
-  const res = await fetch("https://api.x.ai/v1/images/generations", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "grok-imagine-image",
-      prompt,
-      n: 1,
-      aspect_ratio: aspect,
-      response_format: "b64_json",
-    }),
-  });
-  if (!res.ok) return null;
-  const body = (await res.json()) as { data?: { b64_json?: string; url?: string }[] };
-  const first = body.data?.[0];
-  if (first?.b64_json) return `data:image/png;base64,${first.b64_json}`;
-  if (first?.url) return first.url;
-  return null;
+  try {
+    const res = await fetch("https://api.x.ai/v1/images/generations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      signal: AbortSignal.timeout(20000),
+      body: JSON.stringify({
+        model: "grok-imagine-image",
+        prompt,
+        n: 1,
+        aspect_ratio: aspect,
+        response_format: "b64_json",
+      }),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { data?: { b64_json?: string; url?: string }[] };
+    const first = body.data?.[0];
+    if (first?.b64_json) return `data:image/png;base64,${first.b64_json}`;
+    if (first?.url) return first.url;
+    return null;
+  } catch {
+    return null;
+  }
 }

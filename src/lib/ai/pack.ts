@@ -36,13 +36,17 @@ const PackInput = z.object({
   sources: z
     .array(
       z.object({
-        source: z.enum(["drive", "canva", "instagram", "generated", "brand", "upload"]),
-        label: z.string(),
-        id: z.string().optional(),
+        source: z.preprocess((value) => {
+          const allowed = ["drive", "canva", "instagram", "generated", "brand", "upload"] as const;
+          return allowed.includes(value as (typeof allowed)[number]) ? value : "brand";
+        }, z.enum(["drive", "canva", "instagram", "generated", "brand", "upload"])),
+        label: z.string().min(1).max(160),
+        id: z.string().max(160).optional(),
       }),
     )
     .max(24)
-    .optional(),
+    .optional()
+    .catch([]),
   forceMock: z.boolean().optional(),
 });
 
@@ -125,27 +129,31 @@ export function buildPackFromPlan(
   };
 }
 
+function mockPack(query: string, brief: BriefInput, sources: SourceRef[]): CreativePack {
+  const directions = mockDirections(brief.eventName);
+  const plan = buildZenMockPlan(brief, directions);
+  plan.sources = sources;
+  plan.studentSim = mockStudentSim({
+    hook: plan.hook,
+    caption: plan.captions[0]?.text ?? "",
+    when: brief.schedule,
+    where: brief.location,
+    cta: plan.cta,
+  });
+  return buildPackFromPlan(query, plan, sources, "mock");
+}
+
 export const generateCreativePack = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseFnInput(PackInput, input))
   .handler(async ({ data }): Promise<{ ok: true; pack: CreativePack } | { ok: false; error: string }> => {
     const brief = briefFromPack(data);
     const sources = data.sources ?? [];
-    const season = academicMoment();
-    if (!hasXai() || data.forceMock) {
-      const directions = mockDirections(brief.eventName);
-      const plan = buildZenMockPlan(brief, directions);
-      plan.sources = sources;
-      plan.studentSim = mockStudentSim({
-        hook: plan.hook,
-        caption: plan.captions[0]?.text ?? "",
-        when: brief.schedule,
-        where: brief.location,
-        cta: plan.cta,
-      });
-      return { ok: true, pack: buildPackFromPlan(data.query, plan, sources, "mock") };
-    }
-
-    const prompt = `使用者說：${data.query}
+    try {
+      if (!hasXai() || data.forceMock) {
+        return { ok: true, pack: mockPack(data.query, brief, sources) };
+      }
+      const season = academicMoment();
+      const prompt = `使用者說：${data.query}
 活動名稱：${brief.eventName}
 時間：${brief.schedule || "未定"}
 地點：${brief.location}
@@ -161,35 +169,32 @@ directions[{id,name,concept,palette,composition,typeDirection,imagePrompt,headli
 threadsPost, lineCopy,
 studentSim{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,tooLong,knowsWhat,knowsWhenWhere,wouldBringFriend,knowsHowToJoin,notes,revisions}。`;
 
-    const text = await xaiChat(
-      [
-        { role: "system", content: clubSystemPrompt(season.label, season.weather) },
-        { role: "user", content: prompt },
-      ],
-      { json: true, maxTokens: 4500 },
-    );
-    if (!text) {
-      const directions = mockDirections(brief.eventName);
-      const plan = buildZenMockPlan(brief, directions);
-      plan.sources = sources;
-      return { ok: true, pack: buildPackFromPlan(data.query, plan, sources, "mock") };
-    }
-    try {
-      const raw = extractJson(text) as CampaignPlan & { directions?: CreativeDirection[] };
-      const fallback = buildZenMockPlan(brief, mockDirections(brief.eventName));
-      const plan: CampaignPlan = {
-        ...fallback,
-        ...raw,
-        captions: raw.captions?.length ? raw.captions : fallback.captions,
-        carouselPages: raw.carouselPages?.length ? raw.carouselPages : fallback.carouselPages,
-        generatedAt: Date.now(),
-        source: "live",
-        sources,
-        directions: raw.directions?.length === 3 ? raw.directions : fallback.directions,
-      };
-      return { ok: true, pack: buildPackFromPlan(data.query, plan, sources, "live") };
+      const text = await xaiChat(
+        [
+          { role: "system", content: clubSystemPrompt(season.label, season.weather) },
+          { role: "user", content: prompt },
+        ],
+        { json: true, maxTokens: 4500 },
+      );
+      if (!text) return { ok: true, pack: mockPack(data.query, brief, sources) };
+      try {
+        const raw = extractJson(text) as CampaignPlan & { directions?: CreativeDirection[] };
+        const fallback = buildZenMockPlan(brief, mockDirections(brief.eventName));
+        const plan: CampaignPlan = {
+          ...fallback,
+          ...raw,
+          captions: raw.captions?.length ? raw.captions : fallback.captions,
+          carouselPages: raw.carouselPages?.length ? raw.carouselPages : fallback.carouselPages,
+          generatedAt: Date.now(),
+          source: "live",
+          sources,
+          directions: raw.directions?.length === 3 ? raw.directions : fallback.directions,
+        };
+        return { ok: true, pack: buildPackFromPlan(data.query, plan, sources, "live") };
+      } catch {
+        return { ok: true, pack: mockPack(data.query, brief, sources) };
+      }
     } catch {
-      const directions = mockDirections(brief.eventName);
-      return { ok: true, pack: buildPackFromPlan(data.query, buildZenMockPlan(brief, directions), sources, "mock") };
+      return { ok: true, pack: mockPack(data.query, brief, sources) };
     }
   });

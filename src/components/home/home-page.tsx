@@ -61,7 +61,7 @@ export function HomePage() {
     setLastQuery(featured.name);
     void navigate({
       to: "/create",
-      search: { q: `幫我做 ${featured.name} 完整宣傳`, run: "1", campaign: featured.id },
+      search: { q: `幫我做 ${featured.name} 完整宣傳`, auto: "1", campaign: featured.id },
     });
   }
 
@@ -79,7 +79,7 @@ export function HomePage() {
           e.preventDefault();
           if (!q.trim()) return;
           setLastQuery(q.trim());
-          void navigate({ to: "/create", search: { q: q.trim(), run: "1" } });
+          void navigate({ to: "/create", search: { q: q.trim(), auto: "1" } });
         }}
       >
         <div className="relative min-w-0 flex-1">
@@ -254,7 +254,7 @@ export function HomePage() {
                 onClick={() =>
                   void navigate({
                     to: "/create",
-                    search: { q: `延續這篇 IG：${post.caption.split("\n")[0]}`, run: "1", mode: "post" },
+                    search: { q: `延續這篇 IG：${post.caption.split("\n")[0]}`, auto: "1", mode: "post" },
                   })
                 }
               >

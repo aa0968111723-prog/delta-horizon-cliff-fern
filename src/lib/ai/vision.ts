@@ -51,27 +51,31 @@ export const analyzeImage = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseFnInput(VisionInput, input))
   .handler(async ({ data }): Promise<{ ok: true; report: VisionReport } | { ok: false; error: string }> => {
     if (!hasXai()) return { ok: true, report: fallback };
-    const season = academicMoment();
-    const content = [
-      {
-        type: "text",
-        text: `${data.note || "分析這張圖，給淡江禪學社網宣用。"}
+    try {
+      const season = academicMoment();
+      const content = [
+        {
+          type: "text",
+          text: `${data.note || "分析這張圖，給淡江禪學社網宣用。"}
 輸出 JSON：scene,people,color,light,composition,typeShare,hierarchy,brandFit,studentFit,stay,tooReligious,tooOld,tooAi,next[5],imagePrompt。
 用生活語言。`,
-      },
-      { type: "image_url", image_url: { url: data.imageDataUrl } },
-    ];
-    const text = await xaiChat(
-      [
-        { role: "system", content: clubSystemPrompt(season.label, season.weather) },
-        { role: "user", content },
-      ],
-      { json: true, maxTokens: 1200 },
-    );
-    if (!text) return { ok: true, report: fallback };
-    try {
-      const report = { ...fallback, ...(extractJson(text) as Partial<VisionReport>) };
-      return { ok: true, report };
+        },
+        { type: "image_url", image_url: { url: data.imageDataUrl } },
+      ];
+      const text = await xaiChat(
+        [
+          { role: "system", content: clubSystemPrompt(season.label, season.weather) },
+          { role: "user", content },
+        ],
+        { json: true, maxTokens: 1200 },
+      );
+      if (!text) return { ok: true, report: fallback };
+      try {
+        const report = { ...fallback, ...(extractJson(text) as Partial<VisionReport>) };
+        return { ok: true, report };
+      } catch {
+        return { ok: true, report: fallback };
+      }
     } catch {
       return { ok: true, report: fallback };
     }
