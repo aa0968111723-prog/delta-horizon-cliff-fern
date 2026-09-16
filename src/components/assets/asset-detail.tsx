@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { analyzeCreativeAsset } from "@/lib/ai/zen-creative";
+import { analyzeCreativeAsset, generateZenCreativeWave } from "@/lib/ai/zen-creative";
 import { applyCreativeToStudio } from "@/lib/studio/apply-creative";
 import { ASSET_CATEGORIES, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import { kindFromCategory } from "@/lib/studio/assets";
@@ -43,6 +43,7 @@ export function AssetDetailSheet({
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
   const addCreativeSource = useCampaignStore((s) => s.addCreativeSource);
   const [analyzing, setAnalyzing] = useState(false);
+  const [similarBusy, setSimilarBusy] = useState(false);
 
   if (!asset) return null;
   const current = asset;
@@ -90,31 +91,41 @@ export function AssetDetailSheet({
     }
   }
 
-  function generateSimilar() {
-    const wave = buildLocalCreativeWave({
-      topic: `延續「${current.name}」的光線與留白`,
-      details: current.analysisNotes || current.tags.join("、"),
-    });
-    addCreativeSource({
-      source: "ai-generated",
-      title: `相似視覺 · ${current.name}`,
-      subtitle: current.attribution || current.licenseOwner || "素材庫延伸",
-      thumbnailUrl: current.seedSrc || "/seed/cup.jpg",
-      category: "AI 生成",
-      tags: ["相似", ...current.tags.slice(0, 4)],
-      date: new Date().toISOString().slice(0, 10),
-      meta: { fromAssetId: current.id, imagePrompt: wave.directions[0].imagePrompt },
-    });
-    const { projectId } = applyCreativeToStudio({
-      topic: `延續素材「${current.name}」`,
-      direction: wave.directions[0],
-      conversion: wave.conversion,
-      source: "mock",
-      schedule: false,
-    });
-    onOpenChange(false);
-    toast.success("已生成同風格方向並套上畫布");
-    void navigate({ to: "/studio/$projectId", params: { projectId } });
+  async function generateSimilar() {
+    const topic = `延續「${current.name}」的光線與留白`;
+    const details = current.analysisNotes || current.tags.join("、");
+    setSimilarBusy(true);
+    try {
+      const result = await generateZenCreativeWave({ data: { topic, details } });
+      const wave = result.ok
+        ? result.wave
+        : buildLocalCreativeWave({ topic, details });
+      if (!result.ok) toast.message("改用本機草案繼續");
+      addCreativeSource({
+        source: "ai-generated",
+        title: `相似視覺 · ${current.name}`,
+        subtitle: current.attribution || current.licenseOwner || "素材庫延伸",
+        thumbnailUrl: current.seedSrc || "/seed/cup.jpg",
+        category: "AI 生成",
+        tags: ["相似", ...current.tags.slice(0, 4)],
+        date: new Date().toISOString().slice(0, 10),
+        meta: { fromAssetId: current.id, imagePrompt: wave.directions[0].imagePrompt },
+      });
+      const { projectId } = applyCreativeToStudio({
+        topic: `延續素材「${current.name}」`,
+        direction: wave.directions[0],
+        conversion: wave.conversion,
+        source: result.ok ? result.adapter : "mock",
+        schedule: false,
+      });
+      onOpenChange(false);
+      toast.success(result.ok && result.adapter === "live" ? "已用 Grok 生成同風格並套上畫布" : "已生成同風格方向並套上畫布");
+      void navigate({ to: "/studio/$projectId", params: { projectId } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "生成失敗");
+    } finally {
+      setSimilarBusy(false);
+    }
   }
 
   return (
@@ -216,8 +227,8 @@ export function AssetDetailSheet({
           <Button variant="secondary" data-testid="analyze-asset" disabled={analyzing} onClick={() => void analyze()}>
             {analyzing ? "分析中…" : "分析圖片"}
           </Button>
-          <Button variant="outline" data-testid="generate-similar" onClick={generateSimilar}>
-            生成相似並套用
+          <Button variant="outline" data-testid="generate-similar" disabled={similarBusy} onClick={() => void generateSimilar()}>
+            {similarBusy ? "生成中…" : "生成相似並套用"}
           </Button>
           <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}

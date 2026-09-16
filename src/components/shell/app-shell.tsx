@@ -112,7 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </nav>
       </div>
-      {current !== "studio" ? (
+      {current !== "studio" && current !== "home" ? (
         <button
           type="button"
           onClick={() => setAssistantOpen(true)}

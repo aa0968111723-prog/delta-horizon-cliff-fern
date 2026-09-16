@@ -24,6 +24,12 @@ export function grokCapRemaining(): { allowed: boolean; remaining: number } {
   return { allowed: liveCalls < MAX_LIVE_PER_HOUR, remaining: Math.max(0, MAX_LIVE_PER_HOUR - liveCalls) };
 }
 
+/** Test helper — not used by the app. */
+export function resetGrokCapForTests(calls = 0) {
+  windowStart = Date.now();
+  liveCalls = calls;
+}
+
 export type GrokChatResult =
   | { ok: true; text: string }
   | { ok: false; error: string; capped?: boolean; status?: number };

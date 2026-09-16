@@ -55,9 +55,11 @@ export function scheduleCreativeWave(input: {
   campaignId?: string;
   projectId?: string;
   eventDate?: string;
+  contentTypes?: ContentType[];
 }) {
   const store = useCampaignStore.getState();
   const slots = suggestedScheduleSlots(input.eventDate);
+  const wanted = input.contentTypes;
   const items: { title: string; contentType: ContentType; scheduledAt: string; caption: string; hook: string }[] = [
     {
       title: `${input.topic} · 情緒共鳴 Carousel`,
@@ -87,7 +89,7 @@ export function scheduleCreativeWave(input: {
       caption: input.conversion.reelsScript.scenes.map((s) => s.subtitle).join(" / "),
       hook: input.conversion.reelsScript.scenes[0]?.subtitle ?? input.direction.headline,
     },
-  ];
+  ].filter((item) => !wanted || wanted.includes(item.contentType));
   for (const item of items) {
     store.addScheduledPost({
       campaignId: input.campaignId,

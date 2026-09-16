@@ -136,15 +136,16 @@ export function AiCreativeModal({
     }
   }
 
-  function schedule(format: "carousel" | "ig-post" | "story" | "reels") {
+  function schedule(format?: "carousel" | "ig-post" | "story" | "reels") {
     scheduleCreativeWave({
       topic: topic.trim() || initialTopic,
       direction: selectedDir,
       conversion: wave.conversion,
       campaignId: campaign?.id,
       eventDate: campaign?.date,
+      contentTypes: format ? [format] : undefined,
     });
-    toast.success(`已將 ${format} 波段排入內容日曆`);
+    toast.success(format ? `已將 ${format} 排入內容日曆` : "已將宣傳波段排入內容日曆");
   }
 
   const mockMode = status ? !status.available || liveFailed : false;
@@ -281,7 +282,7 @@ export function AiCreativeModal({
                     data-testid="schedule-to-calendar"
                     variant="outline"
                     size="sm"
-                    onClick={() => schedule("carousel")}
+                    onClick={() => schedule()}
                   >
                     排入內容日曆
                   </Button>
