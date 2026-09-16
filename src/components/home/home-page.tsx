@@ -46,6 +46,7 @@ export function HomePage() {
   const assets = useStudio((s) => s.assets);
   const duplicateProject = useStudio((s) => s.duplicateProject);
   const createProject = useStudio((s) => s.createProject);
+  const updateCampaign = useStudio((s) => s.updateCampaign);
 
   const phase = semesterPhaseAt();
   const tamsui = tamsuiContextAt();
@@ -97,6 +98,11 @@ export function HomePage() {
         deliverables: { post: true, story: false, carousel: todaysWave.kind === "carousel", reels: false },
       },
       sources: [{ kind: "local", label: `活動 / ${focus.name}`, detail: todaysWave.stage }],
+    });
+    updateCampaign(focus.id, {
+      waves: focus.waves.map((wave) =>
+        wave.id === todaysWave.id ? { ...wave, contentId: project.id } : wave,
+      ),
     });
     void navigate({ to: "/create", search: { contentId: project.id, kind: todaysWave.kind } });
   }
