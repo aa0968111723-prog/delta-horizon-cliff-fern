@@ -41,7 +41,13 @@ export function LinePreview({
     <div className="mx-auto w-full max-w-sm">
       <p className="mb-2 text-xs text-subtle">LINE 預覽 · {CLUB_HANDLE}</p>
       <div className="space-y-2 rounded-3xl bg-surface p-3 shadow-[var(--shadow-lift)]">
-        <p className="text-xs text-subtle">{CLUB_NAME}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="min-w-0 truncate text-xs text-subtle">{CLUB_NAME}</p>
+          <Button size="sm" variant="secondary" onClick={() => void copyCaption()} disabled={!text.trim()}>
+            {copied ? <Check className="size-4" /> : <CopyIcon className="size-4" />}
+            {copied ? "已複製" : "複製 LINE 文案"}
+          </Button>
+        </div>
         <div className="overflow-hidden rounded-2xl bg-surface-2">
           {page && brand ? (
             <span className="flex w-full justify-center">
@@ -56,10 +62,6 @@ export function LinePreview({
         <p className="rounded-2xl bg-surface-2 px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap">
           {text || "套用一版文案之後，這裡會出現貼到 LINE 的字。"}
         </p>
-        <Button size="sm" variant="secondary" onClick={() => void copyCaption()} disabled={!text.trim()}>
-          {copied ? <Check className="size-4" /> : <CopyIcon className="size-4" />}
-          {copied ? "已複製" : "複製 LINE 文案"}
-        </Button>
         <p className="text-xs text-subtle">已讀與按讚是 LINE 上的，這裡不編造數字。</p>
       </div>
     </div>
