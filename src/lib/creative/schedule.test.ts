@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bindScheduledWave, inferEventDate, isoFromMs, scheduledAtFor, suggestWaves } from "./schedule.ts";
+import {
+  bindScheduledWave,
+  campaignNameFromTitle,
+  inferEventDate,
+  isoFromMs,
+  planPreviewSchedule,
+  scheduledAtFor,
+  suggestWaves,
+} from "./schedule.ts";
 
 test("isoFromMs uses Taipei calendar day", () => {
   const ms = Date.parse("2026-09-24T00:30:00+08:00");
@@ -11,6 +19,71 @@ test("inferEventDate reads 下週 and 9/24", () => {
   const from = new Date("2026-09-16T12:00:00+08:00");
   assert.equal(inferEventDate("下週有一場茶會", from), "2026-09-23");
   assert.equal(inferEventDate("9/24 浮游禪光", from), "2026-09-24");
+});
+
+test("IG grid titles keep the event name without the format suffix", () => {
+  assert.equal(campaignNameFromTitle("下週有一場茶會 · Carousel"), "下週有一場茶會");
+});
+
+test("IG preview of a finished carousel plans the week-before slot", () => {
+  const plan = planPreviewSchedule({
+    project: {
+      id: "proj_preview",
+      name: "下週有一場茶會 · Carousel",
+      status: "done",
+      scheduledAt: null,
+      campaignId: null,
+      contentKind: "carousel",
+      copy: { headline: "最近是不是很久沒坐好？", body: "帶一個朋友就好", cta: "晚上來坐一下" },
+    },
+    campaigns: [],
+    caption: "最近是不是很久沒坐好？",
+    now: new Date("2026-09-16T12:00:00+08:00"),
+  });
+  assert.equal(plan.action, "schedule");
+  if (plan.action !== "schedule") return;
+  assert.equal(plan.campaignDraft?.name, "下週有一場茶會");
+  assert.equal(plan.campaignDraft?.date, "2026-09-23");
+  assert.equal(plan.day, "2026-09-16");
+});
+
+test("already scheduled IG pack opens that calendar day", () => {
+  const plan = planPreviewSchedule({
+    project: {
+      id: "proj_ready",
+      name: "下週有一場茶會 · Carousel",
+      status: "scheduled",
+      scheduledAt: Date.parse("2026-09-16T19:00:00+08:00"),
+      campaignId: "camp_tea",
+      contentKind: "carousel",
+      copy: { headline: "最近是不是很久沒坐好？", body: "", cta: "" },
+    },
+    campaigns: [{ id: "camp_tea", date: "2026-09-23", waves: [] }],
+    caption: "最近是不是很久沒坐好？",
+  });
+  assert.equal(plan.action, "open");
+  if (plan.action !== "open") return;
+  assert.equal(plan.day, "2026-09-16");
+  assert.equal(plan.campaignId, "camp_tea");
+});
+
+test("a finished pack that already has a date opens the calendar instead of rescheduling", () => {
+  const plan = planPreviewSchedule({
+    project: {
+      id: "proj_float",
+      name: "浮游禪光 · 主視覺 Carousel",
+      status: "done",
+      scheduledAt: Date.parse("2026-09-17T19:00:00+08:00"),
+      campaignId: "camp_float_light",
+      contentKind: "carousel",
+      copy: { headline: "", body: "", cta: "" },
+    },
+    campaigns: [{ id: "camp_float_light", date: "2026-09-24", waves: [] }],
+    caption: "最近是不是很久沒有好好坐下來？",
+  });
+  assert.equal(plan.action, "open");
+  if (plan.action !== "open") return;
+  assert.equal(plan.day, "2026-09-17");
 });
 
 test("tea campaign waves mix life and promo instead of stacking ads", () => {

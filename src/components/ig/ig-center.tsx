@@ -10,8 +10,8 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { clubDnaFromMemory } from "@/lib/club/dna";
 import { clubInsightsFromPosts } from "@/lib/club/insights";
 import { analyzeIgMemoryPost } from "@/lib/club/ig-analyze";
-import { igGridSlots, upcomingSlotId, type IgGridSlot } from "@/lib/creative/ig-feed";
-import { isoFromMs } from "@/lib/creative/schedule";
+import { igGridSlots, upcomingSlotId, upcomingStatusCopy, type IgGridSlot } from "@/lib/creative/ig-feed";
+import { planPreviewSchedule } from "@/lib/creative/schedule";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { ArtboardView } from "@/components/studio/artboard-view";
@@ -21,7 +21,12 @@ import type { BrandKit, Project } from "@/lib/studio/types";
 export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
   const igPosts = useCreative((s) => s.igPosts);
   const analyzeIg = useCreative((s) => s.analyzeIg);
+  const campaigns = useCreative((s) => s.campaigns);
+  const addCampaign = useCreative((s) => s.addCampaign);
+  const generateWaves = useCreative((s) => s.generateWaves);
+  const bindScheduledWave = useCreative((s) => s.bindScheduledWave);
   const projects = useStudio((s) => s.projects);
+  const updateProject = useStudio((s) => s.updateProject);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
   const urls = useAssetUrls(assets.map((a) => a.id));
@@ -56,6 +61,52 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
     toast.success("已用淡江學生視角看過這篇");
   }
 
+  function scheduleActive() {
+    if (!active || !activeProject) {
+      toast.message("這格還不能排程");
+      return;
+    }
+    const plan = planPreviewSchedule({
+      project: {
+        id: activeProject.id,
+        name: activeProject.name,
+        status: activeProject.status,
+        scheduledAt: activeProject.scheduledAt,
+        campaignId: activeProject.campaignId,
+        contentKind: activeProject.contentKind,
+        copy: activeProject.copy,
+        visualTheme: activeProject.plan?.visualTheme,
+        location: activeProject.brief?.location,
+      },
+      campaigns,
+      caption: active.caption,
+    });
+    if (plan.action === "open") {
+      void navigate({ to: "/calendar", search: { day: plan.day } });
+      return;
+    }
+    let campId = plan.campaignId;
+    if (!campId && plan.campaignDraft) {
+      campId = addCampaign(plan.campaignDraft).id;
+    }
+    if (!campId) return;
+    if (plan.needWaves) generateWaves(campId);
+    bindScheduledWave(campId, {
+      kind: activeProject.contentKind,
+      projectId: activeProject.id,
+      scheduledAt: plan.scheduledAt,
+      topic: plan.topic,
+      status: "scheduled",
+    });
+    updateProject(activeProject.id, {
+      status: "scheduled",
+      scheduledAt: plan.scheduledAt,
+      campaignId: campId,
+    });
+    toast.success(`已排進 ${plan.day.slice(5).replace("-", "/")} 月曆`);
+    void navigate({ to: "/calendar", search: { day: plan.day } });
+  }
+
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
       <p className="text-xs tracking-[0.18em] text-muted uppercase">Instagram Center</p>
@@ -85,8 +136,11 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
       {active ? (
         <section className="mt-8 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
           <p className="text-xs text-muted">
-            {active.origin === "upcoming" ? "即將 · " : ""}
-            {format(active.takenAt, "yyyy.MM.dd", { locale: zhTW })} · {active.mediaType}
+            {active.origin === "upcoming" ? (active.scheduledAt ? "即將 · " : "預覽 · ") : ""}
+            {active.origin === "published" || active.scheduledAt
+              ? `${format(active.takenAt, "yyyy.MM.dd", { locale: zhTW })} · `
+              : ""}
+            {active.mediaType}
           </p>
           <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed">{active.caption}</pre>
           {active.origin === "published" ? (
@@ -95,9 +149,14 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
               {active.shares != null ? ` · 分享 ${active.shares}` : ""}
             </p>
           ) : (
-            <p className="mt-3 text-xs text-muted">排在 {isoFromMs(active.takenAt).slice(5).replace("-", "/")} · 還沒進帳號</p>
+            <p className="mt-3 text-xs text-muted">{upcomingStatusCopy(active)}</p>
           )}
           <div className="mt-4 flex flex-wrap gap-2">
+            {active.origin === "upcoming" && activeProject ? (
+              <Button className="min-h-11" onClick={scheduleActive}>
+                {activeProject.scheduledAt ? "去月曆" : "排進月曆"}
+              </Button>
+            ) : null}
             {active.origin === "published" ? (
               <Button className="min-h-11" onClick={analyze}>
                 AI 分析
@@ -213,7 +272,14 @@ function GridCell({
         </span>
       )}
       {slot.origin === "upcoming" ? (
-        <span className="absolute bottom-1 left-1 rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-accent-fg">即將</span>
+        <span
+          className={cn(
+            "absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 text-[10px]",
+            slot.status === "scheduled" || slot.scheduledAt ? "bg-accent text-accent-fg" : "bg-surface text-fg shadow-[var(--shadow-border)]",
+          )}
+        >
+          {slot.status === "scheduled" || slot.scheduledAt ? "即將" : "預覽"}
+        </span>
       ) : null}
     </button>
   );

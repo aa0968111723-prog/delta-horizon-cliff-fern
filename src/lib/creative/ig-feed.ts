@@ -1,4 +1,5 @@
 import type { ContentKind, Project, ProjectStatus } from "../studio/types.ts";
+import { isoFromMs } from "./schedule.ts";
 import { captionFromProject, mediaTypeFromKind } from "./publish.ts";
 import type { IgMemoryPost } from "./types.ts";
 
@@ -27,6 +28,7 @@ export type IgGridSlot = {
   mediaType: IgMemoryPost["mediaType"];
   mediaUrl?: string;
   status?: ProjectStatus;
+  scheduledAt?: number | null;
   analysis?: IgMemoryPost["analysis"];
   saves?: number;
   comments?: number;
@@ -41,6 +43,14 @@ type ProjectSlice = Pick<
 
 export function upcomingSlotId(projectId: string) {
   return `up-${projectId}`;
+}
+
+export function upcomingStatusCopy(input: { status?: ProjectStatus; takenAt: number; scheduledAt?: number | null }) {
+  const at = input.scheduledAt ?? (input.status === "scheduled" ? input.takenAt : null);
+  if (at) {
+    return `排在 ${isoFromMs(at).slice(5).replace("-", "/")} · 還沒進帳號`;
+  }
+  return "還沒排程 · 先看 Grid，再排進月曆";
 }
 
 /** 即將發的排在 Grid 最前，再接過去貼文。LINE／海報不進 IG Grid。 */
@@ -59,6 +69,7 @@ export function igGridSlots(input: { projects: ProjectSlice[]; posts: IgMemoryPo
         assetIds: [],
         mediaType: mediaTypeFromKind(project.contentKind),
         status: project.status,
+        scheduledAt: project.scheduledAt,
       }),
     );
 

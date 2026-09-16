@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { igGridSlots, upcomingSlotId } from "./ig-feed.ts";
+import { igGridSlots, upcomingSlotId, upcomingStatusCopy } from "./ig-feed.ts";
 import type { CopyDeck } from "../studio/types.ts";
 
 const copy: CopyDeck = {
@@ -88,7 +88,28 @@ test("a finished pack still sits on the IG grid before it is scheduled", () => {
   });
   assert.equal(slots[0]?.id, upcomingSlotId("proj_preview"));
   assert.equal(slots[0]?.origin, "upcoming");
+  assert.equal(slots[0]?.status, "done");
+  assert.equal(slots[0]?.scheduledAt, null);
   assert.match(slots[0]?.caption ?? "", /很久沒坐好/);
+  assert.match(upcomingStatusCopy(slots[0]!), /還沒排程/);
+});
+
+test("scheduled upcoming copy names the calendar day", () => {
+  assert.match(
+    upcomingStatusCopy({ status: "scheduled", takenAt: Date.parse("2026-09-16T19:00:00+08:00") }),
+    /排在 09\/16/,
+  );
+});
+
+test("a finished pack with a date still shows as scheduled on the grid copy", () => {
+  assert.match(
+    upcomingStatusCopy({
+      status: "done",
+      takenAt: Date.parse("2026-09-17T19:00:00+08:00"),
+      scheduledAt: Date.parse("2026-09-17T19:00:00+08:00"),
+    }),
+    /排在 09\/17/,
+  );
 });
 
 test("earlier scheduled date comes first among upcoming", () => {

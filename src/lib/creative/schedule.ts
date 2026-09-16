@@ -77,6 +77,65 @@ export function isoFromMs(ms: number) {
   }).format(new Date(ms));
 }
 
+export function campaignNameFromTitle(title: string) {
+  const name = title.split("·")[0]?.trim() || title.trim();
+  return name.slice(0, 40) || "淡江禪學社";
+}
+
+type PreviewProject = {
+  id: string;
+  name: string;
+  status: ProjectStatus;
+  scheduledAt: number | null;
+  campaignId: string | null;
+  contentKind: ContentKind;
+  copy: { headline: string; body: string; cta: string };
+  visualTheme?: string;
+  location?: string;
+};
+
+/** IG Grid 上未排程的完成稿，算出要建哪個活動、排在哪一天。 */
+export function planPreviewSchedule(input: {
+  project: PreviewProject;
+  campaigns: Array<Pick<ClubCampaign, "id" | "date" | "waves">>;
+  caption: string;
+  now?: Date;
+}) {
+  if (input.project.scheduledAt) {
+    return {
+      action: "open" as const,
+      day: isoFromMs(input.project.scheduledAt),
+      campaignId: input.project.campaignId,
+    };
+  }
+  const existing = input.project.campaignId
+    ? input.campaigns.find((item) => item.id === input.project.campaignId)
+    : undefined;
+  const hint = `${input.project.name} ${input.caption}`;
+  const date = existing?.date ?? inferEventDate(hint, input.now);
+  const scheduledAt = scheduledAtFor(input.project.contentKind, date);
+  return {
+    action: "schedule" as const,
+    campaignId: existing?.id ?? null,
+    needWaves: Boolean(existing && existing.waves.length === 0),
+    campaignDraft: existing
+      ? null
+      : {
+          name: campaignNameFromTitle(input.project.name),
+          date,
+          type: inferCampaignType(hint),
+          oneLiner: input.project.copy.headline || input.caption.split("\n")[0] || "",
+          fullIntro: input.project.copy.body || input.caption,
+          cta: input.project.copy.cta || "晚上來坐一下",
+          theme: input.project.visualTheme || "",
+          location: input.project.location || "淡江校園",
+        },
+    scheduledAt,
+    day: isoFromMs(scheduledAt),
+    topic: input.project.copy.headline || input.caption.split("\n")[0] || input.project.name,
+  };
+}
+
 /** 轉換格式排進月曆時的相對活動日，Carousel 提前一週、Story 前一天。 */
 export function offsetDaysForKind(kind: ContentKind): number {
   if (kind === "story" || kind === "countdown") return -1;

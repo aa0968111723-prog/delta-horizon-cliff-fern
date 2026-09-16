@@ -72,6 +72,16 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
     });
   }
 
+  function openItem(item: CalendarItem) {
+    if (item.projectId) {
+      void navigate({ to: "/ig", search: { item: item.projectId } });
+      return;
+    }
+    if (item.campaignId) {
+      void navigate({ to: "/campaigns/$campaignId", params: { campaignId: item.campaignId } });
+    }
+  }
+
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
       <p className="text-xs tracking-[0.18em] text-muted uppercase">排程</p>
@@ -153,16 +163,12 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
                   <p className="text-xs text-muted">{format(day, "d", { locale: zhTW })}</p>
                   <ul className="mt-1 space-y-1">
                     {dayItems.map((item) => (
-                      <li
-                        key={item.id}
-                        draggable
-                        onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
-                        className={cn(
-                          "cursor-grab rounded-lg bg-surface-2 px-1.5 py-1 text-xs leading-tight",
-                          focusDay && item.date === focusDay && item.kind !== "event" && "ring-2 ring-primary",
-                        )}
-                      >
-                        {item.title}
+                      <li key={item.id}>
+                        <CalChip
+                          item={item}
+                          focused={Boolean(focusDay && item.date === focusDay && item.kind !== "event")}
+                          onOpen={() => openItem(item)}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -193,16 +199,13 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
                   {items
                     .filter((item) => item.date === iso)
                     .map((item) => (
-                      <li
-                        key={item.id}
-                        draggable
-                        onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
-                        className={cn(
-                          "cursor-grab text-sm",
-                          focusDay && item.date === focusDay && item.kind !== "event" && "rounded-lg ring-2 ring-primary",
-                        )}
-                      >
-                        {item.title}
+                      <li key={item.id}>
+                        <CalChip
+                          item={item}
+                          dense
+                          focused={Boolean(focusDay && item.date === focusDay && item.kind !== "event")}
+                          onOpen={() => openItem(item)}
+                        />
                       </li>
                     ))}
                 </ul>
@@ -309,6 +312,34 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
         </ul>
       ) : null}
     </main>
+  );
+}
+
+function CalChip({
+  item,
+  focused,
+  dense,
+  onOpen,
+}: {
+  item: CalendarItem;
+  focused?: boolean;
+  dense?: boolean;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      draggable
+      onDragStart={(event) => event.dataTransfer.setData("text/plain", item.id)}
+      onClick={onOpen}
+      className={cn(
+        "w-full cursor-grab rounded-lg text-left leading-tight",
+        dense ? "px-1 py-1 text-sm" : "bg-surface-2 px-1.5 py-1 text-xs",
+        focused && "ring-2 ring-primary",
+      )}
+    >
+      {item.title}
+    </button>
   );
 }
 
