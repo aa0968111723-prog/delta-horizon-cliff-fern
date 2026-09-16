@@ -1054,7 +1054,7 @@ function ConvertPreview({
       {text ? <pre className="mt-3 whitespace-pre-wrap rounded-2xl bg-bg p-3 font-sans text-xs leading-relaxed">{text}</pre> : null}
       {open && kit ? (
         <Button className="mt-3 min-h-11 rounded-full" onClick={() => onSchedule(open, kit)}>
-          排進月曆
+          把這版排進月曆
         </Button>
       ) : null}
     </div>

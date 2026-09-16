@@ -64,7 +64,7 @@ export function InspirePage() {
               onClick={() =>
                 void navigate({
                   to: "/create",
-                  search: { q: `${item.clubTurn}（${topic}）`, auto: "1", mode: "idea" },
+                  search: { q: `${item.clubTurn}（${topic}）`, go: "1", mode: "idea" },
                 })
               }
             >

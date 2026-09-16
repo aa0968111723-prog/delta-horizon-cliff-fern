@@ -30,9 +30,10 @@ export function analyzeIgMemoryPost(
   const improve = [
     ...(sim.revisions ?? []),
     /誠摯邀請|本週活動/.test(hook) ? "第一句改生活問句，不要社團官方。" : "",
-    !hasCta ? "告訴學生怎麼來：留言或連結。" : "",
+    !hasCta && !sim.knowsHowToJoin ? "告訴學生怎麼來：留言或連結。" : "",
     caption.length > 280 ? "刪掉後段金句。" : "",
   ].filter(Boolean);
+  const unique = [...new Set(improve)];
 
   return {
     hook,
@@ -44,7 +45,7 @@ export function analyzeIgMemoryPost(
       post.mediaType === "carousel"
         ? "Carousel 第一頁只留生活問句，活動放後面。"
         : "延續自己的 IG DNA，不要套一般品牌模板。",
-    improve: improve.length ? improve : ["Hook 可以更生活"],
+    improve: unique.length ? unique : ["Hook 可以更生活"],
     studentSim: sim,
   };
 }

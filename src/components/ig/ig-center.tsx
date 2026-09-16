@@ -120,7 +120,7 @@ export function IgCenter() {
                   to: "/create",
                   search: {
                     q: `延續這篇 IG：${active.caption.split("\n")[0]}`,
-                    auto: "1",
+                    go: "1",
                     mode: "post",
                     asset: active.assetIds[0],
                   },
@@ -137,7 +137,7 @@ export function IgCenter() {
               <p>Caption 長度：{active.analysis.captionLength} 字</p>
               <p>CTA：{active.analysis.cta}</p>
               <p>方向：{active.analysis.direction}</p>
-              <p>可改善：{active.analysis.improve.join("、")}</p>
+              <p>可改善：{active.analysis.improve.join(" ")}</p>
               <div className="mt-3 rounded-2xl bg-bg p-3 text-xs text-muted">
                 {insights.answers.map((line) => (
                   <p key={line} className="mt-1 first:mt-0">

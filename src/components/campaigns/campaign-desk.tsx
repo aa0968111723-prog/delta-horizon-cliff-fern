@@ -29,7 +29,7 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
     setLastQuery(current.name);
     void navigate({
       to: "/create",
-      search: { q: `幫我做 ${current.name} 完整宣傳`, auto: "1", campaign: current.id },
+      search: { q: `幫我做 ${current.name} 完整宣傳`, go: "1", campaign: current.id },
     });
   }
 
@@ -90,7 +90,7 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
                     onClick={() =>
                       void navigate({
                         to: "/create",
-                        search: { q: `${campaign.name} ${wave.topic}`, campaign: campaign.id, auto: "1" },
+                        search: { q: `${campaign.name} ${wave.topic}`, campaign: campaign.id, go: "1" },
                       })
                     }
                   >
@@ -103,7 +103,7 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
                   onClick={() =>
                     void navigate({
                       to: "/create",
-                      search: { q: `${campaign.name} ${wave.topic}`, campaign: campaign.id, auto: "1", mode: "post" },
+                      search: { q: `${campaign.name} ${wave.topic}`, campaign: campaign.id, go: "1", mode: "post" },
                     })
                   }
                 >
@@ -115,7 +115,7 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
                   onClick={() =>
                     void navigate({
                       to: "/create",
-                      search: { q: `${campaign.name} ${wave.topic} 主視覺`, campaign: campaign.id, auto: "1", mode: "image" },
+                      search: { q: `${campaign.name} ${wave.topic} 主視覺`, campaign: campaign.id, go: "1", mode: "image" },
                     })
                   }
                 >
@@ -130,7 +130,7 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
                       search: {
                         q: `${campaign.name} ${wave.topic}。換一個生活角度，不要招生腔。`,
                         campaign: campaign.id,
-                        auto: "1",
+                        go: "1",
                       },
                     })
                   }

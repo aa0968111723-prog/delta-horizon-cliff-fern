@@ -83,7 +83,7 @@ export function HomePage() {
     setLastQuery(featured.name);
     void navigate({
       to: "/create",
-      search: { q: `幫我做 ${featured.name} 完整宣傳`, auto: "1", campaign: featured.id },
+      search: { q: `幫我做 ${featured.name} 完整宣傳`, go: "1", campaign: featured.id },
     });
   }
 
@@ -101,7 +101,7 @@ export function HomePage() {
           e.preventDefault();
           if (!q.trim()) return;
           setLastQuery(q.trim());
-          void navigate({ to: "/create", search: { q: q.trim(), auto: "1" } });
+          void navigate({ to: "/create", search: { q: q.trim(), go: "1" } });
         }}
       >
         <div className="relative min-w-0 flex-1">
@@ -134,7 +134,7 @@ export function HomePage() {
                 to: "/create",
                 search: {
                   q: `${q.trim() || hit.title}（參考 ${hit.sourceLabel}）`,
-                  auto: "1",
+                  go: "1",
                   asset: hit.assetId,
                   mode: hit.assetId ? "vision" : undefined,
                 },
@@ -153,7 +153,7 @@ export function HomePage() {
           <p className="mt-2 text-sm text-muted">{lastLearn.hookLesson}</p>
           <p className="mt-1 text-xs text-muted">{lastLearn.mixLesson}</p>
           <Button asChild className="mt-4 min-h-11 rounded-full">
-            <Link to="/create" search={{ q: nextCreateFromLearn(lastLearn), auto: "1" }}>
+            <Link to="/create" search={{ q: nextCreateFromLearn(lastLearn), go: "1" }}>
               用這次學到的再創作
             </Link>
           </Button>
@@ -326,7 +326,7 @@ export function HomePage() {
                 onClick={() =>
                   void navigate({
                     to: "/create",
-                    search: { q: `延續這篇 IG：${post.caption.split("\n")[0]}`, auto: "1", mode: "post" },
+                    search: { q: `延續這篇 IG：${post.caption.split("\n")[0]}`, go: "1", mode: "post" },
                   })
                 }
               >

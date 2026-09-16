@@ -18,7 +18,7 @@ export function CalendarPage() {
   const duplicateWave = useCreative((s) => s.duplicateWave);
   const projects = useStudio((s) => s.projects);
   const navigate = useNavigate();
-  const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
+  const [cursor, setCursor] = useState(() => new Date());
   const [view, setView] = useState<"month" | "week" | "agenda">("agenda");
   const items = calendarFrom(campaigns, projects);
 
@@ -54,7 +54,7 @@ export function CalendarPage() {
   function extend(item: CalendarItem) {
     void navigate({
       to: "/create",
-      search: { q: `延續：${item.title}`, auto: "1", campaign: item.campaignId },
+      search: { q: `延續：${item.title}`, go: "1", campaign: item.campaignId },
     });
   }
 
