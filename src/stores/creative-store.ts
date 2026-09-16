@@ -115,7 +115,7 @@ export const useCreative = create<CreativeState>()(
           id: input.id ?? uid("camp"),
           updatedAt: Date.now(),
         };
-        if (!campaign.waves.length) {
+        if (!("waves" in input) && !campaign.waves.length) {
           campaign.waves = suggestWaves(campaign, new Date(), clubInsightsFromPosts(get().igPosts).mixLesson);
         }
         set((s) => ({ campaigns: [campaign, ...s.campaigns] }));

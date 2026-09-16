@@ -658,6 +658,7 @@ export function CreateStudio({
         cta: active.plan.cta,
         theme: active.plan.visualTheme,
         location: campaign?.location ?? "淡江校園",
+        ...(opts?.single ? { waves: [] } : {}),
       });
       setCreatedCampaignId(camp.id);
     }
