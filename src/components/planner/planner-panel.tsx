@@ -4,16 +4,24 @@ import { BriefFields } from "@/components/assistant/brief-fields";
 import { EditorAgent } from "@/components/assistant/editor-agent";
 import { PlanResult } from "@/components/assistant/plan-result";
 import { Button } from "@/components/ui/button";
+import { CreationLoop } from "@/components/shared/creation-loop";
 import { describeAdapter, generateCampaignPlan, getCampaignAiStatus, type AiStatus } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
+import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
 import { migrateBrief } from "@/lib/studio/brief";
 import type { BrandKit, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
+import { useConnectionStore } from "@/stores/connection-store";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
 export function PlannerPanel({ project, brand }: { project: Project; brand: BrandKit }) {
   const updateProject = useStudio((s) => s.updateProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
+  const assets = useStudio((s) => s.assets);
+  const campaigns = useCreative((s) => s.campaigns);
+  const styleReferences = useConnectionStore((s) => s.styleReferences);
+  const instagramHashtags = hashtagsFromInstagramMemory(useConnectionStore((s) => s.instagramItems));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<AiStatus | null>(null);
@@ -48,7 +56,13 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
     try {
       const connected = status?.available ?? false;
       const result = await generateCampaignPlan({
-        data: toBriefInput(brief, brand, { forceMock: forceMock || !connected }),
+        data: toBriefInput(brief, brand, {
+          forceMock: forceMock || !connected,
+          assets,
+          campaigns,
+          styleReferences,
+          instagramHashtags,
+        }),
       });
       if (!result.ok) {
         setError(result.error);
@@ -75,7 +89,7 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
       <EditorAgent projectId={project.id} compact />
       <div className="border-t border-border pt-5">
         <h2 className="text-sm font-medium">宣傳企劃</h2>
-        <p className="mt-1 text-xs text-muted">給代理的活動條件。生成後會變成頁面與畫布。</p>
+        <p className="mt-1 text-xs text-muted">活動條件會帶入 Brand Memory 與校園情境。生成後會變成頁面與畫布。</p>
       </div>
       <div
         data-testid="ai-adapter-banner"
@@ -112,7 +126,12 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
               ? "生成本機草案並排版"
               : "生成企劃並排版"}
       </Button>
-      {project.plan ? <PlanResult projectId={project.id} /> : null}
+      {project.plan ? (
+        <>
+          <CreationLoop current="copy" />
+          <PlanResult projectId={project.id} />
+        </>
+      ) : null}
     </div>
   );
 }

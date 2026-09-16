@@ -81,7 +81,7 @@ export function EditorAgent({ projectId, compact }: Props) {
       ? (state.brands.find((b) => b.id === current.brandId) ?? state.brands[0])
       : undefined;
     if (!current || !currentBrand) {
-      setError("找不到專案，代理無法讀畫布。");
+      setError("找不到專案，無法讀畫布。");
       return;
     }
     setBusy(true);
@@ -195,7 +195,7 @@ export function EditorAgent({ projectId, compact }: Props) {
   if (!project || !brand || !scene) {
     return (
       <div className="rounded-lg bg-surface-2 px-3 py-3 text-sm text-muted">
-        先開啟一個專案，代理才能讀畫布、圖層與品牌。
+        先開啟一個專案，才能讀畫布、圖層與品牌。
       </div>
     );
   }
@@ -218,7 +218,7 @@ export function EditorAgent({ projectId, compact }: Props) {
           !status ? "bg-surface-2" : status.available ? "bg-surface-2" : "bg-warn/15",
         )}
       >
-        <p className="text-sm font-medium">{status ? banner.label : "正在確認畫布代理"}</p>
+        <p className="text-sm font-medium">{status ? banner.label : "正在確認畫布指令"}</p>
         <p className="mt-1 text-xs text-muted">
           {status ? banner.detail : "先確認有沒有連到 AI，不會假裝已經改好畫布。"}
         </p>

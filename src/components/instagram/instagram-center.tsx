@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { IgPreview } from "@/components/instagram/ig-preview";
 import { ReelsStudio } from "@/components/instagram/reels-studio";
+import { CreationLoop } from "@/components/shared/creation-loop";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,8 @@ export function InstagramCenter() {
       window.history.replaceState({}, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
     }
     if (params.get("tab")) setTab(params.get("tab") || "memory");
+    const hash = window.location.hash.replace("#", "");
+    if (["memory", "preview", "reels", "insights"].includes(hash)) setTab(hash);
   }, []);
 
   const visible = useMemo(() => {
@@ -89,12 +92,16 @@ export function InstagramCenter() {
       <PageHeader
         kicker={username ? `@${username}` : "IG 內容記憶"}
         title="Instagram"
-        description="回看已授權的貼文、預覽 Studio 畫面、整理 Reels 腳本。沒有連接時不會假裝有貼文。"
+        description="回看已授權的貼文、預覽 Studio 畫面、整理 Reels 腳本。沒有連接時不會假裝有貼文或觀看次數。"
         actions={<BrandSubnav current="connections" />}
       />
 
+      <div className="mt-4">
+        <CreationLoop current={tab === "preview" ? "preview" : tab === "reels" ? "image" : "preview"} />
+      </div>
+
       <Tabs value={tab} onValueChange={setTab} className="mt-6">
-        <TabsList className="h-auto w-full flex-wrap justify-start">
+        <TabsList className="h-auto min-h-11 w-full flex-wrap justify-start">
           <TabsTrigger value="memory">內容記憶</TabsTrigger>
           <TabsTrigger value="preview">IG 預覽</TabsTrigger>
           <TabsTrigger value="reels">Reels</TabsTrigger>
@@ -202,6 +209,9 @@ export function InstagramCenter() {
               <Badge variant="default">未來狀態</Badge>
               <h2 className="mt-3 font-display text-2xl">不會顯示模擬成效</h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-muted">{insightsNote}</p>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
+                沒有官方 Insights 時，不會用模擬讚數或觀看次數來教你下次怎麼寫。
+              </p>
               {canRequestInsights ? (
                 <Button
                   className="mt-5"

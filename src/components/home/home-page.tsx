@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import { CreativeBrainPanel } from "@/components/assets/creative-brain-panel";
+import { CreationLoop } from "@/components/shared/creation-loop";
 import { ProjectCard } from "@/components/shared/project-card";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
@@ -173,6 +174,10 @@ export function HomePage() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="mt-6">
+        <CreationLoop />
       </section>
 
       <section className="mt-8">

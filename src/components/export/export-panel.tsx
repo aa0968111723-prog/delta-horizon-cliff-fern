@@ -113,7 +113,7 @@ export function ExportPanel({
       <div>
         <h2 className="text-sm font-medium">高畫質輸出</h2>
         <p className="mt-1 text-xs text-muted">
-          Instagram 以 1080 邊長為準。建議 PNG 2x 再壓縮，避免平台二次糊掉。
+          Instagram 以 1080 邊長為準。建議 PNG 2x 再壓縮。這是本機下載，不是發文，也不含官方 Insights。
         </p>
       </div>
       <div>

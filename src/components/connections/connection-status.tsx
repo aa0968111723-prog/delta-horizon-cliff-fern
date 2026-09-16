@@ -3,7 +3,7 @@ import type { ConnectorUiState } from "@/lib/connections/types";
 
 export function ConnectionBadge({ status }: { status: ConnectorUiState }) {
   if (status === "connected") return <Badge variant="success">已連接</Badge>;
-  if (status === "checking") return <Badge variant="default">Checking</Badge>;
+  if (status === "checking") return <Badge variant="default">檢查中</Badge>;
   if (status === "login") return <Badge variant="warn">需要授權</Badge>;
   if (status === "idle") return <Badge variant="default">尚未檢查</Badge>;
   if (status === "unavailable") return <Badge variant="default">尚未提供</Badge>;

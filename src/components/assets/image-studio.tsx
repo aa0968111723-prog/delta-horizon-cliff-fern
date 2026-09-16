@@ -12,7 +12,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { generateCreativeImage, getMultimodalStatus } from "@/lib/ai/multimodal";
-import { buildBrandMemoryPrompt } from "@/lib/creative/memory";
+import { buildCreativeMemoryContext, memoryInjectionHints } from "@/lib/creative/memory";
+import { CreationLoop } from "@/components/shared/creation-loop";
+import { useCreative } from "@/stores/creative-store";
 import { base64ImageToBlob, prepareImageForAi } from "@/lib/studio/ai-image-client";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { uid } from "@/lib/studio/ids";
@@ -49,6 +51,8 @@ const DIRECTIONS = [
 export function ImageStudio() {
   const addAsset = useStudio((state) => state.addAsset);
   const brand = useStudio((state) => state.brands[0]);
+  const assets = useStudio((state) => state.assets);
+  const campaigns = useCreative((state) => state.campaigns);
   const styleReferences = useConnectionStore((state) => state.styleReferences);
   const stylePrompt = useUi((state) => state.stylePrompt);
   const setStylePrompt = useUi((state) => state.setStylePrompt);
@@ -95,7 +99,9 @@ export function ImageStudio() {
           idea: stylePrompt ? `${idea}\n參考來源：${stylePrompt.provider}／${stylePrompt.collection}` : idea,
           direction: direction.detail,
           aspectRatio,
-          brandMemory: brand ? buildBrandMemoryPrompt(brand, styleReferences) : undefined,
+          brandMemory: brand
+            ? buildCreativeMemoryContext({ brand, assets, campaigns, styleReferences })
+            : undefined,
         },
       });
       if (!result.ok) {
@@ -141,6 +147,7 @@ export function ImageStudio() {
   }
 
   return (
+    <>
     <section id="image-studio" className="mt-6 overflow-hidden rounded-3xl bg-accent text-accent-fg shadow-[var(--shadow-artboard)]">
       <div className="grid lg:grid-cols-[1fr_1.15fr]">
         <div className="p-5 md:p-7">
@@ -151,6 +158,9 @@ export function ImageStudio() {
           <h2 className="mt-4 text-2xl font-semibold tracking-tight">先想情境，再生成畫面</h2>
           <p className="mt-2 max-w-md text-sm leading-6 text-accent-fg/70">
             不是只寫「禪風海報」。先選淡江學生會有感的視覺角度，再生成一張可放進 Studio 的主視覺。
+            {brand
+              ? ` 本次會帶入：${memoryInjectionHints({ brand, assets, campaigns, styleReferences }).join("、") || "Brand Memory 預設校園情境"}。`
+              : ""}
           </p>
           {stylePrompt ? (
             <div className="mt-4 rounded-2xl bg-accent-fg/10 px-4 py-3">
@@ -217,5 +227,9 @@ export function ImageStudio() {
         </div>
       </div>
     </section>
+    <div className="mt-4">
+      <CreationLoop current="image" />
+    </div>
+    </>
   );
 }

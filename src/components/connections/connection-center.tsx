@@ -23,8 +23,10 @@ import {
   searchGoogleDrive,
 } from "@/lib/connections/google-drive";
 import type { ConnectorUiState, ExternalMemoryItem } from "@/lib/connections/types";
+import { driveImportBlockedReason, driveItemToLibraryAsset } from "@/lib/studio/drive-import";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
+import { useStudio } from "@/stores/studio-store";
 
 type DriveResult = Awaited<ReturnType<typeof listDriveFolder>>;
 
@@ -38,6 +40,8 @@ export function ConnectionCenter() {
   const rememberItems = useConnectionStore((state) => state.rememberDriveItems);
   const updateSnippet = useConnectionStore((state) => state.updateDriveSnippet);
   const disconnectMemory = useConnectionStore((state) => state.disconnectDriveMemory);
+  const addAsset = useStudio((state) => state.addAsset);
+  const libraryAssets = useStudio((state) => state.assets);
 
   const [status, setStatus] = useState<ConnectorUiState>("idle");
   const [lastResult, setLastResult] = useState<DriveResult | null>(null);
@@ -121,7 +125,26 @@ export function ConnectionCenter() {
     }
   }
 
+  function importToLibrary(item: ExternalMemoryItem) {
+    if (item.isFolder) {
+      toast.error("資料夾不能寫進素材庫。");
+      return;
+    }
+    const blocked = driveImportBlockedReason(status);
+    if (blocked) {
+      toast.error(blocked);
+      return;
+    }
+    if (libraryAssets.some((asset) => asset.provenance?.externalId === item.id)) {
+      toast.message("這則 Drive 來源已在素材庫");
+      return;
+    }
+    addAsset(driveItemToLibraryAsset(item));
+    toast.success("已加入素材庫來源參考。官方 Drive 沒有下載原圖，畫布不會假裝有像素。");
+  }
+
   const connected = status === "connected";
+  const importBlocked = driveImportBlockedReason(status);
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
@@ -157,9 +180,12 @@ export function ConnectionCenter() {
         {status === "login" && lastResult && !lastResult.ok ? (
           <ConnectionMessage
             title="需要由 Grok 完成授權"
-            detail="這是唯一會出現登入動作的狀態。App 不會要求你貼 Google Token。"
+            detail={lastResult.loginUrl
+              ? "這是唯一會出現登入動作的狀態。App 不會要求你貼 Google Token。"
+              : "需要授權，但這個環境沒有提供登入連結。不會顯示 Continue with Grok，也不會把模擬檔案寫進素材庫。"}
             action={lastResult.loginUrl ? (
               <Button
+                className="min-h-11"
                 onClick={() => redirectToLoginIfRequired({
                   ok: false,
                   data: null,
@@ -172,10 +198,15 @@ export function ConnectionCenter() {
               </Button>
             ) : undefined}
           />
+        ) : status === "unavailable" ? (
+          <ConnectionMessage
+            title="Google Drive 尚未在此環境提供"
+            detail="沒有連接時無法把檔案寫進素材庫，也不會放模擬檔案。"
+          />
         ) : status === "not_connected" ? (
           <ConnectionMessage
             title="Google Drive 尚未連接"
-            detail="請先在 Grok 的 Connected Apps 授權 Google Drive，再回來重新檢查。這裡不接受手動 Token。"
+            detail="請先在 Grok 的 Connected Apps 授權 Google Drive，再回來重新檢查。這裡不接受手動 Token，也無法匯入模擬素材。"
           />
         ) : status === "scope_denied" || status === "access_denied" ? (
           <ConnectionMessage
@@ -183,9 +214,12 @@ export function ConnectionCenter() {
             detail="App 不會繞過授權範圍。請在 Grok 檢查連接權限後重新同步。"
           />
         ) : status === "error" ? (
-          <ConnectionMessage title="Google Drive 暫時無法使用" detail="既有 Creative Brain 索引仍保留，可稍後重新檢查。" />
+          <ConnectionMessage title="Google Drive 暫時無法使用" detail="既有 Creative Brain 索引仍保留，可稍後重新檢查。無法在此時匯入素材庫。" />
         ) : (
           <div className="p-5 md:p-6">
+            {importBlocked && status !== "connected" && status !== "checking" ? (
+              <p className="mb-4 rounded-xl bg-bg px-3 py-3 text-xs leading-5 text-muted">{importBlocked}</p>
+            ) : null}
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
@@ -207,7 +241,7 @@ export function ConnectionCenter() {
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <button
                 type="button"
-                className="flex min-h-10 items-center gap-2 rounded-xl bg-bg px-3 text-sm"
+                className="flex min-h-11 items-center gap-2 rounded-xl bg-bg px-3 text-sm"
                 onClick={() => void loadFolder("root", "我的雲端硬碟")}
               >
                 <Folder className="size-4 text-accent" />
@@ -230,18 +264,29 @@ export function ConnectionCenter() {
                         {item.snippet ? <p className="mt-2 line-clamp-3 text-xs leading-5 text-muted">{item.snippet}</p> : null}
                       </div>
                     </div>
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-3 flex flex-wrap gap-2">
                       {item.isFolder ? (
-                        <Button size="sm" variant="secondary" onClick={() => void loadFolder(item.id, item.title)}>
+                        <Button size="sm" className="min-h-11" variant="secondary" onClick={() => void loadFolder(item.id, item.title)}>
                           選為主要資料夾
                         </Button>
                       ) : (
-                        <Button size="sm" variant="secondary" disabled={busyFileId === item.id} onClick={() => void readFile(item)}>
-                          {busyFileId === item.id ? "讀取中…" : item.snippet ? "更新內容" : "讀取內容"}
-                        </Button>
+                        <>
+                          <Button size="sm" className="min-h-11" variant="secondary" disabled={busyFileId === item.id} onClick={() => void readFile(item)}>
+                            {busyFileId === item.id ? "讀取中…" : item.snippet ? "更新內容" : "讀取內容"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="min-h-11"
+                            variant="secondary"
+                            disabled={!connected}
+                            onClick={() => importToLibrary(item)}
+                          >
+                            加入素材庫參考
+                          </Button>
+                        </>
                       )}
                       {item.webUrl ? (
-                        <Button size="sm" variant="ghost" onClick={() => window.open(item.webUrl, "_blank", "noopener,noreferrer")}>
+                        <Button size="sm" className="min-h-11" variant="ghost" onClick={() => window.open(item.webUrl, "_blank", "noopener,noreferrer")}>
                           在 Drive 開啟
                         </Button>
                       ) : null}

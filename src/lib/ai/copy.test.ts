@@ -13,6 +13,7 @@ const request: CopyRequest = {
   cta: "找朋友一起來",
   registrationUrl: "",
   brandVoice: "像真的社團同學，自然、不說教。",
+  brandMemory: undefined,
   hashtags: ["#期中"],
 };
 
@@ -38,6 +39,15 @@ test("student review does not pretend missing registration information is comple
   const registration = pack.studentReview.find((item) => item.question.includes("報名"));
   assert.equal(registration?.pass, false);
   assert.match(registration?.feedback ?? "", /尚未提供/);
+});
+
+test("mock copy weaves Brand Memory campus context into the student voice", () => {
+  const pack = buildMockCopyPack({
+    ...request,
+    brandMemory: "校園情境：淡水雨天、期中報告\n已學到的規律：先寫學生生活",
+  });
+  assert.match(pack.variants.find((item) => item.tone === "學生版")?.body ?? "", /淡水雨天/);
+  assert.match(pack.variants[0].hook, /下雨|淡水/);
 });
 
 test("copy avoids a formal invitation hook and includes club-specific hashtags", () => {

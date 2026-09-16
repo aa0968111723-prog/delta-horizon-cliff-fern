@@ -475,7 +475,7 @@ function inspectPage(artboard: Artboard, brand: BrandKit, pageIndex: number, cop
         title: `${img.name} 可能被變形`,
         location: here(img),
         detail: "圖片沒有指定 cover／contain，匯出時可能被硬 Stretch。",
-        suggestion: "主視覺用 cover 裁切，商品完整展示才用 contain。",
+        suggestion: "主視覺用 cover 裁切，現場照片完整展示才用 contain。",
         layerId: img.id,
         pageIndex,
         fix: { kind: "fit-image", pageIndex, layerId: img.id },

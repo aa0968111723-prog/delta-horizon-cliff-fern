@@ -91,11 +91,11 @@ export function BriefFields({ brief, onChange, compact }: Props) {
       </Field>
 
       {compact ? null : (
-        <Field label="優惠（選填）">
+        <Field label="參加誘因（選填）">
           <Input
             value={brief.offer}
             onChange={(e) => onChange({ offer: e.target.value })}
-            placeholder="例如：免費參加／可帶朋友"
+            placeholder="例如：免費參加／可帶朋友／不用事先報名"
           />
         </Field>
       )}

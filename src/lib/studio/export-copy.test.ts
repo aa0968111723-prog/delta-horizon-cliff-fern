@@ -69,6 +69,12 @@ test("export copy pack prefers Copy Pack 學生版 when present", () => {
       qaNotes: [],
       copyPack: {
         variants: [{
+          tone: "短版",
+          hook: "短",
+          body: "這是短版不該成為預設輸出",
+          cta: "看",
+          hashtags: ["#短"],
+        }, {
           tone: "學生版",
           hook: "下課了腦袋還沒下課",
           body: "課表先放一下。",
@@ -79,9 +85,9 @@ test("export copy pack prefers Copy Pack 學生版 when present", () => {
         revisedCaption: "",
         threads: "Threads 版",
         line: "LINE 版",
-        storyFrames: [],
+        storyFrames: ["限動一"],
         carouselPages: [],
-        reelsScript: [],
+        reelsScript: [{ timing: "0–3 秒", visual: "", subtitle: "坐下", voiceover: "", transition: "", assetSuggestion: "" }],
         generatedAt: 1,
         source: "mock",
       },
@@ -90,7 +96,10 @@ test("export copy pack prefers Copy Pack 學生版 when present", () => {
     },
   }));
   assert.match(text, /課表先放一下/);
+  assert.equal(text.includes("這是短版不該成為預設輸出"), false);
   assert.match(text, /#淡江生活/);
   assert.match(text, /Threads 版/);
   assert.match(text, /LINE 版/);
+  assert.match(text, /Story/);
+  assert.match(text, /Reels/);
 });

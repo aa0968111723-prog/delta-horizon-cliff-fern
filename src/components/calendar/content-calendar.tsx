@@ -1,8 +1,10 @@
+import { Link } from "@tanstack/react-router";
 import { addMonths, addWeeks, format, isSameDay, parseISO, startOfToday } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { CreationLoop } from "@/components/shared/creation-loop";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -144,6 +146,10 @@ export function ContentCalendar() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="mt-4">
+        <CreationLoop current="schedule" />
       </div>
 
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
@@ -322,10 +328,15 @@ function AgendaRow({
           onChange={(event) => onMove(event.target.value)}
           className="h-11 rounded-md border border-border bg-surface px-3 text-sm"
         />
-        <Button size="sm" onClick={onCreate}>
+        <Button size="sm" className="min-h-11" onClick={onCreate}>
           <Sparkles className="size-4" />
           AI 創作
         </Button>
+        {item.projectId ? (
+          <Button size="sm" className="min-h-11" variant="secondary" asChild>
+            <Link to="/instagram" hash="preview">IG 預覽</Link>
+          </Button>
+        ) : null}
       </div>
     </div>
   );

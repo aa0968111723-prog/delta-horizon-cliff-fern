@@ -7,7 +7,7 @@ export function BrandSubnav({ current }: { current: "brand" | "assets" | "connec
       <Link
         to="/brand"
         className={cn(
-          "flex h-9 items-center rounded-md px-3 text-sm",
+          "flex min-h-11 items-center rounded-md px-3 text-sm",
           current === "brand" ? "bg-surface text-fg shadow-[var(--shadow-border)]" : "text-muted",
         )}
       >
@@ -16,7 +16,7 @@ export function BrandSubnav({ current }: { current: "brand" | "assets" | "connec
       <Link
         to="/assets"
         className={cn(
-          "flex h-9 items-center rounded-md px-3 text-sm",
+          "flex min-h-11 items-center rounded-md px-3 text-sm",
           current === "assets" ? "bg-surface text-fg shadow-[var(--shadow-border)]" : "text-muted",
         )}
       >
@@ -25,7 +25,7 @@ export function BrandSubnav({ current }: { current: "brand" | "assets" | "connec
       <Link
         to="/connections"
         className={cn(
-          "flex h-9 items-center rounded-md px-3 text-sm",
+          "flex min-h-11 items-center rounded-md px-3 text-sm",
           current === "connections" ? "bg-surface text-fg shadow-[var(--shadow-border)]" : "text-muted",
         )}
       >

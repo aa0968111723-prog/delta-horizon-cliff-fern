@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { buildCampaignBoards, copyForCarouselPage } from "@/lib/ai/apply";
 import { adaptArtboard, adaptPages, copyFromArtboard } from "@/lib/studio/adapt";
 import { migrateAsset, fitPlacedAsset } from "@/lib/studio/assets";
+import { hasPlaceablePixels } from "@/lib/studio/drive-import";
 import { createEmptyBrand, migrateBrand } from "@/lib/studio/brand";
 import { MAX_PLAN_VERSIONS, migrateBrief, migratePlan, migratePlanVersions } from "@/lib/studio/brief";
 import {
@@ -354,6 +355,7 @@ export const useStudio = create<StudioState>()(
         const project = s.projects.find((p) => p.id === projectId);
         const asset = s.assets.find((a) => a.id === assetId);
         if (!project || !asset) return false;
+        if (!hasPlaceablePixels(asset)) return false;
         const brand = brandById(s.brands, project.brandId);
         const format = formatById(project.activeFormatId);
         const size = fitPlacedAsset(asset, format.width * 0.72, format.height * 0.55);

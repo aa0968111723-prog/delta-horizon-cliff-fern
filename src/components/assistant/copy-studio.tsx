@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { generateCopyPack } from "@/lib/ai/copy";
 import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
 import { lessonsFromLocalWork } from "@/lib/creative/learning";
-import { buildBrandMemoryPrompt } from "@/lib/creative/memory";
+import { buildCreativeMemoryContext, memoryInjectionHints } from "@/lib/creative/memory";
+import { CreationLoop } from "@/components/shared/creation-loop";
 import { emptyBrandMemory } from "@/lib/studio/brand";
 import type { CopyTone } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -22,9 +23,19 @@ export function CopyStudio({ projectId }: { projectId: string }) {
   const updateBrand = useStudio((state) => state.updateBrand);
   const campaigns = useCreative((state) => state.campaigns);
   const contentItems = useCreative((state) => state.contentItems);
+  const assets = useStudio((state) => state.assets);
   const instagramItems = useConnectionStore((state) => state.instagramItems);
   const styleReferences = useConnectionStore((state) => state.styleReferences);
   const memoryHashtags = hashtagsFromInstagramMemory(instagramItems);
+  const memoryHints = brand
+    ? memoryInjectionHints({
+        brand,
+        assets,
+        campaigns,
+        styleReferences,
+        instagramHashtags: memoryHashtags,
+      })
+    : [];
   const [busy, setBusy] = useState(false);
   const [activeTone, setActiveTone] = useState<CopyTone>("學生版");
   const pack = project?.plan?.copyPack;
@@ -48,7 +59,13 @@ export function CopyStudio({ projectId }: { projectId: string }) {
           cta: project.plan.cta,
           registrationUrl,
           brandVoice: brand.voice,
-          brandMemory: `${buildBrandMemoryPrompt(brand, styleReferences)}${memoryHashtags.length ? `\nIG 內容記憶 hashtags：${memoryHashtags.join(" ")}` : ""}`,
+          brandMemory: buildCreativeMemoryContext({
+            brand,
+            assets,
+            campaigns,
+            styleReferences,
+            instagramHashtags: memoryHashtags,
+          }),
           hashtags: [...new Set([...(project.plan.hashtags ?? []), ...memoryHashtags])].slice(0, 20),
           forceMock: false,
         },
@@ -110,6 +127,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
           </div>
           <p className="mt-1 text-xs leading-5 text-muted">
             一次產生六種語氣、學生視角檢查與跨平台版本。只有按下按鈕才會呼叫 AI。
+            {memoryHints.length ? ` 本次會帶入 Creative Memory：${memoryHints.join("、")}。` : " Brand Memory 尚未寫入校園情境時，會用預設的淡江生活場景。"}
             {memoryHashtags.length ? ` 已帶入 IG 內容記憶 hashtags：${memoryHashtags.slice(0, 5).join(" ")}` : ""}
           </p>
         </div>
@@ -237,9 +255,10 @@ export function CopyStudio({ projectId }: { projectId: string }) {
               ))}
             </div>
           </div>
-          <Button asChild variant="ghost" className="mt-3">
-            <Link to="/instagram">打開 Reels 工作流與 IG 預覽</Link>
+          <Button asChild variant="ghost" className="mt-3 min-h-11">
+            <Link to="/instagram" hash="preview">打開 Reels 工作流與 IG 預覽</Link>
           </Button>
+          <CreationLoop current="copy" compact />
         </div>
       ) : null}
     </section>

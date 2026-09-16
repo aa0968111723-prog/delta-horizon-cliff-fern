@@ -13,6 +13,7 @@ import {
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { NewCampaignDialog } from "@/components/campaigns/new-campaign-dialog";
+import { CreationLoop } from "@/components/shared/creation-loop";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,9 @@ export function CampaignCenter() {
           actions={<Button onClick={() => setDialogOpen(true)}><Plus className="size-4" />建立活動</Button>}
         />
         <NewCampaignDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={setSelectedId} />
+        <div className="mt-8">
+          <CreationLoop current="campaign" />
+        </div>
       </main>
     );
   }
@@ -118,6 +122,8 @@ export function CampaignCenter() {
           </Button>
         }
       />
+
+      <CreationLoop current="campaign" />
 
       <div className="mt-6 flex gap-2 overflow-x-auto pb-2">
         {campaigns.map((item) => (
@@ -217,7 +223,7 @@ export function CampaignCenter() {
                     <h3 className="mt-2 font-medium">{item.title}</h3>
                     <p className="mt-1 text-sm leading-6 text-muted">{item.angle}</p>
                   </div>
-                  <div className="flex items-center gap-2 sm:justify-end">
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                     <Select
                       value={item.status}
                       onValueChange={(value) => {
@@ -233,10 +239,20 @@ export function CampaignCenter() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button size="sm" onClick={() => createContent(item)}>
+                    <Button size="sm" className="min-h-11" onClick={() => createContent(item)}>
                       <Sparkles className="size-4" />
                       AI 創作
                     </Button>
+                    {item.projectId ? (
+                      <>
+                        <Button size="sm" className="min-h-11" variant="secondary" asChild>
+                          <Link to="/instagram" hash="preview">IG 預覽</Link>
+                        </Button>
+                        <Button size="sm" className="min-h-11" variant="ghost" asChild>
+                          <Link to="/export">匯出</Link>
+                        </Button>
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </li>

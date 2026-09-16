@@ -2,6 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { format as formatDate } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { Download, FolderKanban } from "lucide-react";
+import { CreationLoop } from "@/components/shared/creation-loop";
 import { EmptyState, LoadingState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -82,7 +83,7 @@ export function ExportCenter() {
       <PageHeader
         kicker="輸出中心"
         title="預覽與下載"
-        description="檢查安全區與文案，再輸出 Instagram 用的高畫質檔案。每次下載會留下版本紀錄。"
+        description="檢查安全區與文案，再輸出 Instagram 用的高畫質檔案。這是本機下載，不是發文。"
         actions={
           <Button asChild variant="secondary">
             <Link to="/studio/$projectId" params={{ projectId: project.id }}>
@@ -91,6 +92,10 @@ export function ExportCenter() {
           </Button>
         }
       />
+
+      <div className="mt-4">
+        <CreationLoop current="export" />
+      </div>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Select

@@ -63,7 +63,7 @@ export function AssetDetailSheet({
     }
     const ok = placeAsset(lastProjectId, current.id);
     if (!ok) {
-      toast.error("無法放到畫布");
+      toast.error(current.width === 0 ? "這是來源參考，沒有原圖像素，不能放到畫布。" : "無法放到畫布");
       return;
     }
     toast.success(`已放入「${current.name}」`);

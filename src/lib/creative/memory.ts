@@ -249,29 +249,47 @@ export function styleReferencePrompt(
   return `風格參考：${references.slice(0, 6).map((item) => `${item.provider}／${item.collection}「${item.title}」${item.notes}`).join("；")}`;
 }
 
+export function clipMemoryPrompt(text: string, max = 2400) {
+  const trimmed = text.trim();
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+}
+
+export function campusContextLine(brand: BrandKit) {
+  return list(brand.memory?.campusContexts, "課表、通勤、宿舍、人際與淡水天氣");
+}
+
+export function memoryInjectionHints(input: {
+  brand: BrandKit;
+  assets?: AssetMeta[];
+  campaigns?: Campaign[];
+  styleReferences?: { provider: string; collection: string; title: string; notes: string }[];
+  instagramHashtags?: string[];
+}) {
+  const hints: string[] = [];
+  if (input.brand.memory?.campusContexts?.length) hints.push("校園情境");
+  if (input.campaigns?.length) hints.push("近期活動");
+  if (input.assets?.some((asset) => asset.analysis)) hints.push("已分析素材");
+  if (input.styleReferences?.length) hints.push("Canva 風格");
+  if (input.instagramHashtags?.length) hints.push("IG hashtags");
+  return hints;
+}
+
 export function buildBrandMemoryPrompt(
   brand: BrandKit,
   styleReferences?: { provider: string; collection: string; title: string; notes: string }[],
 ) {
-  const memory = brand.memory;
-  return [
-    memory?.mission ? `使命：${memory.mission}` : "",
-    `核心學生：${list(memory?.audienceSegments, "淡江新生、住宿生、通勤生與最近感到壓力的學生")}`,
-    `校園情境：${list(memory?.campusContexts, "課表、通勤、宿舍、人際與淡水天氣")}`,
-    `時機：${list(memory?.seasonalMoments, "開學、期中、期末與社團活動期")}`,
-    `內容支柱：${list(memory?.contentPillars, "活動、生活共鳴、社員故事與禪生活")}`,
-    `辨識元素：${list(memory?.signatureElements, "三色光、龜龜與真實活動照片")}`,
-    `已學到：${list(memory?.learnedPatterns, "先說學生生活，再介紹活動")}`,
-    styleReferencePrompt(styleReferences),
-  ].filter(Boolean).join("\n");
+  return buildCreativeMemoryContext({ brand, assets: [], campaigns: [], styleReferences });
 }
 
 export function buildCreativeMemoryContext(input: {
   brand: BrandKit;
-  assets: AssetMeta[];
-  campaigns: Campaign[];
+  assets?: AssetMeta[];
+  campaigns?: Campaign[];
+  styleReferences?: { provider: string; collection: string; title: string; notes: string }[];
+  instagramHashtags?: string[];
 }) {
-  const { brand, assets, campaigns } = input;
+  const { brand, assets = [], campaigns = [], styleReferences, instagramHashtags } = input;
   const memory = brand.memory;
   const analyzed = assets.filter((asset) => asset.analysis);
   const recentCampaigns = [...campaigns]
@@ -283,17 +301,19 @@ export function buildCreativeMemoryContext(input: {
     .slice(0, 6)
     .map((asset) => `${asset.name}［${sourceLabel(asset.source)}］：${asset.analysis?.summary}`);
 
-  return [
+  return clipMemoryPrompt([
     `社團使命：${memory?.mission || "把禪轉成淡江學生能理解的安定、陪伴與自我探索"}`,
     `核心學生：${list(memory?.audienceSegments, "淡江新生、住宿生、通勤生與最近感到壓力的學生")}`,
-    `校園情境：${list(memory?.campusContexts, "課表、通勤、宿舍、人際與淡水天氣")}`,
+    `校園情境：${campusContextLine(brand)}`,
     `重要時機：${list(memory?.seasonalMoments, "開學、期中、期末與社團活動期")}`,
     `內容支柱：${list(memory?.contentPillars, "活動、生活共鳴、社員故事與禪生活")}`,
     `品牌元素：${list(memory?.signatureElements, "三色光、龜龜與真實活動照片")}`,
     `已學到的規律：${list(memory?.learnedPatterns, "先說學生生活，再介紹活動")}`,
     `近期 Campaign：${recentCampaigns.length ? recentCampaigns.join("；") : "尚無"}`,
     `可參考素材：${usefulAssets.length ? usefulAssets.join("；") : "目前沒有完成 AI 分析的素材"}`,
-  ].join("\n");
+    styleReferencePrompt(styleReferences),
+    instagramHashtags?.length ? `IG 內容記憶 hashtags：${instagramHashtags.slice(0, 12).join(" ")}` : "",
+  ].filter(Boolean).join("\n"));
 }
 
 export function creativeMemoryStats(input: {

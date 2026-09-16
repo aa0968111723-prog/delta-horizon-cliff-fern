@@ -26,6 +26,7 @@ export function AssetCard({
   onPlace?: () => void;
 }) {
   const [broken, setBroken] = useState(false);
+  const referenceOnly = !url && asset.width === 0 && !asset.seedSrc;
 
   return (
     <article
@@ -48,7 +49,7 @@ export function AssetCard({
             />
           ) : (
             <div className="flex size-full items-center justify-center px-3 text-center text-xs text-muted">
-              {broken ? "預覽失敗" : "載入中"}
+              {referenceOnly ? "來源參考，沒有原圖像素" : broken ? "預覽失敗" : "載入中"}
             </div>
           )}
           <span className="absolute top-2 left-2">
@@ -88,10 +89,13 @@ export function AssetCard({
           <p className="truncate text-xs text-subtle">{asset.tags.slice(0, 3).join(" · ")}</p>
         ) : null}
         <div className="flex items-center gap-1 pt-1">
-          {onPlace ? (
-            <Button size="sm" variant="secondary" className="flex-1" onClick={onPlace}>
+          {onPlace && !referenceOnly ? (
+            <Button size="sm" variant="secondary" className="min-h-11 flex-1" onClick={onPlace}>
               放到畫布
             </Button>
+          ) : null}
+          {referenceOnly ? (
+            <p className="flex-1 text-xs leading-5 text-muted">沒有原圖，不能放到畫布。</p>
           ) : null}
           {onDelete ? (
             <Button variant="ghost" size="icon-sm" aria-label={`刪除 ${asset.name}`} onClick={onDelete}>

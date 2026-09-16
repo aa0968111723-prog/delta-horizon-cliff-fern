@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, Send } from "lucide-react";
+import { Heart, MessageCircle, Play, Send } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +28,7 @@ export function IgPreview({ projectId }: { projectId?: string }) {
   const project = projects.find((item) => item.id === selectedId) ?? projects.find((item) => item.id === projectId) ?? projects[0];
   const brand = brands.find((item) => item.id === project?.brandId) ?? brands[0];
   const artboard = project ? activeArtboard(project) : undefined;
-  const [captionTone, setCaptionTone] = useState(0);
+  const [captionTone, setCaptionTone] = useState<string>("學生版");
   const touchX = useRef<number | null>(null);
 
   const assetIds = useMemo(() => {
@@ -54,7 +54,9 @@ export function IgPreview({ projectId }: { projectId?: string }) {
   }
 
   const pack = project.plan?.copyPack;
-  const variant = pack?.variants[captionTone] ?? pack?.variants[0];
+  const variant = pack?.variants.find((item) => item.tone === captionTone)
+    ?? pack?.variants.find((item) => item.tone === "學生版")
+    ?? pack?.variants[0];
   const caption = variant
     ? `${variant.body}\n\n${variant.cta}\n\n${variant.hashtags.join(" ")}`
     : project.copy.caption;
@@ -111,8 +113,15 @@ export function IgPreview({ projectId }: { projectId?: string }) {
               </div>
             </div>
           )}
-          <div className={cn("overflow-hidden rounded-xl bg-bg", tall ? "mx-auto max-w-56" : "")}>
+          <div className={cn("relative overflow-hidden rounded-xl bg-bg", tall ? "mx-auto max-w-56" : "")}>
             <ArtboardView artboard={artboard} brand={brand} urls={urls} width={tall ? 224 : 300} />
+            {reels ? (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <span className="flex size-12 items-center justify-center rounded-full bg-fg/70 text-bg">
+                  <Play className="size-5 fill-current" />
+                </span>
+              </div>
+            ) : null}
           </div>
           {pages.length > 1 && !story ? (
             <div className="mt-2 flex justify-center gap-1">
@@ -141,7 +150,11 @@ export function IgPreview({ projectId }: { projectId?: string }) {
           )}
         </div>
         <p className="mt-3 text-center text-xs text-muted">
-          這是預覽，不是發文。沒有讚數或觀看次數，也不會連到 Instagram 上傳。
+          {reels
+            ? "這是 Reels 封面預覽，不是發文。沒有觀看次數，也不會上傳 Instagram。"
+            : story
+              ? "這是限動預覽，不是發文。沒有觀看次數。"
+              : "這是貼文預覽，不是發文。愛心圖示沒有讚數，也不會連到 Instagram 上傳。"}
         </p>
       </div>
       <div className="space-y-4">
@@ -195,11 +208,11 @@ export function IgPreview({ projectId }: { projectId?: string }) {
         {pack ? (
           <div>
             <p className="text-xs text-muted">Caption 語氣</p>
-            <Select value={String(captionTone)} onValueChange={(value) => setCaptionTone(Number(value))}>
+            <Select value={variant?.tone ?? "學生版"} onValueChange={setCaptionTone}>
               <SelectTrigger className="mt-2 min-h-11"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {pack.variants.map((item, index) => (
-                  <SelectItem key={item.tone} value={String(index)}>{item.tone}</SelectItem>
+                {pack.variants.map((item) => (
+                  <SelectItem key={item.tone} value={item.tone}>{item.tone}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -208,6 +221,9 @@ export function IgPreview({ projectId }: { projectId?: string }) {
           <p className="text-sm text-muted">還沒有 Copy Pack。到 Studio 生成文案後，這裡會套上 Caption 與 hashtags。</p>
         )}
         <Badge variant="default">這是預覽，不是發文</Badge>
+        <p className="text-xs leading-5 text-muted">
+          預設用學生版 Caption。先確認淡江同學會不會停下來，再去排程或匯出。
+        </p>
       </div>
     </div>
   );

@@ -132,7 +132,7 @@ ${data.brandMemory || "先說學生生活，再介紹活動；使用三色光與
 時間：${data.schedule || "未填"}
 地點：${data.location || "未填"}
 產品／內容：${data.product || data.eventName}
-優惠：${data.offer || "無"}
+參加誘因／報名方式：${data.offer || "無"}
 本次主要學生情境：${data.audience}
 目的：${data.goal}
 特色：${data.features || "無"}

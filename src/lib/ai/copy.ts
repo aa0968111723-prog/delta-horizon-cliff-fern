@@ -66,16 +66,26 @@ function eventFacts(data: CopyRequest) {
     .join("\n");
 }
 
+function campusFromMemory(brandMemory?: string) {
+  const line = brandMemory?.split("\n").find((row) => row.startsWith("校園情境："))?.slice("校園情境：".length);
+  const first = line?.split(/[、,；]/)[0]?.trim();
+  return first && first !== "課表" ? first : "";
+}
+
 function naturalHook(data: CopyRequest) {
   if (data.hook && !/誠摯邀請|法喜|殊勝/.test(data.hook)) return data.hook;
-  if (/期中|期末|報告|考試/.test(data.studentPain)) return "最近是不是連休息都覺得有罪惡感？";
+  const campus = campusFromMemory(data.brandMemory);
+  if (campus && /雨/.test(campus)) return `淡水又下雨了，還是得趕下一堂嗎？`;
+  if (/期中|期末|報告|考試/.test(data.studentPain) || /期中/.test(data.brandMemory ?? "")) return "最近是不是連休息都覺得有罪惡感？";
   if (/朋友|新生|新關係/.test(data.studentPain)) return "剛到淡江，還在找一個可以自在待著的地方嗎？";
+  if (campus) return `${campus}的時候，也想先停一下嗎？`;
   return "最近是不是很久沒有好好坐下來？";
 }
 
 export function buildMockCopyPack(data: CopyRequest): CopyPack {
   const hook = naturalHook(data);
   const facts = eventFacts(data);
+  const campus = campusFromMemory(data.brandMemory);
   const core = data.concept || `${data.campaignName}，留一點空間給最近很忙的自己。`;
   const cta = data.cta || "找朋友一起來";
   const hashtags = cleanHashtags(data.hashtags);
@@ -84,7 +94,7 @@ export function buildMockCopyPack(data: CopyRequest): CopyPack {
       短版: `${core}\n\n${facts}`,
       一般版: `${hook}\n\n${core}\n\n不用先懂禪，也不用準備答案。來坐坐、整理最近的心情就好。\n\n${facts}`,
       感性版: `${hook}\n\n有時候我們需要的不是答案，只是一個能慢下來的晚上。\n${core}\n\n${facts}`,
-      學生版: `${hook}\n\n課表、通勤、宿舍和訊息都先放一下。${core}\n可以自己來，也可以揪一個最近同樣很忙的朋友。\n\n${facts}`,
+      學生版: `${hook}\n\n${campus ? `${campus}先放一下。` : "課表、通勤、宿舍和訊息都先放一下。"}${core}\n可以自己來，也可以揪一個最近同樣很忙的朋友。\n\n${facts}`,
       生活版: `下課後先不要急著回完所有訊息。\n\n${core}\n不需要盤腿，也不會突然考你佛學名詞。\n\n${facts}`,
       幽默版: `腦袋開了 18 個分頁，卻找不到關閉按鈕嗎？\n\n${core}\n放心，不用會禪，也沒有隨堂考。\n\n${facts}`,
     };

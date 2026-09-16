@@ -15,12 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CreationLoop } from "@/components/shared/creation-loop";
 import { describeAdapter, generateCampaignPlan, getCampaignAiStatus, type AiStatus } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
+import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
 import { emptyBrief, formatsFromBrief, migrateBrief } from "@/lib/studio/brief";
 import { FORMATS } from "@/lib/studio/formats";
 import type { Brief, FormatId, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
+import { useConnectionStore } from "@/stores/connection-store";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
@@ -43,6 +46,10 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
   const clearCreativePreset = useUi((s) => s.clearCreativePreset);
   const clearContentLink = useUi((s) => s.clearContentLink);
   const linkProject = useCreative((s) => s.linkProject);
+  const campaigns = useCreative((s) => s.campaigns);
+  const assets = useStudio((s) => s.assets);
+  const styleReferences = useConnectionStore((s) => s.styleReferences);
+  const instagramHashtags = hashtagsFromInstagramMemory(useConnectionStore((s) => s.instagramItems));
 
   const existing = projectId ? projects.find((p) => p.id === projectId) : undefined;
   const [targetId, setTargetId] = useState<string>(existing?.id ?? "new");
@@ -109,18 +116,24 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
       return;
     }
     if (!brief.eventName.trim() && !brief.product.trim()) {
-      setError("請先填活動名稱，代理才有依據。");
+      setError("請先填活動名稱，創作才有依據。");
       return;
     }
     if (!brief.audience.trim()) {
-      setError("請先填受眾，代理才有依據。");
+      setError("請先填受眾，創作才有依據。");
       return;
     }
     setBusy(true);
     setError(null);
     try {
       const connected = status?.available ?? false;
-      const payload = toBriefInput(brief, brand, { forceMock: forceMock || !connected });
+      const payload = toBriefInput(brief, brand, {
+        forceMock: forceMock || !connected,
+        assets,
+        campaigns,
+        styleReferences,
+        instagramHashtags,
+      });
       const result = await generateCampaignPlan({ data: payload });
       if (!result.ok) {
         setError(result.error);
@@ -201,7 +214,7 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
         <Field label="品牌">
           <Select value={brandId} onValueChange={setBrandId}>
             <SelectTrigger>
-              <SelectValue placeholder="選擇品牌" />
+              <SelectValue placeholder="淡江大學禪學社" />
             </SelectTrigger>
             <SelectContent>
               {brands.map((b) => (
@@ -246,7 +259,7 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
 
       {targetId === "new" ? (
         <Field label="專案名稱（選填）">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="空白則用戰役名稱" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="空白則用活動名稱" />
         </Field>
       ) : null}
 
@@ -287,7 +300,14 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
         </p>
       ) : null}
 
-      {resultProject?.plan ? <PlanResult projectId={resultProject.id} onOpenEditor={openEditor} /> : null}
+      {resultProject?.plan ? (
+        <>
+          <CreationLoop current="copy" />
+          <PlanResult projectId={resultProject.id} onOpenEditor={openEditor} />
+        </>
+      ) : (
+        <CreationLoop current="campaign" />
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createEmptyBrand } from "../studio/brand.ts";
 import { migrateAsset } from "../studio/assets.ts";
-import { buildCreativeMemoryContext, creativeMemoryStats, searchCreativeMemory, styleReferencePrompt } from "./memory.ts";
+import { buildCreativeMemoryContext, clipMemoryPrompt, creativeMemoryStats, memoryInjectionHints, searchCreativeMemory, styleReferencePrompt } from "./memory.ts";
 import type { Campaign, ContentItem } from "./types.ts";
 
 const brand = createEmptyBrand("淡江大學禪學社");
@@ -266,6 +266,32 @@ test("searchCreativeMemory includes Brand Memory lessons and Copy Pack hooks", (
   assert.equal(results.some((item) => item.kind === "memory" && item.title.includes("先寫學生生活")), true);
   assert.equal(results.some((item) => item.kind === "copy"), true);
   assert.equal(results.some((item) => item.kind === "style"), true);
+});
+
+test("creative memory prompt injects campus, Canva style, and hashtags for AI copy/image", () => {
+  const context = buildCreativeMemoryContext({
+    brand,
+    assets: [asset],
+    campaigns: [campaign],
+    styleReferences: [{ provider: "Canva", collection: "浮游禪光", title: "主視覺", notes: "夜晚三色光" }],
+    instagramHashtags: ["#淡江禪學社", "#淡江生活"],
+  });
+  assert.match(context, /淡水雨天、期中報告/);
+  assert.match(context, /Canva／浮游禪光/);
+  assert.match(context, /#淡江禪學社/);
+  assert.deepEqual(memoryInjectionHints({
+    brand,
+    assets: [asset],
+    campaigns: [campaign],
+    styleReferences: [{ provider: "Canva", collection: "浮游禪光", title: "主視覺", notes: "夜晚三色光" }],
+    instagramHashtags: ["#淡江禪學社"],
+  }), ["校園情境", "近期活動", "已分析素材", "Canva 風格", "IG hashtags"]);
+});
+
+test("clipMemoryPrompt keeps campus prompts within the AI payload limit", () => {
+  assert.equal(clipMemoryPrompt("淡水雨天", 8), "淡水雨天");
+  assert.equal(clipMemoryPrompt("a".repeat(20), 8).length, 8);
+  assert.match(clipMemoryPrompt("a".repeat(20), 8), /…$/);
 });
 
 test("searchCreativeMemory includes synced external references with attribution", () => {

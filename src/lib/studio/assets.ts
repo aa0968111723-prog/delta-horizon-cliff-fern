@@ -17,7 +17,7 @@ export const ASSET_CATEGORIES: {
   hint: string;
   virtual?: boolean;
 }[] = [
-  { id: "photo", label: "活動照片", hint: "商品、場景、活動紀實" },
+  { id: "photo", label: "活動照片", hint: "現場、場景、活動紀實" },
   { id: "people", label: "人物", hint: "人像、手部、服務瞬間" },
   { id: "background", label: "背景", hint: "桌面、材質、留白場景" },
   { id: "illustration", label: "插圖", hint: "手繪、裝飾、編輯素材" },

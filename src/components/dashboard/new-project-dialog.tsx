@@ -46,7 +46,7 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
       return;
     }
     if (!brief.eventName.trim() || !brief.audience.trim()) {
-      setError("請填寫活動名稱與受眾，之後企劃代理才有依據。");
+      setError("請填寫活動名稱與受眾，之後創作才有依據。");
       return;
     }
     if (!brandId) {
@@ -80,7 +80,7 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
               id="proj-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：九月單品上市"
+              placeholder="例如：09/24 浮游禪光"
             />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

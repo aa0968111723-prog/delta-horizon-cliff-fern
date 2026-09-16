@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { generateCreativeImage, getMultimodalStatus } from "@/lib/ai/multimodal";
-import { buildBrandMemoryPrompt } from "@/lib/creative/memory";
+import { buildCreativeMemoryContext } from "@/lib/creative/memory";
+import { useCreative } from "@/stores/creative-store";
 import { base64ImageToBlob, prepareImageForAi } from "@/lib/studio/ai-image-client";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { uid } from "@/lib/studio/ids";
@@ -18,6 +19,8 @@ export function ReelsStudio({ projectId }: { projectId?: string }) {
   const project = useStudio((state) => state.projects.find((item) => item.id === projectId) ?? state.projects[0]);
   const brand = useStudio((state) => state.brands.find((item) => item.id === project?.brandId) ?? state.brands[0]);
   const addAsset = useStudio((state) => state.addAsset);
+  const assets = useStudio((state) => state.assets);
+  const campaigns = useCreative((state) => state.campaigns);
   const setActiveFormat = useStudio((state) => state.setActiveFormat);
   const patchArtboard = useStudio((state) => state.patchArtboard);
   const setStylePrompt = useUi((state) => state.setStylePrompt);
@@ -45,7 +48,14 @@ export function ReelsStudio({ projectId }: { projectId?: string }) {
           idea,
           direction: project.plan?.visualDirection || "淡江學生生活感，不要宗教符號",
           aspectRatio: "9:16",
-          brandMemory: brand ? buildBrandMemoryPrompt(brand, useConnectionStore.getState().styleReferences) : undefined,
+          brandMemory: brand
+            ? buildCreativeMemoryContext({
+                brand,
+                assets,
+                campaigns,
+                styleReferences: useConnectionStore.getState().styleReferences,
+              })
+            : undefined,
         },
       });
       if (!result.ok) {
@@ -110,7 +120,7 @@ export function ReelsStudio({ projectId }: { projectId?: string }) {
             <Badge variant={beats.length ? "success" : "default"}>{beats.length ? "有腳本" : "尚未生成"}</Badge>
           </div>
           <p className="mt-1 text-sm leading-6 text-muted">
-            用 Copy Studio 的 reelsScript，配 9:16 封面。不會假裝能直接上傳 Instagram。
+            用 Copy Studio 的 reelsScript，配 9:16 封面。不會假裝能直接上傳 Instagram，也不會顯示假觀看次數。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
