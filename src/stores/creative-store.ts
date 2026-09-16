@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { bindScheduledWave as placeOnWave, suggestWaves, isoFromMs } from "@/lib/creative/schedule";
-import { lastLearnFromPosts } from "@/lib/club/insights";
-import { mergeIgPosts } from "@/lib/creative/ig-memory";
+import { annotateIgPosts, clubInsightsFromPosts, lastLearnFromInsights, lastLearnFromPosts } from "@/lib/club/insights";
+import { prepareIgIngest } from "@/lib/creative/ig-memory";
 import { applyMarkPublished } from "@/lib/creative/publish-flow";
 import {
   SEED_CAMPAIGNS,
@@ -56,6 +56,7 @@ type CreativeState = {
   ingestIgPosts: (posts: IgMemoryPost[]) => void;
   analyzeIg: (id: string, analysis: IgMemoryPost["analysis"]) => void;
   rememberLearn: (hook: string, caption: string, mediaType?: IgMemoryPost["mediaType"]) => void;
+  refreshLearnFromIg: () => void;
   addInspiration: (item: Inspiration) => void;
   markPublished: (opts: {
     campaignId?: string;
@@ -147,11 +148,7 @@ export const useCreative = create<CreativeState>()(
       inspirations: SEED_INSPIRATION,
       connections: SEED_CONNECTIONS,
       lastQuery: "",
-      lastLearn: lastLearnFromPosts(
-        SEED_IG_POSTS,
-        SEED_IG_POSTS[0]?.analysis?.hook || SEED_IG_POSTS[0]?.caption || "",
-        SEED_IG_POSTS[0]?.takenAt ?? Date.parse("2025-09-18T19:12:00+08:00"),
-      ),
+      lastLearn: lastLearnFromInsights(SEED_IG_POSTS),
       setHydrated: (v) => set({ hydrated: v }),
       setLastQuery: (q) => set({ lastQuery: q }),
       addCampaign: (input) => {
@@ -161,7 +158,9 @@ export const useCreative = create<CreativeState>()(
           id: input.id ?? uid("camp"),
           updatedAt: Date.now(),
         };
-        if (!campaign.waves.length) campaign.waves = suggestWaves(campaign);
+        if (!campaign.waves.length) {
+          campaign.waves = suggestWaves(campaign, new Date(), clubInsightsFromPosts(get().igPosts).mixLesson);
+        }
         set((s) => ({ campaigns: [campaign, ...s.campaigns] }));
         return campaign;
       },
@@ -172,7 +171,9 @@ export const useCreative = create<CreativeState>()(
       generateWaves: (id) => {
         const campaign = get().campaigns.find((c) => c.id === id);
         if (!campaign) return;
-        get().updateCampaign(id, { waves: suggestWaves(campaign) });
+        get().updateCampaign(id, {
+          waves: suggestWaves(campaign, new Date(), clubInsightsFromPosts(get().igPosts).mixLesson),
+        });
       },
       setWaveStatus: (campaignId, waveId, status, projectId) => {
         const campaign = get().campaigns.find((c) => c.id === campaignId);
@@ -226,9 +227,18 @@ export const useCreative = create<CreativeState>()(
         })),
       addMemory: (item) => set((s) => ({ memory: [item, ...s.memory.filter((m) => m.id !== item.id)] })),
       ingestIgPosts: (posts) =>
-        set((s) => ({
-          igPosts: mergeIgPosts(s.igPosts, posts),
-        })),
+        set((s) => {
+          const next = prepareIgIngest(s.igPosts, posts);
+          return {
+            igPosts: next.posts,
+            ...(next.lastLearn ? { lastLearn: next.lastLearn } : {}),
+          };
+        }),
+      refreshLearnFromIg: () =>
+        set((s) => {
+          const posts = annotateIgPosts(s.igPosts);
+          return { igPosts: posts, lastLearn: lastLearnFromInsights(posts, Date.now()) };
+        }),
       analyzeIg: (id, analysis) =>
         set((s) => ({
           igPosts: s.igPosts.map((p) => (p.id === id ? { ...p, analysis } : p)),

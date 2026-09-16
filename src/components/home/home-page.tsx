@@ -342,6 +342,7 @@ export function HomePage() {
               <p className="mt-1 text-xs text-muted">
                 收藏 {post.saves} · 互動 {post.comments} · {post.analysis?.direction}
               </p>
+              <p className="mt-1 text-xs text-subtle">{insights.answers[0]}</p>
               <Button
                 size="sm"
                 variant="ghost"

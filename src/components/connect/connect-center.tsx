@@ -88,7 +88,11 @@ export function ConnectCenter({
       status: "connected",
       accountLabel: result.account ?? COPY[id].title,
     });
-    toast.success(`已同步 ${result.items.length} 筆進 Creative Memory`);
+    toast.success(
+      result.posts?.length
+        ? `已把 ${result.posts.length} 則 IG 收藏與停留寫進下次創作`
+        : `已同步 ${result.items.length} 筆進 Creative Memory`,
+    );
     if (id === "google-drive") void loadFolders();
   }
 

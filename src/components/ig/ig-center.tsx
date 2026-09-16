@@ -8,11 +8,13 @@ import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { clubDnaFromMemory } from "@/lib/club/dna";
-import { clubInsightsFromPosts } from "@/lib/club/insights";
+import { clubInsightsFromPosts, nextCreateFromLearn } from "@/lib/club/insights";
 import { analyzeIgMemoryPost, applyStudentSimToCopy } from "@/lib/club/ig-analyze";
 import { captionFromProject } from "@/lib/creative/publish";
 import { igGridSlots, upcomingSlotId, upcomingStatusCopy, type IgGridSlot } from "@/lib/creative/ig-feed";
 import { planPreviewSchedule } from "@/lib/creative/schedule";
+import { syncConnectionMemory } from "@/lib/connect/oauth";
+import { uid } from "@/lib/studio/ids";
 import type { IgMemoryPost } from "@/lib/creative/types";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -24,6 +26,11 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
   const igPosts = useCreative((s) => s.igPosts);
   const analyzeIg = useCreative((s) => s.analyzeIg);
   const rememberLearn = useCreative((s) => s.rememberLearn);
+  const refreshLearnFromIg = useCreative((s) => s.refreshLearnFromIg);
+  const lastLearn = useCreative((s) => s.lastLearn);
+  const ingestIgPosts = useCreative((s) => s.ingestIgPosts);
+  const addMemory = useCreative((s) => s.addMemory);
+  const setConnection = useCreative((s) => s.setConnection);
   const campaigns = useCreative((s) => s.campaigns);
   const addCampaign = useCreative((s) => s.addCampaign);
   const generateWaves = useCreative((s) => s.generateWaves);
@@ -48,6 +55,7 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
     focusProjectId ? upcomingSlotId(focusProjectId) : slots[0]?.id ?? null,
   );
   const [draftAnalysis, setDraftAnalysis] = useState<Record<string, NonNullable<IgMemoryPost["analysis"]>>>({});
+  const [syncingInsights, setSyncingInsights] = useState(false);
   const active = slots.find((slot) => slot.id === activeId) ?? slots[0];
   const activeProject = active?.projectId ? projects.find((item) => item.id === active.projectId) : undefined;
   const memory = useCreative((s) => s.memory);
@@ -167,6 +175,29 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
     void navigate({ to: "/calendar", search: { day: plan.day } });
   }
 
+  async function pullInsights() {
+    setSyncingInsights(true);
+    try {
+      const result = await syncConnectionMemory({ data: { provider: "instagram" } });
+      if (result.ok) {
+        for (const item of result.items) addMemory({ ...item, id: item.id || uid("mem") });
+        if (result.posts?.length) ingestIgPosts(result.posts);
+        else refreshLearnFromIg();
+        setConnection("instagram", {
+          lastSyncAt: Date.now(),
+          status: "connected",
+          accountLabel: result.account ?? "Instagram",
+        });
+        toast.success("已把收藏和停留寫進下次創作");
+        return;
+      }
+      refreshLearnFromIg();
+      toast.message(result.message);
+    } finally {
+      setSyncingInsights(false);
+    }
+  }
+
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
       <p className="text-xs tracking-[0.18em] text-muted uppercase">Instagram Center</p>
@@ -176,6 +207,42 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
       </p>
 
       <DuePublishBar compact />
+
+      <section className="mt-6 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+        <p className="text-xs tracking-[0.16em] text-muted uppercase">這次 IG 學到</p>
+        <p className="mt-2 font-display text-xl leading-snug">
+          「{lastLearn?.hook || insights.winningHooks[0] || "問句比社團介紹更容易停"}」
+        </p>
+        <ul className="mt-3 space-y-1 text-sm text-muted">
+          {insights.answers.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-muted">{insights.mixLesson}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button className="min-h-11 rounded-full" disabled={syncingInsights} onClick={() => void pullInsights()}>
+            {syncingInsights ? "正在讀成效…" : "讀取成效"}
+          </Button>
+          <Button asChild variant="secondary" className="min-h-11 rounded-full">
+            <Link
+              to="/create"
+              search={{
+                q: nextCreateFromLearn(
+                  lastLearn ?? {
+                    hook: insights.winningHooks[0] ?? "最近是不是很久沒坐好？",
+                    hookLesson: insights.hookLesson,
+                    mixLesson: insights.mixLesson,
+                    visualLesson: insights.visualLesson,
+                  },
+                ),
+                go: "1",
+              }}
+            >
+              用這次學到創作下一篇
+            </Link>
+          </Button>
+        </div>
+      </section>
 
       <h2 className="mt-8 text-sm font-medium">Feed Preview</h2>
       <p className="mt-1 text-xs text-muted">點即將發的格子可以發到 IG，或先標記進記憶。下載檔案不算發布。</p>
@@ -279,14 +346,7 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
                 </div>
               ) : null}
               {active.origin === "published" ? (
-                <div className="mt-3 rounded-2xl bg-bg p-3 text-xs text-muted">
-                  {insights.answers.map((line) => (
-                    <p key={line} className="mt-1 first:mt-0">
-                      {line}
-                    </p>
-                  ))}
-                  <p className="mt-2">{insights.mixLesson}</p>
-                </div>
+                <p className="mt-2 text-xs text-subtle">完整帳號節奏在上面「這次 IG 學到」。這裡只看這篇。</p>
               ) : null}
             </div>
           ) : null}

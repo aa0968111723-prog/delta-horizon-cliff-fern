@@ -1,5 +1,6 @@
+import { annotateIgPosts, hasInsightMetrics, lastLearnFromInsights } from "../club/insights.ts";
 import { isoFromMs } from "./schedule.ts";
-import type { IgMemoryPost } from "./types.ts";
+import type { IgMemoryPost, LastLearn } from "./types.ts";
 
 function hookOf(caption: string) {
   return (caption.split("\n").map((line) => line.trim()).find(Boolean) ?? "").replace(/\s+/g, "").slice(0, 22);
@@ -46,4 +47,17 @@ export function mergeIgPosts(existing: IgMemoryPost[], incoming: IgMemoryPost[])
   }
 
   return [...byId.values()].sort((a, b) => b.takenAt - a.takenAt);
+}
+
+/** 官方貼文／Insights 進來時：合併數字、補學生視角分析，收藏高的那篇變成下次創作的課。 */
+export function prepareIgIngest(
+  existing: IgMemoryPost[],
+  incoming: IgMemoryPost[],
+  at = Date.now(),
+): { posts: IgMemoryPost[]; lastLearn: LastLearn | null } {
+  const posts = annotateIgPosts(mergeIgPosts(existing, incoming));
+  return {
+    posts,
+    lastLearn: incoming.some(hasInsightMetrics) ? lastLearnFromInsights(posts, at) : null,
+  };
 }

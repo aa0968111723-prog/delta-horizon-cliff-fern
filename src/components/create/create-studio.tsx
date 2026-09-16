@@ -134,6 +134,7 @@ export function CreateStudio({
   const memory = useCreative((s) => s.memory);
   const igPosts = useCreative((s) => s.igPosts);
   const inspirations = useCreative((s) => s.inspirations);
+  const lastLearn = useCreative((s) => s.lastLearn);
   const generateWaves = useCreative((s) => s.generateWaves);
   const addMemory = useCreative((s) => s.addMemory);
   const bindScheduledWave = useCreative((s) => s.bindScheduledWave);
@@ -1001,6 +1002,11 @@ export function CreateStudio({
               ))}
             </div>
             <p className="mt-3 text-xs text-muted">{insights.mixLesson}</p>
+            {lastLearn?.hook ? (
+              <p className="mt-1 text-xs text-muted">
+                下次會避開重複「{lastLearn.hook}」。{lastLearn.hookLesson}
+              </p>
+            ) : null}
             {inspirations[0] ? (
               <p className="mt-1 text-xs text-muted">靈感抽象：{inspirations[0].pattern} → {inspirations[0].clubTurn}</p>
             ) : null}

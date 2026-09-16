@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mergeIgPosts } from "./ig-memory.ts";
+import { mergeIgPosts, prepareIgIngest } from "./ig-memory.ts";
 import type { IgMemoryPost } from "./types.ts";
 
 const local: IgMemoryPost = {
@@ -47,4 +47,18 @@ test("same id still overlays metrics", () => {
   const posts = mergeIgPosts([{ ...live, saves: 2 }], [{ ...live, saves: 50, comments: 9 }]);
   assert.equal(posts[0].saves, 50);
   assert.equal(posts[0].comments, 9);
+});
+
+test("official insights refresh lastLearn and fill missing analysis", () => {
+  const { posts, lastLearn } = prepareIgIngest([local], [live], 88);
+  assert.equal(posts[0].saves, 41);
+  assert.ok(posts[0].analysis?.visual);
+  assert.ok(lastLearn);
+  assert.equal(lastLearn?.at, 88);
+  assert.ok(/坐下來|課表|休息|龜/.test(lastLearn?.hook ?? ""));
+});
+
+test("posts without metrics do not overwrite lastLearn", () => {
+  const { lastLearn } = prepareIgIngest([local], [{ ...live, saves: undefined, comments: undefined, reach: undefined, likes: undefined, shares: undefined }]);
+  assert.equal(lastLearn, null);
 });

@@ -104,6 +104,24 @@ test("tea campaign waves mix life and promo instead of stacking ads", () => {
   assert.ok(waves.every((w) => w.publishedAt == null));
 });
 
+test("ads-heavy mix drops stacked promo waves for a knowledge beat", () => {
+  const waves = suggestWaves(
+    {
+      type: "tea",
+      date: "2026-09-24",
+      name: "秋季茶會",
+      oneLiner: "帶一個朋友就好",
+    },
+    new Date("2026-09-10T12:00:00+08:00"),
+    "最近活動廣告偏多。下一波穿插生活、互動、知識，避免 IG 看起來一直在招生。",
+  );
+  const intents = waves.map((w) => w.intent);
+  assert.equal(intents.includes("主視覺"), false);
+  assert.ok(intents.includes("知識"));
+  assert.ok(intents.includes("生活") || intents.includes("情緒共鳴"));
+  assert.ok(intents.includes("當天"));
+});
+
 test("carousel schedule is event minus 7 Taipei days", () => {
   const at = scheduledAtFor("carousel", "2026-09-23");
   assert.equal(isoFromMs(at), "2026-09-16");

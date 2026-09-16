@@ -14,8 +14,27 @@ export type ClubInsights = {
   answers: string[];
 };
 
-function engagement(post: Pick<IgMemoryPost, "saves" | "comments" | "reach" | "likes" | "shares">) {
+export function engagement(post: Pick<IgMemoryPost, "saves" | "comments" | "reach" | "likes" | "shares">) {
   return (post.saves ?? 0) * 4 + (post.comments ?? 0) * 2 + (post.likes ?? 0) * 0.2 + (post.shares ?? 0) * 3 + (post.reach ?? 0) / 80;
+}
+
+export function hasInsightMetrics(post: Pick<IgMemoryPost, "saves" | "comments" | "reach" | "likes" | "shares">) {
+  return [post.saves, post.comments, post.reach, post.likes, post.shares].some((value) => typeof value === "number");
+}
+
+export function annotateIgPosts<T extends IgMemoryPost>(posts: T[]): T[] {
+  return posts.map((post) => (post.analysis ? post : { ...post, analysis: analyzeIgMemoryPost(post) }));
+}
+
+export function lastLearnFromInsights(posts: IgMemoryPost[], at?: number): LastLearn {
+  const annotated = annotateIgPosts(posts);
+  const top = [...annotated].sort((a, b) => engagement(b) - engagement(a))[0];
+  return lastLearnFromPosts(
+    annotated,
+    top?.analysis?.hook || top?.caption || "",
+    at ?? top?.takenAt ?? Date.now(),
+    top ? { caption: top.caption, mediaType: top.mediaType } : undefined,
+  );
 }
 
 function firstLine(caption: string) {

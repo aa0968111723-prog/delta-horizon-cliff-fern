@@ -4,6 +4,7 @@ import { SEED_IG_POSTS } from "../creative/memory-seed.ts";
 import {
   clubInsightsFromPosts,
   insightsPromptBlock,
+  lastLearnFromInsights,
   lastLearnFromPosts,
   lastLearnPromptBlock,
   nextCreateFromLearn,
@@ -37,6 +38,30 @@ test("insights prefer high-save life posts over club invitations", () => {
     mediaType: "image",
   });
   assert.ok(/生活|官方/.test(fromThisPost.hookLesson));
+});
+
+test("insights lastLearn follows the highest-save post, not the newest invite", () => {
+  const learned = lastLearnFromInsights(SEED_IG_POSTS, 9);
+  assert.ok(/期末|休息/.test(learned.hook));
+  assert.equal(learned.hook.includes("誠摯邀請"), false);
+  assert.equal(learned.at, 9);
+  assert.ok(learned.visualLesson);
+});
+
+test("posts without analysis still teach a visual after annotate", () => {
+  const learned = lastLearnFromInsights([
+    {
+      id: "ig_live",
+      source: "instagram",
+      mediaType: "image",
+      caption: "龜龜今天也在圖書館前發呆。",
+      takenAt: 1,
+      assetIds: [],
+      saves: 90,
+      comments: 4,
+    },
+  ]);
+  assert.ok(/龜/.test(learned.hook + (learned.visualLesson ?? "")));
 });
 
 test("too many event ads produces a mix warning", () => {

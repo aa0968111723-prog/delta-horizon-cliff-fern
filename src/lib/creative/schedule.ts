@@ -18,10 +18,15 @@ function at(offset: number, intent: string, topic: string, kind: ContentKind): W
   return { offsetDays: offset, intent, topic, contentKind: kind };
 }
 
-/** 依活動類型與距離自動長節奏，避免連續活動廣告。 */
-export function suggestWaves(campaign: Pick<ClubCampaign, "type" | "date" | "name" | "oneLiner">, from = new Date()): CampaignWave[] {
+/** 依活動類型、距離、最近 IG 節奏自動長波次，避免連續活動廣告。 */
+export function suggestWaves(
+  campaign: Pick<ClubCampaign, "type" | "date" | "name" | "oneLiner">,
+  from = new Date(),
+  mixLesson?: string,
+): CampaignWave[] {
   const days = Math.max(1, daysUntil(campaign.date, from));
   const type: CampaignType = campaign.type;
+  const adsHeavy = Boolean(mixLesson && /活動廣告偏多|一直在招生/.test(mixLesson));
   const seeds: WaveSeed[] = [];
 
   if (days >= 14 && type !== "recap") {
@@ -34,8 +39,14 @@ export function suggestWaves(campaign: Pick<ClubCampaign, "type" | "date" | "nam
   if (type !== "recruit") {
     seeds.push(at(-Math.min(5, Math.max(2, days - 1)), "互動", "問一句：你這週有真的休息嗎", "poll"));
   }
-  seeds.push(at(-Math.min(4, Math.max(2, days - 1)), "主視覺", `${campaign.name} 看起來像什麼`, "ig-post"));
-  seeds.push(at(-Math.min(3, Math.max(1, days - 1)), "活動內容", "燈光、熱茶、坐著就好", "carousel"));
+  if (!adsHeavy) {
+    seeds.push(at(-Math.min(4, Math.max(2, days - 1)), "主視覺", `${campaign.name} 看起來像什麼`, "ig-post"));
+  }
+  seeds.push(
+    adsHeavy
+      ? at(-Math.min(3, Math.max(1, days - 1)), "知識", "先講一件這週會卡關的小事", "ig-post")
+      : at(-Math.min(3, Math.max(1, days - 1)), "活動內容", "燈光、熱茶、坐著就好", "carousel"),
+  );
   if (days >= 4) {
     seeds.push(at(-2, "故事", "為什麼有人會想來", "member-story"));
   }
