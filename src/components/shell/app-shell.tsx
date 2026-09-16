@@ -82,7 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => (lastProjectId ? navigate({ to: "/studio/$projectId", params: { projectId: lastProjectId } }) : setAssistantOpen(true))}
             className="flex size-11 items-center justify-center rounded-xl text-muted hover:bg-surface-2 hover:text-fg"
-            aria-label="打開編輯器"
+            aria-label="打開畫布"
           >
             <Sparkles className="size-4" />
           </button>

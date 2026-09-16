@@ -246,7 +246,7 @@ export function CalendarPage() {
                     {extendBusy === item.id ? "延伸中…" : "AI 延伸"}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setEditingId(item.id)}>
-                    編輯
+                    改這則
                   </Button>
                 </div>
               </li>

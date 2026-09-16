@@ -11,6 +11,7 @@ import { useAssetUrls, resolveAssetSrc } from "@/hooks/use-asset-urls";
 import { generateCopyPack } from "@/lib/ai/copy";
 import { FORMATS } from "@/lib/studio/formats";
 import { pagesOf } from "@/lib/studio/layers";
+import { SEED_ASSETS } from "@/lib/studio/seed";
 import type { FormatId } from "@/lib/studio/types";
 import { uid } from "@/lib/studio/ids";
 import { dnaPromptIdea, igDnaBlock, learnFromPosts } from "@/lib/zen/insights";
@@ -162,7 +163,10 @@ export function InstagramCenter() {
           <div>
             <div className="grid grid-cols-3 gap-1">
               {igPosts.map((item) => {
-                const src = resolveAssetSrc(item.assetId, urls, assets.find((a) => a.id === item.assetId)?.seedSrc);
+                const seedSrc =
+                assets.find((a) => a.id === item.assetId)?.seedSrc ??
+                SEED_ASSETS.find((a) => a.id === item.assetId)?.seedSrc;
+              const src = resolveAssetSrc(item.assetId, urls, seedSrc);
                 return (
                   <button
                     key={item.id}

@@ -86,8 +86,8 @@ export function ConvertPanel({ pack }: { pack: CreativePack }) {
           <ul className="mt-2 space-y-1 text-sm">
             {previewLines(converted, target.id)
               .slice(0, 5)
-              .map((line) => (
-                <li key={line} className="line-clamp-2">
+              .map((line, i) => (
+                <li key={`${target.id}-${i}`} className="line-clamp-2">
                   {line}
                 </li>
               ))}
