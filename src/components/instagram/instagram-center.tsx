@@ -23,7 +23,7 @@ import {
   isIgFeedKind,
   storyPreviewProjects,
 } from "@/lib/studio/ig-profile";
-import type { BrandKit, Project } from "@/lib/studio/types";
+import type { Artboard, BrandKit, Project } from "@/lib/studio/types";
 import { IgFeedPreview } from "@/components/instagram/ig-feed-preview";
 import { IgStoryPreview } from "@/components/instagram/ig-story-preview";
 import { cn } from "@/lib/utils";
@@ -292,19 +292,21 @@ export function InstagramCenter() {
                 return (
                   <li
                     key={project.id}
-                    className="relative aspect-square overflow-hidden bg-surface-2"
+                    className="ig-cover-cell relative aspect-square overflow-hidden bg-surface-2"
                     data-testid="ig-grid-cell"
                     data-kind={project.contentKind}
                   >
                     <Link
                       to="/studio/$projectId"
                       params={{ projectId: project.id }}
-                      className="flex size-full items-center justify-center"
+                      className="absolute inset-0"
                     >
                       {board && brand ? (
-                        <ArtboardView artboard={board} brand={brand} urls={urls} width={140} />
+                        <GridCover artboard={board} brand={brand} urls={urls} />
                       ) : (
-                        <span className="text-xs text-muted">{project.name}</span>
+                        <span className="flex size-full items-center justify-center text-xs text-muted">
+                          {project.name}
+                        </span>
                       )}
                     </Link>
                     <span className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-fg/55 px-1.5 py-1 text-xs text-accent-fg">
@@ -618,6 +620,28 @@ export function InstagramCenter() {
         </section>
       ) : null}
     </main>
+  );
+}
+
+function GridCover({
+  artboard,
+  brand,
+  urls,
+}: {
+  artboard: Artboard;
+  brand: BrandKit;
+  urls: Record<string, string>;
+}) {
+  return (
+    <span
+      className="pointer-events-none absolute top-1/2 left-1/2 origin-center"
+      style={{
+        width: 140,
+        transform: "translate(-50%, -50%) scale(calc(100cqw / 140))",
+      }}
+    >
+      <ArtboardView artboard={artboard} brand={brand} urls={urls} width={140} />
+    </span>
   );
 }
 

@@ -82,6 +82,11 @@
     );
   }
 
+  /* IG 九宮格：依格子寬把 4:5 畫面鋪滿再裁成正方形 */
+  .ig-cover-cell {
+    container-type: inline-size;
+  }
+
   .text-balance {
     text-wrap: balance;
   }
