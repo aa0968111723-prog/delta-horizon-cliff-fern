@@ -725,12 +725,12 @@ export function InstagramCenter() {
                 </div>
               ) : null}
             </div>
-            <div className="space-y-3">
+            <div className="order-first space-y-3 lg:order-none">
               {lastPack && lastVisualAssetId ? (
                 <div className="rounded-2xl bg-bg p-3" data-testid="preview-after-suite">
                   <p className="text-sm font-medium">剛做成整套，已排進日曆</p>
                   <p className="mt-1 text-xs text-muted">
-                    看畫面 → 需要時送到 Canva → 用目前畫面發到 IG，或到時間從首頁發。
+                    先改文案或畫面，需要時送到 Canva，再用目前畫面發到 IG。
                   </p>
                 </div>
               ) : null}
