@@ -19,6 +19,7 @@ import { sourceFromAsset } from "@/lib/studio/sources";
 import { emptyCopy, withBoilerplate } from "@/lib/studio/copy";
 import { copyFromDraft } from "@/lib/studio/copy-draft";
 import { spreadCopyAcrossPack } from "@/lib/studio/pack-copy";
+import { paintAssetOnProject, spreadVisualAcrossPack, visualAssetOf } from "@/lib/studio/pack-visual";
 import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
 import { uid, uniqueById } from "@/lib/studio/ids";
@@ -114,6 +115,7 @@ type StudioState = {
   placeAsset: (projectId: string, assetId: string, at?: { x: number; y: number }) => boolean;
   applyCoverAsset: (projectId: string, assetId: string) => boolean;
   applyVisualAsset: (projectId: string, assetId: string) => boolean;
+  applyVisualToPack: (projectId: string, assetId?: string) => number;
   createProject: (input: {
     name: string;
     brandId: string;
@@ -451,6 +453,21 @@ export const useStudio = create<StudioState>()(
         }
         get().addSources(projectId, [{ kind: "generated", label: "Reels 封面", detail: asset.name, assetId }]);
         return true;
+      },
+      applyVisualToPack: (projectId, assetId) => {
+        const s = get();
+        const project = s.projects.find((item) => item.id === projectId);
+        if (!project) return 0;
+        const nextAssetId = assetId ?? visualAssetOf(project);
+        if (!nextAssetId) return 0;
+        const asset = s.assets.find((item) => item.id === nextAssetId);
+        const targets = spreadVisualAcrossPack(s.projects, projectId);
+        for (const target of targets) {
+          get().updateProject(target.projectId, (item) => paintAssetOnProject(item, nextAssetId));
+          if (asset) get().addSources(target.projectId, [sourceFromAsset(asset)]);
+        }
+        if (targets.length) get().markAssetUsed(nextAssetId);
+        return targets.length;
       },
       createProject: ({ name, brandId, formatId, brief, templateId, contentKind, campaignId, status, sources }) => {
         const brand = brandById(get().brands, brandId);

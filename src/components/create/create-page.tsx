@@ -85,8 +85,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const updateCampaign = useStudio((s) => s.updateCampaign);
   const addAsset = useStudio((s) => s.addAsset);
   const addSources = useStudio((s) => s.addSources);
-  const applyCoverAsset = useStudio((s) => s.applyCoverAsset);
-  const applyVisualAsset = useStudio((s) => s.applyVisualAsset);
+  const applyVisualToPack = useStudio((s) => s.applyVisualToPack);
   const layoutFromKind = useStudio((s) => s.layoutFromKind);
   const hydrated = useStudio((s) => s.hydrated);
   const igDnaText = useIgDnaText();
@@ -491,8 +490,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
         setCopy(projectId, { headline: direction.headline, subhead: direction.subhead });
       }
     }
-    const applied =
-      kind === "reels" ? applyCoverAsset(projectId, assetId) : applyVisualAsset(projectId, assetId);
+    const applied = applyVisualToPack(projectId, assetId);
     if (!applied) {
       toast.error("套不到畫面，再試一次。");
       return;
@@ -508,7 +506,11 @@ export function CreatePage({ search }: { search: CreateSearch }) {
         },
       });
     }
-    toast.success("已套成這則的主視覺，可以下載圖或進畫面編輯。");
+    toast.success(
+      applied > 1
+        ? "主視覺已套到全套畫面，限動、LINE、Reels 封面也換了。"
+        : "已套成這則的主視覺，可以下載圖或進畫面編輯。",
+    );
   }
 
   async function makeFromImage(payload: ImageMakePayload) {
@@ -562,8 +564,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
             : { kind: "local" as const, label: "圖片理解", detail: summary },
         ],
       });
-      if (payload.kind === "reels") applyCoverAsset(project.id, assetId);
-      else applyVisualAsset(project.id, assetId);
+      applyVisualToPack(project.id, assetId);
       if (payload.caption) {
         setCopy(project.id, { headline: payload.caption.slice(0, 24), caption: payload.caption });
       }

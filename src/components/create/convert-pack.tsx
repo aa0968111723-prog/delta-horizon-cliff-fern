@@ -33,12 +33,13 @@ export function ConvertPack({
     <section id="convert-pack" className="mt-8 space-y-4">
       <SectionHeader
         title="這次做成的全套"
-        hint="同一則內容的貼文、輪播、限動、Threads、LINE、Reels。一次標完成、一次下載，貼完再一次標已發。"
+        hint="同一則內容的貼文、輪播、限動、Threads、LINE、Reels。文案和主視覺都可以一次套到全套。"
         action={<DownloadPackButton projectId={packId} size="sm" />}
       />
       <div className="flex flex-wrap items-center gap-2">
         <PackFlowBar projectId={packId} />
         <SpreadCopyButton projectId={packId} />
+        <SpreadVisualButton projectId={packId} />
       </div>
       <ul className="grid gap-4 lg:grid-cols-2">
         {members.map((project) => {
@@ -98,6 +99,25 @@ function SpreadCopyButton({ projectId }: { projectId: string }) {
       }}
     >
       文案套到全套
+    </Button>
+  );
+}
+
+function SpreadVisualButton({ projectId }: { projectId: string }) {
+  const applyVisualToPack = useStudio((s) => s.applyVisualToPack);
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      aria-label="畫面套到全套"
+      onClick={() => {
+        const count = applyVisualToPack(projectId);
+        if (count > 1) toast.success(`主視覺已套到 ${count} 種畫面。限動、LINE、Reels 封面也換了。`);
+        else if (count === 1) toast.info("這則還沒做成其他有畫面的型態。");
+        else toast.info("這則還沒有主視覺。");
+      }}
+    >
+      畫面套到全套
     </Button>
   );
 }

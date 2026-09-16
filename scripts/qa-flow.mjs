@@ -172,6 +172,15 @@ try {
     afterSpread.includes("套到") || afterSpread.includes("Threads"),
     "套到全套之後沒有更新",
   );
+  await expectText("全套同步畫面", "畫面套到全套");
+  await tap(page.getByRole("button", { name: "畫面套到全套" }));
+  await page.waitForTimeout(500);
+  const afterVisual = await text();
+  record(
+    "全套畫面已套上",
+    afterVisual.includes("套到") || afterVisual.includes("主視覺") || afterVisual.includes("畫面"),
+    "套到全套畫面之後沒有更新",
+  );
   await tap(page.getByRole("button", { name: "這套完成了" }));
   await page.waitForTimeout(400);
   await expectText("全套可排程", "排這套到日曆");

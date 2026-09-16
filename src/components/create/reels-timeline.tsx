@@ -20,6 +20,7 @@ export function ReelsTimeline({
   projectId?: string;
 }) {
   const addAsset = useStudio((s) => s.addAsset);
+  const applyVisualToPack = useStudio((s) => s.applyVisualToPack);
   const applyCoverAsset = useStudio((s) => s.applyCoverAsset);
   const brand = useStudio((s) => s.brands[0]);
   const [copied, setCopied] = useState<"script" | "shots" | null>(null);
@@ -62,8 +63,13 @@ export function ReelsTimeline({
       });
       addAsset(meta);
       if (projectId) {
-        applyCoverAsset(projectId, meta.id);
-        toast.success("封面已套到畫面，也存進素材庫");
+        const count = applyVisualToPack(projectId, meta.id);
+        if (count < 1) applyCoverAsset(projectId, meta.id);
+        toast.success(
+          count > 1
+            ? "封面已套到全套畫面，限動、LINE 也換了。"
+            : "封面已套到畫面，也存進素材庫",
+        );
       } else {
         toast.success("封面已存進素材庫。先用一版文案建立內容，就能套到畫面上。");
       }
