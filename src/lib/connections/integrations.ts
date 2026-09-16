@@ -15,6 +15,25 @@ export type IntegrationProbe = {
   };
 };
 
+function studentDriveDetail(drive: {
+  ok: boolean;
+  data?: unknown[];
+  loginRequired?: boolean;
+  loginUrl?: string;
+  detail?: string;
+  message?: string;
+}): string {
+  if (drive.ok) return `已讀到 ${drive.data?.length ?? 0} 個 Drive 項目。`;
+  if (drive.loginRequired && drive.loginUrl) {
+    return "Drive 需要由 Grok 完成授權。只有這時才會出現 Continue with Grok。";
+  }
+  const raw = `${drive.detail ?? ""} ${drive.message ?? ""}`;
+  if (drive.loginRequired || /access-token|inbound request|connector/i.test(raw)) {
+    return "需要授權，但這個環境沒有登入連結。不會顯示 Continue with Grok，也不會放模擬檔案。";
+  }
+  return drive.detail || drive.message || "Google Drive 尚未在此環境提供。";
+}
+
 export const getStudioIntegrationFlags = createServerFn({ method: "GET" }).handler(async () => {
   const { canvaCatalogId, canvaOAuthCredentials, instagramCatalogId, instagramOAuthCredentials } =
     await import("./provider-env.server.ts");
@@ -74,14 +93,14 @@ export const probeStudioIntegrations = createServerFn({ method: "POST" }).handle
           kind: "connected",
           loginRequired: false,
           hasLoginUrl: false,
-          detail: `已讀到 ${drive.data.length} 個 Drive 項目。`,
+          detail: studentDriveDetail(drive),
         }
       : {
           kind: drive.kind,
           loginRequired: Boolean(drive.loginRequired),
           hasLoginUrl: Boolean(drive.loginUrl),
           loginUrl: drive.loginUrl,
-          detail: drive.detail || drive.message,
+          detail: studentDriveDetail(drive),
         },
   };
 });

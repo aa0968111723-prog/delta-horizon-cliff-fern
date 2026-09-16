@@ -128,11 +128,11 @@ export function InstagramCenter({
       >
         <div className="min-w-0 overflow-x-auto">
           <TabsList className="h-auto min-h-11 w-max min-w-full flex-nowrap justify-start">
-            <TabsTrigger value="memory" className="min-h-11 shrink-0">內容記憶</TabsTrigger>
-            <TabsTrigger value="preview" className="min-h-11 shrink-0">IG 預覽</TabsTrigger>
+            <TabsTrigger value="memory" className="min-h-11 shrink-0">記憶</TabsTrigger>
+            <TabsTrigger value="preview" className="min-h-11 shrink-0">預覽</TabsTrigger>
             <TabsTrigger value="reels" className="min-h-11 shrink-0">Reels</TabsTrigger>
-            <TabsTrigger value="learn" className="min-h-11 shrink-0">現場筆記</TabsTrigger>
-            <TabsTrigger value="insights" className="min-h-11 shrink-0">Insights</TabsTrigger>
+            <TabsTrigger value="learn" className="min-h-11 shrink-0">筆記</TabsTrigger>
+            <TabsTrigger value="insights" className="min-h-11 shrink-0">成效</TabsTrigger>
           </TabsList>
         </div>
 

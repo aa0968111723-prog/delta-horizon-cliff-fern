@@ -51,7 +51,7 @@ export function EnvironmentCard() {
           {busy ? "檢查中…" : "檢查這個環境"}
         </Button>
       </div>
-      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+      <ul className="mt-4 grid grid-cols-2 gap-3">
         <EnvRow
           label="Grok 企劃／文案／生圖"
           value={probe ? (probe.xai.present ? (probe.xai.live ? "已確認可連線" : "金鑰在，此刻無法呼叫") : "本機草案") : flags ? (flags.xai ? "金鑰在，按檢查才會呼叫" : "本機草案") : "確認中"}
@@ -109,7 +109,7 @@ function EnvRow({ label, value, detail }: { label: string; value: string; detail
     <li className="rounded-2xl bg-bg p-3">
       <p className="text-xs text-muted">{label}</p>
       <p className="mt-1 text-sm font-medium">{value}</p>
-      {detail ? <p className="mt-1 text-xs leading-5 text-muted">{detail}</p> : null}
+      {detail ? <p className="mt-1 break-words text-xs leading-5 text-muted">{detail}</p> : null}
     </li>
   );
 }
