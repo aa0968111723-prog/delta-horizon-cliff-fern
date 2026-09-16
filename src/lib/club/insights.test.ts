@@ -45,7 +45,9 @@ test("insights lastLearn follows the highest-save post, not the newest invite", 
   assert.ok(/期末|休息/.test(learned.hook));
   assert.equal(learned.hook.includes("誠摯邀請"), false);
   assert.equal(learned.at, 9);
-  assert.ok(learned.visualLesson);
+  assert.equal(/補上星期/.test(learned.hookLesson), false);
+  assert.ok(/黃昏|停留|龜/.test(learned.visualLesson ?? ""));
+  assert.equal(nextCreateFromLearn(learned).includes("補上星期"), false);
 });
 
 test("posts without analysis still teach a visual after annotate", () => {

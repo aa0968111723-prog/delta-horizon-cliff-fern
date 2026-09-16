@@ -33,7 +33,6 @@ export function lastLearnFromInsights(posts: IgMemoryPost[], at?: number): LastL
     annotated,
     top?.analysis?.hook || top?.caption || "",
     at ?? top?.takenAt ?? Date.now(),
-    top ? { caption: top.caption, mediaType: top.mediaType } : undefined,
   );
 }
 
