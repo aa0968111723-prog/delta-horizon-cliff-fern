@@ -27,6 +27,9 @@ export function applyDirectionToPlan(plan: CampaignPlan, dir: VisualDirection): 
     threadsPost: plan.threadsPost
       ? plan.threadsPost.replace(plan.hook, hook)
       : plan.threadsPost,
+    storyFrames: plan.storyFrames?.length
+      ? plan.storyFrames.map((frame, index) => (index === 0 || frame === plan.hook ? hook : frame))
+      : plan.storyFrames,
     reelsScript: plan.reelsScript
       ? {
           ...plan.reelsScript,

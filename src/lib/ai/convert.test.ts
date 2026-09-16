@@ -120,4 +120,22 @@ test("packCaption for reels keeps one student hook", () => {
   const caption = packCaption(plan, convertPlan(plan, "reels"));
   assert.match(caption, /^有時候我們需要的不是答案/);
   assert.doesNotMatch(caption, /可以自己來/);
+  assert.match(caption, /19:00|淡水/);
+  assert.match(caption, /想找人一起/);
+});
+
+test("tea-party captions keep when and where after a mock plan", () => {
+  const plan = buildMockPlan(zenBrief);
+  const caption = packCaption(plan, convertPlan(plan, "reels"));
+  assert.match(caption, /19:00|9\/24/);
+  assert.match(caption, /淡水|淡江/);
+  assert.match(caption, /想找人一起/);
+});
+
+test("convertPlan story is 3–5 frames with a hook then time", () => {
+  const plan = buildMockPlan(zenBrief);
+  const story = convertPlan(plan, "story");
+  assert.ok(story.items.length >= 3 && story.items.length <= 5);
+  assert.match(story.items[0] ?? "", /[？?]|坐下來|晚上/);
+  assert.match(story.items.join("\n"), /19:00|淡水|浮游禪光|來坐一下/);
 });

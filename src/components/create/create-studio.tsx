@@ -1,7 +1,7 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { convertPlan, packCaption, captionFromCopyPack, rewriteCopyPack, type ConvertedPack } from "@/lib/ai/convert";
+import { convertPlan, packCaption, captionFromCopyPack, rewriteCopyPack, captionBody, type ConvertedPack } from "@/lib/ai/convert";
 import { generateCampaignPlan, getCampaignAiStatus, describeAdapter, type AiStatus } from "@/lib/ai/campaign";
 import { generateCopyPacks } from "@/lib/ai/copy-studio";
 import {
@@ -51,6 +51,8 @@ import type { CampaignPlan, CampaignWaveKind, ClubCampaign, ContentKind, CopyPac
 import { HeroVisual } from "@/components/create/hero-visual";
 import { ReelsBoard } from "@/components/create/reels-board";
 import { ShareBoard } from "@/components/create/share-board";
+import { StoryBoard } from "@/components/create/story-board";
+import { storyFrameLines, storyRowsForFrames } from "@/lib/ai/story-frames";
 import { WaveList } from "@/components/create/wave-list";
 import { StudentReviewCard } from "@/components/create/student-review-card";
 import { VisionCard } from "@/components/create/vision-card";
@@ -310,6 +312,7 @@ export function CreateStudio() {
       updateCampaign(currentCampaign.id, { oneLiner: hook });
       setCampaign({ ...currentCampaign, oneLiner: hook });
       for (const item of useStudio.getState().schedule.filter((row) => row.campaignId === currentCampaign.id)) {
+        if (item.kind === "story" || item.kind === "countdown") continue;
         upsertSchedule({ ...item, caption, body: next.body });
       }
     }
@@ -845,15 +848,38 @@ export function CreateStudio() {
   function scheduleConverted(nextPlan: CampaignPlan, created: ClubCampaign, projectId: string | null = null, assetId = lastImage?.assetId) {
     const date = parseEventDate(`${schedule} ${idea}`);
     const when = Date.parse(`${date}T19:00:00+08:00`);
+    const existing = useStudio.getState().schedule.filter((row) => row.campaignId === created.id);
     for (const pack of KINDS.map((kind) => convertPlan(nextPlan, kind))) {
       const scheduledAt = Number.isNaN(when) ? Date.now() : when + offsetDaysForConvertedKind(pack.kind) * 86_400_000;
+      if (pack.kind === "story") {
+        const frames = storyFrameLines(nextPlan);
+        for (const row of storyRowsForFrames(existing, frames, created.id)) {
+          const prev = row.existingId ? existing.find((item) => item.id === row.existingId) : undefined;
+          upsertSchedule({
+            id: prev?.id ?? uid("sch"),
+            projectId,
+            campaignId: created.id,
+            kind: "story",
+            title: `Story ${row.index + 1} · ${eventName || nextPlan.campaignName || idea.slice(0, 12)}`,
+            scheduledAt: prev?.scheduledAt ?? scheduledAt + row.index * 90_000,
+            publishedAt: null,
+            status: "scheduled",
+            caption: row.caption,
+            body: frames[row.index],
+            hashtags: nextPlan.hashtags,
+            imageAssetId: prev?.imageAssetId ?? assetId,
+          });
+        }
+        continue;
+      }
+      const prev = existing.find((item) => item.kind === pack.kind);
       upsertSchedule({
-        id: uid("sch"),
+        id: prev?.id ?? uid("sch"),
         projectId,
         campaignId: created.id,
         kind: pack.kind,
         title: `${pack.title} · ${eventName || nextPlan.campaignName || idea.slice(0, 12)}`,
-        scheduledAt,
+        scheduledAt: prev?.scheduledAt ?? scheduledAt,
         publishedAt: null,
         status: "scheduled",
         caption: packCaption(nextPlan, pack),
@@ -1036,7 +1062,7 @@ export function CreateStudio() {
     if (!plan) return;
     const directed = applyDirectionToPlan(plan, dir);
     const cleaned = rewriteCopyPack(
-      { hook: directed.hook, body: directed.body, cta: directed.cta, hashtags: directed.hashtags },
+      { hook: directed.hook, body: captionBody(directed), cta: directed.cta, hashtags: directed.hashtags },
       plan.hook,
     );
     const next = { ...directed, hook: cleaned.hook, body: cleaned.body };
@@ -1056,6 +1082,7 @@ export function CreateStudio() {
         await attachWaveLooks(created, dir, imageId);
       }
       for (const item of useStudio.getState().schedule.filter((row) => row.campaignId === created.id)) {
+        if (item.kind === "story" || item.kind === "countdown") continue;
         upsertSchedule({ ...item, caption: cleaned.caption, body: cleaned.body });
       }
       toast.success("已用這個方向做出整套：主視覺、文案、各平台、月曆");
@@ -1476,6 +1503,15 @@ export function CreateStudio() {
       {plan?.reelsScript ? (
         <ReelsBoard
           script={plan.reelsScript}
+          eventName={eventName || plan.campaignName}
+          campaignId={campaign?.id}
+          onSchedule={() => saveCampaignAndWaves()}
+        />
+      ) : null}
+
+      {plan ? (
+        <StoryBoard
+          plan={plan}
           eventName={eventName || plan.campaignName}
           campaignId={campaign?.id}
           onSchedule={() => saveCampaignAndWaves()}

@@ -31,6 +31,7 @@ test("applyDirectionToPlan follows the picked visual, not a temple poster", () =
     source: "mock" as const,
     copyPacks: [{ tone: "student" as const, hook: "舊", body: "x", cta: "來坐一下", hashtags: [] }],
     threadsPost: "最近是不是很久沒有好好坐下來？\n9/24 晚上來坐一下。",
+    storyFrames: ["最近是不是很久沒有好好坐下來？", "茶會", "9/24 19:00 淡水校園", "來坐一下"],
     reelsScript: {
       hook: "最近是不是很久沒有好好坐下來？",
       beats: [
@@ -54,6 +55,8 @@ test("applyDirectionToPlan follows the picked visual, not a temple poster", () =
   assert.equal(next.hook, "可以自己來？");
   assert.equal(next.copyPacks?.[0]?.hook, "可以自己來？");
   assert.match(next.threadsPost ?? "", /^可以自己來？/);
+  assert.equal(next.storyFrames?.[0], "可以自己來？");
+  assert.equal(next.storyFrames?.[2], "9/24 19:00 淡水校園");
   assert.equal(next.reelsScript?.hook, "可以自己來？");
   assert.equal(next.reelsScript?.beats[0]?.caption, "可以自己來？");
   assert.equal(next.reelsScript?.beats[1]?.caption, "人可以慢");

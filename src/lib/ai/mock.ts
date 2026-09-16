@@ -66,7 +66,12 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
   const visualTheme = data.imageStyle?.trim() || `${style}；主視覺放現場或物件，文字區留白。`;
   const visualDirection = `畫面用品牌色做底，上半主視覺、下半標題。風格：${style}。避免雜訊與浮水印。`;
   const subhead = offer || `${when} · ${where}`;
-  const body = zen ? stripForbidden(hook, data.forbiddenWords) : features;
+  const body = zen
+    ? stripForbidden(
+        [`${when}${where ? `，${where}` : ""}`, "想找人一起的話，把這則傳給他。"].filter(Boolean).join("\n"),
+        data.forbiddenWords,
+      )
+    : features;
   const captionCore = tidyCopy(
     zen
       ? [hook, `${when}${where ? `，${where}` : ""}`, "想找人一起的話，把這則傳給他。"].filter(Boolean).join("\n")

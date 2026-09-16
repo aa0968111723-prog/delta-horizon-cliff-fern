@@ -37,7 +37,11 @@ export function convertPlan(plan: CampaignPlan, kind: ContentKind): ConvertedPac
   }
   if (kind === "story") {
     const frames = plan.storyFrames?.length ? plan.storyFrames : plan.storyBeats;
-    return { kind, title: "Story 3–5 則", items: frames.length ? frames : [plan.hook, when, plan.cta] };
+    return {
+      kind,
+      title: "Story 3–5 則",
+      items: frames.length ? frames : [plan.hook, when, plan.cta],
+    };
   }
   if (kind === "reels") {
     const beats = plan.reelsScript?.beats?.length
@@ -78,14 +82,32 @@ export function convertPlan(plan: CampaignPlan, kind: ContentKind): ConvertedPac
   };
 }
 
+export function captionBody(plan: {
+  hook: string;
+  body: string;
+  captions?: { text: string }[];
+  copyPacks?: { tone: string; body: string }[];
+}) {
+  const hook = plan.hook.trim();
+  const body = (plan.body || "").trim();
+  if (body && body !== hook) return body;
+  return (
+    plan.copyPacks?.find((pack) => pack.tone === "student")?.body ||
+    plan.captions?.[0]?.text ||
+    ""
+  ).trim();
+}
+
 export function packCaption(plan: CampaignPlan, pack: ConvertedPack) {
   if (pack.kind === "ig-post" || pack.kind === "threads" || pack.kind === "line") {
     return pack.items.join("\n");
   }
-  return rewriteCopyPack(
-    { hook: plan.hook, body: plan.body, cta: plan.cta, hashtags: plan.hashtags },
-    undefined,
-  ).caption;
+  return rewriteCopyPack({
+    hook: plan.hook,
+    body: captionBody(plan),
+    cta: plan.cta,
+    hashtags: plan.hashtags,
+  }).caption;
 }
 
 export function captionFromCopyPack(pack: { hook: string; body: string; cta: string; hashtags?: string[] }) {
