@@ -12,11 +12,11 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function fit(width: number, height: number, maxEdge: number) {
-  const w = Math.max(1, width || 1);
-  const h = Math.max(1, height || 1);
-  const scale = Math.min(1, maxEdge / Math.max(w, h));
-  return { w: Math.max(1, Math.round(w * scale)), h: Math.max(1, Math.round(h * scale)) };
+function fit(width: number, height: number, targetEdge: number) {
+  const w = Math.max(1, width || targetEdge);
+  const h = Math.max(1, height || targetEdge);
+  const scale = targetEdge / Math.max(w, h);
+  return { w: Math.max(320, Math.round(w * scale)), h: Math.max(320, Math.round(h * scale)) };
 }
 
 /** Draw the current preview (SVG seed, blob, or raster) into a JPEG Instagram can accept. */
