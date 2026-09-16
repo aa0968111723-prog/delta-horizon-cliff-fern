@@ -205,6 +205,15 @@ try {
   await page.waitForSelector("text=Reels 預覽", { timeout: 15000 });
   await expectText("Reels 預覽", "Reels 預覽");
   await expectText("轉換後可複製腳本", "複製整支腳本");
+  await page.waitForSelector("[data-testid=artboard]", { timeout: 15000 });
+  const convertReelsVisible = await page.evaluate(() => {
+    const board = document.querySelector("[data-testid=artboard]");
+    if (!(board instanceof HTMLElement)) return { ok: false, detail: "沒有畫布" };
+    const r = board.getBoundingClientRect();
+    const visibleH = Math.min(r.bottom, window.innerHeight - 40) - Math.max(r.top, 0);
+    return { ok: visibleH >= 180 && r.width >= 90, detail: `${Math.round(r.width)}×${Math.round(visibleH)}` };
+  });
+  record("轉換 Reels 封面看得到", Boolean(convertReelsVisible.ok), convertReelsVisible.detail || "");
   await page.screenshot({ path: `${prefix}-reels-preview.png` });
   await page.goto(createUrl, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("text=這則完成了", { timeout: 15000 });
@@ -538,6 +547,25 @@ try {
     reelsPhoto > 0 ? `畫布上有 ${reelsPhoto} 張主視覺` : "封面沒有主視覺照片",
   );
   await expectText("做成 Reels 封面用照片", "這張照片當 9:16 封面");
+  const reelsVisible = await page.evaluate(() => {
+    const board = document.querySelector("[data-testid=artboard]");
+    const timeline = document.querySelector("[data-testid=reels-timeline]");
+    const beats = timeline ? timeline.querySelectorAll("li").length : 0;
+    if (!(board instanceof HTMLElement)) return { ok: false, detail: "沒有畫布" };
+    const r = board.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const visibleH = Math.min(r.bottom, vh - 40) - Math.max(r.top, 0);
+    const compact = timeline?.getAttribute("data-variant") === "compact";
+    return {
+      ok: compact && visibleH >= 220 && r.width >= 110 && beats === 0,
+      detail: `${compact ? "compact" : "full"} ${Math.round(r.width)}×${Math.round(visibleH)} 秒數列=${beats}`,
+    };
+  });
+  record("做成 Reels 封面看得到", Boolean(reelsVisible.ok), reelsVisible.detail || "");
+  await expectText("做成 Reels 腳本收到文字", "完整秒數、旁白與拍法在「文字」");
+  await tap(page.getByRole("tab", { name: "文字" }));
+  await page.waitForTimeout(400);
+  await expectText("做成 Reels 完整腳本在文字", "0–3 秒");
   await page.screenshot({ path: `${prefix}-from-image-reels.png` });
 
   // 8d. 從一張圖片做成輪播：五頁 4:5

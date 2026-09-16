@@ -10,6 +10,7 @@ import { LOCAL_VISUAL_NOTE, localVisualNote, localVisualRatioLine, matchLocalVis
 import { frameAndSaveLocalVisual } from "@/lib/studio/local-visual-frame";
 import { coverImagePrompt, reelsScriptText, shotListText } from "@/lib/studio/reels-cover";
 import type { ReelsScript } from "@/lib/studio/types";
+import { CLUB_HANDLE } from "@/lib/zen/club";
 import { useStudio } from "@/stores/studio-store";
 
 export { reelsScriptText };
@@ -18,10 +19,13 @@ export function ReelsTimeline({
   reels,
   adapter,
   projectId,
+  variant = "full",
 }: {
   reels: ReelsScript;
   adapter?: "live" | "local" | "mock";
   projectId?: string;
+  /** compact：畫面編輯只留 hook 與操作，完整秒數在「文字」。 */
+  variant?: "full" | "compact";
 }) {
   const addAsset = useStudio((s) => s.addAsset);
   const assets = useStudio((s) => s.assets);
@@ -119,6 +123,40 @@ export function ReelsTimeline({
     }
   }
 
+  const actions = (
+    <div className="flex flex-wrap gap-2">
+      <Button size="sm" variant="secondary" onClick={() => void copyText("script", reelsScriptText(reels))}>
+        {copied === "script" ? <Check className="size-4" /> : <CopyIcon className="size-4" />}
+        {copied === "script" ? "已複製腳本" : "複製整支腳本"}
+      </Button>
+      <Button size="sm" variant="ghost" onClick={() => void copyText("shots", shotListText(reels))}>
+        {copied === "shots" ? <Check className="size-4" /> : <CopyIcon className="size-4" />}
+        {copied === "shots" ? "已複製清單" : "複製拍攝清單"}
+      </Button>
+      <Button size="sm" onClick={() => void generateCover()} disabled={coverBusy}>
+        {coverBusy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+        {preview || reels.coverAssetId ? "換一張封面" : "生成封面圖"}
+      </Button>
+    </div>
+  );
+
+  if (variant === "compact") {
+    return (
+      <div className="space-y-1.5" data-testid="reels-timeline" data-variant="compact">
+        <p className="text-xs text-subtle">Reels 預覽 · {CLUB_HANDLE}</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="min-w-0 flex-1 truncate font-display text-sm leading-snug">{reels.hook}</p>
+          {actions}
+        </div>
+        {adapter === "local" || adapter === "mock" ? (
+          <p className="text-xs text-subtle">這是本機草稿，可以直接改；不是線上模型的回覆。完整秒數、旁白與拍法在「文字」。</p>
+        ) : (
+          <p className="text-xs text-subtle">9:16 封面在下面這張畫布。完整秒數、旁白與拍法在「文字」。</p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3" data-testid="reels-timeline">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -126,20 +164,7 @@ export function ReelsTimeline({
           <p className="font-display text-lg leading-snug">{reels.hook}</p>
           <p className="mt-1 text-xs text-muted">封面：{reels.cover}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={() => void copyText("script", reelsScriptText(reels))}>
-            {copied === "script" ? <Check className="size-4" /> : <CopyIcon className="size-4" />}
-            {copied === "script" ? "已複製腳本" : "複製整支腳本"}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => void copyText("shots", shotListText(reels))}>
-            {copied === "shots" ? <Check className="size-4" /> : <CopyIcon className="size-4" />}
-            {copied === "shots" ? "已複製清單" : "複製拍攝清單"}
-          </Button>
-          <Button size="sm" onClick={() => void generateCover()} disabled={coverBusy}>
-            {coverBusy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
-            {preview || reels.coverAssetId ? "換一張封面" : "生成封面圖"}
-          </Button>
-        </div>
+        {actions}
       </div>
       {coverAdapter === "local" ? (
         <p className="text-xs text-subtle">
