@@ -60,6 +60,7 @@ function ScheduleActions({
   async function publishToIg() {
     try {
       const result = await publishScheduleRow({ row, lastPack, assetUrls: urls });
+      if (result.pack) setLastPack(result.pack);
       if (result.needsConnect) {
         const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
         if (started.ok) {
@@ -67,15 +68,13 @@ function ScheduleActions({
           return;
         }
         ingestIg([result.post]);
-        const packed = lastPack ? withPackKind(lastPack, row.contentKind) : null;
-        if (packed) rememberStyle(styleBriefFromPublish(packed));
+        rememberStyle(styleBriefFromPublish(result.pack));
         toast.message(started.error);
         void navigate({ to: "/connections" });
         return;
       }
       ingestIg([result.post]);
-      const packed = lastPack ? withPackKind(lastPack, row.contentKind) : null;
-      if (packed) rememberStyle(styleBriefFromPublish(packed));
+      rememberStyle(styleBriefFromPublish(result.pack));
       setFocusIgId(result.post.id);
       setScheduleStatus(row.id, "published");
       if (row.projectId) {

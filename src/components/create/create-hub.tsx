@@ -287,18 +287,21 @@ function ImageStudio({
 
   useEffect(() => {
     if (!takeAutoRun(seedAutoRun)) return;
-    void directions();
+    void directions(true);
     // Intentionally once per consumed handoff.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seedAutoRun, seedIdea]);
 
-  async function directions() {
+  async function directions(autoPaint = false) {
     setBusy(true);
     try {
       const result = await generateImageDirections({
         data: { idea, formatId, igLessons: lessonPrompt(igPosts) },
       });
       setDirs(result.directions);
+      if (autoPaint && result.directions[0]) {
+        await render(result.directions[0]);
+      }
     } finally {
       setBusy(false);
     }

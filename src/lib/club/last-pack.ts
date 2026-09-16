@@ -199,6 +199,16 @@ export function withCanvaExport(pack: LastPack, result: { id: string; editUrl: s
   };
 }
 
+export function withPublicRaster(pack: LastPack, url?: string | null): LastPack {
+  const publicUrl = httpsRasterUrl(url);
+  if (!publicUrl) return pack;
+  return persistablePack({
+    ...pack,
+    formatPublicUrls: { ...pack.formatPublicUrls, [pack.kind]: publicUrl },
+    updatedAt: Date.now(),
+  })!;
+}
+
 export function publicReelsCoverUrl(pack: LastPack | null) {
   if (!pack) return "";
   return httpsRasterUrl(pack.formatPublicUrls?.reels) || httpsRasterUrl(pack.canvaExportUrl);

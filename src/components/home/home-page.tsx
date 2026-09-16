@@ -19,6 +19,7 @@ import { publishableScheduleRows } from "@/lib/club/schedule";
 import { handoffFromQuickStart, QUICK_STARTS } from "@/lib/club/quick-starts";
 import { formatDaysUntil, studentContext } from "@/lib/club/season";
 import { writeHandoff } from "@/lib/create/handoff";
+import { beginOAuth } from "@/lib/connections/begin";
 import { CONTENT_KIND_META, contentStatusOf } from "@/lib/studio/status";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -37,9 +38,11 @@ export function HomePage() {
   const schedule = useCreative((s) => s.schedule);
   const igPosts = useCreative((s) => s.igPosts);
   const lastPack = useCreative((s) => s.lastPack);
+  const setLastPack = useCreative((s) => s.setLastPack);
   const ingestIg = useCreative((s) => s.ingestIg);
   const rememberStyle = useCreative((s) => s.rememberStyle);
   const setScheduleStatus = useCreative((s) => s.setScheduleStatus);
+  const setFocusIgId = useCreative((s) => s.setFocusIgId);
   const updateProject = useStudio((s) => s.updateProject);
   const setCreateOpen = useUi((s) => s.setCreateOpen);
   const setSearchOpen = useUi((s) => s.setSearchOpen);
@@ -61,13 +64,28 @@ export function HomePage() {
     setPublishingId(row.id);
     try {
       const result = await publishScheduleRow({ row, lastPack, assetUrls: urls });
+      setLastPack(result.pack);
+      if (result.needsConnect) {
+        const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
+        if (started.ok) {
+          toast.message("正在連接 Instagram，回來後會接著發布。");
+          return;
+        }
+        ingestIg([result.post]);
+        rememberStyle(styleBriefFromPublish(result.pack));
+        toast.message(started.error);
+        void navigate({ to: "/connections" });
+        return;
+      }
       ingestIg([result.post]);
-      if (lastPack) rememberStyle(styleBriefFromPublish(lastPack));
+      rememberStyle(styleBriefFromPublish(result.pack));
+      setFocusIgId(result.post.id);
       setScheduleStatus(row.id, "published");
       if (row.projectId) {
         updateProject(row.projectId, { contentStatus: "published", publishedAt: Date.now() });
       }
       toast.success(result.message);
+      void navigate({ to: "/instagram" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "發布失敗");
     } finally {

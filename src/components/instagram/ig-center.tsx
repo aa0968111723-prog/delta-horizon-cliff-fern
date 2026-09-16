@@ -11,7 +11,7 @@ import { lastPackPreviewSrc, packAssetIds, withPackKind } from "@/lib/club/last-
 import { CONVERT_TARGETS } from "@/lib/convert/pack";
 import { analysisFromLive, lessonsFromIg, nextCreateIdeaFromLessons } from "@/lib/club/insights";
 import { writeHandoff } from "@/lib/create/handoff";
-import { runPackPublish } from "@/lib/club/run-publish";
+import { completePackPublish } from "@/lib/club/publish-ready";
 import { styleBriefFromPublish } from "@/lib/club/publish";
 import { toast } from "sonner";
 import { listConnectedMedia } from "@/lib/connections/oauth";
@@ -42,7 +42,8 @@ export function InstagramCenter() {
     if (!pack) return;
     setPublishing(true);
     try {
-      const result = await runPackPublish(pack, lastPackPreviewSrc(pack, urls));
+      const result = await completePackPublish(pack, lastPackPreviewSrc(pack, urls));
+      setLastPack(result.pack);
       if (result.needsConnect) {
         const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
         if (started.ok) {
@@ -50,13 +51,13 @@ export function InstagramCenter() {
           return;
         }
         ingestIg([result.post]);
-        rememberStyle(styleBriefFromPublish(pack));
+        rememberStyle(styleBriefFromPublish(result.pack));
         toast.message(started.error);
         void navigate({ to: "/connections" });
         return;
       }
       ingestIg([result.post]);
-      rememberStyle(styleBriefFromPublish(pack));
+      rememberStyle(styleBriefFromPublish(result.pack));
       setFocusIgId(result.post.id);
       const row = useCreative.getState().schedule.find((item) => item.campaignId === pack.campaignId && item.contentKind === pack.kind && item.status !== "published");
       if (row) setScheduleStatus(row.id, "published");

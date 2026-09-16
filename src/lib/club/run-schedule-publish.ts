@@ -1,5 +1,5 @@
 import { lastPackPreviewSrc, packForScheduleRow, type LastPack } from "./last-pack.ts";
-import { runPackPublish } from "./run-publish.ts";
+import { completePackPublish } from "./publish-ready.ts";
 import type { ContentKind } from "../studio/types.ts";
 
 export type PublishableRow = {
@@ -17,5 +17,5 @@ export async function publishScheduleRow(input: {
 }) {
   const pack = packForScheduleRow(input.row, input.lastPack);
   const previewSrc = lastPackPreviewSrc(pack, input.assetUrls ?? {}, input.row.contentKind);
-  return runPackPublish(pack, previewSrc);
+  return completePackPublish(pack, previewSrc);
 }

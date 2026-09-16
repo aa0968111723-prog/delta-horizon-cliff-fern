@@ -17,7 +17,7 @@ import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
 import { convertedScheduleUpserts } from "@/lib/club/schedule";
 import { generateReelsClip } from "@/lib/club/reels-video";
-import { runPackPublish } from "@/lib/club/run-publish";
+import { completePackPublish } from "@/lib/club/publish-ready";
 import { styleBriefFromPublish } from "@/lib/club/publish";
 import { CONVERT_TARGETS, allConvertedPacks, convertPlan, reelsVideoPrompt } from "@/lib/convert/pack";
 import { folderSearchInput } from "@/lib/connections/presets";
@@ -407,7 +407,8 @@ if (seedAutoRun) return;
     }
     setBusy(true);
     try {
-      const result = await runPackPublish(current, previewSrc);
+      const result = await completePackPublish(current, previewSrc);
+      setLastPack(result.pack);
       if (result.needsConnect) {
         const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
         if (started.ok) {
@@ -415,13 +416,13 @@ if (seedAutoRun) return;
           return;
         }
         ingestIg([result.post]);
-        rememberStyle(styleBriefFromPublish(current));
+        rememberStyle(styleBriefFromPublish(result.pack));
         toast.message(started.error);
         void navigate({ to: "/connections" });
         return;
       }
       ingestIg([result.post]);
-      rememberStyle(styleBriefFromPublish(current));
+      rememberStyle(styleBriefFromPublish(result.pack));
       setFocusIgId(result.post.id);
       const existing = useCreative.getState().schedule.find(
         (row) => row.campaignId === campaignId && row.contentKind === packKind && row.status !== "published",
