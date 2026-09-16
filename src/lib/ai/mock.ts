@@ -1,8 +1,3 @@
-import { HOOK_EXAMPLES, academicBeat, isZenClubBrief } from "../zen/context.ts";
-import { labelDirections } from "../zen/direction.ts";
-import { directionsFromResearch, researchInspiration } from "../zen/inspiration.ts";
-import { hookFromMemoryHint } from "../zen/memory-hook.ts";
-import { proposedHook, tidyCopy } from "../zen/review.ts";
 import { goalLabel } from "../studio/goals.ts";
 import { zenCarouselPages } from "./carousel-pages.ts";
 import type { CampaignPlan, CarouselPagePlan, CopyPack, StudentReview, TemplateId, VisualDirection } from "../studio/types.ts";

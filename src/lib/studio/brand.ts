@@ -207,11 +207,11 @@ export function logoUsageLabel(usage: LogoUsage) {
 
 export function defaultBrandColors() {
   return [
-    { id: uid("c"), hex: "#1C2422", role: "primary" as const, label: "墨松" },
-    { id: uid("c"), hex: "#3D5A73", role: "secondary" as const, label: "淡水暮" },
-    { id: uid("c"), hex: "#EEF2EC", role: "background" as const, label: "霧園" },
-    { id: uid("c"), hex: "#2F6F6A", role: "accent" as const, label: "靜水" },
-    { id: uid("c"), hex: "#1C2422", role: "ink" as const, label: "文字" },
+    { id: uid("c"), hex: "#1C1A16", role: "primary" as const, label: "墨" },
+    { id: uid("c"), hex: "#5C6B66", role: "secondary" as const, label: "苔" },
+    { id: uid("c"), hex: "#F3EEE4", role: "background" as const, label: "霧亞麻" },
+    { id: uid("c"), hex: "#2A6A64", role: "accent" as const, label: "淡水" },
+    { id: uid("c"), hex: "#1C1A16", role: "ink" as const, label: "文字" },
   ];
 }
 
@@ -311,4 +311,34 @@ export function migrateBrand(raw: Partial<BrandKit> & { id: string; name: string
 
 export function imageStyleSummary(style: ImageStyle) {
   return [style.mood, style.lighting, style.paletteHint].filter(Boolean).join(" · ");
+}
+
+export function brandMemoryBlock(
+  brand: Pick<
+    BrandKit,
+    | "name"
+    | "handle"
+    | "voice"
+    | "doSay"
+    | "dontSay"
+    | "forbiddenWords"
+    | "colors"
+    | "slogans"
+    | "ctas"
+    | "imageStyle"
+  >,
+) {
+  const palette = brand.colors.map((color) => `${color.label} ${color.hex}`).join("、");
+  return `Brand Memory（生成前先讀，不要從零開始）：
+${brand.name} ${brand.handle}
+語氣：${brand.voice}
+可以說：${brand.doSay}
+不要說：${brand.dontSay}
+禁用：${brand.forbiddenWords.join("、") || "誠摯邀請"}
+配色：${palette}
+標語：${brand.slogans.join("／")}
+CTA：${brand.ctas.join("／")}
+畫面：${imageStyleSummary(brand.imageStyle)}。${brand.imageStyle.do}
+不要拍：${brand.imageStyle.dont}
+龜龜與三色光是配角。不要寺廟金、僧袍、滿版經文。`;
 }

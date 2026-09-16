@@ -1,1989 +1,1447 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { convertPlan, packCaption, captionFromCopyPack, rewriteCopyPack, captionBody, type ConvertedPack } from "@/lib/ai/convert";
-import { generateCampaignPlan, getCampaignAiStatus, describeAdapter, type AiStatus } from "@/lib/ai/campaign";
-import { generateCopyPacks } from "@/lib/ai/copy-studio";
-import {
-  analyzeStudioImage,
-  generateStudioImage,
-  generateVisualDirections,
-  toImageFormat,
-  varyImagePrompt,
-  type VisionAnalysis,
-} from "@/lib/ai/image-studio";
-import { directionLookOf, directionLookSvg, directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
-import { toBriefInput } from "@/lib/ai/payload";
-import { createCanvaDesign, pullCanvaDesign } from "@/lib/connect/canva";
-import { canvaRemoteFromDesign } from "@/lib/connect/canva-format";
-import { runPublishItem } from "@/lib/connect/publish-item";
-import { gatherCreativeHits } from "@/lib/zen/gather-hits";
-import { emptyBrief, migrateBrief } from "@/lib/studio/brief";
-import { getAssetBlob, hydrateSeedAsset, putAssetBlob } from "@/lib/studio/assets-idb";
-import { canvaHeroAssetId } from "@/lib/studio/calendar-search";
-import { igSearchParams } from "@/lib/studio/ig-search";
-import { persistGeneratedImage } from "@/lib/studio/raster";
-import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
-import { formatById, FORMATS } from "@/lib/studio/formats";
-import { uid } from "@/lib/studio/ids";
-import { parseEventDate, parseEventTime, guessEventName, defaultScheduleText, defaultPieceScheduleText, preferredScheduleText, campaignMatchingIdea, campaignNameForIdea, shouldReopenCampaign, pieceNameForIdea } from "@/lib/zen/dates";
-import { DEFAULT_AUDIENCE, academicBeat } from "@/lib/zen/context";
-import { clubCreativeDna } from "@/lib/zen/dna";
-import { learnFromIg } from "@/lib/zen/insights";
-import { ideaStudioHook } from "@/lib/zen/studio-hook";
-import { composeMemoryHint } from "@/lib/zen/memory-hook";
-import { igMemoryFromSchedule } from "@/lib/zen/memory";
-import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction";
-import { researchInspiration } from "@/lib/zen/inspiration";
-import { convertedScheduledAt, skipConvertedIgPost, rhythmHint } from "@/lib/zen/rhythm";
-import { groupCreativeHits, igSearchHookBlock, sourceLabelOf, type CreativeHit } from "@/lib/zen/search";
-import { analyzeClubStill } from "@/lib/zen/analyze-still";
-import { loadSourceEmbed, pickSourceRefs, sourceCreditFromHits, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
-import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
-import { ideaForVisionAction, type VisionActionId } from "@/lib/zen/vision-action";
-import {
-  suggestWaves,
-  eventKindFromText,
-  waveLabel,
-  contentKindForWave,
-  waveVisualVariation,
-  mergeCampaignWaves,
-  scheduleItemsForWave,
-  heroScheduleItem,
-  waveFormatId,
-} from "@/lib/zen/schedule";
-import type { WaveDraft } from "@/lib/ai/wave";
-import type { CampaignPlan, CampaignWaveKind, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
-import { CarouselBoard } from "@/components/create/carousel-board";
-import { HeroVisual } from "@/components/create/hero-visual";
-import { ReelsBoard } from "@/components/create/reels-board";
-import { ShareBoard } from "@/components/create/share-board";
-import { StoryBoard } from "@/components/create/story-board";
-import { storyFrameLines, storyPosterInput, storyRowsForFrames, convertedRowOfKind, sharesKitCaption } from "@/lib/ai/story-frames";
-import { captionFromWave, mockWaveDraft } from "@/lib/ai/wave-draft";
-import { saveKitStills, saveIgPreviewStills } from "@/lib/ai/kit-stills";
-import { WaveList } from "@/components/create/wave-list";
-import { StudentReviewCard } from "@/components/create/student-review-card";
-import { VisionCard } from "@/components/create/vision-card";
-import { VisionActions } from "@/components/create/vision-actions";
-import { PhotoDrop } from "@/components/shared/photo-drop";
+import { CreativeHits } from "@/components/search/creative-hits";
+import { ReelsDesk, StoryStrip } from "@/components/create/kit-visuals";
+import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
-import { Input, Textarea } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { PageHeader } from "@/components/shared/page-header";
-import { useAssetUrls } from "@/hooks/use-asset-urls";
+import { Textarea } from "@/components/ui/input";
+import { convertContent, type ConvertResult } from "@/lib/ai/convert";
+import { generateCopy, type CopyBlock } from "@/lib/ai/copy";
+import { generateStudioImage, listVisualDirections } from "@/lib/ai/image";
+import { applyStudentRevisions, reviseCopiesForStudent, stampEventWhen } from "@/lib/ai/pack-mock";
+import { generateCreativePack, type CreativePack } from "@/lib/ai/pack";
+import { analyzeImage, type VisionReport } from "@/lib/ai/vision";
+import { visionPromptBlock } from "@/lib/ai/vision-notes";
+import { clubDnaFromMemory, dnaPromptBlock } from "@/lib/club/dna";
+import { clubInsightsFromPosts, insightsPromptBlock, lastLearnPromptBlock } from "@/lib/club/insights";
+import { seasonCreateNote, sameLivingHook } from "@/lib/club/featured";
+import { academicMoment } from "@/lib/club/season";
+import { createCanvaDesign, pullCanvaExport, startConnection } from "@/lib/connect/oauth";
+import { buildCanvaKit, canvaDesignIdFromEditUrl, canvaReturnTitle, memoryFromCanvaKit } from "@/lib/connect/canva-kit";
+import { persistableImageSrc } from "@/lib/connect/next";
+import { publicImageUrl } from "@/lib/connect/ig-publish";
+import { gatherIntoStore } from "@/lib/creative/gather-client";
+import { varyImagePrompt, type ImageVaryKind } from "@/lib/creative/image-vary";
+import { inferCampaignType, inferEventDate, isoFromMs, scheduledAtFor, displayEventWhen, resolvePromoEvent } from "@/lib/creative/schedule";
+import { alignPackToDirection } from "@/lib/creative/pack-align";
+import { posterKindFromAspect, posterPackFromDirection } from "@/lib/creative/poster-pack";
+import { annotateWavesFromPack, captionForPackKind, coverForKind, PACK_SCHEDULE_KINDS, remainingPackKinds, topicForPackKind, usesStoryCover } from "@/lib/creative/pack-schedule";
+import { gatherStatusLine, searchCreative, selectSourcesForPack } from "@/lib/creative/search";
+import type { SearchHit } from "@/lib/creative/types";
+import type { CanvaLoopStep } from "@/lib/creative/session";
+import { readLastSession, writeLastSession, heroAssetIdsFromSession, type LastCreateSession } from "@/lib/creative/session";
+import { getAssetStorage } from "@/lib/studio/asset-storage";
+import { objectUrlForAsset } from "@/lib/studio/assets-idb";
+import { createGeneratedAsset, migrateAsset } from "@/lib/studio/assets";
+import { brandMemoryBlock } from "@/lib/studio/brand";
+import { emptyBrief } from "@/lib/studio/brief";
+import { uid } from "@/lib/studio/ids";
+import { COPY_TONES, formatForKind, contentKindLabel } from "@/lib/studio/content";
+import type { CarouselPagePlan, ContentKind, CreativeDirection, ReelsBeat, SourceRef, StoryFrame } from "@/lib/studio/types";
+import { cn } from "@/lib/utils";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
-const KINDS: ContentKind[] = ["ig-post", "carousel", "story", "reels", "threads", "line"];
-
-const VARIATIONS: { id: "composition" | "mood" | "background" | "style" | "text"; label: string }[] = [
-  { id: "composition", label: "換構圖" },
-  { id: "mood", label: "換氣氛" },
-  { id: "background", label: "換背景" },
-  { id: "style", label: "換風格" },
-  { id: "text", label: "換文字空間" },
+const ASPECTS = [
+  { id: "4:5" as const, label: "IG 4:5 / Threads" },
+  { id: "1:1" as const, label: "IG 1:1 / LINE" },
+  { id: "9:16" as const, label: "Story / Reels Cover" },
 ];
 
-const MODE_HINT: Record<string, string> = {
-  post: "會先寫 Hook、正文、CTA。",
-  image: "會先給三個視覺方向，再生成圖。",
-  story: "會產出 3–5 則限動。",
-  carousel: "會走五到六頁輪播骨架。",
-  reels: "會寫 0–20 秒腳本。",
-  campaign: "會建立活動，再生成完整宣傳節奏。",
-  idea: "從一句話長出整套網宣。",
-  "from-image": "丟圖後會理解畫面，再生成文案與三個方向。",
-  "from-drive": "會先搜歷屆 Drive，再生成完整宣傳。",
-  "from-canva": "會先找歷屆 Canva 當風格，不要複製舊作品。",
-  "from-ig": "會先讀自己的 IG 語氣，再寫下一篇。",
+const CONVERT_TO_KIND: Record<string, ContentKind> = {
+  ig: "ig-post",
+  carousel: "carousel",
+  story: "story",
+  threads: "threads",
+  line: "line",
+  reels: "reels",
 };
 
-const INTO_HINT: Record<string, string> = {
-  story: "這張圖做成限動，不是重開一場活動。",
-  carousel: "這張圖做成 Carousel，不是重開一場活動。",
-  reels: "這張圖做成 Reels Cover，不是重開一場活動。",
-  threads: "這張圖做成 Threads 圖，不是重開一場活動。",
-};
+const CONVERT_ROLES: CarouselPagePlan["role"][] = ["cover", "problem", "detail", "proof", "cta"];
 
-export function CreateStudio() {
-  const search = useSearch({ strict: false }) as {
-    mode?: string;
-    idea?: string;
-    asset?: string;
-    campaign?: string;
-    remote?: string;
-    into?: "story" | "carousel" | "reels" | "threads";
+function mergeConvert(pack: CreativePack, kind: string, kit: ConvertResult): CreativePack {
+  const pages: CarouselPagePlan[] = kit.carousel.map((page, index) => ({
+    role: CONVERT_ROLES[index] ?? "close",
+    headline: page.title,
+    subhead: "",
+    body: page.body,
+    cta: pack.plan.cta,
+    visualNote: page.role,
+    templateId: pack.plan.templateId,
+  }));
+  return {
+    ...pack,
+    plan: {
+      ...pack.plan,
+      carouselPages: kind === "carousel" ? pages : pack.plan.carouselPages,
+      threadsPost: kind === "threads" ? kit.threads : pack.plan.threadsPost,
+      lineCopy: kind === "line" ? kit.line : pack.plan.lineCopy,
+      reelsScript: kind === "reels" ? kit.reels : pack.plan.reelsScript,
+    },
+    conversions: {
+      carousel: kind === "carousel" ? pages : pack.conversions.carousel,
+      story: kind === "story" ? kit.story : pack.conversions.story,
+      threads: kind === "threads" ? kit.threads : pack.conversions.threads,
+      line: kind === "line" ? kit.line : pack.conversions.line,
+      reels: kind === "reels" ? kit.reels : pack.conversions.reels,
+    },
   };
+}
+
+async function readAssetAsDataUrl(asset: { id: string; seedSrc?: string }) {
+  const stored = await getAssetStorage().get(asset.id);
+  const blob = stored ?? (asset.seedSrc ? await (await fetch(asset.seedSrc)).blob() : undefined);
+  if (!blob) return null;
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("read"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function starterQuery(mode: string, campaignName?: string) {
+  if (mode === "image") return "我要宣傳茶會";
+  if (mode === "story") return "做一組限動，讓淡江學生晚上想過來坐";
+  if (mode === "carousel") return "做一篇 IG Carousel：最近是不是很久沒坐好";
+  if (mode === "reels") return "做一支 20 秒 Reels，封面少字";
+  if (mode === "vision") return "分析這張圖，延續風格做新的網宣";
+  if (mode === "drive") return "用以前茶會照片做新的宣傳";
+  if (mode === "canva") return "延續以前茶會 Canva 的品牌 DNA，做新活動";
+  if (mode === "post") return "寫一篇 IG：課表有了人還在趕路";
+  return campaignName ? `幫我做 ${campaignName} 完整宣傳` : "下週有一場茶會";
+}
+
+export function CreateStudio({
+  initialQuery = "",
+  autoRun = false,
+  mode = "idea",
+  campaignId,
+  initialAssetId,
+  initialDay,
+  connected,
+  notice,
+}: {
+  initialQuery?: string;
+  autoRun?: boolean;
+  mode?: string;
+  campaignId?: string;
+  initialAssetId?: string;
+  initialDay?: string;
+  connected?: string;
+  notice?: string;
+}) {
   const navigate = useNavigate();
   const brands = useStudio((s) => s.brands);
-  const hydrated = useStudio((s) => s.hydrated);
+  const createProject = useStudio((s) => s.createProject);
+  const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
+  const addAsset = useStudio((s) => s.addAsset);
+  const campaigns = useCreative((s) => s.campaigns);
+  const memory = useCreative((s) => s.memory);
+  const igPosts = useCreative((s) => s.igPosts);
+  const inspirations = useCreative((s) => s.inspirations);
+  const lastLearn = useCreative((s) => s.lastLearn);
+  const generateWaves = useCreative((s) => s.generateWaves);
+  const addMemory = useCreative((s) => s.addMemory);
+  const bindScheduledWave = useCreative((s) => s.bindScheduledWave);
+  const setConnection = useCreative((s) => s.setConnection);
   const assets = useStudio((s) => s.assets);
   const projects = useStudio((s) => s.projects);
-  const campaigns = useStudio((s) => s.campaigns);
-  const igMemory = useStudio((s) => s.igMemory);
-  const calendar = useStudio((s) => s.schedule);
-  const createProject = useStudio((s) => s.createProject);
-  const updateProject = useStudio((s) => s.updateProject);
-  const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
-  const createCampaign = useStudio((s) => s.createCampaign);
-  const updateCampaign = useStudio((s) => s.updateCampaign);
-  const upsertSchedule = useStudio((s) => s.upsertSchedule);
-  const publishSchedule = useStudio((s) => s.publishSchedule);
-  const addAsset = useStudio((s) => s.addAsset);
-  const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
-  const updateAsset = useStudio((s) => s.updateAsset);
-  const brand = brands[0];
-  const learning = useMemo(() => learnFromIg(igMemory), [igMemory]);
-  const recentKinds = calendar.slice(-4).map((item) => item.kind);
-  const urls = useAssetUrls(assets.map((a) => a.id));
+  const [createdCampaignId, setCreatedCampaignId] = useState<string | undefined>();
+  const [studioProjectId, setStudioProjectId] = useState<string | undefined>();
+  const [canvaStep, setCanvaStep] = useState<CanvaLoopStep | null>(null);
+  const [canvaEditUrl, setCanvaEditUrl] = useState<string | null>(null);
+  const [canvaDesignId, setCanvaDesignId] = useState<string | null>(null);
+  const [canvaReturnAssetId, setCanvaReturnAssetId] = useState<string | null>(null);
+  const resolvedCampaignId = campaignId ?? createdCampaignId;
+  const campaign = resolvedCampaignId ? campaigns.find((c) => c.id === resolvedCampaignId) : undefined;
+  function eventFor(q: string) {
+    return resolvePromoEvent({ query: q, campaign, dayIso: initialDay });
+  }
 
-  const [idea, setIdea] = useState(search.idea || "下週有一場茶會");
-  const [eventName, setEventName] = useState(() =>
-    shouldReopenCampaign(search.mode, search.campaign, search.into)
-      ? guessEventName(search.idea || "下週有一場茶會")
-      : search.into
-        ? pieceNameForIdea(search.idea || "", search.into)
-        : "",
-  );
-  const studioHook = useMemo(() => ideaStudioHook(igMemory, idea, eventName), [igMemory, idea, eventName]);
-  const [schedule, setSchedule] = useState(() =>
-    search.into ? defaultPieceScheduleText() : defaultScheduleText(search.idea || "下週有一場茶會"),
-  );
-  const [location, setLocation] = useState("淡江大學淡水校園 · 禪學社");
-  const [signupUrl, setSignupUrl] = useState("");
-  const [studentPain, setStudentPain] = useState("開學後行程變滿，休息會心虛。");
-  const [oneLiner, setOneLiner] = useState("");
-  const [description, setDescription] = useState("");
-  const [theme, setTheme] = useState("");
+  const [query, setQuery] = useState(initialQuery || starterQuery(mode, campaign?.name));
   const [busy, setBusy] = useState(false);
-  const sendingCanva = useRef(false);
-  const eventNameTouched = useRef(false);
-  const [status, setStatus] = useState<AiStatus | null>(null);
-  const [plan, setPlan] = useState<CampaignPlan | null>(null);
-  const [packs, setPacks] = useState<CopyPack[]>([]);
-  const [tone, setTone] = useState<CopyPack["tone"]>("student");
-  const [directions, setDirections] = useState<VisualDirection[]>([]);
-  const [review, setReview] = useState<StudentReview | null>(null);
-  const [found, setFound] = useState<CreativeHit[]>([]);
-  const [pinned, setPinned] = useState<CreativeHit[]>([]);
-  const [pickedDirection, setPickedDirection] = useState<VisualDirection | null>(null);
-  const [campaign, setCampaign] = useState<ClubCampaign | null>(null);
-  const [vision, setVision] = useState<VisionAnalysis | null>(null);
-  const [waveLookIds, setWaveLookIds] = useState<Partial<Record<CampaignWaveKind, string>>>({});
-  const research = useMemo(
-    () =>
-      researchInspiration({
-        idea: `${idea} ${eventName}`,
-        eventName,
-        beat: academicBeat(),
-        learning,
-        sources: (pinned.length ? pinned : found).map((hit) => ({ source: hit.source, title: hit.title })),
-      }),
-    [idea, eventName, learning, found, pinned],
-  );
-  const [lastImage, setLastImage] = useState<{
-    base64: string;
-    mime: string;
-    assetId?: string;
-    headline?: string;
-    directionName?: string;
+  const [pack, setPack] = useState<CreativePack | null>(null);
+  const [posterOnly, setPosterOnly] = useState(false);
+  const [dirId, setDirId] = useState<string | null>(null);
+  const [copies, setCopies] = useState<CopyBlock[]>([]);
+  const [tone, setTone] = useState<CopyBlock["tone"]>("student");
+  const [vision, setVision] = useState<VisionReport | null>(null);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [reelsCoverSrc, setReelsCoverSrc] = useState<string | null>(null);
+  const lastAsset = useRef<{ feed?: string; story?: string }>({});
+  const imageDirId = useRef<string | null>(null);
+  const [visionKit, setVisionKit] = useState<{
+    story: StoryFrame[];
+    reels: ReelsBeat[];
+    carousel: string;
+    threads: string;
+    line: string;
   } | null>(null);
-  const [lastCanva, setLastCanva] = useState<{ designId: string; editUrl: string; title: string } | null>(null);
-  const [liveNote, setLiveNote] = useState("");
-  const [editHook, setEditHook] = useState("");
-  const [sourcePreview, setSourcePreview] = useState<{
-    id: string;
-    name: string;
-    mime: string;
-    base64: string;
-    src?: string;
-    source?: string;
-  } | null>(null);
-  const sourcePhotoRef = useRef<{ embed: string; credit: string }>({ embed: "", credit: "" });
-  const [sourceCredit, setSourceCredit] = useState("");
-  const [sourceEmbed, setSourceEmbed] = useState("");
-  const directionLooks = useMemo(() => {
-    const look = sourceEmbed ? { photoEmbed: sourceEmbed, sourceCredit: sourceCredit || undefined } : undefined;
-    return directions.map((dir, index) => encodeUtf8Base64(directionLookSvg(dir, index, look)));
-  }, [directions, sourceEmbed, sourceCredit]);
-  const autoRan = useRef(false);
-  const foundGroups = useMemo(() => groupCreativeHits(found), [found]);
+  const [directions, setDirections] = useState<CreativeDirection[]>([]);
+  const [aspect, setAspect] = useState<(typeof ASPECTS)[number]["id"]>("4:5");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const canvaFileRef = useRef<HTMLInputElement>(null);
+  const ran = useRef(false);
+  const restored = useRef(false);
+  const retriedCanva = useRef(false);
+  const paintGen = useRef(0);
+  const packRef = useRef<CreativePack | null>(null);
+  const posterOnlyRef = useRef(false);
+  packRef.current = pack;
+  posterOnlyRef.current = posterOnly;
 
-  function reopenCampaign() {
-    return shouldReopenCampaign(search.mode, search.campaign, search.into);
-  }
-
-  function typedEventName() {
-    if (reopenCampaign() || eventNameTouched.current) return eventName;
-    return "";
-  }
-
-  useEffect(() => {
-    if (plan?.hook) setEditHook(plan.hook);
-  }, [plan?.hook]);
-
-  useEffect(() => {
-    getCampaignAiStatus()
-      .then(setStatus)
-      .catch(() => setStatus(describeAdapter(false)));
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    if (search.idea) setIdea(search.idea);
-    if (!shouldReopenCampaign(search.mode, search.campaign, search.into)) {
-      eventNameTouched.current = false;
-      setCampaign(null);
-      setEventName(search.into ? pieceNameForIdea(search.idea || "", search.into) : "");
-      setOneLiner("");
-      setPlan(null);
-      setDirections([]);
-      setPacks([]);
-      setPickedDirection(null);
-      setLastImage(null);
-      setReview(null);
-      setSourceCredit("");
-      setSourceEmbed("");
-      sourcePhotoRef.current = { embed: "", credit: "" };
-      setSchedule(search.into ? defaultPieceScheduleText() : defaultScheduleText(search.idea || "下週有一場茶會"));
-      return;
-    }
-    const guessed = guessEventName(search.idea || "");
-    if (guessed) setEventName(guessed);
-    const existing = campaignMatchingIdea(useStudio.getState().campaigns, search.idea || "", search.campaign);
-    if (existing) {
-      setCampaign(existing);
-      setEventName(existing.name);
-      setLocation(existing.location);
-      setStudentPain(existing.studentPain || "開學後行程變滿，休息會心虛。");
-      setSignupUrl(existing.signupUrl);
-      setOneLiner(existing.oneLiner);
-      setDescription(existing.description);
-      setTheme(existing.theme);
-      setSchedule(
-        preferredScheduleText(search.idea || "", {
-          existing,
-          campaignId: search.campaign,
-        }),
-      );
-      const looks = looksFromCampaign(existing);
-      if (Object.keys(looks).length) setWaveLookIds((current) => ({ ...looks, ...current }));
-    } else if (search.idea) {
-      setSchedule(defaultScheduleText(search.idea));
-    }
-  }, [search.idea, search.campaign, search.mode, search.remote, search.into, hydrated]);
-
-  const activePack = packs.find((p) => p.tone === tone) ?? packs[0];
-  const mode = search.mode || "idea";
-
-  useEffect(() => {
-    if (mode === "from-drive" || mode === "from-canva" || mode === "from-ig") {
-      void gatherHits(idea || "茶會");
-    }
-  }, [mode]);
-
-  useEffect(() => {
-    autoRan.current = false;
-    if (!shouldReopenCampaign(search.mode, search.campaign, search.into)) eventNameTouched.current = false;
-  }, [search.idea, search.mode, search.campaign, search.asset, search.remote, search.into]);
-
-  useEffect(() => {
-    if (!status || !brand || !hydrated || autoRan.current) return;
-    if (mode === "from-image" && !search.asset && !search.idea) return;
-    autoRan.current = true;
-    void bootKit();
-  }, [status, brand, hydrated, mode, search.asset, search.idea, search.campaign, search.remote, search.into]);
-
-  useEffect(() => {
-    if (!lastImage) return;
-    document.querySelector('[data-testid="hero-visual"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [lastImage]);
-
-  async function gatherHits(query: string) {
-    const { hits, note } = await gatherCreativeHits(query, {
-      remoteId: search.remote,
-      assetId: search.asset,
-    });
-    setLiveNote(note);
-    setFound(hits.slice(0, 12));
-    return hits;
-  }
-
-  function sourceNotes(hits: CreativeHit[]) {
-    const refs = pickSourceRefs(mode, [...pinned, ...hits], { remoteId: search.remote, assetId: search.asset });
-    const picked = refs.length ? refs : hits.slice(0, 6);
-    const sources = picked.map((h) => `${sourceLine(h)}/${h.title}`).join("、") || "品牌記憶";
-    return `${sources}。${styleFromHits(picked)}`.slice(0, 400);
-  }
-
-  function kitMemoryHint(hits: CreativeHit[] = found) {
-    const s = useStudio.getState();
-    const query = `${idea} ${eventName}`.trim();
-    const matchingBlock = igSearchHookBlock(s.igMemory, query);
-    const learningNow = learnFromIg(s.igMemory);
-    const dna = clubCreativeDna({
-      brand: s.brands[0],
-      igMemory: s.igMemory,
-      campaigns: s.campaigns,
-      assets: s.assets,
-    });
-    const researchNow = researchInspiration({
-      idea: `${idea} ${eventName}`,
-      eventName,
-      beat: academicBeat(),
-      learning: learningNow,
-      sources: pickSourceRefs(mode, [...pinned, ...hits], { remoteId: search.remote, assetId: search.asset }).map(
-        (hit) => ({ source: hit.source, title: hit.title }),
+  function persistSession(patch: Partial<LastCreateSession> & Pick<LastCreateSession, "pack">) {
+    writeLastSession({
+      pack: patch.pack,
+      posterOnly: patch.posterOnly ?? posterOnly,
+      dirId: patch.dirId !== undefined ? patch.dirId : dirId,
+      copies: patch.copies ?? copies,
+      tone: patch.tone ?? tone,
+      imageSrc: persistableImageSrc(patch.imageSrc !== undefined ? patch.imageSrc : imageSrc),
+      reelsCoverSrc: persistableImageSrc(
+        patch.reelsCoverSrc !== undefined ? patch.reelsCoverSrc : reelsCoverSrc,
       ),
+      createdCampaignId: patch.createdCampaignId ?? createdCampaignId,
+      projectId: patch.projectId ?? studioProjectId,
+      aspect: patch.aspect ?? aspect,
+      feedAssetId: lastAsset.current.feed ?? null,
+      storyAssetId: lastAsset.current.story ?? null,
+      canvaKit: patch.canvaKit,
+      canvaStep: patch.canvaStep ?? canvaStep ?? undefined,
+      canvaEditUrl: patch.canvaEditUrl !== undefined ? patch.canvaEditUrl : canvaEditUrl,
+      canvaDesignId: patch.canvaDesignId !== undefined ? patch.canvaDesignId : canvaDesignId,
+      canvaReturnAssetId: patch.canvaReturnAssetId !== undefined ? patch.canvaReturnAssetId : canvaReturnAssetId,
+      savedAt: Date.now(),
     });
-    return composeMemoryHint([
-      `過去表現較好的 Hook：「${ideaStudioHook(s.igMemory, idea, eventName)}」`,
-      matchingBlock,
-      learningNow.promptBlock,
-      dna.promptBlock,
-      researchNow.promptBlock,
-      hits.length ? `參考來源：${sourceNotes(hits)}` : undefined,
-    ]);
   }
 
-  function applyKitCopy(pack: { hook: string; body: string; cta: string; hashtags?: string[] }, toastMsg = "已改這句，月曆會用這版發。") {
-    const hook = pack.hook.trim();
-    if (!hook) return;
-    const next = rewriteCopyPack(pack, plan?.hook);
-    const caption = next.caption;
-    setEditHook(next.hook);
-    setOneLiner(hook);
-    setPlan((current) =>
-      current
-        ? {
-            ...current,
-            hook,
-            body: next.body,
-            cta: pack.cta,
-            captions: [{ style: "student", text: caption }, ...(current.captions ?? []).slice(1)],
-          }
-        : current,
-    );
-    setPacks((rows) => rows.map((row) => (row.tone === tone ? { ...row, ...pack, hook, body: next.body } : row)));
-    const currentCampaign = campaign;
-    if (currentCampaign) {
-      updateCampaign(currentCampaign.id, { oneLiner: hook });
-      setCampaign({ ...currentCampaign, oneLiner: hook });
-      for (const item of useStudio.getState().schedule.filter((row) => row.campaignId === currentCampaign.id)) {
-        if (!sharesKitCaption(item)) continue;
-        upsertSchedule({
-          ...item,
-          caption,
-          body: item.kind === "carousel" ? item.body : next.body,
-        });
-      }
+  function hydrateHeroFromSession(session: LastCreateSession) {
+    const heroes = heroAssetIdsFromSession(session);
+    if (heroes.feed) lastAsset.current.feed = heroes.feed;
+    if (heroes.story) lastAsset.current.story = heroes.story;
+    if (session.imageSrc) setImageSrc(session.imageSrc);
+    else if (heroes.feed) {
+      void objectUrlForAsset(heroes.feed).then((src) => {
+        if (src) setImageSrc(src);
+      });
     }
-    if (toastMsg) toast.success(toastMsg);
+    if (session.reelsCoverSrc) setReelsCoverSrc(session.reelsCoverSrc);
+    else if (heroes.story) {
+      void objectUrlForAsset(heroes.story).then((src) => {
+        if (src) setReelsCoverSrc(src);
+      });
+    }
   }
+  const [pickedHits, setPickedHits] = useState<SearchHit[]>([]);
+  const [gatherNote, setGatherNote] = useState("");
+  const [simApplied, setSimApplied] = useState(false);
 
-  function togglePin(hit: CreativeHit) {
-    const next = pinned.some((row) => row.id === hit.id) ? pinned.filter((row) => row.id !== hit.id) : [...pinned, hit];
-    setPinned(next);
-    void (async () => {
-      const credit = sourceCreditFromHits(next);
-      const href = next.find((row) => row.thumbnail)?.thumbnail;
-      const embed = href ? (await loadSourceEmbed(href)) || "" : "";
-      sourcePhotoRef.current = { embed, credit };
-      setSourceCredit(credit);
-      setSourceEmbed(embed);
-      const looked = embed ? await analyzeClubStill({ embed, sourceNote: credit }) : null;
-      if (looked) setVision(looked);
-      await refreshDirections(next);
-    })();
-  }
+  const hits = useMemo(
+    () => searchCreative({ query, memory, assets, campaigns, igPosts, projects }),
+    [query, memory, assets, campaigns, igPosts, projects],
+  );
 
-  async function refreshDirections(refs: CreativeHit[]) {
-    if (!idea.trim()) return;
+  async function runPack(opts?: { vision?: VisionReport | null; query?: string; skipHero?: boolean }) {
+    const report = opts && "vision" in opts ? opts.vision : vision;
+    const q = opts?.query ?? query;
+    paintGen.current += 1;
     setBusy(true);
     try {
-      const refsOrFound = refs.length ? refs : found;
-      const result = await generateVisualDirections({
+      const localHits = searchCreative({
+        query: q,
+        memory,
+        assets,
+        campaigns,
+        igPosts,
+        projects,
+      });
+      setGatherNote(
+        localHits.length
+          ? `正在找 Drive、Canva、IG 與品牌記憶… 已見 ${localHits.length} 筆`
+          : "正在找 Drive、Canva、IG 與品牌記憶…",
+      );
+      const gathered = await gatherIntoStore(q);
+      const liveHits = searchCreative({
+        query: q,
+        memory: useCreative.getState().memory,
+        assets,
+        campaigns: useCreative.getState().campaigns,
+        igPosts: useCreative.getState().igPosts,
+        projects,
+      });
+      const note = gatherStatusLine(liveHits.length, gathered.sources);
+      setGatherNote(note);
+      const extra: SourceRef[] = [];
+      if (report || imageSrc || initialAssetId) {
+        extra.push({
+          source: "upload",
+          label: assets.find((item) => item.id === initialAssetId)?.name || "你丟進來的圖",
+          id: (initialAssetId ?? "upload").slice(0, 160),
+        });
+      }
+      const sources = selectSourcesForPack(pickedHits, liveHits, extra);
+      const dna = clubDnaFromMemory({
+        igPosts: useCreative.getState().igPosts,
+        memory: useCreative.getState().memory,
+      });
+      const event = eventFor(q);
+      const result = await generateCreativePack({
         data: {
-          idea: `${idea}。參考：${sourceNotes(refsOrFound)}`.slice(0, 400),
-          eventName,
-          memoryHint: kitMemoryHint(refsOrFound),
-          forceMock: !status?.available,
+          query: q,
+          eventName: event.eventName,
+          schedule: event.schedule || undefined,
+          location: event.location,
+          oneLiner: campaign?.oneLiner,
+          sources,
+          visionNotes: report ? visionPromptBlock(report) : undefined,
+          dnaNotes: `${seasonCreateNote(academicMoment(), useCreative.getState().lastLearn?.hook)}\n${brands[0] ? brandMemoryBlock(brands[0]) : ""}\n${dnaPromptBlock(dna)}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}\n${lastLearnPromptBlock(useCreative.getState().lastLearn)}`.slice(
+            0,
+            3600,
+          ),
+          inspirationNotes: useCreative
+            .getState()
+            .inspirations.slice(0, 4)
+            .map((item) => `${item.pattern} → ${item.clubTurn}`)
+            .join("\n"),
+          avoidHook: useCreative.getState().lastLearn?.hook,
         },
       });
-      if (!result.ok) return;
-      setDirections(result.directions);
-      toast.success("已依參考素材換三個方向");
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      const aligned = alignPackToDirection(
+        { ...result.pack, sourceSummary: note, copyVariants: result.pack.copyVariants },
+        dirId,
+        directions.length === 3 ? directions : undefined,
+      );
+      const when = event.schedule || aligned.plan.subhead;
+      const where = event.location;
+      const revised = reviseCopiesForStudent(aligned.copyVariants, aligned.plan.studentSim, when, where);
+      const copies = stampEventWhen(revised.copies, event.schedule, event.location);
+      const nextPack = {
+        ...aligned,
+        sourceSummary: note,
+        copyVariants: copies,
+      };
+      const keptId =
+        dirId && nextPack.directions.some((item) => item.id === dirId)
+          ? dirId
+          : (nextPack.directions[0]?.id ?? null);
+      setPack(nextPack);
+      setPosterOnly(false);
+      posterOnlyRef.current = false;
+      packRef.current = nextPack;
+      setDirId(keptId);
+      setCopies(copies);
+      setSimApplied(revised.applied);
+      let heroSrc = imageSrc;
+      const chosen = nextPack.directions.find((item) => item.id === keptId) ?? nextPack.directions[0];
+      const keepHero = Boolean(opts?.skipHero) || (Boolean(imageSrc) && imageDirId.current === keptId);
+      if (chosen?.imagePrompt && !keepHero) {
+        heroSrc = (await runImage(chosen.imagePrompt, aspect, { silent: true, keepBusy: true, directionId: keptId })) ?? heroSrc;
+      }
+      persistSession({
+        pack: nextPack,
+        posterOnly: false,
+        dirId: keptId,
+        copies,
+        tone: "student",
+        imageSrc: persistableImageSrc(heroSrc),
+        reelsCoverSrc: persistableImageSrc(reelsCoverSrc),
+        createdCampaignId,
+        projectId: studioProjectId,
+        aspect,
+      });
+      toast.success(chosen?.imagePrompt && !keepHero ? "完整宣傳與主視覺好了" : "完整宣傳好了");
+      const campId = resolvedCampaignId;
+      if (campId) {
+        const live = useCreative.getState();
+        const camp = live.campaigns.find((item) => item.id === campId);
+        if (camp) {
+          if (!camp.waves.length) live.generateWaves(camp.id);
+          const fresh = useCreative.getState().campaigns.find((item) => item.id === campId);
+          if (fresh) live.updateCampaign(campId, { waves: annotateWavesFromPack(fresh.waves, nextPack) });
+        }
+      }
+    } catch {
+      toast.error("生成失敗，再試一次。");
     } finally {
       setBusy(false);
     }
   }
 
-  async function swapWaveVisual(kind: CampaignWaveKind) {
-    const dir = pickedDirection || directions[0];
-    if (!dir) return;
-    const asHero = kind === "hero";
-    const assetId = await saveGeneratedImage(dir, { kind: waveVisualVariation(kind), silent: true, asHero });
-    if (!assetId) return;
-    setWaveLookIds((current) => ({ ...current, [kind]: assetId }));
-    const currentCampaign = campaign;
-    if (currentCampaign) {
-      const waves = currentCampaign.waves.map((wave) =>
-        wave.kind === kind ? { ...wave, imageAssetId: assetId } : wave,
-      );
-      updateCampaign(currentCampaign.id, {
-        waves,
-        imageAssetId: asHero ? assetId : currentCampaign.imageAssetId,
-      });
-      setCampaign({ ...currentCampaign, waves, imageAssetId: asHero ? assetId : currentCampaign.imageAssetId });
-      for (const item of scheduleItemsForWave(useStudio.getState().schedule, currentCampaign.id, kind)) {
-        upsertSchedule({ ...item, imageAssetId: assetId });
-      }
-    }
-  }
-
-  async function saveLocalWavePoster(dir: VisualDirection, kind: CampaignWaveKind) {
-    const variation = waveVisualVariation(kind);
-    const formatId = waveFormatId(kind);
-    const spec = formatById(formatId);
-    const photo = sourcePhotoRef.current;
-    const storyLine = kind === "countdown" ? "明天晚上" : "今天";
-    const payload =
-      formatId === "story"
-        ? {
-            imageBase64: encodeUtf8Base64(
-              directionPosterSvg({
-                ...storyPosterInput(storyLine, 0, {
-                  eventName: eventName || idea,
-                  palette: dir.palette,
-                  look: photo.embed ? { photoEmbed: photo.embed, sourceCredit: photo.credit || undefined } : undefined,
-                }),
-              }),
-            ),
-            mime: "image/svg+xml" as const,
+  useEffect(() => {
+    if (ran.current) return;
+    if (initialAssetId) {
+      ran.current = true;
+      void (async () => {
+        const asset = useStudio.getState().assets.find((item) => item.id === initialAssetId);
+        if (!asset) {
+          if (autoRun) await runPack();
+          return;
+        }
+        setBusy(true);
+        try {
+          const dataUrl = await readAssetAsDataUrl(asset);
+          if (dataUrl) {
+            setImageSrc(dataUrl);
+            const result = await analyzeImage({
+              data: { imageDataUrl: dataUrl, note: query || asset.name },
+            });
+            if (result.ok) {
+              setVision(result.report);
+              toast.success(`已讀「${asset.name}」，可以延續風格或整套生成`);
+              if (autoRun) {
+                if (mode === "image") await runDirections(result.report, { silent: true });
+                else await runPack({ vision: result.report });
+              }
+            } else if (autoRun) {
+              if (mode === "image") await runDirections(undefined, { silent: true });
+              else await runPack();
+            }
+          } else if (autoRun) {
+            if (mode === "image") await runDirections(undefined, { silent: true });
+            else await runPack();
           }
-        : posterPayloadFromDirection(
-            { ...dir, name: `${waveLabel(kind)} · ${dir.name}` },
-            spec,
-            variation,
-            dir.prompt,
-            false,
-            photo,
-          );
-    const id = uid("asset");
-    await putAssetBlob(id, blobFromBase64(payload.imageBase64, payload.mime));
-    addAsset({
-      id,
-      name: `${waveLabel(kind)} · ${dir.name}`,
-      kind: "image",
-      category: "ai",
-      mime: payload.mime,
-      width: spec.width,
-      height: spec.height,
-      tags: ["AI 生成", waveLabel(kind), eventName || idea],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      source: "generated",
-      licenseNotes: photo.credit ? `來源：${photo.credit} · AI 延續，不複製` : "來源：AI Generated",
-      licenseOwner: "禪光",
-      favorite: false,
-      lastUsedAt: Date.now(),
-      useCount: 0,
-    });
-    return id;
-  }
-
-  async function attachWaveLooks(created: ClubCampaign, dir: VisualDirection, heroId: string) {
-    const pairs = await Promise.all(
-      created.waves
-        .filter((wave) => wave.kind !== "hero")
-        .map(async (wave) => [wave.kind, await saveLocalWavePoster(dir, wave.kind)] as const),
-    );
-    const looks: Partial<Record<CampaignWaveKind, string>> = { hero: heroId };
-    for (const [kind, assetId] of pairs) looks[kind] = assetId;
-    const waves = created.waves.map((wave) => ({ ...wave, imageAssetId: looks[wave.kind] ?? heroId }));
-    const assetIds = [...new Set(waves.map((wave) => wave.imageAssetId).filter((id): id is string => Boolean(id)))];
-    updateCampaign(created.id, { waves, imageAssetId: heroId, assetIds });
-    setCampaign({ ...created, waves, imageAssetId: heroId, assetIds });
-    setWaveLookIds(looks);
-    const rows = useStudio.getState().schedule;
-    for (const wave of waves) {
-      const assetId = looks[wave.kind];
-      if (!assetId) continue;
-      for (const item of scheduleItemsForWave(rows, created.id, wave.kind)) {
-        upsertSchedule({ ...item, imageAssetId: assetId });
+        } catch {
+          toast.error("這張圖讀不到，改丟一張進來也可以。");
+          if (autoRun) {
+            if (mode === "image") await runDirections(undefined, { silent: true });
+            else await runPack();
+          }
+        } finally {
+          setBusy(false);
+        }
+      })();
+      return;
+    }
+    if (mode === "vision") fileRef.current?.click();
+    if (!autoRun) {
+      const session = readLastSession();
+      const allow = session && (mode !== "image" || session.posterOnly);
+      if (allow && session) {
+        ran.current = true;
+        restored.current = true;
+        setPack(session.pack);
+        packRef.current = session.pack;
+        setPosterOnly(Boolean(session.posterOnly));
+        posterOnlyRef.current = Boolean(session.posterOnly);
+        if (session.pack.query) setQuery(session.pack.query);
+        setDirId(session.dirId);
+        setCopies(session.copies);
+        setTone(session.tone);
+        hydrateHeroFromSession(session);
+        if (session.createdCampaignId) setCreatedCampaignId(session.createdCampaignId);
+        if (session.projectId) setStudioProjectId(session.projectId);
+        if (session.aspect) setAspect(session.aspect);
+        if (session.canvaStep) setCanvaStep(session.canvaStep);
+        if (session.canvaEditUrl) setCanvaEditUrl(session.canvaEditUrl);
+        if (session.canvaDesignId) setCanvaDesignId(session.canvaDesignId);
+        if (session.canvaReturnAssetId) setCanvaReturnAssetId(session.canvaReturnAssetId);
+        return;
       }
     }
-  }
+    if (autoRun) {
+      ran.current = true;
+      if (mode === "image") void runDirections(undefined, { silent: true });
+      else void runPack();
+      return;
+    }
+    if (mode === "image") {
+      ran.current = true;
+      void runDirections(undefined, { silent: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRun, initialAssetId, mode]);
 
-  function applyWaveCopy(draft: WaveDraft) {
-    if (draft.kind === "hero") {
-      setPacks((rows) =>
-        rows.map((pack) => ({
-          ...pack,
-          hook: draft.hook,
-          body: draft.body,
-          cta: draft.cta,
-        })),
-      );
-      setPlan((current) => (current ? { ...current, hook: draft.hook, body: draft.body, cta: draft.cta } : current));
+  useEffect(() => {
+    if (notice === "denied") toast.error("授權沒有完成，這次的文案還在");
+    if (notice === "memory") toast.message("官方授權尚未開啟。清單已留在 Creative Memory。");
+    if (connected === "canva" || connected === "google-drive" || connected === "instagram") {
+      setConnection(connected, { status: "connected", lastSyncAt: Date.now() });
     }
-    const currentCampaign = campaign;
-    if (currentCampaign) {
-      const caption = `${draft.hook}\n${draft.body}`.trim();
-      const waves = currentCampaign.waves.map((wave) =>
-        wave.kind === draft.kind ? { ...wave, caption, notes: draft.visualNote || wave.notes } : wave,
-      );
-      updateCampaign(currentCampaign.id, { waves, oneLiner: draft.kind === "hero" ? draft.hook : currentCampaign.oneLiner });
-      setCampaign({
-        ...currentCampaign,
-        waves,
-        oneLiner: draft.kind === "hero" ? draft.hook : currentCampaign.oneLiner,
-      });
-      for (const item of scheduleItemsForWave(useStudio.getState().schedule, currentCampaign.id, draft.kind)) {
-        upsertSchedule({ ...item, caption, body: draft.body });
-      }
-    }
-    toast.success(`已套用「${draft.title}」文案`);
-  }
+    if (connected === "canva") toast.success("已連接 Canva，接著把這份清單送進去");
+  }, [notice, connected, setConnection]);
 
   async function runCopy() {
     setBusy(true);
-    const hits = await gatherHits(idea);
     try {
-      const result = await generateCopyPacks({
+      const event = eventFor(query);
+      const result = await generateCopy({
         data: {
-          idea,
-          eventName,
-          schedule,
-          location,
-          memoryHint: kitMemoryHint(hits),
-          forceMock: !status?.available,
+          topic: query,
+          kind: mode,
+          when: event.schedule || undefined,
+          where: event.location,
+          insightNotes: `${seasonCreateNote(academicMoment(), useCreative.getState().lastLearn?.hook)}\n${brands[0] ? brandMemoryBlock(brands[0]) : ""}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}\n${lastLearnPromptBlock(useCreative.getState().lastLearn)}\n${vision ? visionPromptBlock(vision) : ""}\n${dnaPromptBlock(
+            clubDnaFromMemory({
+              igPosts: useCreative.getState().igPosts,
+              memory: useCreative.getState().memory,
+            }),
+          )}`.slice(0, 1600),
         },
       });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      setPacks(result.packs);
-      setReview(ensureRewriteDiffers(result.review, result.packs[0]?.hook ?? ""));
-      toast.success(result.adapter === "mock" ? "本機文案草案" : "文案已生成");
+      if (result.ok) setCopies(result.copies);
     } finally {
       setBusy(false);
     }
   }
 
-  async function runKit(ideaOverride?: string, silent = false) {
-    if (!brand) return null;
-    const workingIdea = ideaOverride ?? idea;
-    const hits = await gatherHits(`${workingIdea} ${typedEventName()}`.trim());
-    const refs = pickSourceRefs(mode, hits, { remoteId: search.remote, assetId: search.asset });
-    const extraPins = pinned.filter((row) => !refs.some((hit) => hit.id === row.id));
-    const nextPins = [...refs, ...extraPins].slice(0, 6);
-    if (nextPins.length) setPinned(nextPins);
-    const previewHit = nextPins[0];
-    const credit = sourceCreditFromHits(nextPins);
-    const kept = sourcePhotoRef.current;
-    const sameAsset = Boolean(search.asset && previewHit?.assetId === search.asset);
-    if (kept.embed && !sameAsset) {
-      setSourceCredit(kept.credit || credit);
-      setSourceEmbed(kept.embed);
-      if (previewHit) {
-        setSourcePreview({
-          id: previewHit.remoteId || previewHit.assetId || previewHit.id,
-          name: previewHit.title,
-          mime: "image/*",
-          base64: "",
-          src: previewHit.thumbnail,
-          source: previewHit.source,
-        });
-      }
-    } else if (previewHit?.thumbnail) {
-      const embed = await loadSourceEmbed(previewHit.thumbnail);
-      sourcePhotoRef.current = { embed: embed || "", credit };
-      setSourceCredit(credit);
-      setSourceEmbed(embed || "");
-      const looked = embed ? await analyzeClubStill({ embed, sourceNote: credit }) : null;
-      if (looked) setVision(looked);
-      setSourcePreview({
-        id: previewHit.remoteId || previewHit.assetId || previewHit.id,
-        name: previewHit.title,
-        mime: "image/*",
-        base64: "",
-        src: previewHit.thumbnail,
-        source: previewHit.source,
-      });
-    } else if (kept.embed) {
-      setSourceCredit(kept.credit || credit);
-      setSourceEmbed(kept.embed);
-    } else {
-      sourcePhotoRef.current = { embed: "", credit };
-      setSourceCredit(credit);
-      setSourceEmbed("");
-    }
+  async function runDirections(report?: VisionReport | null, opts?: { silent?: boolean }) {
+    const vis = report !== undefined ? report : vision;
     setBusy(true);
     try {
-      const kitName = campaignNameForIdea({
-        mode,
-        campaignId: search.campaign,
-        eventName: typedEventName(),
-        idea: workingIdea,
-        into: search.into,
+      const result = await listVisualDirections({
+        data: {
+          topic: query,
+          notes: [
+            seasonCreateNote(academicMoment(), useCreative.getState().lastLearn?.hook),
+            brands[0] ? brandMemoryBlock(brands[0]) : "",
+            vis ? visionPromptBlock(vis) : "",
+          ]
+            .filter(Boolean)
+            .join("\n")
+            .slice(0, 1600),
+        },
       });
-      const brief = migrateBrief({
-        ...emptyBrief(),
-        eventName: kitName,
-        product: kitName,
-        schedule,
-        location,
-        audience: DEFAULT_AUDIENCE,
-        goal: "traffic",
-        features: [oneLiner, workingIdea].filter(Boolean).join("。").slice(0, 280),
-        style: "生活感、夜晚、年輕",
-        notes: `一人網宣。不要宗教語氣。不要把「一句介紹」「學生痛點」「主題」寫進 Caption。學生最近：${studentPain}。${description ? `介紹：${description}。` : ""}參考來源：${sourceNotes(hits)}`.slice(0, 400),
-        deliverables: { post: true, story: true, carousel: true, reels: true },
-      });
-      const result = await generateCampaignPlan({
-        data: toBriefInput(brief, brand, {
-          forceMock: !status?.available,
-          memoryHint: kitMemoryHint(hits),
-        }),
-      });
+      if (result.ok) {
+        setDirections(result.directions);
+        setDirId(result.directions[0]?.id ?? null);
+        if (pack) setPack({ ...pack, directions: result.directions });
+        if (!opts?.silent) toast.success("三個視覺方向好了，先選一個再生成圖");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function makePosterPack(chosenId?: string | null): CreativePack | null {
+    const dirs = directions.length ? directions : packRef.current?.directions ?? [];
+    const chosen =
+      dirs.find((item) => item.id === chosenId) ??
+      dirs.find((item) => item.id === dirId) ??
+      dirs[0];
+    if (!chosen) return null;
+    const sources: SourceRef[] = [];
+    if (lastAsset.current.feed) {
+      sources.push({ source: "generated", label: "AI 主視覺", id: lastAsset.current.feed });
+    } else if (lastAsset.current.story) {
+      sources.push({ source: "generated", label: "9:16 封面", id: lastAsset.current.story });
+    }
+    const event = eventFor(query);
+    return posterPackFromDirection({
+      query,
+      direction: chosen,
+      directions: dirs,
+      sources,
+      eventName: event.eventName,
+      when: event.schedule || undefined,
+      where: event.location,
+    });
+  }
+
+  async function runImage(
+    prompt: string,
+    ratio: (typeof ASPECTS)[number]["id"] = aspect,
+    opts?: { silent?: boolean; keepBusy?: boolean; asCover?: boolean; directionId?: string | null },
+  ) {
+    const gen = ++paintGen.current;
+    const coverOnly = Boolean(opts?.asCover);
+    if (!opts?.keepBusy) setBusy(true);
+    try {
+      if (!coverOnly && ratio !== aspect) setAspect(ratio);
+      const result = await generateStudioImage({ data: { prompt, topic: query, aspect: ratio } });
+      if (gen !== paintGen.current) return null;
       if (!result.ok) {
-        toast.error(result.error);
+        if (!opts?.silent) toast.error(result.error);
         return null;
       }
-      setPlan(result.plan);
-      setPacks(result.plan.copyPacks ?? []);
-      const dirs = result.plan.directions ?? [];
-      setDirections(dirs);
-      setReview(result.plan.studentReview ? ensureRewriteDiffers(result.plan.studentReview, result.plan.hook) : null);
-      setPickedDirection(null);
-      if (!silent) toast.success(result.adapter === "mock" ? "本機宣傳草案" : "已生成完整宣傳");
-      if (dirs[0]) await saveGeneratedImage(dirs[0], { silent: true, kind: directionLookOf(0) });
-      setVision((current) => current ?? visionFromHits(refs.length ? refs : hits));
-      return { plan: result.plan, dirs };
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function bootKit() {
-    const kit =
-      search.asset && (mode === "from-image" || search.into)
-        ? await analyzeSourceAsset(search.asset)
-        : await runKit(search.idea || undefined, true);
-    if (kit?.dirs[0] && search.into) {
-      await realizeDirection(kit.dirs[0], kit.plan);
-      const target =
-        search.into === "story"
-          ? "story-board"
-          : search.into === "carousel"
-            ? "carousel-board"
-            : search.into === "reels"
-              ? "reels-board"
-              : "share-board";
-      requestAnimationFrame(() => {
-        document.querySelector(`[data-testid="${target}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
-    }
-  }
-
-  async function analyzeSourceAsset(assetId: string) {
-    const meta = assets.find((item) => item.id === assetId);
-    if (!meta) {
-      toast.error("找不到這張素材。");
-      return runKit(undefined, true);
-    }
-    setBusy(true);
-    try {
-      let blob = await getAssetBlob(assetId);
-      if (!blob && meta.seedSrc) {
-        try {
-          await hydrateSeedAsset(assetId, meta.seedSrc);
-          blob = await getAssetBlob(assetId);
-        } catch {
-          /* fetch below */
-        }
-      }
-      if (!blob && meta.seedSrc) {
-        const res = await fetch(meta.seedSrc);
-        if (res.ok) blob = await res.blob();
-      }
-      if (!blob) {
-        toast.error("這張圖還沒有檔案可分析。");
-        return runKit(undefined, true);
-      }
-      const mime = blob.type || meta.mime || "image/jpeg";
-      const buf = await blob.arrayBuffer();
-      const b64 = bytesToBase64(new Uint8Array(buf));
-      if (b64.length > 1_800_000) {
-        toast.error("圖檔太大，請用較小的照片。");
-        return null;
-      }
-      const embed = mime.includes("svg")
-        ? new TextDecoder().decode(buf).slice(0, 80_000)
-        : `data:${mime};base64,${b64}`;
-      const credit = `本機／品牌記憶 / ${meta.name}`;
-      sourcePhotoRef.current = { embed, credit };
-      setSourceEmbed(embed);
-      setSourceCredit(credit);
-      setSourcePreview({ id: assetId, name: meta.name, mime, base64: b64 });
-      const hit: CreativeHit = {
-        id: `asset:${meta.id}`,
-        source: meta.source === "generated" ? "generated" : "local",
-        title: meta.name,
-        subtitle: "來源素材",
-        kind: "素材",
-        score: 99,
-        assetId: meta.id,
-        thumbnail: meta.seedSrc,
-      };
-      setFound((rows) => (rows.some((row) => row.id === hit.id) ? rows : [hit, ...rows]));
-      setPinned((rows) => (rows.some((row) => row.id === hit.id) ? rows : [hit, ...rows]));
-      const result = await analyzeStudioImage({
-        data: { imageBase64: b64, mime, sourceNote: `本機／品牌記憶 / ${meta.name}` },
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return runKit(search.idea || idea, true);
-      }
-      setVision(result.analysis);
-      updateAsset(assetId, { tags: tagsFromVision(result.analysis, meta.tags) });
-      const spoken = search.idea || `延續「${meta.name}」的風格，做新的活動，不要複製舊作品。`;
-      const nextIdea = search.into ? spoken : ideaFromVision(result.analysis, spoken);
-      setIdea(nextIdea);
-      toast.success("已理解這張圖，接著生成文案與方向");
-      return runKit(nextIdea, true);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onImage(file: File) {
-    setBusy(true);
-    try {
       const id = uid("asset");
-      await putAssetBlob(id, file);
-      addAsset({
-        id,
-        name: file.name.replace(/\.[^.]+$/, "") || "上傳圖片",
-        kind: "image",
-        category: "photo",
-        mime: file.type || "image/jpeg",
-        width: 0,
-        height: 0,
-        tags: ["上傳"],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        source: "upload",
-        licenseNotes: "來源：本機上傳",
-        licenseOwner: "禪光",
-        favorite: false,
-        lastUsedAt: Date.now(),
-        useCount: 0,
-      });
-      const buf = await file.arrayBuffer();
-      const b64 = bytesToBase64(new Uint8Array(buf));
-      if (b64.length > 1_800_000) {
-        toast.error("圖檔太大，請用較小的照片。");
-        return;
-      }
-      setSourcePreview({ id, name: file.name.replace(/\.[^.]+$/, "") || "上傳圖片", mime: file.type || "image/jpeg", base64: b64 });
-      const embed = (file.type.includes("svg") || file.name.endsWith(".svg"))
-        ? new TextDecoder().decode(buf).slice(0, 80_000)
-        : `data:${file.type || "image/jpeg"};base64,${b64}`;
-      sourcePhotoRef.current = { embed, credit: `本機上傳 / ${file.name}` };
-      setSourceEmbed(embed);
-      setSourceCredit(`本機上傳 / ${file.name}`);
-      const result = await analyzeStudioImage({
-        data: { imageBase64: b64, mime: file.type, sourceNote: `本機上傳 / ${file.name}` },
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      setVision(result.analysis);
-      updateAsset(id, { tags: tagsFromVision(result.analysis, ["上傳"]) });
-      const nextIdea = ideaFromVision(result.analysis, idea);
-      setIdea(nextIdea);
-      toast.success("已理解這張圖，接著生成文案與方向");
-      await runKit(nextIdea, true);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function runDirections() {
-    setBusy(true);
-    const hits = await gatherHits(idea);
-    try {
-      const result = await generateVisualDirections({
-        data: {
-          idea: `${idea}。參考：${sourceNotes(hits)}`.slice(0, 400),
-          eventName,
-          memoryHint: kitMemoryHint(hits),
-          forceMock: !status?.available,
-        },
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      setDirections(result.directions);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function saveGeneratedImage(
-    dir: VisualDirection,
-    opts?: { kind?: (typeof VARIATIONS)[number]["id"]; format?: string; silent?: boolean; asHero?: boolean },
-  ) {
-    const format = toImageFormat(opts?.format ?? toCreateImageFormat(mode));
-    const spec = formatById(format);
-    const prompt = opts?.kind ? varyImagePrompt(dir.prompt, opts.kind) : dir.prompt;
-    const atmosphere = format === "reels-cover";
-    const photo = sourcePhotoRef.current;
-    let payload: { imageBase64: string; mime: string } = posterPayloadFromDirection(
-      dir,
-      spec,
-      opts?.kind,
-      prompt,
-      atmosphere,
-      photo,
-    );
-    try {
-      const result = await generateStudioImage({
-        data: {
-          prompt,
-          format,
-          headline: atmosphere ? undefined : dir.headline,
-          subhead: atmosphere ? undefined : dir.subhead,
-          palette: dir.palette,
-          name: dir.name,
-          variation: opts?.kind,
-          memoryHint: kitMemoryHint(found),
-          atmosphere,
-          photoEmbed: photo.embed.slice(0, 400_000) || undefined,
-          sourceCredit: photo.credit || undefined,
-        },
-      });
-      if (result.ok && result.adapter === "live") {
-        payload = { imageBase64: result.imageBase64, mime: result.mime };
-      } else if (result.ok && !photo.embed) {
-        payload = { imageBase64: result.imageBase64, mime: result.mime };
-      }
-    } catch {
-      /* keep the student-hook poster so 主視覺 still appears */
-    }
-    let png: { blob: Blob; mime: string; base64: string };
-    try {
-      png = await persistGeneratedImage({
-        base64: payload.imageBase64,
-        mime: payload.mime,
-        width: spec.width,
-        height: spec.height,
-      });
-    } catch {
-      png = {
-        blob: blobFromBase64(payload.imageBase64, payload.mime),
-        mime: payload.mime,
-        base64: payload.imageBase64,
-      };
-    }
-    const id = uid("asset");
-    await putAssetBlob(id, png.blob);
-    addAsset({
-      id,
-      name: [dir.name, opts?.kind ? VARIATIONS.find((item) => item.id === opts.kind)?.label : null, spec.short]
-        .filter(Boolean)
-        .join(" · "),
-      kind: "image",
-      category: "ai",
-      mime: png.mime,
-      width: spec.width,
-      height: spec.height,
-      tags: ["AI 生成", eventName || idea],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      source: "generated",
-      licenseNotes: photo.credit ? `來源：${photo.credit} · AI 延續，不複製` : "來源：AI Generated",
-      licenseOwner: "禪光",
-      favorite: false,
-      lastUsedAt: Date.now(),
-      useCount: 0,
-    });
-    if (opts?.asHero !== false) {
-      setLastImage({ base64: png.base64, mime: png.mime, assetId: id, headline: dir.headline, directionName: dir.name });
-    }
-    if (!opts?.silent) {
-      toast.success(photo.embed ? `圖片已進素材庫（延續 ${photo.credit || "來源"}）` : "圖片已進素材庫（AI Generated）");
-    }
-    return id;
-  }
-
-  async function generateFromDirection(
-    dir: VisualDirection,
-    kind?: (typeof VARIATIONS)[number]["id"],
-    format?: string,
-  ) {
-    setBusy(true);
-    try {
-      await saveGeneratedImage(dir, {
-        kind: kind ?? directionLookOf(directions.findIndex((row) => (row.id || row.name) === (dir.id || dir.name))),
-        format,
-      });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function applyToCanvas(nextPlan = plan, navigateAfter = true, imageAssetId = lastImage?.assetId) {
-    if (!brand || !nextPlan) return null;
-    const brief = migrateBrief({
-      ...emptyBrief(),
-      eventName: nextPlan.campaignName,
-      product: nextPlan.campaignName,
-      schedule,
-      location,
-      audience: DEFAULT_AUDIENCE,
-      goal: "traffic",
-      features: idea,
-      deliverables: { post: true, story: true, carousel: true, reels: true },
-    });
-    const project = createProject({
-      name: nextPlan.campaignName,
-      brandId: brand.id,
-      formatId: mode === "story" ? "story" : mode === "reels" ? "reels-cover" : "feed-portrait",
-      brief,
-      templateId: nextPlan.templateId,
-      campaignId: campaign?.id,
-      contentKind: mode === "story" ? "story" : mode === "reels" ? "reels" : "carousel",
-      imageAssetId,
-    });
-    applyCampaignPlan(project.id, nextPlan, brief);
-    if (navigateAfter) void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
-    return project;
-  }
-
-  function saveCampaignAndWaves(
-    nextPlan = plan,
-    assetId = lastImage?.assetId,
-    projectId: string | null = null,
-    opts?: { silent?: boolean },
-  ) {
-    const name = campaignNameForIdea({
-      mode: search.mode,
-      campaignId: search.campaign,
-      eventName: typedEventName(),
-      idea,
-      planName: nextPlan?.campaignName,
-      into: search.into,
-    });
-    const asPiece =
-      Boolean(search.into && !search.campaign) ||
-      (!shouldReopenCampaign(search.mode, search.campaign, search.into) && !typedEventName());
-    const date = parseEventDate(`${schedule} ${idea}`);
-    const type = asPiece ? "other" : eventKindFromText(`${name} ${idea}`);
-    const existing = asPiece
-      ? undefined
-      : ((search.campaign ? campaigns.find((row) => row.id === search.campaign) : undefined)
-        ?? campaigns.find((row) => row.name === name && row.date === date)
-        ?? (campaign && campaign.name === name ? campaign : undefined));
-    const fresh = asPiece ? [] : suggestWaves({ date, type, name }, new Date(), { recentKinds });
-    const waves = mergeCampaignWaves(existing?.waves, fresh).map((wave) => {
-      const draft = mockWaveDraft({
-        kind: wave.kind,
-        name,
-        schedule,
-        location,
-        learnedHook: nextPlan?.hook,
-        body: nextPlan?.body,
-      });
-      const caption = wave.kind === "hero"
-        ? oneLiner || nextPlan?.hook || idea
-        : captionFromWave(draft);
-      return {
-        ...wave,
-        caption,
-        imageAssetId: wave.imageAssetId ?? assetId,
-        projectId: projectId ?? wave.projectId,
-      };
-    });
-    const patch = {
-      name,
-      type,
-      date,
-      time: parseEventTime(schedule),
-      location,
-      oneLiner: oneLiner || nextPlan?.hook || idea,
-      description: description || nextPlan?.concept || "",
-      theme: theme || nextPlan?.visualTheme || "",
-      studentPain,
-      cta: nextPlan?.cta || "來坐一下",
-      signupUrl,
-      waves,
-      imageAssetId: assetId ?? existing?.imageAssetId ?? null,
-      videoAssetId: existing?.videoAssetId,
-      canvaDesignId: lastCanva?.designId ?? existing?.canvaDesignId,
-      canvaEditUrl: lastCanva?.editUrl ?? existing?.canvaEditUrl,
-    };
-    let created: ClubCampaign;
-    if (existing) {
-      updateCampaign(existing.id, patch);
-      created = { ...existing, ...patch, id: existing.id, createdAt: existing.createdAt, updatedAt: Date.now() };
-    } else {
-      created = createCampaign(patch);
-    }
-    for (const wave of waves) {
-      if (!wave.scheduledAt) continue;
-      const draft = mockWaveDraft({
-        kind: wave.kind,
-        name,
-        schedule,
-        location,
-        learnedHook: nextPlan?.hook,
-        body: nextPlan?.body,
-      });
-      upsertSchedule({
-        id: wave.id,
-        projectId,
-        campaignId: created.id,
-        kind: contentKindForWave(wave.kind),
-        title: wave.title,
-        scheduledAt: wave.scheduledAt,
-        publishedAt: null,
-        status: "scheduled",
-        caption: wave.caption || captionFromWave(draft),
-        body: wave.kind === "hero" ? description || nextPlan?.body || draft.body : draft.body,
-        hashtags: nextPlan?.hashtags,
-        imageAssetId: wave.imageAssetId ?? assetId,
-        ...(wave.kind === "hero" && lastCanva
-          ? { canvaDesignId: lastCanva.designId, canvaEditUrl: lastCanva.editUrl }
-          : {}),
-      });
-    }
-    setCampaign(created);
-    if (!opts?.silent) {
-      toast.success(asPiece ? "這篇已進月曆，沒有另開一場活動。" : "活動與節奏已進月曆");
-      toast.message(rhythmHint(recentKinds));
-    }
-    return created;
-  }
-
-  function scheduleConverted(
-    nextPlan: CampaignPlan,
-    created: ClubCampaign,
-    projectId: string | null = null,
-    assetId = lastImage?.assetId,
-    opts?: { kinds?: ContentKind[] },
-  ) {
-    const kinds = opts?.kinds ?? (search.into ? KINDS.filter((kind) => kind === search.into) : KINDS);
-    const piece = Boolean(search.into && !search.campaign);
-    const date = parseEventDate(`${schedule} ${idea}`);
-    const clock = parseEventTime(schedule);
-    const parsed = Date.parse(`${date}T${clock}:00+08:00`);
-    const eventWhen = Number.isNaN(parsed)
-      ? Date.now()
-      : piece
-        ? parsed
-        : Date.parse(`${date}T19:00:00+08:00`);
-    const existing = useStudio.getState().schedule.filter((row) => row.campaignId === created.id);
-    const pieceName = created.name || eventName || nextPlan.campaignName || idea.slice(0, 12);
-    for (const pack of kinds.map((kind) => convertPlan(nextPlan, kind))) {
-      if (pack.kind === "ig-post" && skipConvertedIgPost(created.waves ?? [])) continue;
-      const scheduledAt = piece
-        ? eventWhen > Date.now() + 120_000
-          ? eventWhen
-          : Date.now()
-        : Number.isNaN(eventWhen)
-          ? Date.now()
-          : convertedScheduledAt(pack.kind, eventWhen, created.waves ?? []);
-      if (pack.kind === "story") {
-        const frames = storyFrameLines(nextPlan);
-        for (const row of storyRowsForFrames(existing, frames, created.id)) {
-          const prev = row.existingId ? existing.find((item) => item.id === row.existingId) : undefined;
-          upsertSchedule({
-            id: prev?.id ?? uid("sch"),
-            projectId,
-            campaignId: created.id,
-            kind: "story",
-            title: `Story ${row.index + 1} · ${pieceName}`,
-            scheduledAt: prev?.status === "published" ? prev.scheduledAt : scheduledAt + row.index * 90_000,
-            publishedAt: null,
-            status: "scheduled",
-            caption: row.caption,
-            body: frames[row.index],
-            hashtags: nextPlan.hashtags,
-            imageAssetId: prev?.imageAssetId,
-          });
-        }
-        continue;
-      }
-      const prev = convertedRowOfKind(existing, pack.kind);
-      const slideAssetIds = pack.kind === "carousel" ? prev?.slideAssetIds : undefined;
-      upsertSchedule({
-        id: prev?.id ?? uid("sch"),
-        projectId,
-        campaignId: created.id,
-        kind: pack.kind,
-        title: `${pack.title} · ${pieceName}`,
-        scheduledAt: prev?.status === "published" ? prev.scheduledAt : scheduledAt,
-        publishedAt: null,
-        status: "scheduled",
-        caption: packCaption(nextPlan, pack),
-        body: pack.items.join("\n"),
-        hashtags: nextPlan.hashtags,
-        imageAssetId:
-          pack.kind === "reels" || pack.kind === "threads" || pack.kind === "line"
-            ? prev?.imageAssetId && prev.imageAssetId !== assetId
-              ? prev.imageAssetId
-              : undefined
-            : slideAssetIds?.[0] ?? (pack.kind === "carousel" ? prev?.imageAssetId : assetId) ?? assetId,
-        mediaUrl: undefined,
-        ...(pack.kind === "carousel" && slideAssetIds?.length ? { slideAssetIds } : {}),
-        ...(pack.kind === "reels" && created.videoAssetId ? { videoAssetId: created.videoAssetId } : {}),
-      });
-    }
-  }
-
-  function scheduleAllFormats() {
-    if (!plan) return;
-    const created = saveCampaignAndWaves(plan);
-    scheduleConverted(plan, created, null, lastImage?.assetId, { kinds: KINDS });
-    toast.success("IG／Story／Reels／Threads 已依節奏排進月曆");
-  }
-
-  async function publishHero() {
-    if (!campaign) return;
-    const item = heroScheduleItem(useStudio.getState().schedule, campaign.id);
-    if (!item) {
-      toast.error("還沒有主視覺排程，可先選一個方向。");
-      return;
-    }
-    setBusy(true);
-    try {
-      const result = await runPublishItem(item);
-      toast.message(result.note);
-      if (result.marked) {
-        publishSchedule(item.id, result.extra);
-        const memory = igMemoryFromSchedule({
-          ...item,
-          status: "published",
-          publishedAt: Date.now(),
-          permalink: result.extra?.permalink ?? item.permalink,
-          mediaUrl: result.extra?.mediaUrl ?? item.mediaUrl,
-          igMediaId: result.extra?.igMediaId ?? item.igMediaId,
-        });
-        toast.success("已寫進過去 IG。可在 Feed 標記學生會不會停。");
-        void navigate({
-          to: "/ig",
-          search: igSearchParams({ posted: memory.id, campaign: campaign?.id }),
-        });
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function sendToCanva() {
-    if (!plan || sendingCanva.current) return;
-    sendingCanva.current = true;
-    setBusy(true);
-    try {
-      let imageBase64 = lastImage?.base64;
-      let mime = lastImage?.mime;
-      const hero = campaign ? heroScheduleItem(useStudio.getState().schedule, campaign.id) : undefined;
-      const assetId = canvaHeroAssetId({
-        lastAssetId: lastImage?.assetId,
-        campaignAssetId: campaign?.imageAssetId,
-        heroAssetId: hero?.imageAssetId,
-      });
-      if (!imageBase64 && assetId) {
-        let blob = await getAssetBlob(assetId);
-        if (!blob) {
-          const meta = assets.find((item) => item.id === assetId);
-          if (meta?.seedSrc) {
-            try {
-              await hydrateSeedAsset(assetId, meta.seedSrc);
-              blob = await getAssetBlob(assetId);
-            } catch {
-              /* generated stills live in IndexedDB only */
-            }
-          }
-        }
-        if (blob) {
-          const encoded = bytesToBase64(new Uint8Array(await blob.arrayBuffer()));
-          if (encoded.length && encoded.length < 1_400_000) {
-            imageBase64 = encoded;
-            mime = blob.type || "image/png";
-          }
-        }
-      }
-      const result = await createCanvaDesign({
-        data: {
-          title: plan.campaignName,
-          hook: editHook || activePack?.hook || plan.hook,
-          body: activePack?.body || plan.body,
-          cta: plan.cta,
-          format: mode === "story" ? "story" : mode === "reels" ? "reels-cover" : "feed-portrait",
-          palette: plan.colorMood,
-          composition: pickedDirection?.composition,
-          headline: pickedDirection?.headline || plan.headline,
-          imageBase64,
-          mime,
-        },
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      await navigator.clipboard.writeText(result.brief).catch(() => undefined);
-      window.open(result.editUrl, "_blank", "noopener,noreferrer");
-      if (result.connected && result.designId) {
-        rememberCanva({ designId: result.designId, editUrl: result.editUrl, title: result.title });
-      }
-      toast.success(result.note);
-    } finally {
-      sendingCanva.current = false;
-      setBusy(false);
-    }
-  }
-
-  function rememberCanva(next: { designId: string; editUrl: string; title: string }) {
-    setLastCanva(next);
-    upsertRemoteFiles([canvaRemoteFromDesign(next)]);
-    if (campaign) {
-      updateCampaign(campaign.id, { canvaDesignId: next.designId, canvaEditUrl: next.editUrl });
-      setCampaign({ ...campaign, canvaDesignId: next.designId, canvaEditUrl: next.editUrl });
-      for (const item of scheduleItemsForWave(useStudio.getState().schedule, campaign.id, "hero")) {
-        upsertSchedule({ ...item, canvaDesignId: next.designId, canvaEditUrl: next.editUrl });
-      }
-    }
-  }
-
-  async function pullFromCanva() {
-    const designId = lastCanva?.designId || campaign?.canvaDesignId;
-    if (!designId) {
-      toast.error("先送進 Canva 微調，再拉回主視覺。");
-      return;
-    }
-    setBusy(true);
-    try {
-      const result = await pullCanvaDesign({
-        data: {
-          designId,
-          format: mode === "story" ? "story" : mode === "reels" ? "reels-cover" : "feed-portrait",
-          title: plan?.campaignName || eventName || "茶會",
-        },
-      });
-      if (!result.ok) {
-        toast.error(result.note);
-        return;
-      }
-      if (result.imageBase64) {
-        const png = await persistGeneratedImage({
-          base64: result.imageBase64,
-          mime: result.mime,
-          width: 1080,
-          height: 1350,
-        });
-        const id = uid("asset");
-        await putAssetBlob(id, png.blob);
-        addAsset({
+      const blob = await (await fetch(result.src)).blob();
+      if (gen !== paintGen.current) return null;
+      await getAssetStorage().put(id, blob);
+      addAsset(
+        createGeneratedAsset({
           id,
-          name: `Canva · ${plan?.campaignName || eventName || "茶會"}`,
-          kind: "image",
-          category: "poster",
-          mime: png.mime,
+          name: coverOnly || ratio === "9:16" ? "Reels／Story 封面" : query.slice(0, 18) || "AI 主視覺",
+          mime: blob.type || "image/png",
           width: 1080,
-          height: 1350,
-          tags: ["Canva", eventName || "茶會"],
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          source: "canva",
-          licenseNotes: `來源：Canva / ${plan?.campaignName || eventName || "茶會"}`,
-          licenseOwner: "禪光",
-          favorite: false,
-          lastUsedAt: Date.now(),
-          useCount: 0,
-        });
-        setLastImage({
-          base64: png.base64,
-          mime: png.mime,
-          assetId: id,
-          headline: pickedDirection?.headline || plan?.hook,
-          directionName: pickedDirection?.name,
-        });
-        if (campaign) {
-          updateCampaign(campaign.id, { imageAssetId: id });
-          setCampaign({ ...campaign, imageAssetId: id });
-          for (const item of scheduleItemsForWave(useStudio.getState().schedule, campaign.id, "hero")) {
-            upsertSchedule({
-              ...item,
-              imageAssetId: id,
-              mediaUrl: result.imageUrl,
-              canvaDesignId: designId,
-              canvaEditUrl: lastCanva?.editUrl || campaign.canvaEditUrl,
+          height: ratio === "9:16" ? 1920 : ratio === "1:1" ? 1080 : 1350,
+          category: ratio === "9:16" ? "story" : "poster",
+        }),
+      );
+      if (coverOnly || ratio === "9:16") {
+        setReelsCoverSrc(result.src);
+        lastAsset.current.story = id;
+      }
+      if (!coverOnly) {
+        setImageSrc(result.src);
+        imageDirId.current = opts?.directionId ?? dirId;
+        if (ratio !== "9:16") lastAsset.current.feed = id;
+        if (!packRef.current || posterOnlyRef.current) {
+          const next = makePosterPack(opts?.directionId ?? dirId);
+          if (next) {
+            setPack(next);
+            packRef.current = next;
+            setCopies(next.copyVariants);
+            setPosterOnly(true);
+            posterOnlyRef.current = true;
+            persistSession({
+              pack: next,
+              posterOnly: true,
+              dirId: opts?.directionId ?? dirId,
+              copies: next.copyVariants,
+              tone,
+              imageSrc: persistableImageSrc(result.src),
+              reelsCoverSrc: persistableImageSrc(ratio === "9:16" ? result.src : reelsCoverSrc),
+              createdCampaignId,
+              projectId: studioProjectId,
+              aspect: ratio,
             });
           }
         }
       }
-      toast.success(result.note);
+      if (result.src.startsWith("https:")) {
+        addMemory({
+          id: `gen_${id}`,
+          source: "generated",
+          sourceLabel: "AI Generated",
+          title: coverOnly || ratio === "9:16" ? "Reels／Story 封面" : query.slice(0, 18) || "AI 主視覺",
+          kind: ratio === "9:16" ? "poster" : "poster",
+          tags: ["generated", ratio === "9:16" ? "story" : "ig"],
+          summary: coverOnly || ratio === "9:16" ? "9:16 封面，可排 Story／Reels。" : "剛才生成的主視覺，可發到 IG。",
+          thumbUrl: result.src,
+          assetId: id,
+          createdAt: Date.now(),
+        });
+      }
+      const session = readLastSession();
+      if (session) {
+        writeLastSession({
+          ...session,
+          imageSrc: persistableImageSrc(coverOnly ? session.imageSrc : result.src),
+          reelsCoverSrc: persistableImageSrc(coverOnly || ratio === "9:16" ? result.src : session.reelsCoverSrc),
+          feedAssetId: lastAsset.current.feed ?? session.feedAssetId,
+          storyAssetId: lastAsset.current.story ?? session.storyAssetId,
+          savedAt: Date.now(),
+        });
+      }
+      if (!opts?.silent) toast.success(coverOnly || ratio === "9:16" ? "9:16 封面已進素材庫，主視覺還在" : "主視覺已進素材庫");
+      return result.src;
+    } finally {
+      if (!opts?.keepBusy && gen === paintGen.current) setBusy(false);
+    }
+  }
+
+  async function onVisionFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const url = String(reader.result);
+      setImageSrc(url);
+      setBusy(true);
+      try {
+        const result = await analyzeImage({ data: { imageDataUrl: url, note: query } });
+        if (result.ok) setVision(result.report);
+      } finally {
+        setBusy(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function fromVision(kind: "style" | "similar" | "restyle" | "story" | "carousel" | "reels") {
+    if (!vision) return;
+    if (kind === "style") {
+      const nextQuery = /延續/.test(query) ? query : `${query}。延續這張圖的風格做新網宣。`;
+      setQuery(nextQuery);
+      await runImage(vision.imagePrompt);
+      await runPack({ vision, query: nextQuery, skipHero: true });
+      toast.success("已延續風格，文案和方向一起出來了");
+      return;
+    }
+    if (kind === "similar") {
+      await runImage(varyImagePrompt(vision.imagePrompt, "similar"));
+      return;
+    }
+    if (kind === "restyle") {
+      setQuery((prev) => `${prev}。保留這張的內容，重新設計成淡江學生會停下來的 IG。`);
+      await runPack();
+      return;
+    }
+    if (kind === "story") await runImage(varyImagePrompt(vision.imagePrompt, "story"), "9:16", { asCover: true });
+    if (kind === "reels") await runImage(varyImagePrompt(vision.imagePrompt, "reels"), "9:16", { asCover: true });
+    const result = await convertContent({
+      data: {
+        title: query.slice(0, 40) || "淡江禪學社",
+        hook: vision.stay || vision.scene,
+        body: vision.studentFit,
+      },
+    });
+    if (!result.ok) return;
+    setVisionKit({
+      story: result.story,
+      reels: result.reels,
+      carousel: result.carousel.map((page, index) => `${index + 1}. ${page.title}\n${page.body}`).join("\n\n"),
+      threads: result.threads,
+      line: result.line,
+    });
+    toast.success(kind === "carousel" ? "已轉成 Carousel" : kind === "story" ? "已轉成限動" : "已轉成 Reels");
+  }
+
+  function applyToStudio(
+    andSchedule: boolean,
+    opts?: {
+      kind?: ContentKind;
+      nextPack?: CreativePack;
+      stay?: boolean;
+      silent?: boolean;
+      skipNavigate?: boolean;
+      campaignId?: string;
+      single?: boolean;
+      heroSource?: SourceRef["source"];
+      heroSrc?: string | null;
+      heroAssetId?: string | null;
+    },
+  ): { projectId: string; day: string } | undefined {
+    const brand = brands[0];
+    const active = opts?.nextPack ?? pack;
+    const kind = opts?.kind ?? (posterOnly ? posterKindFromAspect(aspect) : "carousel");
+    if (!brand || !active) return;
+    const live = useCreative.getState();
+    const campId = opts?.campaignId ?? resolvedCampaignId;
+    let camp = campId ? live.campaigns.find((item) => item.id === campId) : undefined;
+    if (!camp && andSchedule) {
+      camp = live.addCampaign({
+        name: active.plan.campaignName,
+        date: eventFor(query).isoDate || inferEventDate(query),
+        type: inferCampaignType(`${query} ${active.plan.campaignName}`),
+        oneLiner: active.plan.hook,
+        fullIntro: active.plan.body,
+        studentPain: active.plan.insight,
+        cta: active.plan.cta,
+        theme: active.plan.visualTheme,
+        location: campaign?.location ?? eventFor(query).location,
+        ...(opts?.single ? { waves: [] } : {}),
+      });
+      setCreatedCampaignId(camp.id);
+    }
+    const brief = {
+      ...emptyBrief(),
+      eventName: active.plan.campaignName,
+      product: active.plan.campaignName,
+      schedule: camp ? displayEventWhen(camp.date, camp.time || "19:30") : eventFor(query).schedule,
+      location: camp?.location ?? "淡江校園",
+      audience: active.studentContext,
+      features: active.plan.concept,
+      style: active.plan.visualTheme,
+      deliverables: { post: true, story: true, carousel: true, reels: true },
+    };
+    const studio = useStudio.getState();
+    const existing = studioProjectId ? studio.projects.find((item) => item.id === studioProjectId) : undefined;
+    const reuse = Boolean(existing && existing.contentKind === kind);
+    const project = reuse
+      ? existing!
+      : createProject({
+          name: `${active.plan.campaignName} · ${kind === "carousel" ? "Carousel" : kind === "story" ? "Story" : kind === "reels" ? "Reels" : kind === "line" ? "LINE" : kind === "threads" ? "Threads" : "IG"}`,
+          brandId: brand.id,
+          formatId: formatForKind(kind),
+          brief,
+          templateId: active.plan.templateId,
+        });
+    applyCampaignPlan(project.id, active.plan, brief);
+    const activeCopy = copies.find((c) => c.tone === tone) ?? copies[0];
+    const caption = captionForPackKind(active, kind, activeCopy);
+    useStudio.getState().setCopy(project.id, {
+      headline: kind === "carousel" || kind === "ig-post" ? (activeCopy?.hook ?? active.plan.hook) : topicForPackKind(active, kind),
+      body: caption,
+      cta: activeCopy?.cta ?? active.plan.cta,
+      caption,
+      hashtags: activeCopy?.hashtags ?? active.plan.hashtags,
+    });
+    setStudioProjectId(project.id);
+    persistSession({
+      pack: active,
+      posterOnly,
+      createdCampaignId: camp?.id ?? createdCampaignId,
+      projectId: project.id,
+      reelsCoverSrc: persistableImageSrc(reelsCoverSrc),
+    });
+    const scheduledAt = scheduledAtFor(kind, camp?.date);
+    const status = andSchedule ? "scheduled" : opts?.stay ? "done" : "creating";
+    const storyKind = usesStoryCover(kind);
+    const fromCanva = !storyKind && (opts?.heroSource === "canva" || (!opts?.heroSource && canvaStep === "returned"));
+    const hero =
+      opts?.heroSrc ??
+      coverForKind(kind, { feed: imageSrc, story: reelsCoverSrc });
+    const heroAssetId =
+      opts?.heroAssetId ??
+      (fromCanva
+        ? canvaReturnAssetId
+        : coverForKind(kind, { feed: lastAsset.current.feed, story: lastAsset.current.story }));
+    const persistable = persistableImageSrc(hero);
+    const coverId = heroAssetId || persistable || (!heroAssetId && hero?.startsWith("data:") ? hero : undefined);
+    useStudio.getState().updateProject(project.id, {
+      contentKind: kind,
+      campaignId: camp?.id ?? null,
+      sourceRefs: [
+        ...active.sources,
+        ...(coverId
+          ? [{
+              source: (fromCanva ? "canva" : "generated") as SourceRef["source"],
+              label: fromCanva ? "Canva 微調後" : storyKind ? "9:16 封面" : "AI 主視覺",
+              id: coverId,
+            }]
+          : []),
+      ],
+      status,
+      scheduledAt: andSchedule ? scheduledAt : null,
+    });
+    if (camp && andSchedule) {
+      if (!opts?.single && !useCreative.getState().campaigns.find((item) => item.id === camp.id)?.waves.length) {
+        generateWaves(camp.id);
+      }
+      bindScheduledWave(camp.id, {
+        kind,
+        projectId: project.id,
+        scheduledAt,
+        topic: topicForPackKind(active, kind),
+        status: "scheduled",
+      });
+    }
+    const day = isoFromMs(scheduledAt);
+    if (!opts?.silent) {
+      toast.success(andSchedule ? `已排進 ${day.replace(/^\d{4}-/, "").replace("-", "/")} 月曆` : opts?.stay ? "已放到 IG Grid" : "已套進畫布");
+    }
+    if (opts?.stay) return { projectId: project.id, day };
+    if (andSchedule) {
+      if (!opts?.skipNavigate) void navigate({ to: "/calendar", search: { day } });
+      return { projectId: project.id, day };
+    }
+    if (!opts?.skipNavigate) void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+    return { projectId: project.id, day };
+  }
+
+  async function scheduleWholeCampaign() {
+    if (posterOnly) {
+      schedulePoster();
+      return;
+    }
+    const active = pack;
+    if (!active || !brands[0]) {
+      toast.message("先生成一版完整宣傳");
+      return;
+    }
+    const live = useCreative.getState();
+    let camp = resolvedCampaignId ? live.campaigns.find((item) => item.id === resolvedCampaignId) : undefined;
+    if (!camp) {
+      camp = live.addCampaign({
+        name: active.plan.campaignName,
+        date: eventFor(query).isoDate || inferEventDate(query),
+        type: inferCampaignType(`${query} ${active.plan.campaignName}`),
+        oneLiner: active.plan.hook,
+        fullIntro: active.plan.body,
+        studentPain: active.plan.insight,
+        cta: active.plan.cta,
+        theme: active.plan.visualTheme,
+        location: eventFor(query).location,
+      });
+      setCreatedCampaignId(camp.id);
+    }
+    if (!camp.waves.length) live.generateWaves(camp.id);
+    const campId = camp.id;
+    camp = useCreative.getState().campaigns.find((item) => item.id === campId) ?? camp;
+    live.updateCampaign(campId, { waves: annotateWavesFromPack(camp.waves, active) });
+    camp = useCreative.getState().campaigns.find((item) => item.id === campId) ?? camp;
+    const kinds = remainingPackKinds(camp.waves, PACK_SCHEDULE_KINDS);
+    if (!kinds.length) {
+      toast.message("這套已經在月曆裡");
+      const day = camp.waves[0]?.scheduledAt ? isoFromMs(camp.waves[0].scheduledAt) : camp.date;
+      void navigate({ to: "/calendar", search: { day } });
+      return;
+    }
+    setBusy(true);
+    let storySrc = reelsCoverSrc;
+    try {
+      if (kinds.some(usesStoryCover) && !storySrc) {
+        const prompt = varyImagePrompt(
+          active.directions.find((item) => item.id === dirId)?.imagePrompt || active.plan.visualTheme || query,
+          "reels",
+        );
+        storySrc = (await runImage(prompt, "9:16", { silent: true, keepBusy: true, asCover: true })) ?? storySrc;
+      }
+      let firstDay = camp.date;
+      for (const kind of kinds) {
+        const placed = applyToStudio(true, {
+          kind,
+          nextPack: active,
+          silent: true,
+          skipNavigate: true,
+          campaignId: campId,
+          heroSrc: coverForKind(kind, { feed: imageSrc, story: storySrc }),
+          heroAssetId: coverForKind(kind, { feed: lastAsset.current.feed, story: lastAsset.current.story }),
+        });
+        if (placed && kind === kinds[0]) firstDay = placed.day;
+      }
+      toast.success(
+        storySrc
+          ? `已把 ${kinds.map((kind) => contentKindLabel(kind)).join("、")} 依節奏排進月曆，限動和 Reels 用 9:16`
+          : `已把 ${kinds.map((kind) => contentKindLabel(kind)).join("、")} 依節奏排進月曆`,
+      );
+      void navigate({ to: "/calendar", search: { day: firstDay } });
     } finally {
       setBusy(false);
     }
   }
 
-  function adoptDirection(dir: VisualDirection, silent = false) {
-    setPickedDirection(dir);
-    setPlan((current) => (current ? applyDirectionToPlan(current, dir) : current));
-    setPacks((rows) =>
-      rows.map((pack) => ({
-        ...pack,
-        hook: /[？?]/.test(dir.headline) ? dir.headline : pack.hook,
-      })),
-    );
-    if (!silent) toast.success(`已選「${dir.name}」，文案與視覺會跟著走`);
+  function schedulePoster() {
+    const active = pack ?? makePosterPack(dirId);
+    if (!active || !brands[0]) {
+      toast.message("先生成一張圖");
+      return;
+    }
+    applyToStudio(true, {
+      kind: posterKindFromAspect(aspect),
+      nextPack: active,
+      single: true,
+    });
   }
 
-  async function realizeDirection(dir: VisualDirection, fromPlan = plan) {
-    if (!fromPlan) return;
-    const directed = applyDirectionToPlan(fromPlan, dir);
-    const cleaned = rewriteCopyPack(
-      { hook: directed.hook, body: captionBody(directed), cta: directed.cta, hashtags: directed.hashtags },
-      fromPlan.hook,
+  function goIgPreview() {
+    const active = pack ?? makePosterPack(dirId);
+    if (!active) {
+      toast.message("先生成一張圖，再去 IG 預覽");
+      return;
+    }
+    const placed = applyToStudio(false, {
+      stay: true,
+      silent: true,
+      nextPack: active,
+      kind: posterOnly || !pack ? posterKindFromAspect(aspect) : undefined,
+      single: true,
+      ...(canvaStep === "returned"
+        ? { heroSource: "canva" as const, heroSrc: imageSrc, heroAssetId: canvaReturnAssetId }
+        : {}),
+    });
+    const id = placed?.projectId ?? studioProjectId;
+    if (!id) {
+      toast.message("先生成一張圖，再去 IG 預覽");
+      return;
+    }
+    toast.dismiss();
+    void navigate({ to: "/ig", search: { item: id } });
+  }
+
+  async function sendCanva(opts?: { afterConnect?: boolean }) {
+    const active = pack ?? makePosterPack(dirId);
+    if (!active) {
+      toast.message("先生成一張圖");
+      return;
+    }
+    const activeCopy = copies.find((c) => c.tone === tone) ?? copies[0] ?? active.copyVariants[0];
+    const dir = active.directions.find((d) => d.id === dirId) ?? directions.find((d) => d.id === dirId);
+    const caption = activeCopy?.body ?? active.plan.captions[0]?.text ?? active.plan.hook;
+    const kit = buildCanvaKit({
+      campaignName: active.plan.campaignName,
+      hook: active.plan.hook,
+      caption,
+      cta: activeCopy?.cta ?? active.plan.cta,
+      hashtags: activeCopy?.hashtags ?? active.plan.hashtags,
+      palette: dir?.palette,
+      composition: dir?.composition,
+      typeDirection: dir?.typeDirection,
+      imagePrompt: dir?.imagePrompt,
+      carousel: posterOnly ? undefined : active.conversions.carousel,
+    });
+    try {
+      await navigator.clipboard.writeText(kit);
+    } catch {
+      /* 沒剪貼簿也繼續開 Canva */
+    }
+    addMemory(
+      memoryFromCanvaKit({
+        campaignName: active.plan.campaignName,
+        kit,
+        thumbUrl: persistableImageSrc(imageSrc),
+        id: `canva_kit_${active.plan.campaignName.replace(/\s+/g, "_").slice(0, 40)}`,
+      }),
     );
-    const next = { ...directed, hook: cleaned.hook, body: cleaned.body };
-    adoptDirection(dir, true);
-    setPlan(next);
+    const kind = posterOnly || aspect === "9:16" ? (aspect === "9:16" ? "story" : "post") : "carousel";
+    const placed = applyToStudio(false, {
+      stay: true,
+      silent: true,
+      nextPack: active,
+      kind: posterOnly ? posterKindFromAspect(aspect) : undefined,
+      single: true,
+    });
+    const persist = (step: CanvaLoopStep, extra?: { editUrl?: string | null; designId?: string | null }) => {
+      setCanvaStep(step);
+      if (extra?.editUrl) setCanvaEditUrl(extra.editUrl);
+      if (extra?.designId) setCanvaDesignId(extra.designId);
+      persistSession({
+        pack: active,
+        posterOnly,
+        projectId: placed?.projectId ?? studioProjectId,
+        canvaKit: kit,
+        canvaStep: step,
+        canvaEditUrl: extra?.editUrl ?? canvaEditUrl,
+        canvaDesignId: extra?.designId ?? canvaDesignId,
+        canvaReturnAssetId,
+      });
+    };
+    persist("kit");
+    const result = await createCanvaDesign({
+      data: {
+        title: active.plan.campaignName,
+        kind,
+        imageUrl: publicImageUrl(imageSrc) ?? undefined,
+      },
+    });
+    if (!result.ok) {
+      toast.message(result.message);
+      persist(result.reason === "connect" ? "need-connect" : "kit");
+      return;
+    }
+    const designId = result.designId ?? canvaDesignIdFromEditUrl(result.url);
+    persist("opened", { editUrl: result.url, designId });
+    addMemory(
+      memoryFromCanvaKit({
+        campaignName: active.plan.campaignName,
+        kit,
+        thumbUrl: persistableImageSrc(imageSrc),
+        id: `canva_kit_${active.plan.campaignName.replace(/\s+/g, "_").slice(0, 40)}`,
+        openUrl: result.url,
+      }),
+    );
+    if (!opts?.afterConnect) {
+      window.open(result.url, "_blank", "noopener");
+    }
+    toast.success(
+      result.withAsset ? "已把主視覺送進 Canva" : opts?.afterConnect ? "Canva 設計已開好，從下面進去改" : "已在 Canva 開對應尺寸，貼上清單繼續改",
+    );
+  }
+
+  async function acceptCanvaReturn(src: string, blob?: Blob) {
+    if (!pack) return;
+    setImageSrc(src);
+    if (aspect === "9:16") setReelsCoverSrc(src);
+    let assetId = canvaReturnAssetId ?? undefined;
+    if (blob) {
+      assetId = uid("asset");
+      await getAssetStorage().put(assetId, blob);
+      setCanvaReturnAssetId(assetId);
+      if (aspect === "9:16") lastAsset.current.story = assetId;
+      else lastAsset.current.feed = assetId;
+      addAsset(
+        migrateAsset({
+          id: assetId,
+          name: canvaReturnTitle(pack.plan.campaignName),
+          kind: "image",
+          category: aspect === "9:16" ? "story" : "poster",
+          mime: blob.type || "image/png",
+          width: 1080,
+          height: aspect === "9:16" ? 1920 : 1350,
+          tags: ["canva", "主視覺"],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          source: "canva",
+          licenseNotes: "從 Canva 接回，可發到 IG。",
+          licenseOwner: "Canva 匯出",
+          favorite: false,
+          lastUsedAt: Date.now(),
+          useCount: 1,
+        }),
+      );
+    }
+    addMemory({
+      id: `canva_return_${assetId ?? pack.plan.campaignName.replace(/\s+/g, "_").slice(0, 40)}`,
+      source: "canva",
+      sourceLabel: `Canva / ${pack.plan.campaignName}`,
+      title: canvaReturnTitle(pack.plan.campaignName),
+      kind: "design",
+      tags: ["canva", "ig"],
+      summary: "Canva 微調後接回的主視覺。",
+      thumbUrl: persistableImageSrc(src) ?? undefined,
+      assetId,
+      openUrl: canvaEditUrl ?? undefined,
+      createdAt: Date.now(),
+    });
+    setCanvaStep("returned");
+    persistSession({
+      pack,
+      posterOnly,
+      imageSrc: persistableImageSrc(src),
+      canvaStep: "returned",
+      canvaReturnAssetId: assetId ?? null,
+    });
+    applyToStudio(false, { stay: true, silent: true, heroSource: "canva", heroSrc: src, heroAssetId: assetId });
+    toast.success("Canva 畫面已回來，可以去 IG 預覽");
+  }
+
+  async function takeCanvaBack() {
+    const designId = canvaDesignId || canvaDesignIdFromEditUrl(canvaEditUrl);
+    if (!designId) {
+      canvaFileRef.current?.click();
+      return;
+    }
     setBusy(true);
     try {
-      const lookIndex = Math.max(
-        0,
-        directions.findIndex((row) => (row.id || row.name) === (dir.id || dir.name)),
-      );
-      const imageId =
-        lastImage?.assetId && lastImage.directionName === dir.name
-          ? lastImage.assetId
-          : ((await saveGeneratedImage(dir, { silent: true, kind: directionLookOf(lookIndex) })) ?? lastImage?.assetId);
-      const project = applyToCanvas(next, false, imageId);
-      const created = saveCampaignAndWaves(next, imageId, project?.id ?? null, { silent: true });
-      if (project) updateProject(project.id, { campaignId: created.id });
-      scheduleConverted(next, created, project?.id ?? null, imageId);
-      if (imageId) {
-        await attachWaveLooks(created, dir, imageId);
+      const result = await pullCanvaExport({ data: { designId } });
+      if (!result.ok) {
+        toast.message(result.message);
+        canvaFileRef.current?.click();
+        return;
       }
-      for (const item of useStudio.getState().schedule.filter((row) => row.campaignId === created.id)) {
-        if (!sharesKitCaption(item)) continue;
-        upsertSchedule({
-          ...item,
-          caption: cleaned.caption,
-          body: item.kind === "carousel" ? item.body : cleaned.body,
-        });
+      let blob: Blob | undefined;
+      if (result.src.startsWith("data:")) {
+        blob = await (await fetch(result.src)).blob();
       }
-      const photo = sourcePhotoRef.current;
-      const previewOpts = {
-        eventName: created.name || eventName || next.campaignName,
-        campaignId: created.id,
-        projectId: project?.id ?? null,
-        look: photo.embed
-          ? { photoEmbed: photo.embed, sourceCredit: photo.credit || undefined }
-          : undefined,
-        scheduleKinds: search.into ? ([search.into] as ContentKind[]) : undefined,
-      };
-      await saveIgPreviewStills(next, previewOpts).catch(() => undefined);
-      setBusy(false);
-      toast.success(
-        search.into === "story"
-          ? "已做成限動，沒有重開活動節奏"
-          : search.into === "carousel"
-            ? "已做成 Carousel，沒有重開活動節奏"
-            : search.into === "reels"
-              ? "已做成 Reels Cover，沒有重開活動節奏"
-              : search.into === "threads"
-                ? "已做成 Threads 圖，沒有重開活動節奏"
-                : "已用這個方向做出整套：主視覺、文案、Carousel、限動、Reels、Threads、LINE、月曆",
-      );
-      requestAnimationFrame(() => {
-        const intoTarget =
-          search.into === "story"
-            ? "story-board"
-            : search.into === "carousel"
-              ? "carousel-board"
-              : search.into === "reels"
-                ? "reels-board"
-                : search.into === "threads"
-                  ? "share-board"
-                  : "kit-ready";
-        document.querySelector(`[data-testid="${intoTarget}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
-      await saveKitStills(next, previewOpts, { skipPreview: true }).catch(() => undefined);
+      await acceptCanvaReturn(result.src, blob);
     } finally {
       setBusy(false);
     }
   }
 
-  function schedulePack(pack: ConvertedPack) {
-    const waves = campaign?.waves ?? [];
-    if (pack.kind === "ig-post" && campaign && skipConvertedIgPost(waves)) {
-      const hero = heroScheduleItem(useStudio.getState().schedule, campaign.id);
-      if (hero) {
-        upsertSchedule({
-          ...hero,
-          caption: plan ? packCaption(plan, pack) : pack.items.join("\n"),
-          body: pack.items.join("\n"),
-          imageAssetId: lastImage?.assetId ?? hero.imageAssetId,
-        });
-        toast.success("主視覺就是這篇 IG，沒有另開一則活動廣告");
-        return;
-      }
+  function onCanvaReturnFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      void acceptCanvaReturn(String(reader.result), file);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function connectCanvaAndReturn() {
+    if (pack) {
+      persistSession({
+        pack,
+        posterOnly,
+        canvaStep: canvaStep ?? "need-connect",
+      });
     }
-    const date = parseEventDate(`${schedule} ${idea}`);
-    const when = Date.parse(`${date}T19:00:00+08:00`);
-    const scheduledAt = Number.isNaN(when)
-      ? Date.now()
-      : convertedScheduledAt(pack.kind, when, waves);
-    upsertSchedule({
-      id: uid("sch"),
-      projectId: null,
-      campaignId: campaign?.id ?? null,
-      kind: pack.kind,
-      title: `${pack.title} · ${eventName || plan?.campaignName || idea.slice(0, 12)}`,
-      scheduledAt,
-      publishedAt: null,
-      status: "scheduled",
-      caption: plan ? packCaption(plan, pack) : pack.items.join("\n"),
-      body: pack.items.join("\n"),
-      hashtags: plan?.hashtags,
-      imageAssetId: lastImage?.assetId,
+    const result = await startConnection({
+      data: { provider: "canva", next: posterOnly || mode === "image" ? "/create?mode=image" : "/create" },
     });
-    toast.success(`${pack.title}已進月曆`);
-    toast.message(rhythmHint([...recentKinds, pack.kind]));
+    if (result.ok) {
+      window.location.assign(result.url);
+      return;
+    }
+    toast.message(result.message);
   }
 
-  async function handleVisionAction(action: VisionActionId) {
-    const spoken = ideaForVisionAction(action, idea);
-    if (action === "continue-style") {
-      await runKit(idea, false);
-      return;
-    }
-    if (action === "redesign") {
-      setIdea(spoken);
-      await runKit(spoken, false);
-      return;
-    }
-    if (action === "similar") {
-      await runDirections();
-      return;
-    }
-    const kind = action === "reels" ? "reels" : action === "story" ? "story" : action === "carousel" ? "carousel" : "threads";
-    if (plan) {
-      schedulePack(convertPlan(plan, kind));
-      return;
-    }
-    const kit = await runKit(spoken, true);
-    if (kit) schedulePack(convertPlan(kit.plan, kind));
+  const shownDirections = pack?.directions.length ? pack.directions : directions;
+  const activeDir = shownDirections.find((d) => d.id === dirId) ?? shownDirections[0];
+  const copy = copies.find((c) => c.tone === tone) ?? copies[0];
+  const sim = pack?.plan.studentSim;
+  const insights = clubInsightsFromPosts(igPosts);
+  const canvaKit = pack
+    ? buildCanvaKit({
+        campaignName: pack.plan.campaignName,
+        hook: pack.plan.hook,
+        caption: copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook,
+        cta: copy?.cta ?? pack.plan.cta,
+        hashtags: copy?.hashtags ?? pack.plan.hashtags,
+        palette: activeDir?.palette,
+        composition: activeDir?.composition,
+        typeDirection: activeDir?.typeDirection,
+        imagePrompt: activeDir?.imagePrompt,
+        carousel: posterOnly ? undefined : pack.conversions.carousel,
+      })
+    : "";
+
+  useEffect(() => {
+    if (retriedCanva.current || connected !== "canva" || !pack) return;
+    retriedCanva.current = true;
+    void sendCanva({ afterConnect: true });
+    void navigate({
+      to: "/create",
+      search: {
+        q: query || undefined,
+        mode: mode !== "idea" ? mode : undefined,
+        campaign: resolvedCampaignId,
+        day: initialDay,
+      },
+      replace: true,
+    });
+  }, [connected, pack, query, mode, resolvedCampaignId, navigate]);
+
+  function applySimFixes() {
+    if (!copy || !sim) return;
+    const event = eventFor(query);
+    const when = event.schedule || pack?.plan.subhead;
+    setCopies((prev) => stampEventWhen(
+      prev.map((item) => applyStudentRevisions(item, sim, when, event.location)),
+      event.schedule,
+      event.location,
+    ));
+    setSimApplied(true);
+    toast.success("已依淡江學生視角改過這一版");
   }
 
-  const converted = useMemo(() => {
-    if (!plan) return [];
-    return KINDS.map((kind) => convertPlan(plan, kind));
-  }, [plan]);
+  async function copyCaption() {
+    if (!copy) return;
+    const text = `${copy.body}\n\n${copy.cta}\n${copy.hashtags.join(" ")}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Caption 已複製。主視覺若還在本機，貼到 IG 再配圖。");
+    } catch {
+      toast.message("複製失敗，請手動選取文案");
+    }
+  }
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-36 md:px-8 md:py-10 lg:pb-10">
-      <PageHeader
-        kicker="AI 創作"
-        title="從一句話開始"
-        description="前台只顯示找到什麼、生成什麼、下一步。沒有 Agent 管理器。"
-      />
+    <main className={cn("mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10", pack && (imageSrc || posterOnly) ? "pb-36 lg:pb-20" : "pb-20")}>
+      <p className="text-xs tracking-[0.18em] text-muted uppercase">{mode === "image" ? "AI Image Studio" : "AI 創作台"}</p>
+      <h1 className="mt-1 font-display text-3xl md:text-4xl">
+        {mode === "image" && (imageSrc || posterOnly) ? "這張可以接著發" : mode === "image" ? "先選一個視覺方向" : "把一句話變成整套網宣"}
+      </h1>
+      <p className="mt-2 text-sm text-muted">
+        {mode === "image"
+          ? imageSrc || posterOnly
+            ? "主視覺好了。可以送 Canva、看 IG Preview、排進月曆，或再做成完整宣傳。"
+            : "先想活動、淡江學生、淡水、品牌色與龜龜，再給三個方向。不要直接生一張禪風海報。"
+          : "文案、方向、Carousel、Story、Threads、Reels 會一起出來。不會出現 Agent 管理。"}
+      </p>
 
-      <div className="mt-6 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] sm:p-6">
-        <p className="text-xs text-muted">
-          {status?.label ?? "確認創作服務中"} · {search.into ? INTO_HINT[search.into] : (MODE_HINT[mode] ?? MODE_HINT.idea)}
-        </p>
-        <p className="mt-2 text-xs text-muted" data-testid="studio-learn-banner">
-          這次會參考過去 IG：「{studioHook}」。{learning.avoid}
-        </p>
-        <Label className="mt-4">你想做什麼</Label>
-        <Textarea className="mt-2" value={idea} onChange={(e) => setIdea(e.target.value)} rows={3} />
-        <div className="mt-3">
-          <p className="text-sm font-medium">或從一張圖開始</p>
-          <PhotoDrop disabled={busy} onFile={(file) => void onImage(file)} />
-          {sourcePreview && (sourcePreview.src || sourcePreview.base64) ? (
-            <figure
-              className="mt-3 flex items-center gap-3 rounded-2xl bg-bg p-3"
-              data-testid="source-visual"
-            >
-              <img
-                src={
-                  sourcePreview.src ||
-                  (sourcePreview.base64 ? `data:${sourcePreview.mime};base64,${sourcePreview.base64}` : "")
-                }
-                alt={sourcePreview.name}
-                className="size-16 shrink-0 rounded-xl object-cover"
-              />
-              <figcaption className="min-w-0 text-xs text-muted" data-testid="source-visual-label">
-                {sourcePreview.source === "drive"
-                  ? "Google Drive"
-                  : sourcePreview.source === "canva"
-                    ? "Canva"
-                    : sourcePreview.source === "instagram"
-                      ? "Instagram"
-                      : "來源素材"}{" "}
-                · {sourcePreview.name}。會理解畫面再延續，不複製舊作品。
-              </figcaption>
-            </figure>
-          ) : null}
-        </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <Field label={search.into ? "這篇叫什麼" : "活動名"}>
-            <Input
-              value={eventName}
-              onChange={(e) => {
-                eventNameTouched.current = true;
-                setEventName(e.target.value);
-              }}
-              placeholder={search.into ? "茶會 · 限動" : "浮游禪光、茶會…"}
-              data-testid="event-name"
-            />
-          </Field>
-          <Field label="時間">
-            <Input
-              value={schedule}
-              onChange={(e) => setSchedule(e.target.value)}
-              data-testid="event-schedule"
-            />
-          </Field>
-          <Field label="地點">
-            <Input value={location} onChange={(e) => setLocation(e.target.value)} />
-          </Field>
-        </div>
-        <details className="mt-3 rounded-2xl bg-bg/60 px-3 py-2">
-          <summary className="cursor-pointer text-sm text-muted" data-testid="event-details">
-            活動細節（可空，不擋創作）
-          </summary>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <Field label="一句活動介紹">
-              <Input value={oneLiner} onChange={(e) => setOneLiner(e.target.value)} placeholder="最近是不是很久沒有好好坐下來？" />
-            </Field>
-            <Field label="活動主題">
-              <Input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="光、坐下來、朋友…" />
-            </Field>
-            <Field label="學生痛點">
-              <Input value={studentPain} onChange={(e) => setStudentPain(e.target.value)} />
-            </Field>
-            <Field label="報名連結（可空）">
-              <Input value={signupUrl} onChange={(e) => setSignupUrl(e.target.value)} placeholder="https://" />
-            </Field>
-            <div className="sm:col-span-2">
-              <Field label="完整介紹">
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-              </Field>
-            </div>
-          </div>
-        </details>
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
-          <Button disabled={busy} onClick={() => void runKit()}>
-            AI 生成完整宣傳
-          </Button>
-          <Button variant="secondary" disabled={busy} onClick={() => void runCopy()}>
-            只生文案
-          </Button>
-          <Button variant="secondary" disabled={busy} onClick={() => void runDirections()}>
-            三個視覺方向
-          </Button>
-          {mode === "image" ? (
-            <Button variant="secondary" onClick={() => void navigate({ to: "/image" })}>
-              打開 Image Studio
-            </Button>
-          ) : null}
-        </div>
+      <Textarea
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="mt-6 min-h-28 rounded-2xl"
+        placeholder={initialDay ? `例如：${displayEventWhen(initialDay)} 茶會` : "例如：下週有一場茶會"}
+      />
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button onClick={() => void runPack({ skipHero: Boolean(imageSrc) && imageDirId.current === dirId })} disabled={busy} className="min-h-11 rounded-full">
+          {busy
+            ? "生成中…"
+            : dirId && shownDirections.length && (!pack || posterOnly)
+              ? `用「${activeDir?.name ?? "這個方向"}」做完整宣傳`
+              : "AI 生成完整宣傳"}
+        </Button>
+        <Button variant="secondary" className="min-h-11 rounded-full" disabled={busy} onClick={() => void runCopy()}>
+          只寫文案
+        </Button>
+        <Button variant="secondary" className="min-h-11 rounded-full" disabled={busy} onClick={() => void runDirections()}>
+          三個視覺方向
+        </Button>
+        <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => fileRef.current?.click()}>
+          丟一張圖進來
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void onVisionFile(file);
+          }}
+        />
+        <input
+          ref={canvaFileRef}
+          data-canva-return="1"
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onCanvaReturnFile(file);
+          }}
+        />
       </div>
 
-      {found.length || liveNote ? (
-        <section className="mt-8" data-testid="found-sources">
-          <h2 className="text-sm font-medium">找到 {found.length} 個相關素材</h2>
-          <p className="mt-1 text-xs text-muted" data-testid="live-found-note">
-            可釘選給 AI 當風格參考。來源會標出來。
-            {liveNote ? ` ${liveNote.replace(/[。.]+\s*$/, "")}。` : ""}{" "}
-            {Object.entries(foundGroups)
-              .map(([source, list]) => `${sourceLabelOf(source)} ${list.length}`)
-              .join(" · ")}
-          </p>
-          {Object.entries(foundGroups).map(([source, list]) => (
-            <div key={source} className="mt-3">
-              <h3 className="text-xs tracking-[0.14em] text-muted uppercase">{sourceLabelOf(source)}</h3>
-              <ul className="mt-2 space-y-2">
-                {list.map((hit) => {
-                  const pinnedHit = pinned.some((row) => row.id === hit.id);
-                  const thumb = hit.thumbnail || (hit.assetId ? urls[hit.assetId] : undefined);
-                  return (
-                    <li key={hit.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-surface px-3 py-2 text-sm shadow-[var(--shadow-border)]">
-                      {thumb ? (
-                        <img src={thumb} alt="" data-testid="found-thumb" className="size-12 shrink-0 rounded-xl object-cover" />
-                      ) : (
-                        <span className="size-12 shrink-0 rounded-xl bg-surface-2" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate">{hit.title}</p>
-                        <p className="mt-1 truncate text-xs text-muted">
-                          {sourceLine(hit)} · {hit.subtitle}
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant={pinnedHit ? "default" : "secondary"}
-                        data-testid={hit.source === "canva" ? "pin-canva" : undefined}
-                        onClick={() => togglePin(hit)}
-                      >
-                        {pinnedHit ? "已參考" : "加入參考"}
-                      </Button>
-                      {hit.url ? (
-                        <Button size="sm" variant="ghost" asChild>
-                          <a href={hit.url} target="_blank" rel="noreferrer">
-                            開啟
-                          </a>
-                        </Button>
-                      ) : null}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        data-testid={hit.source === "canva" ? "extend-canva" : undefined}
-                        onClick={() => {
-                          if (!pinnedHit) togglePin(hit);
-                          const nextIdea = `${idea}。延續「${hit.title}」的品牌 DNA，做新的活動，不要複製舊作品。`;
-                          setIdea(nextIdea);
-                          void runKit(nextIdea);
-                        }}
-                      >
-                        延伸新設計
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </section>
-      ) : null}
-
-      <section className="mt-8" data-testid="inspiration-research">
-        <h2 className="text-sm font-medium">這次抽象自：{research.cards[0]?.title}</h2>
-        <p className="mt-1 text-xs text-muted">
-          研究構圖、配色、排版、Hook、形式，再轉成淡江禪學社。不是抄別人。{research.fromOwnIg}
-          {research.foundSources.length
-            ? ` 已參考 ${research.foundSources.map((row) => row.title).slice(0, 3).join("、")}。`
-            : ""}
-        </p>
-        <ul className="mt-3 grid gap-2">
-          {research.cards.slice(0, 3).map((card) => (
-            <li key={card.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
-              <p className="text-sm font-medium">{card.title}</p>
-              <p className="mt-1 text-xs text-muted">
-                {card.composition} · {card.palette} · Hook {card.hookShape}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
-
       {vision ? (
-        <VisionCard vision={vision}>
-          <VisionActions
-            idea={idea}
-            assetId={search.asset || sourcePreview?.id}
-            remoteId={search.remote}
-            busy={busy}
-            onAction={(action) => void handleVisionAction(action)}
-          />
-        </VisionCard>
-      ) : null}
-
-      {lastImage ? (
-        <section className="mt-8">
-          <h2 className="text-sm font-medium">主視覺</h2>
-          <p className="mt-1 text-xs text-muted">
-            {pickedDirection?.name || lastImage.directionName || "這次方向"} · 來源：{sourceCredit || "AI Generated"}
-          </p>
-          <div className="mt-3">
-            <HeroVisual
-              base64={lastImage.base64}
-              mime={lastImage.mime}
-              headline={lastImage.headline || pickedDirection?.headline}
-              source={sourceCredit || "AI Generated"}
+        <section className="mt-6 grid items-start gap-4 md:grid-cols-[11rem_minmax(0,1fr)]">
+          {imageSrc ? (
+            <img
+              src={imageSrc}
+              alt="生成或上傳的畫面"
+              className="max-h-48 w-full rounded-3xl object-cover shadow-[var(--shadow-artboard)] md:max-h-56"
             />
-          </div>
-        </section>
-      ) : null}
-
-      {directions.length ? (
-        <section className="mt-8" data-testid="direction-list">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-medium">根據過去內容生成 {directions.length} 個方向</h2>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void runDirections()}>
-              換三個方向
-            </Button>
-          </div>
-          {found.length ? (
-            <p className="mt-2 text-xs text-muted">
-              找到 {found.length} 個相關素材
-              {Object.entries(foundGroups)
-                .map(([source, list]) => ` · ${sourceLabelOf(source)} ${list.length}`)
-                .join("")}
+          ) : null}
+          <div className="rounded-2xl bg-surface p-4 text-sm shadow-[var(--shadow-border)]">
+            <h2 className="text-sm font-medium">圖片理解</h2>
+            <p className="mt-2">{vision.scene}</p>
+            <ul className="mt-3 grid gap-1 text-xs text-muted sm:grid-cols-2">
+              <li>人物：{vision.people}</li>
+              <li>色彩：{vision.color}</li>
+              <li>光線：{vision.light}</li>
+              <li>構圖：{vision.composition}</li>
+              <li>文字比例：{vision.typeShare}</li>
+              <li>層級：{vision.hierarchy}</li>
+              <li>品牌感：{vision.brandFit}</li>
+              <li>停留感：{vision.stay}</li>
+            </ul>
+            <p className="mt-2 text-muted">{vision.studentFit}</p>
+            <p className="mt-2 text-xs">
+              太宗教 {vision.tooReligious ? "是" : "沒有"} · 太老氣 {vision.tooOld ? "是" : "沒有"} · 太 AI {vision.tooAi ? "是" : "沒有"}
             </p>
-          ) : null}
-          <ul className="mt-3 grid gap-3">
-            {directions.map((dir, index) => (
-              <li key={dir.id || dir.name} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-                {directionLooks[index] ? (
-                  <img
-                    alt={`${dir.name} 視覺方向`}
-                    src={`data:image/svg+xml;base64,${directionLooks[index]}`}
-                    className="mb-3 aspect-[4/5] w-full max-w-[13rem] rounded-xl object-cover"
-                    data-testid={index === 0 ? "direction-look-a" : index === 1 ? "direction-look-b" : "direction-look-c"}
-                  />
-                ) : null}
-                <p className="font-medium">{dir.name}</p>
-                <p className="mt-1 text-sm text-muted">{dir.concept}</p>
-                <p className="mt-2 text-xs text-muted">{dir.palette} · {dir.composition}</p>
-                <p className="mt-1 text-sm">{dir.headline} · {dir.subhead}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant={pickedDirection?.name === dir.name ? "default" : "secondary"}
-                    data-testid={index === 0 ? "realize-direction" : undefined}
-                    onClick={() => void realizeDirection(dir)}
-                  >
-                    {pickedDirection?.name === dir.name ? "已做出這套" : "用這個方向做出整套"}
-                  </Button>
-                  <Button size="sm" disabled={busy} onClick={() => void generateFromDirection(dir)}>
-                    生成圖片
-                  </Button>
-                  <Button size="sm" variant="secondary" disabled={busy} onClick={() => void generateFromDirection(dir)}>
-                    重新生成
-                  </Button>
-                  {VARIATIONS.map((item) => (
-                    <Button
-                      key={item.id}
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => void generateFromDirection(dir, item.id)}
-                    >
-                      {item.label}
-                    </Button>
-                  ))}
-                  {FORMATS.filter((item) => item.id !== "feed-landscape").map((item) => (
-                    <Button
-                      key={`ext-${item.id}`}
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => void generateFromDirection(dir, undefined, item.id)}
-                    >
-                      延伸 {item.short}
-                    </Button>
-                  ))}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {packs.length ? (
-        <section className="mt-8">
-          <h2 className="text-sm font-medium">IG Copy</h2>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {packs.map((pack) => (
-              <Button
-                key={pack.tone}
-                size="sm"
-                variant={tone === pack.tone ? "default" : "secondary"}
-                onClick={() => {
-                  setTone(pack.tone);
-                  applyKitCopy(pack, "已換成這版語氣，月曆會用這版發。");
-                }}
-              >
-                {toneLabel(pack.tone)}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" disabled={busy} onClick={() => void fromVision("style")}>
+                延續這個風格
               </Button>
-            ))}
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("restyle")}>
+                保留內容重新設計
+              </Button>
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("story")}>
+                做成限動
+              </Button>
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("carousel")}>
+                做成 Carousel
+              </Button>
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("reels")}>
+                做成 Reels Cover
+              </Button>
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("similar")}>
+                生成相似視覺
+              </Button>
+            </div>
+            <p className="mt-2 text-xs text-muted">延續風格會連文案、方向、Carousel 一起出，不是只換一張圖。</p>
+            {visionKit ? (
+              <div className="mt-4 space-y-3">
+                <pre className="whitespace-pre-wrap rounded-2xl bg-bg p-3 font-sans text-xs leading-relaxed">{visionKit.carousel}</pre>
+                <StoryStrip frames={visionKit.story} />
+                <ReelsDesk beats={visionKit.reels} coverSrc={reelsCoverSrc} />
+                <pre className="whitespace-pre-wrap font-sans text-xs text-muted">{visionKit.threads}</pre>
+              </div>
+            ) : null}
           </div>
-          {activePack ? (
-            <article className="mt-3 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-              <p className="font-display text-xl">{activePack.hook}</p>
-              <p className="mt-3 whitespace-pre-wrap text-sm">{activePack.body}</p>
-              <p className="mt-3 text-sm">{activePack.cta}</p>
-              <p className="mt-2 text-xs text-muted">{activePack.hashtags.join(" ")}</p>
-            </article>
-          ) : null}
         </section>
+      ) : imageSrc && !shownDirections.length ? (
+        <img src={imageSrc} alt="生成或上傳的畫面" className="mt-6 w-full rounded-3xl shadow-[var(--shadow-artboard)]" />
       ) : null}
 
-      {review ? (
-        <StudentReviewCard
-          review={review}
-          onApplyHook={(hook) => {
-            const pack = activePack ?? packs[0];
-            applyKitCopy(
-              {
-                hook,
-                body: (pack?.body ?? plan?.body ?? "").replace(pack?.hook ?? "", hook),
-                cta: pack?.cta ?? plan?.cta ?? "來坐一下",
-                hashtags: pack?.hashtags ?? plan?.hashtags,
-              },
-              "已套用學生視角 Hook",
-            );
+      {busy && !pack && mode !== "image" ? (
+        <p className="mt-3 text-sm text-muted" data-gather-status="">
+          {gatherNote || "正在找 Drive、Canva、IG 與品牌記憶…"}
+        </p>
+      ) : null}
+
+      {mode === "image" && busy && !shownDirections.length ? (
+        <p className="mt-4 text-sm text-muted">先想三個視覺方向，也同時在找過去的茶會與品牌素材…</p>
+      ) : null}
+
+      {shownDirections.length ? (
+        <VisualDirectionBoard
+          directions={shownDirections}
+          dirId={activeDir?.id ?? dirId}
+          activeDir={activeDir}
+          aspect={aspect}
+          busy={busy}
+          imageSrc={imageSrc}
+          onPick={(dir) => {
+            setDirId(dir.id);
+            if (pack && dir.id !== dirId && dir.imagePrompt) {
+              void runImage(dir.imagePrompt, aspect, { silent: true, directionId: dir.id });
+            }
           }}
+          onAspect={setAspect}
+          onGenerate={() => {
+            if (activeDir?.imagePrompt) void runImage(activeDir.imagePrompt, aspect, { directionId: activeDir.id });
+          }}
+          onVary={(kind) => {
+            if (activeDir?.imagePrompt) {
+              void runImage(varyImagePrompt(activeDir.imagePrompt, kind), aspect, { directionId: activeDir.id });
+            }
+          }}
+          onRefresh={() => void runDirections()}
+          onMakePack={
+            pack && !posterOnly
+              ? undefined
+              : () => void runPack({ skipHero: Boolean(imageSrc) && imageDirId.current === (activeDir?.id ?? dirId) })
+          }
         />
       ) : null}
 
-      {plan ? (
-        <section className="mt-8">
-          <h2 className="text-sm font-medium">一鍵轉換</h2>
-          <div className="mt-3 space-y-3">
-            {converted.map((pack) => (
-              <article key={pack.kind} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-                <p className="text-sm font-medium">{pack.title}</p>
-                {pack.kind === "ig-post" && campaign && skipConvertedIgPost(campaign.waves ?? []) ? (
-                  <p className="mt-1 text-xs text-muted">主視覺就是這篇 IG，不會再疊一則活動廣告。</p>
-                ) : null}
-                <ul className="mt-2 space-y-1 text-sm text-muted">
-                  {pack.items.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-                <Button className="mt-3" size="sm" variant="secondary" onClick={() => schedulePack(pack)}>
-                  排入這則
-                </Button>
-              </article>
-            ))}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={() => applyToCanvas(plan, true)}>套用到畫布</Button>
-            <Button variant="secondary" onClick={() => saveCampaignAndWaves()}>
-              排入 Calendar
+      {pack && posterOnly ? (
+        <section className="mt-6 space-y-4" data-poster-loop="">
+          <div className="hidden flex-wrap gap-2 lg:flex">
+            <Button className="min-h-11 rounded-full" disabled={busy} onClick={schedulePoster}>
+              排進月曆
             </Button>
-            <Button variant="secondary" onClick={scheduleAllFormats}>
-              各平台都排進月曆
+            <Button variant="secondary" className="min-h-11 rounded-full" onClick={goIgPreview}>
+              IG Preview
             </Button>
-            <Button variant="secondary" disabled={busy} onClick={() => void sendToCanva()}>
-              送進 Canva
+            <Button variant="secondary" className="min-h-11 rounded-full" disabled={busy} onClick={() => void sendCanva()}>
+              送進 Canva 微調
             </Button>
             <Button
               variant="secondary"
-              onClick={() =>
-                void navigate({
-                  to: "/ig",
-                  search: igSearchParams({ campaign: campaign?.id }),
-                })
-              }
+              className="min-h-11 rounded-full"
+              disabled={busy}
+              onClick={() => void runPack({ skipHero: Boolean(imageSrc) && imageDirId.current === (activeDir?.id ?? dirId) })}
             >
-              IG Preview
+              用這個方向做完整宣傳
             </Button>
           </div>
-          {campaign ? (
-            <div className="mt-4 rounded-2xl bg-accent/15 p-4" data-testid="kit-ready">
-              <p className="text-sm font-medium">下一步</p>
+          <div className="pb-2 lg:pb-0" data-poster-convert="">
+            <h2 className="text-sm font-medium">這一張再轉一版</h2>
+            <p className="mt-1 text-xs text-muted">不用先做完整宣傳。Carousel、Story、Threads、Reels 可以從這張直接拆。</p>
+            <ConvertPreview
+              title={pack.plan.campaignName}
+              hook={pack.plan.hook}
+              body={pack.plan.body}
+              when={campaign ? `${campaign.date} ${campaign.time}` : pack.plan.subhead}
+              where={campaign?.location}
+              cta={pack.plan.cta}
+              onSchedule={(kind, kit) => {
+                const next = mergeConvert(pack, kind, kit);
+                setPack(next);
+                persistSession({ pack: next, posterOnly: true });
+                const contentKind = CONVERT_TO_KIND[kind] ?? "carousel";
+                applyToStudio(true, {
+                  kind: contentKind,
+                  nextPack: next,
+                  single: true,
+                  heroSrc: coverForKind(contentKind, { feed: imageSrc, story: reelsCoverSrc }),
+                  heroAssetId: coverForKind(contentKind, {
+                    feed: lastAsset.current.feed,
+                    story: lastAsset.current.story,
+                  }),
+                });
+              }}
+            />
+          </div>
+          <IgPhonePreview
+            hook={pack.plan.hook}
+            caption={copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook}
+            imageSrc={imageSrc}
+            storySrc={aspect === "9:16" ? imageSrc : reelsCoverSrc}
+            handle="@tkuzen"
+          />
+          <p className="text-xs text-muted">來源：{pack.sources[0]?.label ?? "AI Generated"}。先排這一張，完整宣傳再補 Carousel、Story、Reels。</p>
+          {canvaStep ? (
+            <div className="rounded-3xl bg-surface p-4 shadow-[var(--shadow-border)]" data-canva-loop={canvaStep}>
+              <p className="text-xs tracking-[0.18em] text-muted uppercase">下一步</p>
+              <p className="mt-1 font-display text-lg">
+                {canvaStep === "returned"
+                  ? "Canva 畫面已回來"
+                  : canvaStep === "opened"
+                    ? "Canva 改完，把畫面接回來"
+                    : canvaStep === "need-connect"
+                      ? "清單已進 Creative Memory"
+                      : "清單已複製，可以先改、再排"}
+              </p>
               <p className="mt-1 text-xs text-muted">
-                一人走完：Canva 微調 → 拉回主視覺 → IG Preview → 月曆 → 發布。
+                {canvaStep === "returned"
+                  ? "來源：Canva 微調後。接著 IG Preview 或排進月曆。"
+                  : canvaStep === "need-connect"
+                    ? "先連官方 Canva。授權後會回到這張主視覺，不用重生成。"
+                    : "改完把 PNG 丟回來，或連著 Canva 時按取回。接著 IG Preview。"}
               </p>
-              <Label className="mt-3">我快速修改 Hook</Label>
-              <Textarea
-                className="mt-2"
-                rows={2}
-                data-testid="kit-hook"
-                value={editHook || plan.hook}
-                onChange={(e) => setEditHook(e.target.value)}
-              />
-              <Button
-                className="mt-3"
-                size="sm"
-                data-testid="kit-hook-save"
-                onClick={() =>
-                  applyKitCopy({
-                    hook: editHook || plan.hook,
-                    body: activePack?.body || plan.body,
-                    cta: activePack?.cta || plan.cta,
-                    hashtags: activePack?.hashtags ?? plan.hashtags,
-                  })
-                }
-              >
-                改這句，月曆用這版
-              </Button>
-              <p className="mt-3 text-xs text-muted" data-testid="kit-campaign-name">
-                {campaign.waves.length
-                  ? `已建立 ${campaign.name}，節奏含 ${campaign.waves.map((w) => waveLabel(w.kind)).join("、")}。`
-                  : search.into
-                    ? `已做成一篇「${campaign.name}」，沒有重開活動節奏。`
-                    : `已做成一篇「${campaign.name}」：IG、Carousel、限動、Reels、Threads、LINE。`}
-              </p>
-              {sourceCredit ? (
-                <p className="mt-2 text-xs text-muted" data-testid="kit-visual-source">
-                  主視覺延續 {sourceCredit}，沒有整張複製。
-                </p>
-              ) : null}
-              {!campaign.waves.length ? (
-                <p className="sr-only" data-testid="kit-piece">
-                  一篇內容
-                </p>
-              ) : null}
-              {lastCanva || campaign.canvaEditUrl ? (
-                <p className="mt-2 text-xs text-muted" data-testid="canva-source">
-                  來源：Canva / {lastCanva?.title || campaign.name}
-                  {lastCanva?.editUrl || campaign.canvaEditUrl ? (
-                    <>
-                      {" "}
-                      ·{" "}
-                      <a
-                        href={lastCanva?.editUrl || campaign.canvaEditUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="underline"
-                      >
-                        開 Canva
-                      </a>
-                    </>
-                  ) : null}
-                </p>
-              ) : null}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button size="sm" data-testid="send-to-canva" onClick={() => void sendToCanva()}>
-                  送進 Canva
-                </Button>
-                <Button size="sm" variant="secondary" data-testid="pull-from-canva" onClick={() => void pullFromCanva()}>
-                  拉回主視覺
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  data-testid="kit-ig"
-                  onClick={() =>
-                    void navigate({
-                      to: "/ig",
-                      search: igSearchParams({ campaign: campaign?.id }),
-                    })
-                  }
-                >
-                  IG Preview
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  data-testid="kit-calendar"
-                  onClick={() =>
-                    void navigate({
-                      to: "/calendar",
-                      search: campaign?.id ? { campaign: campaign.id } : {},
-                    })
-                  }
-                >
-                  看月曆
-                </Button>
-                <Button size="sm" data-testid="publish-hero" onClick={() => void publishHero()}>
-                  發布主視覺
+              <div className="mt-3 hidden flex-wrap gap-2 lg:flex">
+                {canvaStep === "need-connect" ? (
+                  <Button className="min-h-11 rounded-full" onClick={() => void connectCanvaAndReturn()}>
+                    連接 Canva 後回來繼續
+                  </Button>
+                ) : null}
+                {canvaEditUrl ? (
+                  <Button className="min-h-11 rounded-full" variant="secondary" onClick={() => window.open(canvaEditUrl, "_blank", "noopener")}>
+                    在 Canva 繼續改
+                  </Button>
+                ) : null}
+                <Button className="min-h-11 rounded-full" variant={canvaStep === "returned" ? "secondary" : "default"} onClick={() => canvaFileRef.current?.click()}>
+                  把 Canva 圖丟回來
                 </Button>
               </div>
             </div>
@@ -1991,127 +1449,605 @@ export function CreateStudio() {
         </section>
       ) : null}
 
-      {plan ? (
-        <CarouselBoard
-          plan={plan}
-          eventName={eventName || plan.campaignName}
-          campaignId={campaign?.id}
-          onSchedule={() => saveCampaignAndWaves()}
-        />
+      {(hits.length || gatherNote || pickedHits.length) && (mode !== "image" || shownDirections.length) ? (
+        <div className="mt-4">
+          <p className="text-sm text-muted">{gatherNote || (hits.length ? `找到 ${hits.length} 個相關素材 · 根據過去內容準備 3 個方向` : "先用品牌記憶生成 3 個方向")}</p>
+          {pickedHits.length ? (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {pickedHits.map((hit) => (
+                <button
+                  key={`${hit.source}-${hit.id}`}
+                  type="button"
+                  className="rounded-full bg-surface px-3 py-1.5 text-xs shadow-[var(--shadow-border)]"
+                  onClick={() => setPickedHits((prev) => prev.filter((item) => item.id !== hit.id))}
+                >
+                  {hit.sourceLabel} ×
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <CreativeHits
+            hits={hits}
+            pickedIds={new Set(pickedHits.map((hit) => hit.id))}
+            onPick={(hit) => {
+              setPickedHits((prev) =>
+                prev.some((item) => item.id === hit.id) ? prev.filter((item) => item.id !== hit.id) : [...prev, hit],
+              );
+            }}
+            onAnalyze={(hit) => {
+              const thumb = hit.thumbUrl;
+              if (!thumb) return;
+              void (async () => {
+                setBusy(true);
+                try {
+                  const result = await analyzeImage({
+                    data: thumb.startsWith("https:")
+                      ? { imageUrl: thumb, note: `延續 ${hit.sourceLabel} 的品牌 DNA，做新活動` }
+                      : { imageDataUrl: thumb, note: hit.title },
+                  });
+                  if (result.ok) {
+                    setVision(result.report);
+                    toast.success("已分析風格，可延續生成");
+                  }
+                } finally {
+                  setBusy(false);
+                }
+              })();
+            }}
+          />
+        </div>
       ) : null}
 
-      {plan?.reelsScript ? (
-        <ReelsBoard
-          script={plan.reelsScript}
-          eventName={eventName || plan.campaignName}
-          campaignId={campaign?.id}
-          onSchedule={() => saveCampaignAndWaves()}
-        />
+      {pack && !posterOnly ? (
+        <section className="mt-8 space-y-6" data-full-pack="">
+          <div className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+            <p className="text-xs text-muted">{gatherNote || pack.sourceSummary}</p>
+            {simApplied ? <p className="mt-1 text-xs text-muted">已依淡江學生視角改過文案</p> : null}
+            <p className="mt-1 text-sm">{pack.studentContext}</p>
+            <p className="mt-3 font-display text-2xl">「{pack.plan.hook}」</p>
+            <div className="mt-3 flex flex-wrap gap-1">
+              {pack.sources.map((s, index) => (
+                <span key={`${s.source}-${s.id ?? s.label}-${index}`} className="rounded-full bg-surface-2 px-2 py-1 text-xs text-muted">
+                  {s.label}
+                </span>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-muted">{insights.mixLesson}</p>
+            {lastLearn?.hook ? (
+              <p
+                className="mt-1 text-xs text-muted"
+                data-learn-avoid={sameLivingHook(pack.plan.hook, lastLearn.hook) ? "pending" : "yes"}
+              >
+                {sameLivingHook(pack.plan.hook, lastLearn.hook)
+                  ? `下次會避開重複「${lastLearn.hook}」。${lastLearn.hookLesson}`
+                  : `這次已避開上次「${lastLearn.hook}」。`}
+              </p>
+            ) : null}
+            {inspirations[0] ? (
+              <p className="mt-1 text-xs text-muted">靈感抽象：{inspirations[0].pattern} → {inspirations[0].clubTurn}</p>
+            ) : null}
+            <p className="mt-3 text-xs text-muted">Carousel、Story、Reels、Threads 可以一次排進月曆，節奏會錯開，不會連發招生。</p>
+            <Button className="mt-3 hidden min-h-11 rounded-full lg:inline-flex" disabled={busy} onClick={() => void scheduleWholeCampaign()}>
+              整套排進月曆
+            </Button>
+          </div>
+
+          <div>
+            <h2 className="text-sm font-medium">文案切換</h2>
+            <div className="mt-2 flex flex-wrap gap-1">
+              {COPY_TONES.map((t) => (
+                <Button key={t.id} size="sm" variant={tone === t.id ? "default" : "secondary"} onClick={() => setTone(t.id)}>
+                  {t.label}
+                </Button>
+              ))}
+            </div>
+            {copy ? (
+              <pre className="mt-3 whitespace-pre-wrap rounded-2xl bg-surface p-4 font-sans text-sm leading-relaxed shadow-[var(--shadow-border)]">
+                {copy.body}
+                {"\n\n"}
+                {copy.cta}
+                {"\n"}
+                {copy.hashtags.join(" ")}
+              </pre>
+            ) : null}
+            <Button className="mt-2" size="sm" variant="secondary" disabled={busy} onClick={() => void runCopy()}>
+              改寫這一版
+            </Button>
+          </div>
+
+          {sim ? (
+            <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <h2 className="text-sm font-medium">淡江學生視角</h2>
+              <ul className="mt-2 grid grid-cols-2 gap-1 text-xs text-muted sm:grid-cols-3">
+                <li>會停下來 {sim.wouldStop ? "會" : "還不會"}</li>
+                <li>太宗教 {sim.tooReligious ? "是" : "沒有"}</li>
+                <li>太 AI {sim.tooAi ? "是" : "沒有"}</li>
+                <li>太嚴肅 {sim.tooSerious ? "是" : "沒有"}</li>
+                <li>太文青 {sim.tooLiterary ? "是" : "沒有"}</li>
+                <li>太長 {sim.tooLong ? "是" : "沒有"}</li>
+                <li>知道時間地點 {sim.knowsWhenWhere ? "知道" : "不清楚"}</li>
+                <li>會找朋友 {sim.wouldBringFriend ? "可能" : "還不會"}</li>
+                <li>知道怎麼報名 {sim.knowsHowToJoin ? "知道" : "還不會"}</li>
+              </ul>
+              <p className="mt-2 text-sm">{sim.notes.join(" ")}</p>
+              {sim.revisions.length ? <p className="mt-1 text-xs text-muted">修改：{sim.revisions.join(" ")}</p> : null}
+              {sim.revisions.length && !simApplied ? (
+                <Button className="mt-3" size="sm" variant="secondary" onClick={applySimFixes}>
+                  套用學生視角修改
+                </Button>
+              ) : simApplied ? (
+                <p className="mt-3 text-xs text-muted">已自動套用學生視角修改</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <IgPhonePreview
+            hook={pack.plan.hook}
+            caption={copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook}
+            imageSrc={imageSrc}
+            storySrc={reelsCoverSrc}
+            handle="@tkuzen"
+          />
+
+          <PackKit
+            pack={pack}
+            coverSrc={reelsCoverSrc}
+            busy={busy}
+            onCover={() =>
+              void runImage(
+                activeDir?.imagePrompt || pack.conversions.reels[0]?.visual || query,
+                "9:16",
+                { asCover: true },
+              )
+            }
+          />
+
+          <div>
+            <h2 className="text-sm font-medium">再轉一版</h2>
+            <ConvertPreview
+              title={pack.plan.campaignName}
+              hook={pack.plan.hook}
+              body={pack.plan.body}
+              when={campaign ? `${campaign.date} ${campaign.time}` : pack.plan.subhead}
+              where={campaign?.location}
+              cta={pack.plan.cta}
+              onSchedule={(kind, kit) => {
+                const next = mergeConvert(pack, kind, kit);
+                setPack(next);
+                const contentKind = CONVERT_TO_KIND[kind] ?? "carousel";
+                applyToStudio(true, {
+                  kind: contentKind,
+                  nextPack: next,
+                  heroSrc: coverForKind(contentKind, { feed: imageSrc, story: reelsCoverSrc }),
+                  heroAssetId: coverForKind(contentKind, { feed: lastAsset.current.feed, story: lastAsset.current.story }),
+                });
+              }}
+            />
+          </div>
+
+          <div>
+            <h2 className="text-sm font-medium">送進 Canva 微調</h2>
+            <p className="mt-1 text-xs text-muted">清單會先留下。沒連 Canva 也不會把這次生成弄丟，連完會回到這裡。</p>
+            <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-2xl bg-surface p-4 font-sans text-xs leading-relaxed shadow-[var(--shadow-border)]">
+              {canvaKit}
+            </pre>
+            {canvaStep ? (
+              <div className="mt-3 rounded-3xl bg-surface p-4 shadow-[var(--shadow-border)]" data-canva-loop={canvaStep}>
+                <p className="text-xs tracking-[0.18em] text-muted uppercase">下一步</p>
+                <p className="mt-1 font-display text-lg">
+                  {canvaStep === "returned"
+                    ? "Canva 畫面已回來"
+                    : canvaStep === "opened"
+                      ? "Canva 改完，把畫面接回來"
+                      : canvaStep === "need-connect"
+                        ? "清單已進 Creative Memory"
+                        : "清單已複製，可以先改、再排"}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  {canvaStep === "returned"
+                    ? "來源：Canva 微調後。接著 IG Preview 或排進月曆。"
+                    : canvaStep === "need-connect"
+                      ? "先連官方 Canva。授權後會回到這份文案，不用重生成。"
+                      : "改完把 PNG 丟回來，或連著 Canva 時按取回。接著 IG Preview。"}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {canvaStep === "need-connect" ? (
+                    <Button className="min-h-11 rounded-full" onClick={() => void connectCanvaAndReturn()}>
+                      連接 Canva 後回來繼續
+                    </Button>
+                  ) : null}
+                  {canvaEditUrl ? (
+                    <Button
+                      className="min-h-11 rounded-full"
+                      variant={canvaStep === "opened" ? "secondary" : "secondary"}
+                      onClick={() => window.open(canvaEditUrl, "_blank", "noopener")}
+                    >
+                      在 Canva 繼續改
+                    </Button>
+                  ) : null}
+                  <Button
+                    className="min-h-11 rounded-full"
+                    variant={canvaStep === "returned" ? "secondary" : "default"}
+                    onClick={() => canvaFileRef.current?.click()}
+                  >
+                    把 Canva 圖丟回來
+                  </Button>
+                  {canvaDesignId || canvaDesignIdFromEditUrl(canvaEditUrl) ? (
+                    <Button
+                      className="min-h-11 rounded-full"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => void takeCanvaBack()}
+                    >
+                      從 Canva 取回
+                    </Button>
+                  ) : null}
+                  <Button className="min-h-11 rounded-full" variant={canvaStep === "returned" ? "default" : "secondary"} onClick={goIgPreview}>
+                    IG Preview
+                  </Button>
+                  <Button variant="secondary" className="min-h-11 rounded-full" disabled={busy} onClick={() => void scheduleWholeCampaign()}>
+                    整套排進月曆
+                  </Button>
+                  <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => applyToStudio(true)}>
+                    只排這一則
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="hidden flex-wrap gap-2 lg:flex">
+            <Button className="min-h-11 rounded-full" disabled={busy} onClick={() => void scheduleWholeCampaign()}>
+              整套排進月曆
+            </Button>
+            <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => applyToStudio(false)}>
+              套進畫布
+            </Button>
+            <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => applyToStudio(true)}>
+              只排這一則
+            </Button>
+            <Button
+              variant="secondary"
+              className="min-h-11 rounded-full"
+              onClick={() => void sendCanva()}
+            >
+              送進 Canva 微調
+            </Button>
+            <Button
+              variant="secondary"
+              className="min-h-11 rounded-full"
+              onClick={goIgPreview}
+            >
+              IG Preview
+            </Button>
+            <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => void copyCaption()}>
+              複製 Caption
+            </Button>
+            <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => void navigate({ to: "/inspire" })}>
+              靈感研究
+            </Button>
+            <PublishButton
+              projectId={studioProjectId}
+              campaignId={campaign?.id}
+              title={pack.plan.campaignName}
+              caption={copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook}
+              imageUrl={imageSrc}
+              variant="secondary"
+              size="default"
+              className="rounded-full"
+            />
+          </div>
+        </section>
       ) : null}
 
-      {plan ? (
-        <StoryBoard
-          plan={plan}
-          eventName={eventName || plan.campaignName}
-          campaignId={campaign?.id}
-          onSchedule={() => saveCampaignAndWaves()}
-        />
+      {pack && (imageSrc || posterOnly) ? (
+        <div
+          className="fixed inset-x-0 z-30 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur-sm lg:hidden"
+          style={{ bottom: "var(--spacing-nav-safe)" }}
+          data-create-next={posterOnly ? "poster" : "pack"}
+        >
+          <div className="mx-auto flex max-w-3xl flex-wrap gap-2">
+            <Button
+              className="min-h-11 rounded-full"
+              disabled={busy}
+              onClick={() => (posterOnly ? schedulePoster() : void scheduleWholeCampaign())}
+            >
+              {posterOnly ? "排進月曆" : "整套排進月曆"}
+            </Button>
+            <Button variant="secondary" className="min-h-11 rounded-full" onClick={goIgPreview}>
+              IG Preview
+            </Button>
+            <Button variant="secondary" className="min-h-11 rounded-full" disabled={busy} onClick={() => void sendCanva()}>
+              送進 Canva
+            </Button>
+            {posterOnly ? (
+              <Button
+                variant="secondary"
+                className="min-h-11 rounded-full"
+                disabled={busy}
+                onClick={() => void runPack({ skipHero: Boolean(imageSrc) && imageDirId.current === (activeDir?.id ?? dirId) })}
+              >
+                完整宣傳
+              </Button>
+            ) : null}
+            {canvaStep === "need-connect" ? (
+              <Button className="min-h-11 rounded-full" onClick={() => void connectCanvaAndReturn()}>
+                連接 Canva
+              </Button>
+            ) : null}
+            {canvaStep === "opened" || canvaStep === "returned" ? (
+              <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => canvaFileRef.current?.click()}>
+                接回 Canva
+              </Button>
+            ) : null}
+          </div>
+        </div>
       ) : null}
-
-      {plan ? (
-        <ShareBoard
-          plan={plan}
-          campaignId={campaign?.id}
-          onSchedule={(kind) => schedulePack(convertPlan(plan, kind))}
-        />
-      ) : null}
-
-      {campaign?.waves.length ? (
-        <WaveList
-          waves={campaign.waves}
-          name={campaign.name}
-          schedule={schedule}
-          location={location}
-          idea={idea}
-          memoryHint={kitMemoryHint()}
-          looks={Object.fromEntries(
-            (Object.entries(waveLookIds) as Array<[CampaignWaveKind, string]>).flatMap(([kind, assetId]) => {
-              const src = urls[assetId];
-              return src ? [[kind, src]] : [];
-            }),
-          )}
-          onSwapVisual={(kind) => swapWaveVisual(kind)}
-          onApplyDraft={applyWaveCopy}
-        />
-      ) : null}
-
-      <p className="mt-8 text-xs text-subtle">來源會標成 Google Drive / Canva / Instagram / AI Generated。沒連接時先用品牌記憶與本機素材。</p>
     </main>
   );
 }
 
-function toCreateImageFormat(mode: string) {
-  if (mode === "story") return "story" as const;
-  if (mode === "reels") return "reels-cover" as const;
-  return "feed-portrait" as const;
-}
-
-function posterPayloadFromDirection(
-  dir: VisualDirection,
-  spec: { width: number; height: number },
-  variation?: "composition" | "mood" | "background" | "style" | "text",
-  prompt = dir.prompt,
-  atmosphere = false,
-  photo?: { embed?: string; credit?: string },
-) {
-  const svg = directionPosterSvg({
-    headline: atmosphere ? "" : dir.headline,
-    subhead: atmosphere ? undefined : dir.subhead,
-    concept: atmosphere ? undefined : dir.concept,
-    palette: dir.palette,
-    name: atmosphere ? undefined : dir.name,
-    width: spec.width,
-    height: spec.height,
-    variation,
-    atmosphere,
-    photoEmbed: photo?.embed || undefined,
-    sourceCredit: atmosphere ? undefined : photo?.credit || undefined,
-  });
-  return {
-    imageBase64: encodeUtf8Base64(svg),
-    mime: "image/svg+xml" as const,
-    prompt,
-  };
-}
-
-function sourceLine(hit: CreativeHit) {
-  return sourceLabelOf(hit.source);
-}
-
-function looksFromCampaign(created: ClubCampaign): Partial<Record<CampaignWaveKind, string>> {
-  const looks: Partial<Record<CampaignWaveKind, string>> = {};
-  for (const wave of created.waves) {
-    if (wave.imageAssetId) looks[wave.kind] = wave.imageAssetId;
-  }
-  return looks;
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function VisualDirectionBoard({
+  directions,
+  dirId,
+  activeDir,
+  aspect,
+  busy,
+  imageSrc,
+  onPick,
+  onAspect,
+  onGenerate,
+  onVary,
+  onRefresh,
+  onMakePack,
+}: {
+  directions: CreativeDirection[];
+  dirId: string | null;
+  activeDir?: CreativeDirection;
+  aspect: (typeof ASPECTS)[number]["id"];
+  busy: boolean;
+  imageSrc: string | null;
+  onPick: (dir: CreativeDirection) => void;
+  onAspect: (id: (typeof ASPECTS)[number]["id"]) => void;
+  onGenerate: () => void;
+  onVary: (kind: ImageVaryKind) => void;
+  onRefresh: () => void;
+  onMakePack?: () => void;
+}) {
   return (
-    <div className="space-y-1.5">
-      <Label>{label}</Label>
-      {children}
+    <section className="mt-6" data-visual-directions="">
+      <h2 className="text-sm font-medium">三個視覺方向</h2>
+      <p className="mt-1 text-xs text-muted">每個方向有概念、配色、構圖、字、主文案。選一個再生成，不要直接出禪風海報。</p>
+      <ul className="mt-3 grid gap-3 md:grid-cols-3">
+        {directions.map((dir) => {
+          const selected = dir.id === dirId;
+          return (
+            <li key={dir.id}>
+              <button
+                type="button"
+                onClick={() => onPick(dir)}
+                className={cn(
+                  "h-full min-h-11 w-full rounded-2xl p-4 text-left shadow-[var(--shadow-border)]",
+                  selected ? "bg-accent text-accent-fg" : "bg-surface",
+                )}
+              >
+                <p className="text-sm font-medium">{dir.name}</p>
+                <p className="mt-2 font-display text-base leading-snug">「{dir.headline.replace(/\n/g, "")}」</p>
+                <p className={cn("mt-2 text-xs", selected ? "text-accent-fg/80" : "text-muted")}>{dir.concept}</p>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {activeDir ? (
+        <div className="mt-4 rounded-2xl bg-surface p-4 text-sm shadow-[var(--shadow-border)]">
+          {imageSrc ? (
+            <img
+              src={imageSrc}
+              alt="這個方向的主視覺"
+              className="mb-4 max-h-80 w-full rounded-2xl object-cover shadow-[var(--shadow-artboard)]"
+            />
+          ) : null}
+          <p>主文案：{activeDir.headline.replace(/\n/g, " ")}</p>
+          <p className="mt-1">副文案：{activeDir.subhead}</p>
+          <p className="mt-1">配色：{activeDir.palette}</p>
+          <p className="mt-1">構圖：{activeDir.composition}</p>
+          <p className="mt-1">字：{activeDir.typeDirection}</p>
+          <p className="mt-3 text-xs text-muted">{activeDir.imagePrompt}</p>
+          <div className="mt-3 flex flex-wrap gap-1">
+            {ASPECTS.map((item) => (
+              <Button
+                key={item.id}
+                size="sm"
+                variant={aspect === item.id ? "default" : "secondary"}
+                onClick={() => onAspect(item.id)}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" disabled={busy} onClick={onGenerate}>
+              生成這個方向的圖
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => onVary("compose")}>
+              換構圖
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => onVary("mood")}>
+              換氣氛
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => onVary("bg")}>
+              換背景
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => onVary("style")}>
+              換風格
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => onVary("type")}>
+              換文字
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={onRefresh}>
+              重新生成方向
+            </Button>
+          </div>
+          {onMakePack ? (
+            <Button className="mt-4 min-h-11 rounded-full" disabled={busy} onClick={onMakePack}>
+              用這個方向做完整宣傳
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function IgPhonePreview({
+  hook,
+  caption,
+  imageSrc,
+  storySrc,
+  handle,
+}: {
+  hook: string;
+  caption: string;
+  imageSrc: string | null;
+  storySrc?: string | null;
+  handle: string;
+}) {
+  return (
+    <div>
+      <h2 className="text-sm font-medium">IG Preview</h2>
+      <div className="mt-3 flex flex-wrap items-start justify-center gap-4">
+        <div className="w-[min(100%,280px)] rounded-[2rem] bg-[#1c1a16] p-3 text-[#f3eee4] shadow-[var(--shadow-artboard)]">
+          <p className="px-1 text-xs">{handle} · 貼文</p>
+          <div className="mt-2 aspect-4/5 overflow-hidden rounded-2xl bg-linear-to-b from-[#2a6a64] to-[#161410]">
+            {imageSrc ? (
+              <img src={imageSrc} alt="" className="size-full object-cover" />
+            ) : (
+              <div className="flex size-full flex-col justify-end p-4">
+                <p className="font-display text-xl leading-snug">{hook}</p>
+              </div>
+            )}
+          </div>
+          <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap px-1 font-sans text-[11px] leading-relaxed text-[#f3eee4]/90">
+            {caption}
+          </pre>
+        </div>
+        {storySrc ? (
+          <div className="w-[min(42%,168px)] rounded-[2rem] bg-[#1c1a16] p-2 text-[#f3eee4] shadow-[var(--shadow-artboard)]" data-ig-story-preview="">
+            <p className="px-1 text-[10px]">{handle} · 限動</p>
+            <div className="mt-2 aspect-9/16 overflow-hidden rounded-2xl bg-linear-to-b from-[#2a6a64] to-[#161410]">
+              <img src={storySrc} alt="" className="size-full object-cover" />
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
 
-function toneLabel(tone: CopyPack["tone"]) {
-  return {
-    short: "短版",
-    normal: "一般版",
-    emotional: "感性版",
-    student: "學生版",
-    life: "生活版",
-    humor: "幽默版",
-  }[tone];
+function PackKit({
+  pack,
+  coverSrc,
+  busy,
+  onCover,
+}: {
+  pack: CreativePack;
+  coverSrc: string | null;
+  busy: boolean;
+  onCover: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-sm font-medium">整套網宣</h2>
+      {pack.plan.scheduleNotes ? <p className="text-xs text-muted">{pack.plan.scheduleNotes}</p> : null}
+      <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <p className="text-xs tracking-[0.14em] text-muted uppercase">Carousel</p>
+        <ol className="mt-2 space-y-2">
+          {pack.conversions.carousel.map((page, index) => (
+            <li key={`${page.role}-${index}`} className="text-sm">
+              <span className="text-xs text-subtle">Page {index + 1}</span>
+              <p className="font-medium">{page.headline.replace(/\n/g, " ")}</p>
+              <p className="text-xs text-muted">{page.body}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
+      <StoryStrip frames={pack.conversions.story} />
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <p className="text-xs tracking-[0.14em] text-muted uppercase">Threads</p>
+          <pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{pack.conversions.threads}</pre>
+        </div>
+        <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <p className="text-xs tracking-[0.14em] text-muted uppercase">LINE</p>
+          <pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{pack.conversions.line}</pre>
+        </div>
+      </div>
+      <ReelsDesk beats={pack.conversions.reels} coverSrc={coverSrc} busy={busy} onCover={onCover} />
+    </div>
+  );
+}
+
+function ConvertPreview({
+  title,
+  hook,
+  body,
+  when,
+  where,
+  cta,
+  onSchedule,
+}: {
+  title: string;
+  hook: string;
+  body?: string;
+  when?: string;
+  where?: string;
+  cta?: string;
+  onSchedule: (kind: string, kit: ConvertResult) => void;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+  const [text, setText] = useState("");
+  const [story, setStory] = useState<StoryFrame[] | null>(null);
+  const [reels, setReels] = useState<ReelsBeat[] | null>(null);
+  const [kit, setKit] = useState<ConvertResult | null>(null);
+  const labels: Record<string, string> = {
+    ig: "轉 IG 貼文",
+    carousel: "轉 Carousel",
+    story: "轉 Story",
+    threads: "轉 Threads",
+    line: "轉 LINE",
+    reels: "轉 Reels 腳本",
+  };
+  async function run(kind: string) {
+    const result = await convertContent({ data: { title, hook, body, when, where, cta } });
+    if (!result.ok) return;
+    setKit(result);
+    setOpen(kind);
+    setStory(kind === "story" ? result.story : null);
+    setReels(kind === "reels" ? result.reels : null);
+    if (kind === "carousel") setText(result.carousel.map((p, i) => `${i + 1}. ${p.title}\n${p.body}`).join("\n\n"));
+    else if (kind === "threads") setText(result.threads);
+    else if (kind === "line") setText(result.line);
+    else if (kind === "ig") setText(`${hook}\n${title}\n${[when, where].filter(Boolean).join(" · ")}\n${cta || "晚上來坐一下"}`);
+    else setText("");
+  }
+  return (
+    <div className="mt-2">
+      <div className="flex flex-wrap gap-2">
+        {Object.entries(labels).map(([kind, label]) => (
+          <Button key={kind} className="min-h-11 rounded-full" variant={open === kind ? "default" : "secondary"} onClick={() => void run(kind)}>
+            {label}
+          </Button>
+        ))}
+      </div>
+      {story ? <div className="mt-3"><StoryStrip frames={story} /></div> : null}
+      {reels ? <div className="mt-3"><ReelsDesk beats={reels} /></div> : null}
+      {text ? <pre className="mt-3 whitespace-pre-wrap rounded-2xl bg-bg p-3 font-sans text-xs leading-relaxed">{text}</pre> : null}
+      {open && kit ? (
+        <Button className="mt-3 min-h-11 rounded-full" onClick={() => onSchedule(open, kit)}>
+          把這版排進月曆
+        </Button>
+      ) : null}
+    </div>
+  );
 }

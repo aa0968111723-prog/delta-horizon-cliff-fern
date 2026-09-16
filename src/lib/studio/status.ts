@@ -1,21 +1,12 @@
-import { contentStatusMeta } from "./content";
-import type { ContentStatus, ProjectStatus } from "./types";
+import type { ProjectStatus } from "./types";
 
 export const STATUS_META: Record<
   ProjectStatus,
   { label: string; tone: "default" | "warn" | "success" | "accent" }
 > = {
-  draft: { label: "草稿", tone: "warn" },
-  ready: { label: "可輸出", tone: "accent" },
-  exported: { label: "已輸出", tone: "success" },
+  idea: { label: "想法", tone: "default" },
+  creating: { label: "創作中", tone: "warn" },
+  done: { label: "完成", tone: "accent" },
+  scheduled: { label: "已排程", tone: "accent" },
+  published: { label: "已發布", tone: "success" },
 };
-
-export function statusLabel(status: ProjectStatus, contentStatus?: ContentStatus) {
-  if (contentStatus) return contentStatusMeta(contentStatus).label;
-  return STATUS_META[status].label;
-}
-
-export function statusTone(status: ProjectStatus, contentStatus?: ContentStatus) {
-  if (contentStatus) return contentStatusMeta(contentStatus).tone;
-  return STATUS_META[status].tone;
-}

@@ -1,7 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
-  House,
   Images,
   Instagram,
   Plus,
@@ -10,7 +9,9 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { AssistantSheet } from "@/components/assistant/assistant-sheet";
+import { CreateMenu } from "@/components/create/create-menu";
 import { SaveIndicator } from "@/components/shared/save-indicator";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -18,20 +19,20 @@ import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 import { useState } from "react";
 
-const SIDE: { to: string; label: string; icon: LucideIcon; match: string }[] = [
-  { to: "/", label: "首頁", icon: House, match: "home" },
-  { to: "/create", label: "AI 創作", icon: Sparkles, match: "create" },
+const NAV: { to: string; label: string; icon: LucideIcon; match: string }[] = [
+  { to: "/", label: "首頁", icon: Sparkles, match: "home" },
   { to: "/calendar", label: "排程", icon: CalendarDays, match: "calendar" },
+  { to: "/create", label: "創作", icon: Plus, match: "create" },
   { to: "/assets", label: "素材", icon: Images, match: "assets" },
   { to: "/ig", label: "IG", icon: Instagram, match: "ig" },
 ];
 
 function activeKey(pathname: string) {
-  if (pathname.startsWith("/studio") || pathname.startsWith("/assistant")) return "create";
-  if (pathname.startsWith("/create") || pathname.startsWith("/image") || pathname.startsWith("/inspire")) return "create";
+  if (pathname.startsWith("/create") || pathname.startsWith("/assistant") || pathname.startsWith("/inspire")) return "create";
   if (pathname.startsWith("/calendar")) return "calendar";
-  if (pathname.startsWith("/assets") || pathname.startsWith("/brand") || pathname.startsWith("/connect")) return "assets";
-  if (pathname.startsWith("/ig") || pathname.startsWith("/export")) return "ig";
+  if (pathname.startsWith("/assets") || pathname.startsWith("/brand")) return "assets";
+  if (pathname.startsWith("/ig") || pathname.startsWith("/studio") || pathname.startsWith("/export")) return "ig";
+  if (pathname.startsWith("/connect") || pathname.startsWith("/campaigns")) return "home";
   return "home";
 }
 
@@ -40,35 +41,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const setAssistantOpen = useUi((s) => s.setAssistantOpen);
   const current = activeKey(pathname);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
-
-  function hrefFor(item: NavItem) {
-    if (item.match === "studio" && lastProjectId) {
-      return { to: "/studio/$projectId" as const, params: { projectId: lastProjectId } };
-    }
-    return { to: item.to };
-  }
-
-  function hrefFor(item: (typeof NAV)[number]) {
-    if (item.match === "studio" && lastProjectId) {
-      return { to: "/studio/$projectId" as const, params: { projectId: lastProjectId } };
-    }
-    return { to: item.to };
-  }
 
   return (
     <div className="flex min-h-dvh bg-bg text-fg">
-      <aside className="sticky top-0 hidden h-dvh w-[4.75rem] shrink-0 flex-col border-r border-border bg-surface/90 backdrop-blur-md lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-[4.75rem] shrink-0 flex-col border-r border-border bg-surface/90 backdrop-blur-sm lg:flex">
         <Link
           to="/"
           className="flex h-14 items-center justify-center font-display text-lg tracking-tight"
-          aria-label="禪光首頁"
+          aria-label="禪學社 Studio 首頁"
         >
           光
         </Link>
         <nav className="flex flex-1 flex-col gap-1 p-2">
-          {SIDE.map((item) => {
+          {NAV.map((item) => {
             const active = current === item.match;
             const dest = hrefFor(item);
             return (
@@ -77,7 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 to={dest.to}
                 params={"params" in dest ? dest.params : undefined}
                 className={cn(
-                  "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[0.68rem] transition-colors",
+                  "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-xs transition-colors",
                   active ? "bg-surface-2 text-fg" : "text-muted hover:bg-surface-2 hover:text-fg",
                 )}
               >
@@ -88,75 +75,95 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="flex flex-col items-center gap-2 px-2 pb-4">
+          {lastProjectId ? (
+            <Link
+              to="/studio/$projectId"
+              params={{ projectId: lastProjectId }}
+              className="text-[10px] text-muted hover:text-fg"
+            >
+              畫布
+            </Link>
+          ) : null}
+          <Link to="/connect" className="text-[10px] text-muted hover:text-fg">
+            連接
+          </Link>
           <button
             type="button"
-            onClick={() => setSearchOpen(true)}
-            className="flex size-11 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-fg"
-            aria-label="開啟 AI 助手"
+            onClick={() => setAssistantOpen(true)}
+            className="flex size-11 items-center justify-center rounded-xl text-muted hover:bg-surface-2 hover:text-fg"
+            aria-label="畫布指令"
           >
-            <Search className="size-4" />
+            <Sparkles className="size-4" />
           </button>
           <SaveIndicator />
         </div>
       </aside>
 
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 pb-32 lg:pb-0">{children}</div>
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
+        <div className="min-h-0 flex-1 pb-nav">{children}</div>
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm lg:hidden">
           <div className="relative grid grid-cols-5">
-            <MobileLink to="/" label="首頁" icon={House} active={current === "home"} />
-            <MobileLink to="/calendar" label="排程" icon={CalendarDays} match={current === "calendar"} />
-            <div className="relative flex h-14 flex-col items-center justify-end pb-1">
-              <button
-                type="button"
-                data-testid="mobile-create-fab"
-                onClick={() => setCreateOpen(true)}
-                className="absolute -top-5 flex size-14 items-center justify-center rounded-full bg-accent text-accent-fg shadow-[var(--shadow-lift)]"
-                aria-label="AI 創作"
-              >
-                <Plus className="size-6" />
-              </button>
-              <span className="text-[10px] text-muted">AI 創作</span>
-            </div>
-            <MobileLink to="/assets" label="素材" icon={Images} active={current === "assets"} />
-            <MobileLink to="/ig" label="IG" icon={Instagram} active={current === "ig"} />
+            {NAV.map((item) => {
+              const active = current === item.match;
+              const center = item.match === "create";
+              if (center) {
+                return (
+                  <button
+                    key={item.match}
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(true);
+                    }}
+                    className="relative flex h-14 min-h-11 flex-col items-center justify-center"
+                    aria-label="AI 創作"
+                    data-nav-create={current === "create" ? "flush" : "raised"}
+                  >
+                    <span
+                      className={cn(
+                        "flex items-center justify-center rounded-full bg-accent text-accent-fg",
+                        current === "create"
+                          ? "size-11"
+                          : "absolute -top-1 size-14 shadow-[var(--shadow-artboard)]",
+                      )}
+                    >
+                      <Plus className={current === "create" ? "size-5" : "size-6"} />
+                    </span>
+                    <span className={cn("text-[10px] text-fg", current === "create" ? "mt-0.5" : "mt-6")}>
+                      創作
+                    </span>
+                  </button>
+                );
+              }
+              return (
+                <Link
+                  key={item.match}
+                  to={item.to}
+                  className={cn(
+                    "flex h-14 min-h-11 flex-col items-center justify-center gap-1 text-xs",
+                    active ? "text-fg" : "text-muted",
+                  )}
+                >
+                  <item.icon className="size-4" />
+                  {item.label}
+                </Link>
+              );
+            })}
           </div>
         </nav>
       </div>
-      {current !== "studio" && current !== "home" ? (
+      {current === "create" ? null : (
         <button
           type="button"
-          onClick={() => setAssistantOpen(true)}
-          className="fixed right-4 z-30 flex size-12 items-center justify-center rounded-full bg-accent text-accent-fg shadow-[var(--shadow-artboard)] lg:hidden"
-          style={{ bottom: "calc(var(--spacing-nav-safe) + 0.75rem)" }}
-          aria-label="快速開啟 AI 助手"
+          onClick={() => void navigate({ to: "/create" })}
+          className="fixed right-4 z-30 hidden size-12 items-center justify-center rounded-full bg-accent text-accent-fg shadow-[var(--shadow-artboard)] lg:flex"
+          style={{ bottom: "1.25rem" }}
+          aria-label="打開 AI 創作"
         >
-          <Sparkles className="size-5" />
+          <Plus className="size-5" />
         </button>
-      ) : null}
+      )}
+      <CreateMenu open={menuOpen} onOpenChange={setMenuOpen} />
       <AssistantSheet />
     </div>
-  );
-}
-
-function MobileLink({
-  to,
-  label,
-  icon: Icon,
-  active,
-  match,
-}: {
-  to: string;
-  label: string;
-  icon: LucideIcon;
-  active?: boolean;
-  match?: boolean;
-}) {
-  const on = active ?? match ?? false;
-  return (
-    <Link to={to} className={cn("flex h-14 min-h-11 flex-col items-center justify-center gap-1 text-xs", on ? "text-fg" : "text-muted")}>
-      <Icon className="size-4" />
-      {label}
-    </Link>
   );
 }

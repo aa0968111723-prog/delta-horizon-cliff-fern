@@ -20,16 +20,14 @@ function StudioIndex() {
       <EmptyState
         icon={FolderKanban}
         title="還沒有可編輯的專案"
-        description="先從首頁建立作品，或用 AI 創作寫一份活動需求。"
+        description="從首頁或 AI 創作台開始一則貼文。"
         action={
           <div className="flex flex-wrap justify-center gap-2">
             <Button asChild>
               <Link to="/">回首頁</Link>
             </Button>
             <Button asChild variant="secondary">
-              <Link to="/create" search={{ mode: "idea", idea: "下週有一場茶會" }}>
-                AI 幫我創作
-              </Link>
+              <Link to="/create">AI 創作</Link>
             </Button>
           </div>
         }

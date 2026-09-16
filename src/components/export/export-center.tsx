@@ -153,7 +153,7 @@ export function ExportCenter() {
       <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <section className="rounded-2xl surface-card p-4">
           <div className="mb-3 flex flex-wrap gap-1">
-            {(["feed-square", "feed-portrait", "feed-landscape", "story", "reels-cover"] as const).map(
+            {(["feed-square", "feed-portrait", "feed-landscape", "story", "reels-cover", "threads", "line"] as const).map(
               (id) => (
                 <Button
                   key={id}

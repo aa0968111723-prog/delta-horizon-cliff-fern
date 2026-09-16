@@ -14,16 +14,18 @@ import { Route as AssetsRouteImport } from './routes/assets'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as BrandRouteImport } from './routes/brand'
 import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as CampaignsRouteImport } from './routes/campaigns'
 import { Route as ConnectRouteImport } from './routes/connect'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as ExportRouteImport } from './routes/export'
 import { Route as IgRouteImport } from './routes/ig'
-import { Route as ImageRouteImport } from './routes/image'
 import { Route as InspireRouteImport } from './routes/inspire'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
+import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
 import { Route as StudioIndexRouteImport } from './routes/studio.index'
 import { Route as StudioProjectIdRouteImport } from './routes/studio.$projectId'
-import { Route as ApiConnectSplatRouteImport } from './routes/api/connect/$'
+import { Route as ApiConnectSplatRouteImport } from './routes/api/connect.$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -50,6 +52,11 @@ const CalendarRoute = CalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CampaignsRoute = CampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConnectRoute = ConnectRouteImport.update({
   id: '/connect',
   path: '/connect',
@@ -70,25 +77,25 @@ const IgRoute = IgRouteImport.update({
   path: '/ig',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ImageRoute = ImageRouteImport.update({
-  id: '/image',
-  path: '/image',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const InspireRoute = InspireRouteImport.update({
   id: '/inspire',
   path: '/inspire',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SearchRoute = SearchRouteImport.update({
-  id: '/search',
-  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudioRoute = StudioRouteImport.update({
   id: '/studio',
   path: '/studio',
   getParentRoute: () => rootRouteImport,
+} as any)
+const CampaignsIndexRoute = CampaignsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CampaignsRoute,
+} as any)
+const CampaignsCampaignIdRoute = CampaignsCampaignIdRouteImport.update({
+  id: '/$campaignId',
+  path: '/$campaignId',
+  getParentRoute: () => CampaignsRoute,
 } as any)
 const StudioIndexRoute = StudioIndexRouteImport.update({
   id: '/',
@@ -112,13 +119,14 @@ export interface FileRoutesByFullPath {
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
   '/calendar': typeof CalendarRoute
+  '/campaigns': typeof CampaignsRouteWithChildren
   '/connect': typeof ConnectRoute
   '/create': typeof CreateRoute
   '/export': typeof ExportRoute
   '/ig': typeof IgRoute
-  '/image': typeof ImageRoute
   '/inspire': typeof InspireRoute
   '/studio': typeof StudioRouteWithChildren
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio/': typeof StudioIndexRoute
   '/api/connect/$': typeof ApiConnectSplatRoute
@@ -133,8 +141,8 @@ export interface FileRoutesByTo {
   '/create': typeof CreateRoute
   '/export': typeof ExportRoute
   '/ig': typeof IgRoute
-  '/image': typeof ImageRoute
   '/inspire': typeof InspireRoute
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio': typeof StudioIndexRoute
   '/api/connect/$': typeof ApiConnectSplatRoute
@@ -146,13 +154,14 @@ export interface FileRoutesById {
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
   '/calendar': typeof CalendarRoute
+  '/campaigns': typeof CampaignsRouteWithChildren
   '/connect': typeof ConnectRoute
   '/create': typeof CreateRoute
   '/export': typeof ExportRoute
   '/ig': typeof IgRoute
-  '/image': typeof ImageRoute
   '/inspire': typeof InspireRoute
   '/studio': typeof StudioRouteWithChildren
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio/': typeof StudioIndexRoute
   '/api/connect/$': typeof ApiConnectSplatRoute
@@ -165,13 +174,14 @@ export interface FileRouteTypes {
     | '/assistant'
     | '/brand'
     | '/calendar'
+    | '/campaigns'
     | '/connect'
     | '/create'
     | '/export'
     | '/ig'
-    | '/image'
     | '/inspire'
     | '/studio'
+    | '/campaigns/$campaignId'
     | '/studio/$projectId'
     | '/studio/'
     | '/api/connect/$'
@@ -186,8 +196,8 @@ export interface FileRouteTypes {
     | '/create'
     | '/export'
     | '/ig'
-    | '/image'
     | '/inspire'
+    | '/campaigns/$campaignId'
     | '/studio/$projectId'
     | '/studio'
     | '/api/connect/$'
@@ -198,13 +208,14 @@ export interface FileRouteTypes {
     | '/assistant'
     | '/brand'
     | '/calendar'
+    | '/campaigns'
     | '/connect'
     | '/create'
     | '/export'
     | '/ig'
-    | '/image'
     | '/inspire'
     | '/studio'
+    | '/campaigns/$campaignId'
     | '/studio/$projectId'
     | '/studio/'
     | '/api/connect/$'
@@ -216,11 +227,11 @@ export interface RootRouteChildren {
   AssistantRoute: typeof AssistantRoute
   BrandRoute: typeof BrandRoute
   CalendarRoute: typeof CalendarRoute
+  CampaignsRoute: typeof CampaignsRouteWithChildren
   ConnectRoute: typeof ConnectRoute
   CreateRoute: typeof CreateRoute
   ExportRoute: typeof ExportRoute
   IgRoute: typeof IgRoute
-  ImageRoute: typeof ImageRoute
   InspireRoute: typeof InspireRoute
   StudioRoute: typeof StudioRouteWithChildren
   ApiConnectSplatRoute: typeof ApiConnectSplatRoute
@@ -263,6 +274,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/campaigns': {
+      id: '/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof CampaignsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/connect': {
       id: '/connect'
       path: '/connect'
@@ -291,25 +309,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IgRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/image': {
-      id: '/image'
-      path: '/image'
-      fullPath: '/image'
-      preLoaderRoute: typeof ImageRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/inspire': {
       id: '/inspire'
       path: '/inspire'
       fullPath: '/inspire'
       preLoaderRoute: typeof InspireRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/search': {
-      id: '/search'
-      path: '/search'
-      fullPath: '/search'
-      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio': {
@@ -318,6 +322,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/studio'
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/campaigns/': {
+      id: '/campaigns/'
+      path: '/'
+      fullPath: '/campaigns/'
+      preLoaderRoute: typeof CampaignsIndexRouteImport
+      parentRoute: typeof CampaignsRoute
+    }
+    '/campaigns/$campaignId': {
+      id: '/campaigns/$campaignId'
+      path: '/$campaignId'
+      fullPath: '/campaigns/$campaignId'
+      preLoaderRoute: typeof CampaignsCampaignIdRouteImport
+      parentRoute: typeof CampaignsRoute
     }
     '/studio/': {
       id: '/studio/'
@@ -362,11 +380,11 @@ const rootRouteChildren: RootRouteChildren = {
   AssistantRoute: AssistantRoute,
   BrandRoute: BrandRoute,
   CalendarRoute: CalendarRoute,
+  CampaignsRoute: CampaignsRouteWithChildren,
   ConnectRoute: ConnectRoute,
   CreateRoute: CreateRoute,
   ExportRoute: ExportRoute,
   IgRoute: IgRoute,
-  ImageRoute: ImageRoute,
   InspireRoute: InspireRoute,
   StudioRoute: StudioRouteWithChildren,
   ApiConnectSplatRoute: ApiConnectSplatRoute,

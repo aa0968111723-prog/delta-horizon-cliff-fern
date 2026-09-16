@@ -136,13 +136,13 @@ export function migratePlan(raw?: Partial<CampaignPlan> | null): CampaignPlan | 
     copyPack: raw.copyPack,
     generatedAt: raw.generatedAt ?? Date.now(),
     source: raw.source === "mock" || raw.source === "live" ? raw.source : "live",
-    directions: Array.isArray(raw.directions) ? raw.directions : undefined,
-    copyPacks: Array.isArray(raw.copyPacks) ? raw.copyPacks : undefined,
+    studentSim: raw.studentSim,
+    directions: raw.directions,
     threadsPost: raw.threadsPost,
-    lineCopy: raw.lineCopy,
     reelsScript: raw.reelsScript,
-    studentReview: raw.studentReview,
-    storyFrames: Array.isArray(raw.storyFrames) ? raw.storyFrames : undefined,
+    lineCopy: raw.lineCopy,
+    sources: raw.sources,
+    scheduleNotes: raw.scheduleNotes,
   };
 }
 

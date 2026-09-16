@@ -9,7 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { APP_NAME, CLUB_NAME } from "@/lib/zen/labels";
 import appCss from "../styles.css?url";
 
-import { APP_NAME, APP_KICKER } from "@/lib/zen/context";
+const APP_NAME = "禪學社 Studio";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -17,8 +17,8 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: APP_NAME },
-      { name: "description", content: `${APP_KICKER} AI Creative Marketing Studio` },
-      { name: "theme-color", content: "#EEF2EC" },
+      { name: "description", content: "淡江大學禪學社 AI Creative Marketing Studio" },
+      { name: "theme-color", content: "#F3EEE4" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },

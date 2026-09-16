@@ -6,22 +6,20 @@
   --font-display: "Noto Serif TC", "Source Han Serif TC", "Noto Serif", ui-serif, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-bg: #eef2ec;
-  --color-surface: #fffaf4;
-  --color-surface-2: #e4ebe4;
-  --color-fg: #1c2422;
-  --color-muted: #5f6b66;
-  --color-subtle: #8a7468;
-  --color-border: #d5e0d8;
-  --color-border-strong: #c0cfc6;
-  --color-accent: #2f6f6a;
-  --color-accent-fg: #fffaf4;
-  --color-amber: #d4a574;
-  --color-dusk: #3d5a73;
+  --color-bg: #f3eee4;
+  --color-surface: #fffbf5;
+  --color-surface-2: #ebe4d8;
+  --color-fg: #1c1a16;
+  --color-muted: #6b675f;
+  --color-subtle: #9a948c;
+  --color-border: #ddd4c6;
+  --color-border-strong: #c9c1b4;
+  --color-accent: #2a6a64;
+  --color-accent-fg: #f3eee4;
   --color-danger: #a33b2a;
   --color-warn: #9a6b2f;
   --color-success: #2f6a4a;
-  --color-ring: #2f6f6a;
+  --color-ring: #1e4a45;
 
   --radius-xs: 4px;
   --radius-sm: 8px;
@@ -31,7 +29,7 @@
   --radius-2xl: 28px;
 
   --spacing-nav: 3.5rem;
-  --spacing-nav-safe: calc(5.25rem + env(safe-area-inset-bottom, 0px));
+  --spacing-nav-safe: calc(3.5rem + env(safe-area-inset-bottom, 0px));
   --spacing-header: 3.5rem;
 
   --shadow-border:
@@ -43,18 +41,17 @@
     0px 1px 2px -1px rgba(26, 24, 20, 0.08),
     0px 2px 4px 0px rgba(26, 24, 20, 0.06);
   --shadow-artboard:
-    0 18px 40px -24px rgba(28, 36, 34, 0.35),
-    0 0 0 1px rgba(28, 36, 34, 0.06);
-  --shadow-lift:
-    0 22px 50px -28px rgba(28, 36, 34, 0.4),
-    0 0 0 1px rgba(28, 36, 34, 0.05);
+    0 18px 40px -24px rgba(26, 24, 20, 0.35),
+    0 0 0 1px rgba(26, 24, 20, 0.06);
 }
 
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background: var(--color-bg);
+    background:
+      radial-gradient(90rem 36rem at 12% -20%, color-mix(in oklab, var(--color-accent) 8%, transparent), transparent),
+      var(--color-bg);
     color: var(--color-fg);
     overflow-x: hidden;
   }
@@ -90,7 +87,7 @@
 
 @layer utilities {
   .pb-nav {
-    padding-bottom: var(--spacing-nav-safe);
+    padding-bottom: calc(var(--spacing-nav-safe) + 2.75rem);
   }
 
   /* 三色光背景：首頁與 AI 面板用 */

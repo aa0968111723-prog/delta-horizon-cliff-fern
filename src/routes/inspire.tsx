@@ -1,4 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { InspirationPage } from "@/components/inspire/inspiration-page";
+import { InspirePage } from "@/components/inspire/inspire-page";
 
-export const Route = createFileRoute("/inspire")({ component: InspirationPage });
+export const Route = createFileRoute("/inspire")({ component: InspirePage });

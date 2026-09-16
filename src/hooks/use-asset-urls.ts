@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { objectUrlForAsset } from "@/lib/studio/assets-idb";
-import { resolveAssetSrc, seedSrcById } from "@/lib/studio/asset-src";
+import { assetUrlKey } from "@/lib/studio/asset-url-key";
 import { useStudio } from "@/stores/studio-store";
 
 /**
@@ -9,10 +9,15 @@ import { useStudio } from "@/stores/studio-store";
  */
 export function useAssetUrls(ids: string[]): Record<string, string> {
   const assets = useStudio((s) => s.assets);
-  const key = [...new Set(ids.filter(Boolean))].sort().join("|");
+  const key = assetUrlKey(ids);
   const list = useMemo(() => (key ? key.split("|") : []), [key]);
-  const seeds = useMemo(() => seedSrcById(assets), [assets]);
-
+  const seedFallbacks = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const asset of assets) {
+      if (asset.seedSrc) map[asset.id] = asset.seedSrc;
+    }
+    return map;
+  }, [assets]);
   const [blobUrls, setBlobUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -31,8 +36,13 @@ export function useAssetUrls(ids: string[]): Record<string, string> {
         }),
       );
       if (cancelled) return;
-      setBlobUrls(next);
-      const missing = list.filter((id) => !next[id] && !seeds[id]);
+      setBlobUrls((prev) => {
+        const same =
+          Object.keys(prev).length === Object.keys(next).length &&
+          Object.keys(next).every((id) => prev[id] === next[id]);
+        return same ? prev : next;
+      });
+      const missing = list.filter((id) => !next[id] && !seedFallbacks[id]);
       if (missing.length && attempts < 10) {
         attempts += 1;
         window.setTimeout(() => {
@@ -44,14 +54,14 @@ export function useAssetUrls(ids: string[]): Record<string, string> {
     return () => {
       cancelled = true;
     };
-  }, [key, list, seeds]);
+  }, [key, list, seedFallbacks]);
 
   return useMemo(() => {
     const merged: Record<string, string> = {};
     for (const id of list) {
-      const url = resolveAssetSrc(id, blobUrls, seeds);
+      const url = seedFallbacks[id] || blobUrls[id];
       if (url) merged[id] = url;
     }
     return merged;
-  }, [list, blobUrls, seeds]);
+  }, [blobUrls, list, seedFallbacks]);
 }

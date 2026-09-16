@@ -1,19 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ConnectionCenter } from "@/components/connect/connection-center";
+import { ConnectCenter } from "@/components/connect/connect-center";
 
-export type ConnectSearch = {
+type Search = {
   ok?: string;
-  error?: string;
-  revoked?: string;
+  notice?: string;
 };
 
 export const Route = createFileRoute("/connect")({
-  validateSearch: (search: Record<string, unknown>): ConnectSearch => {
-    const next: ConnectSearch = {};
-    if (typeof search.ok === "string") next.ok = search.ok;
-    if (typeof search.error === "string") next.error = search.error;
-    if (typeof search.revoked === "string") next.revoked = search.revoked;
-    return next;
-  },
-  component: ConnectionCenter,
+  validateSearch: (s: Record<string, unknown>): Search => ({
+    ok: typeof s.ok === "string" ? s.ok : undefined,
+    notice: typeof s.notice === "string" ? s.notice : undefined,
+  }),
+  component: ConnectPage,
 });
+
+function ConnectPage() {
+  const search = Route.useSearch();
+  return <ConnectCenter notice={search.notice} connected={search.ok} />;
+}

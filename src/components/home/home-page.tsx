@@ -1,121 +1,106 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { ArrowRight, Images, Sparkles } from "lucide-react";
+import { Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { ArtboardView } from "@/components/studio/artboard-view";
+import { CreativeHits } from "@/components/search/creative-hits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { runPublishItem } from "@/lib/connect/publish-item";
-import { calendarSearchFromScheduled } from "@/lib/studio/calendar-search";
-import { contentKindLabel } from "@/lib/studio/content";
-import { createSearchParams } from "@/lib/studio/create-search";
-import type { ScheduleItem } from "@/lib/studio/types";
-import { academicBeat, academicBeatLabel, daysUntil } from "@/lib/zen/context";
-import { formatTaipeiClock } from "@/lib/zen/dates";
-import { gatherCreativeHits } from "@/lib/zen/gather-hits";
-import { ideaFromInspiration, inspirationForBeat } from "@/lib/zen/inspiration";
-import { clubCreativeDna } from "@/lib/zen/dna";
-import { feelLabel, type PostFeel } from "@/lib/zen/feel";
-import { awaitingFeel, hookLine, learnFromIg } from "@/lib/zen/insights";
-import { recommendCampaign, recommendHook, isEventCampaign } from "@/lib/zen/recommend";
-import { isDue, homeScheduled } from "@/lib/zen/schedule";
-import { sourceLabelOf, type CreativeHit } from "@/lib/zen/search";
+import { daysUntil, academicMoment } from "@/lib/club/season";
+import { DuePublishBar } from "@/components/calendar/due-publish-bar";
+import { CalendarThumb } from "@/components/calendar/calendar-thumb";
+import { compactSeasonSteer, featuredHookForNow, learnCardForNow, sameLivingHook } from "@/lib/club/featured";
+import { clubInsightsFromPosts, nextCreateFromLearn } from "@/lib/club/insights";
+import { gatherIntoStore } from "@/lib/creative/gather-client";
+import { gatherStatusLine, searchCreative } from "@/lib/creative/search";
+import { calendarFrom, useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
-import { useUi } from "@/stores/ui-store";
-import { ProjectCard } from "@/components/shared/project-card";
-import { SectionHeader } from "@/components/shared/page-header";
-import { LoadingState } from "@/components/shared/empty-state";
+import { useAssetUrls } from "@/hooks/use-asset-urls";
+import { contentKindLabel } from "@/lib/studio/content";
+import { STATUS_META } from "@/lib/studio/status";
+
+const QUICK = [
+  ["生成 IG 貼文", { mode: "post" }],
+  ["生成圖片", { mode: "image" }],
+  ["生成 Story", { mode: "story" }],
+  ["生成 Carousel", { mode: "carousel" }],
+  ["生成 Reels", { mode: "reels" }],
+  ["從一句想法開始", { mode: "idea" }],
+  ["從一張圖片開始", { mode: "vision" }],
+  ["從 Drive 素材開始", { mode: "drive" }],
+  ["從 Canva 設計開始", { mode: "canva" }],
+] as const;
 
 export function HomePage() {
   const navigate = useNavigate();
-  const setCreateOpen = useUi((s) => s.setCreateOpen);
-  const setSearchOpen = useUi((s) => s.setSearchOpen);
-  const rateIgMemory = useStudio((s) => s.rateIgMemory);
-  const publishSchedule = useStudio((s) => s.publishSchedule);
-  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const season = academicMoment();
   const projects = useStudio((s) => s.projects);
-  const campaigns = useStudio((s) => s.campaigns);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
-  const campaigns = useStudio((s) => s.campaigns);
-  const schedule = useStudio((s) => s.schedule);
-  const igMemory = useStudio((s) => s.igMemory);
+  const campaigns = useCreative((s) => s.campaigns);
+  const memory = useCreative((s) => s.memory);
+  const igPosts = useCreative((s) => s.igPosts);
+  const inspirations = useCreative((s) => s.inspirations);
+  const lastLearn = useCreative((s) => s.lastLearn);
+  const setLastQuery = useCreative((s) => s.setLastQuery);
+  const [q, setQ] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [liveSources, setLiveSources] = useState<string[]>([]);
+  const featured = campaigns[0];
+  const remain = featured ? daysUntil(featured.date) : 0;
   const brand = brands[0];
-
-  const upcoming = useMemo(() => recommendCampaign(campaigns), [campaigns]);
-  const days = upcoming ? daysUntil(upcoming.date) : null;
-  const [found, setFound] = useState<CreativeHit[]>([]);
-  const foundClub = useMemo(
-    () => found.filter((hit) => hit.source === "drive" || hit.source === "canva" || hit.source === "instagram"),
-    [found],
-  );
-  const pieceIds = useMemo(
-    () => campaigns.filter((row) => !isEventCampaign(row)).map((row) => row.id),
-    [campaigns],
-  );
-  const eventCampaigns = useMemo(() => campaigns.filter(isEventCampaign), [campaigns]);
-  const scheduled = homeScheduled(schedule, { eventId: upcoming?.id, pieceIds });
-  const calendarSearch = calendarSearchFromScheduled(scheduled);
-  const generated = [...projects].filter((p) => p.plan).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
-  const generatedLooks = assets.filter((asset) => asset.source === "generated").slice(0, 4);
-  const dna = useMemo(
-    () => clubCreativeDna({ brand, igMemory, campaigns, assets }),
-    [brand, igMemory, campaigns, assets],
-  );
-  const learning = useMemo(() => learnFromIg(igMemory), [igMemory]);
-  const strong = learning.ranked[0];
-  const strongHook = strong ? hookLine(strong.caption) : "";
-  const pendingFeel = awaitingFeel(igMemory)[0];
-  const beat = academicBeat();
-  const inspiration = useMemo(() => inspirationForBeat(beat), [beat]);
-
   const urls = useAssetUrls(assets.map((a) => a.id));
-  const heroProject = projects.find((p) => p.campaignId === upcoming?.id) ?? projects[0];
-  const board = heroProject?.artboards[heroProject.activeFormatId];
-  const hydrated = useStudio((s) => s.hydrated);
 
-  async function publishDue(item: ScheduleItem) {
-    if (publishingId) return;
-    setPublishingId(item.id);
-    try {
-      const result = await runPublishItem(item);
-      toast.message(result.note);
-      if (result.marked) {
-        publishSchedule(item.id, result.extra);
-        toast.success("已寫進過去 IG。標記學生會不會停，下次生成會學。");
-      }
-    } finally {
-      setPublishingId(null);
-    }
-    for (const b of brands) if (b.logoAssetId) ids.push(b.logoAssetId);
-    for (const a of assets) ids.push(a.id);
-    return ids;
-  }, [projects, brands, assets]);
-  const urls = useAssetUrls(assetIds);
-
-  function startTemplate(id: (typeof TEMPLATE_STARTERS)[number]["id"]) {
-    if (!brand) return;
-    const project = createFromTemplate({ templateId: id, brandId: brand.id });
-    void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
-  }
+  const hits = useMemo(
+    () => (q.trim().length < 2 ? [] : searchCreative({ query: q, memory, assets, campaigns, igPosts, projects })),
+    [q, memory, assets, campaigns, igPosts, projects],
+  );
 
   useEffect(() => {
-    if (!hydrated) return;
-    const query = upcoming?.name || "茶會";
-    let cancelled = false;
-    void gatherCreativeHits(query).then(({ hits }) => {
-      if (!cancelled) setFound(hits);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [hydrated, upcoming?.id, upcoming?.name]);
+    const term = q.trim();
+    if (term.length < 2) {
+      setLiveSources([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      void gatherIntoStore(term)
+        .then((gathered) => setLiveSources(gathered.sources))
+        .finally(() => setSearching(false));
+    }, 480);
+    return () => window.clearTimeout(timer);
+  }, [q]);
 
-  if (!hydrated) {
-    return <LoadingState label="讀取禪光…" />;
+  const scheduled = calendarFrom(campaigns, projects).filter(
+    (item) => item.date >= format(new Date(), "yyyy-MM-dd") && item.status !== "published",
+  );
+  const recent = [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6);
+  const strong = [...igPosts].sort((a, b) => (b.saves ?? 0) - (a.saves ?? 0)).slice(0, 3);
+  const insights = clubInsightsFromPosts(igPosts);
+  const featuredSuggest = featured
+    ? featuredHookForNow({
+        season,
+        campaign: featured,
+        posts: igPosts,
+        avoidHooks: lastLearn?.hook ? [lastLearn.hook] : [],
+      })
+    : null;
+  const featuredHook = featuredSuggest?.hook || "剛到淡水的時候，好像什麼都還沒開始。";
+  const latestPublished = [...igPosts].sort((a, b) => b.takenAt - a.takenAt)[0];
+  const learnCard = learnCardForNow({ season, lastLearn });
+  const justLearned = Boolean(lastLearn?.hook && Date.now() - lastLearn.at < 15 * 60 * 1000);
+
+  const featuredProject = projects.find((p) => p.id === featured?.projectIds[0]);
+  const featuredBoard = featuredProject?.artboards[featuredProject.activeFormatId];
+
+  function runFeatured() {
+    if (!featured) return;
+    setLastQuery(featured.name);
+    void navigate({
+      to: "/create",
+      search: { q: featuredSuggest?.query ?? `幫我做 ${featured.name} 完整宣傳`, go: "1", campaign: featured.id },
+    });
   }
 
   const suggestion =
@@ -125,428 +110,306 @@ export function HomePage() {
     "第一次來，會經歷什麼？";
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-nav md:px-8 md:py-10" data-testid="home-ready">
-      <p className="text-xs tracking-[0.2em] text-muted uppercase">淡江大學禪學社</p>
-      <p className="mt-2 text-xs text-subtle">{academicBeatLabel(academicBeat())} · 一人完成網宣</p>
-      <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl">今天可以創作什麼？</h1>
+    <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
+      <p className="text-xs tracking-[0.18em] text-muted uppercase">淡江大學禪學社</p>
+      <h1 className="mt-1 font-display text-3xl tracking-tight md:text-5xl">今天可以創作什麼？</h1>
       <p className="mt-2 max-w-xl text-sm text-muted">
-        一人完成網宣。AI 幫你想、寫、畫、排，Instagram 是主要出口。
+        {season.label} · {season.weather} {season.contentHint}
       </p>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button onClick={() => setCreateOpen(true)} className="min-h-11">
-          <Sparkles className="size-4" />
+      <form
+        data-home-search=""
+        className="mt-6 flex flex-col gap-2 min-[420px]:flex-row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!q.trim()) return;
+          setLastQuery(q.trim());
+          void navigate({ to: "/create", search: { q: q.trim(), go: "1" } });
+        }}
+      >
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
+          <Input
+            id="home-search"
+            name="creative-search"
+            autoComplete="off"
+            aria-label="搜尋 Drive、Canva、IG 與素材"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="搜尋浮游禪光、茶會、龜龜，或直接說你想做什麼"
+            className="h-12 rounded-2xl pl-10"
+          />
+        </div>
+        <Button type="submit" className="h-12 w-full rounded-2xl px-5 min-[420px]:w-auto">
           AI 創作
         </Button>
-        <Button variant="secondary" data-testid="home-search" onClick={() => setSearchOpen(true)}>
-          搜尋素材
-        </Button>
-      </div>
+      </form>
+      {searching || hits.length ? (
+        <div>
+          <p className="mt-3 text-sm text-muted">
+            {searching ? "正在找 Drive、Canva、IG…" : gatherStatusLine(hits.length, liveSources)}
+          </p>
+          <CreativeHits
+            hits={hits}
+            onPick={(hit) => {
+              setLastQuery(q.trim() || hit.title);
+              void navigate({
+                to: "/create",
+                search: {
+                  q: `${q.trim() || hit.title}（參考 ${hit.sourceLabel}）`,
+                  go: "1",
+                  asset: hit.assetId,
+                  mode: hit.assetId ? "vision" : undefined,
+                },
+              });
+            }}
+          />
+        </div>
+      ) : null}
 
-      {upcoming ? (
-        <section
-          className="relative mt-8 overflow-hidden rounded-[1.75rem] bg-accent text-accent-fg shadow-[var(--shadow-lift)] max-sm:min-h-[calc(100svh-12.5rem)]"
-          data-testid="home-recommend"
-        >
-          <div className="pointer-events-none absolute -right-10 -top-16 size-48 rounded-full bg-amber/50 blur-2xl" />
-          <div className="pointer-events-none absolute bottom-0 right-16 size-32 rounded-full bg-dusk/40 blur-xl" />
-          <div className="grid gap-4 p-5 md:grid-cols-[1.2fr_0.8fr] md:p-8">
-            <div>
-              <p className="text-xs tracking-[0.18em] uppercase text-accent-fg/70">今天推薦創作</p>
-              <p className="mt-3 font-display text-3xl md:text-4xl" data-testid="home-recommend-name">
-                {format(new Date(`${upcoming.date}T00:00:00`), "MM/dd", { locale: zhTW })} {upcoming.name}
+      {featured ? (
+        <section className="mt-6 overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-artboard)]" data-home-featured="">
+          <div className="grid gap-0 md:grid-cols-[minmax(0,1.1fr)_0.9fr]">
+            <div className="p-5 md:p-7">
+              <p className="text-xs tracking-[0.16em] text-muted">今天推薦創作</p>
+              <h2 className="mt-2 font-display text-3xl">
+                {format(new Date(`${featured.date}T00:00:00`), "MM/dd", { locale: zhTW })} {featured.name}
+              </h2>
+              <p className="mt-1 text-sm text-muted">{remain > 0 ? `還有 ${remain} 天` : remain === 0 ? "就是今天" : "已過活動日"}</p>
+              <p className="mt-5 text-sm text-muted">AI 建議做一篇</p>
+              <p className="mt-1 font-display text-xl leading-snug" data-featured-hook="">
+                「{featuredHook}」
               </p>
-              <p className="mt-2 text-sm text-accent-fg/80" data-testid="home-recommend-days">
-                {days !== null && days >= 0 ? `還有 ${days} 天` : days !== null && days < 0 ? "活動已過，可以做回顧" : null}
-              </p>
-              <p className="mt-5 text-lg leading-snug">
-                AI 建議做一篇
-                <span className="mt-1 block font-display text-2xl" data-testid="home-recommend-hook">
-                  「{recommendHook(upcoming, learning.bestHookShape)}」
-                </span>
-              </p>
-              <p className="mt-2 text-sm text-accent-fg/75">IG Carousel · 讓淡江學生覺得這跟自己有關</p>
-              {found.length ? (
-                <div className="mt-3" data-testid="home-found-sources">
-                  <p className="text-sm text-accent-fg/80">
-                    找到 {found.length} 個相關素材 · 根據過去內容生成 3 個方向
-                  </p>
-                  {foundClub.length ? (
-                    <ul className="mt-2 flex gap-2 overflow-x-auto pb-1">
-                      {foundClub.slice(0, 6).map((hit) => {
-                        const thumb = hit.thumbnail || (hit.assetId ? urls[hit.assetId] : undefined);
-                        return (
-                          <li key={hit.id} className="shrink-0">
-                            <button
-                              type="button"
-                              data-testid="home-found-chip"
-                              className="flex max-w-[11rem] items-center gap-2 rounded-2xl bg-bg/15 px-2 py-1.5 text-left"
-                              onClick={() => {
-                                void navigate({
-                                  to: "/create",
-                                  search: createSearchParams({
-                                    mode: "campaign",
-                                    idea: upcoming.name,
-                                    campaign: upcoming.id,
-                                    remote: hit.remoteId,
-                                    asset: hit.assetId,
-                                  }),
-                                });
-                              }}
-                            >
-                              {thumb ? (
-                                <img src={thumb} alt="" className="size-10 shrink-0 rounded-lg object-cover" />
-                              ) : (
-                                <span className="size-10 shrink-0 rounded-lg bg-bg/20" />
-                              )}
-                              <span className="min-w-0">
-                                <span className="block truncate text-[11px] text-accent-fg/70">
-                                  {sourceLabelOf(hit.source)}
-                                </span>
-                                <span className="block truncate text-xs">{hit.title}</span>
-                              </span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-accent-fg/70">正在找自己的 Drive、Canva、IG…</p>
-              )}
-              <Button
-                className="mt-4 min-h-11 bg-surface text-fg hover:bg-surface-2 sm:mt-6"
-                onClick={() => {
-                  void navigate({
-                    to: "/create",
-                    search: {
-                      mode: "campaign",
-                      idea: upcoming.name,
-                      campaign: upcoming.id,
-                    },
-                  });
-                }}
-              >
-                AI 幫我創作
-                <ArrowRight className="size-4" />
-              </Button>
+              {featuredSuggest ? <p className="mt-2 text-xs text-muted">{featuredSuggest.why}</p> : null}
+              {justLearned && lastLearn && !sameLivingHook(featuredHook, lastLearn.hook) ? (
+                <p className="mt-2 text-xs text-muted" data-featured-avoid="">
+                  剛才發過「{lastLearn.hook}」，這次換切入。
+                </p>
+              ) : null}
+              <p className="mt-2 text-xs tracking-[0.14em] text-subtle uppercase">IG Carousel</p>
+              <div className="mt-6 flex flex-wrap gap-2">
+                <Button onClick={runFeatured} className="min-h-11 rounded-full px-5">
+                  AI 幫我創作
+                </Button>
+                <Button asChild variant="secondary" className="min-h-11 rounded-full">
+                  <Link to="/campaigns/$campaignId" params={{ campaignId: featured.id }}>
+                    看活動
+                  </Link>
+                </Button>
+              </div>
             </div>
-            <div className="hidden items-center justify-center sm:flex">
-              {upcoming.imageAssetId && urls[upcoming.imageAssetId] ? (
-                <img
-                  src={urls[upcoming.imageAssetId]}
-                  alt={upcoming.name}
-                  className="w-40 rounded-2xl bg-bg/20 object-cover shadow-[var(--shadow-artboard)]"
-                />
-              ) : board && brand && heroProject ? (
-                <div className="rounded-2xl bg-bg/20 p-3">
-                  <ArtboardView artboard={board} brand={brand} urls={urls} width={160} />
-                </div>
+            <div className="flex items-center justify-center bg-bg p-4 md:p-6">
+              {featuredBoard && brand ? (
+                <ArtboardView artboard={featuredBoard} brand={brand} urls={urls} width={180} />
               ) : (
-                <div className="aspect-[4/5] w-40 rounded-2xl bg-bg/20" />
+                <div className="aspect-4/5 w-40 rounded-2xl bg-linear-to-b from-surface-2 to-bg" />
               )}
             </div>
           </div>
         </section>
       ) : null}
 
-      <section className="mt-6 sm:mt-10" data-testid="home-inspiration">
-        <SectionHeader
-          title="今日靈感"
-          hint={`${academicBeatLabel(beat)} · 研究構圖與 Hook，不要抄別人`}
-          action={
-            <Link to="/inspire" className="text-sm text-muted">
-              靈感研究
-            </Link>
-          }
-        />
-        <ul className="flex gap-2 overflow-x-auto pb-2 sm:hidden">
-          {inspiration.map((card) => (
-            <li key={card.id} className="shrink-0">
-              <Button
-                className="min-h-11 rounded-full"
-                size="sm"
-                variant="secondary"
-                onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: ideaFromInspiration(card) } })}
-              >
-                {card.title}
-              </Button>
-            </li>
-          ))}
-        </ul>
-        <ul className="hidden gap-3 overflow-x-auto pb-3 sm:flex">
-          {inspiration.map((card) => (
-            <li key={card.id} className="min-w-[15.5rem] snap-start rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-              <p className="text-sm font-medium">{card.title}</p>
-              <p className="mt-2 text-xs text-muted">{card.hookShape}</p>
-              <p className="mt-1 text-xs text-subtle">{card.composition}</p>
-              <Button
-                className="mt-3 min-h-11"
-                size="sm"
-                variant="secondary"
-                onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: ideaFromInspiration(card) } })}
-              >
-                用這個形狀創作
-              </Button>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <DuePublishBar />
 
       <section className="mt-10">
-        <SectionHeader
-          title="近期活動"
-          hint="沒有負責人、沒有審核"
-          action={
-            <Button variant="ghost" size="sm" onClick={() => void navigate({ to: "/create", search: { mode: "campaign" } })}>
-              建立活動
+        <h2 className="text-sm font-medium">快速開始</h2>
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+          {QUICK.map(([label, search]) => (
+            <Button
+              key={label}
+              variant="secondary"
+              className="h-11 shrink-0 rounded-full"
+              onClick={() => void navigate({ to: "/create", search })}
+            >
+              {label}
             </Button>
-          }
-        />
-        <ul className="grid gap-3 sm:grid-cols-2" data-testid="home-events">
-          {eventCampaigns.map((c) => (
-            <li key={c.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-              <p className="text-xs text-muted">{c.date} · {c.time}</p>
-              <p className="mt-1 font-medium" data-testid="home-event-name">
-                {c.name}
-              </p>
-              <p className="mt-1 text-sm text-muted">{c.oneLiner}</p>
-              <Button
-                className="mt-3"
-                size="sm"
-                variant="secondary"
-                onClick={() => void navigate({ to: "/create", search: { mode: "campaign", idea: c.name, campaign: c.id } })}
-              >
-                AI 生成完整宣傳
-              </Button>
-            </li>
           ))}
-        </ul>
+          <Button variant="secondary" className="h-11 shrink-0 rounded-full" onClick={() => void navigate({ to: "/campaigns" })}>
+            建立活動
+          </Button>
+          <Button variant="secondary" className="h-11 shrink-0 rounded-full" onClick={() => void navigate({ to: "/ig" })}>
+            從以前 IG 貼文開始
+          </Button>
+          <Button variant="secondary" className="h-11 shrink-0 rounded-full" onClick={() => void navigate({ to: "/inspire" })}>
+            靈感研究
+          </Button>
+        </div>
       </section>
 
-      <section className="mt-10" data-testid="home-scheduled">
-        <SectionHeader
-          title="已排程內容"
-          action={
-            <Link to="/calendar" search={calendarSearch} className="text-sm text-muted" data-testid="home-calendar">
-              月曆
+      <section className="mt-10 grid gap-3 md:grid-cols-2">
+        <div className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium">今日靈感</h2>
+            <Link to="/inspire" className="text-xs text-muted">
+              研究
             </Link>
-          }
-        />
-        {scheduled.length === 0 ? (
-          <p className="rounded-2xl bg-surface px-4 py-8 text-center text-sm text-muted">還沒有排程。</p>
-        ) : (
-          <ul className="space-y-2">
-            {scheduled.map((item) => (
-              <li key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
-                <div className="flex min-w-0 items-center gap-3">
-                  {item.imageAssetId && urls[item.imageAssetId] ? (
-                    <img
-                      src={urls[item.imageAssetId]}
-                      alt=""
-                      data-testid="schedule-thumb"
-                      className="size-12 shrink-0 rounded-xl object-cover"
-                    />
-                  ) : null}
-                  <div className="min-w-0">
-                  <p className="truncate text-sm" data-testid="home-scheduled-title">
-                    {item.title}
-                  </p>
-                  {item.caption ? (
-                    <p className="truncate text-xs text-muted" data-testid="home-scheduled-hook">
-                      {hookLine(item.caption)}
-                    </p>
-                  ) : null}
-                  <p className="text-xs text-muted">
-                    {contentKindLabel(item.kind)} · {formatTaipeiClock(item.scheduledAt)}
-                  </p>
-                  </div>
-                </div>
-                {isDue(item) ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={publishingId === item.id}
-                    data-testid={item.id === scheduled.find((row) => isDue(row))?.id ? "home-due" : undefined}
-                    className="min-h-11 shrink-0 rounded-full bg-amber/20 px-3 text-warn hover:bg-amber/30"
-                    onClick={() => void publishDue(item)}
-                  >
-                    {publishingId === item.id ? "發布中…" : "現在可以發"}
-                  </Button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {pendingFeel ? (
-        <section className="mt-10 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]" data-testid="home-awaiting-feel">
-          <SectionHeader title="剛發布" hint="標記學生會不會停，下次生成會學" />
-          <p className="text-sm">「{hookLine(pendingFeel.caption)}」</p>
-          <p className="mt-1 text-xs text-muted">{pendingFeel.date} · 還沒有效數，先靠你看</p>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {(["strong", "ok", "weak"] as PostFeel[]).map((feel) => (
-              <Button
-                key={feel}
-                size="sm"
-                className="min-h-11"
-                variant="secondary"
-                data-testid={feel === "strong" ? "home-rate-strong" : undefined}
-                onClick={() => {
-                  rateIgMemory(pendingFeel.id, feel);
-                  toast.success(`已記成「${feelLabel(feel)}」，下次生成會參考`);
-                }}
-              >
-                {feelLabel(feel)}
-              </Button>
-            ))}
           </div>
-        </section>
-      ) : null}
-
-      <section className="mt-10">
-        <SectionHeader title="最近 AI 生成" />
-        {generatedLooks.length ? (
-          <ul className="mb-3 grid grid-cols-4 gap-2" data-testid="home-generated">
-            {generatedLooks.map((asset) => (
-              <li key={asset.id} className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
-                <Link to="/create" search={{ mode: "from-image", asset: asset.id, idea: `延續「${asset.name}」` }} className="block">
-                  <div className="aspect-square bg-bg">
-                    {urls[asset.id] ? (
-                      <img
-                        src={urls[asset.id]}
-                        alt={asset.name}
-                        data-testid="home-generated-thumb"
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex size-full items-center justify-center text-xs text-muted">{asset.name}</div>
-                    )}
-                  </div>
+          <p className="mt-3 font-display text-lg">{season.studentNow}</p>
+          <p className="mt-2 text-sm text-muted">{season.contentHint}</p>
+          {inspirations[0] ? (
+            <p className="mt-3 text-xs text-muted">
+              研究抽象：{inspirations[0].hookShape} → {inspirations[0].clubTurn}
+            </p>
+          ) : null}
+          <p className="mt-3 text-xs text-muted">下次生成會記得：{insights.mixLesson}</p>
+          {latestPublished ? (
+            <p className="mt-1 text-xs text-subtle">最近一篇：{latestPublished.caption.split("\n")[0]}</p>
+          ) : null}
+        </div>
+        <div className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium">近期活動</h2>
+            <Link to="/campaigns" className="text-xs text-muted">
+              全部
+            </Link>
+          </div>
+          <ul className="mt-3 space-y-2">
+            {campaigns.slice(0, 3).map((c) => (
+              <li key={c.id}>
+                <Link to="/campaigns/$campaignId" params={{ campaignId: c.id }} className="block min-h-11">
+                  <p className="text-sm font-medium">{c.name}</p>
+                  <p className="text-xs text-muted">
+                    {c.date} {c.time} · {c.location}
+                  </p>
                 </Link>
               </li>
             ))}
           </ul>
-        ) : null}
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {generated.map((project) => (
-            <li key={project.id}>
-              <ProjectCard project={project} brand={brand} urls={urls} />
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium">已排程內容</h2>
+          <Link to="/calendar" className="text-xs text-muted">
+            月曆
+          </Link>
+        </div>
+        <ul className="mt-3 space-y-2">
+          {scheduled.slice(0, 5).map((item) => (
+            <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+              {item.projectId ? (
+                <Link to="/ig" search={{ item: item.projectId }} className="flex items-center gap-3">
+                  <CalendarThumb item={item} urls={urls} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm">{item.title}</p>
+                    <p className="text-xs text-muted">
+                      {item.date} · {item.kind === "event" ? "活動" : contentKindLabel(item.kind)}
+                    </p>
+                  </div>
+                  <span className="text-xs text-subtle">{STATUS_META[item.status].label}</span>
+                </Link>
+              ) : (
+                <Link to="/calendar" search={{ day: item.date }} className="flex items-center gap-3">
+                  <CalendarThumb item={item} urls={urls} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm">{item.title}</p>
+                    <p className="text-xs text-muted">
+                      {item.date} · {item.kind === "event" ? "活動" : contentKindLabel(item.kind)}
+                    </p>
+                  </div>
+                  <span className="text-xs text-subtle">{STATUS_META[item.status].label}</span>
+                </Link>
+              )}
+            </li>
+          ))}
+          {scheduled.length === 0 ? <p className="text-sm text-muted">還沒有排程。生成後可以丟進月曆。</p> : null}
+        </ul>
+      </section>
+
+      {learnCard && lastLearn ? (
+        <section className="mt-10 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]" data-home-learn="">
+          <p className="text-xs tracking-[0.16em] text-muted uppercase">{learnCard.label}</p>
+          <p className="mt-2 font-display text-xl leading-snug">「{learnCard.quote}」</p>
+          <p className="mt-2 text-sm text-muted">{learnCard.detail}</p>
+          <p className="mt-1 text-xs text-muted">{learnCard.mix}</p>
+          {learnCard.visual || insights.visualLesson ? (
+            <p className="mt-1 text-xs text-muted">{learnCard.visual || insights.visualLesson}</p>
+          ) : null}
+          <Button asChild className="mt-4 min-h-11 rounded-full">
+            <Link
+              to="/create"
+              search={{
+                q: nextCreateFromLearn(lastLearn, { seasonNote: compactSeasonSteer(season, lastLearn.hook) }),
+                go: "1",
+              }}
+            >
+              {learnCard.stale ? "用現在的生活寫下一篇" : "用這次學到的再創作"}
+            </Link>
+          </Button>
+        </section>
+      ) : null}
+
+      <section className="mt-10">
+        <h2 className="text-sm font-medium">最近 AI 生成</h2>
+        <ul className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3">
+          {recent.map((project) => {
+            const board = project.artboards[project.activeFormatId];
+            return (
+              <li key={project.id}>
+                <Link
+                  to="/studio/$projectId"
+                  params={{ projectId: project.id }}
+                  className="block rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+                >
+                  <div className="flex h-36 items-center justify-center overflow-hidden rounded-xl bg-bg">
+                    {board && brand ? <ArtboardView artboard={board} brand={brand} urls={urls} width={96} /> : null}
+                  </div>
+                  <p className="mt-2 truncate text-sm">{project.name}</p>
+                  <p className="text-xs text-muted">{STATUS_META[project.status].label}</p>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-sm font-medium">過去表現不錯的內容</h2>
+        <ul className="mt-3 space-y-2">
+          {strong.map((post) => (
+            <li key={post.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+              <p className="text-sm">{post.caption.split("\n")[0]}</p>
+              <p className="mt-1 text-xs text-muted">
+                收藏 {post.saves} · 互動 {post.comments} · {post.analysis?.direction}
+              </p>
+              <p className="mt-1 text-xs text-subtle">{insights.answers[0]}</p>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="mt-1"
+                onClick={() =>
+                  void navigate({
+                    to: "/create",
+                    search: { q: `延續這篇 IG：${post.caption.split("\n")[0]}`, go: "1", mode: "post" },
+                  })
+                }
+              >
+                用這篇再生一篇
+              </Button>
             </li>
           ))}
         </ul>
       </section>
 
-      {strong ? (
-        <section className="mt-10 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]" data-testid="home-learned">
-          <SectionHeader title="過去表現不錯" hint="用來改善下一次，不是報表牆" />
-          <p className="text-sm">「{strongHook}」</p>
-          <p className="mt-1 text-xs text-muted">
-            {strong.date} · 收藏 {strong.saves ?? 0} · {strong.analysis || "生活問句當 Hook 比較容易停。"}
-          </p>
-          <Button
-            className="mt-3 min-h-11"
-            size="sm"
-            variant="secondary"
-            onClick={() => void navigate({ to: "/create", search: { mode: "from-ig", idea: strongHook } })}
-            data-testid="home-extend-hook"
-          >
-            用這個 Hook 再寫一篇
-          </Button>
-          <ul className="mt-4 space-y-2">
-            {learning.lessons.slice(0, 3).map((lesson) => (
-              <li key={lesson.id} className="text-xs text-muted">
-                <span className="font-medium text-fg">{lesson.title}</span> {lesson.detail}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <section className="mt-10">
-        <SectionHeader title="最近素材" action={<Link to="/assets" className="text-sm text-muted">素材庫</Link>} />
-        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+      <section className="mt-10 mb-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium">最近素材</h2>
+          <Link to="/assets" className="text-xs text-muted">
+            素材庫
+          </Link>
+        </div>
+        <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
           {assets.slice(0, 6).map((asset) => (
-            <li key={asset.id} className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
-              <Link
-                to="/create"
-                search={{
-                  mode: "from-image",
-                  asset: asset.id,
-                  idea: `延續「${asset.name}」的風格，做新的活動，不要複製舊作品。`,
-                }}
-                className="block"
-              >
+            <li key={asset.id} className="overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-border)]">
+              <Link to="/assets">
                 <div className="aspect-square bg-bg">
-                  {urls[asset.id] ? (
-                    <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" />
-                  ) : (
-                    <div className="flex size-full items-center justify-center text-xs text-muted">
-                      <Images className="size-4" />
-                    </div>
-                  )}
+                  {urls[asset.id] ? <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" /> : null}
                 </div>
               </Link>
             </li>
           ))}
         </ul>
-      </section>
-
-      <section className="mt-10 mb-6">
-        <SectionHeader title="淡江禪學社 Creative Brain" hint="生成前先讀自己，不是從零開始" />
-        <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-          <p className="text-sm">{dna.palette}</p>
-          <p className="mt-2 text-sm text-muted">
-            {dna.motifs.join(" · ")} · CTA「{dna.ctas[0]}」
-          </p>
-          <p className="mt-2 text-xs text-muted">
-            喜歡 {dna.likes.join("、")}。不要 {dna.dislikes.join("、")}。
-          </p>
-          <p className="mt-2 text-xs text-subtle">
-            素材 {assets.length} · 過去 IG {igMemory.length} · 活動 {campaigns.length} · Caption 約 {dna.captionLength || "—"} 字
-          </p>
-        </div>
-      </section>
-
-      <section className="mt-10 mb-6">
-        <SectionHeader title="快速開始" />
-        <div className="flex flex-wrap gap-2">
-          {[
-            ["生成 IG 貼文", "post"],
-            ["生成圖片", "image"],
-            ["生成 Story", "story"],
-            ["生成 Carousel", "carousel"],
-            ["生成 Reels", "reels"],
-            ["建立活動", "campaign"],
-            ["從一句想法開始", "idea"],
-            ["從一張圖片開始", "from-image"],
-            ["從 Google Drive", "from-drive"],
-            ["從 Canva", "from-canva"],
-            ["從以前 IG", "from-ig"],
-          ].map(([label, mode]) => (
-            <Button
-              key={mode}
-              variant="secondary"
-              onClick={() => {
-                if (mode === "image") {
-                  void navigate({ to: "/image" });
-                  return;
-                }
-                void navigate({
-                  to: "/create",
-                  search: mode === "idea" ? { mode, idea: "下週有一場茶會" } : { mode },
-                });
-              }}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-        <div className="mt-3">
-          <Input readOnly placeholder="或直接搜尋：浮游禪光" onFocus={() => setSearchOpen(true)} />
-        </div>
       </section>
     </main>
   );

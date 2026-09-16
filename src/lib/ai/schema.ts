@@ -49,73 +49,6 @@ export const PlanJsonSchema = z.object({
   checklist: z.array(z.string()).max(10).catch([]),
   altText: z.string().catch(""),
   qaNotes: z.array(z.string()).max(8).catch([]),
-  threadsPost: z.string().catch(""),
-  lineCopy: z.string().catch(""),
-  storyFrames: z.array(z.string()).max(6).catch([]),
-  directions: z
-    .array(
-      z.object({
-        id: z.string().catch(""),
-        name: z.string().catch(""),
-        concept: z.string().catch(""),
-        palette: z.string().catch(""),
-        composition: z.string().catch(""),
-        typeDirection: z.string().catch(""),
-        prompt: z.string().catch(""),
-        headline: z.string().catch(""),
-        subhead: z.string().catch(""),
-      }),
-    )
-    .max(4)
-    .catch([]),
-  copyPacks: z
-    .array(
-      z.object({
-        tone: z.enum(["short", "normal", "emotional", "student", "life", "humor"]).catch("student"),
-        hook: z.string().catch(""),
-        body: z.string().catch(""),
-        cta: z.string().catch(""),
-        hashtags: z.array(z.string()).max(12).catch([]),
-      }),
-    )
-    .max(8)
-    .catch([]),
-  reelsScript: z
-    .object({
-      hook: z.string().catch(""),
-      beats: z
-        .array(
-          z.object({
-            start: z.string().catch(""),
-            end: z.string().catch(""),
-            onScreen: z.string().catch(""),
-            caption: z.string().catch(""),
-            voice: z.string().catch(""),
-            transition: z.string().catch(""),
-            assetHint: z.string().catch(""),
-          }),
-        )
-        .max(8)
-        .catch([]),
-    })
-    .optional(),
-  studentReview: z
-    .object({
-      wouldStop: z.string().catch(""),
-      understandable: z.string().catch(""),
-      tooReligious: z.string().catch(""),
-      tooSerious: z.string().catch(""),
-      tooLiterary: z.string().catch(""),
-      tooAi: z.string().catch(""),
-      tooLong: z.string().catch(""),
-      knowsWhat: z.string().catch(""),
-      knowsWhenWhere: z.string().catch(""),
-      wouldBringFriend: z.string().catch(""),
-      knowsHowToSignup: z.string().catch(""),
-      rewriteHook: z.string().catch(""),
-      notes: z.array(z.string()).max(8).catch([]),
-    })
-    .optional(),
 });
 
 export const BriefInputSchema = z.object({
@@ -144,21 +77,8 @@ export const BriefInputSchema = z.object({
   slogans: z.string().max(240).optional(),
   preferredCtas: z.string().max(160).optional(),
   imageStyle: z.string().max(400).optional(),
-  memoryHint: z.string().max(1200).optional(),
   forceMock: z.boolean().optional(),
-  dnaNotes: z.string().max(2000).optional(),
-  memoryNotes: z.string().max(4000).optional(),
-  foundCount: z.number().int().min(0).max(99).optional(),
-  citedSources: z
-    .array(
-      z.object({
-        source: z.enum(["drive", "canva", "instagram", "generated", "brand"]).catch("brand"),
-        label: z.string().max(80).catch(""),
-        detail: z.string().max(160).catch(""),
-      }),
-    )
-    .max(16)
-    .optional(),
+  avoidHook: z.string().max(120).optional(),
 });
 
 export type BriefInput = z.infer<typeof BriefInputSchema>;

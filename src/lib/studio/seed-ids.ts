@@ -1,0 +1,11 @@
+export const SEED_BRAND_ID = "brand_tkzen";
+export const SEED_PROJECT_ID = "proj_float_light";
+export const SEED_DRAFT_ID = "proj_tea_evening";
+export const SEED_LOGO_ID = "asset_tkzen_mark";
+export const SEED_TURTLE_ID = "asset_turtle";
+export const SEED_LIGHT_ID = "asset_tri_light";
+export const SEED_TEA_ID = "asset_tea_circle";
+export const SEED_CAMPUS_ID = "asset_campus_path";
+export const SEED_TAMSUI_ID = "asset_tamsui_dusk";
+export const SEED_CUP_ID = SEED_TEA_ID;
+export const SEED_BEANS_ID = SEED_TAMSUI_ID;

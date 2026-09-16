@@ -1,4 +1,3 @@
-import { searchTokens } from "../zen/search.ts";
 import type {
   Artboard,
   AssetCategory,
@@ -9,6 +8,7 @@ import type {
   BrandKit,
   Project,
 } from "./types.ts";
+import { expandQuery } from "../creative/search.ts";
 
 export const ASSET_DRAG_MIME = "application/x-zen-asset";
 export const ASSET_DRAG_MIME_LEGACY = "application/x-kouzhen-asset";
@@ -19,21 +19,19 @@ export const ASSET_CATEGORIES: {
   hint: string;
   virtual?: boolean;
 }[] = [
-  { id: "logo", label: "Logo", hint: "社團標誌" },
-  { id: "mascot", label: "龜龜", hint: "角色與吉祥物" },
+  { id: "logo", label: "Logo", hint: "標誌與變體" },
+  { id: "turtle", label: "龜龜", hint: "角色與吉祥物" },
   { id: "photo", label: "活動照片", hint: "茶會、社課、現場" },
-  { id: "people", label: "社員照片", hint: "人、互動、手" },
-  { id: "campus", label: "淡江校園", hint: "教室、走廊、角落" },
+  { id: "people", label: "社員照片", hint: "互動、人像、手" },
+  { id: "campus", label: "淡江校園", hint: "教室、小路、建築" },
   { id: "tamsui", label: "淡水", hint: "河岸、捷運、天氣" },
   { id: "poster", label: "海報", hint: "歷屆文宣" },
   { id: "background", label: "背景", hint: "材質、留白、光" },
-  { id: "ai", label: "AI 生成", hint: "剛生出來的圖" },
-  { id: "ig", label: "IG", hint: "曾發或預覽" },
-  { id: "story-asset", label: "Story", hint: "限動畫面" },
-  { id: "reels", label: "Reels", hint: "封面與短影音" },
+  { id: "illustration", label: "插圖", hint: "三色光、手繪" },
+  { id: "icon", label: "圖示", hint: "小圖、符號" },
+  { id: "story", label: "Story", hint: "限動畫面" },
+  { id: "reels", label: "Reels", hint: "封面與片段" },
   { id: "archive", label: "歷屆活動", hint: "舊檔可延伸" },
-  { id: "illustration", label: "插圖", hint: "手繪與裝飾" },
-  { id: "icon", label: "圖示", hint: "小標、符號" },
   { id: "template", label: "模板", hint: "可套用的版型起點", virtual: true },
   { id: "history", label: "歷史素材", hint: "曾放到畫布的檔案", virtual: true },
 ];
@@ -162,17 +160,18 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
   const tags = (raw.tags ?? []).join(" ").toLowerCase();
   const name = (raw.name ?? "").toLowerCase();
   const blob = `${tags} ${name}`;
-  if (/龜|mascot|turtle/.test(blob)) return "mascot";
-  if (/淡水|tamsui|河岸/.test(blob)) return "tamsui";
-  if (/校園|campus|教室/.test(blob)) return "campus";
+  if (/龜|turtle/.test(blob)) return "turtle";
+  if (/淡水|河岸|tamsui/.test(blob)) return "tamsui";
+  if (/校園|淡江|campus/.test(blob)) return "campus";
   if (/海報|poster/.test(blob)) return "poster";
-  if (/人物|人像|portrait|people|社員/.test(blob)) return "people";
+  if (/人物|人像|社員|portrait|people/.test(blob)) return "people";
   if (/背景|場景|材質|background|texture/.test(blob)) return "background";
-  if (/插圖|illustration|handdrawn/.test(blob)) return "illustration";
+  if (/插圖|三色光|illustration|handdrawn/.test(blob)) return "illustration";
   if (/圖示|icon|badge/.test(blob)) return "icon";
   if (/logo|標誌/.test(blob)) return "logo";
-  if (/reels|短影音/.test(blob)) return "reels";
-  if (/生成|ai generated/.test(blob)) return "ai";
+  if (/story|限動/.test(blob)) return "story";
+  if (/reels/.test(blob)) return "reels";
+  if (/歷屆|archive/.test(blob)) return "archive";
   return "photo";
 }
 
@@ -220,7 +219,7 @@ export function createGeneratedAsset(input: {
   return migrateAsset({
     id: input.id,
     name: input.name,
-    kind: kindFromMime(input.mime, input.category ?? "icon"),
+    kind: kindFromCategory(input.category ?? "icon"),
     category: input.category ?? "icon",
     mime: input.mime,
     width: input.width,
@@ -229,7 +228,7 @@ export function createGeneratedAsset(input: {
     createdAt: now,
     updatedAt: now,
     source: "generated",
-    licenseNotes: "由禪光依報名網址在本機產生，僅供畫面使用。",
+    licenseNotes: "由禪學社 Studio 在本機產生，僅供畫面使用。",
     licenseOwner: "本機產生",
   });
 }
@@ -237,12 +236,20 @@ export function createGeneratedAsset(input: {
 export function matchesAssetQuery(asset: AssetMeta, query: string) {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  const blob = [asset.name, asset.category, categoryLabel(asset.category), asset.licenseNotes, ...(asset.tags ?? [])]
+  const blob = [
+    asset.name,
+    asset.category,
+    categoryLabel(asset.category),
+    asset.licenseNotes,
+    asset.source,
+    ...(asset.tags ?? []),
+  ]
     .join(" ")
     .toLowerCase();
-  const tokens = searchTokens(q);
-  if (!tokens.length) return blob.includes(q.toLowerCase());
-  return tokens.some((part) => blob.includes(part.toLowerCase()));
+  const raw = q.toLowerCase();
+  if (blob.includes(raw)) return true;
+  const tokens = [...new Set(expandQuery(q).toLowerCase().split(/\s+/).filter((token) => token.length >= 2))];
+  return tokens.some((token) => blob.includes(token));
 }
 
 function collectFromBoard(board: Artboard | undefined, ids: Set<string>) {

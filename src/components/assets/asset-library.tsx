@@ -213,9 +213,9 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-nav md:px-8 md:py-10" data-testid="assets-ready">
       <PageHeader
-        kicker="創作素材"
-        title="AI Creative Library"
-        description="Logo、龜龜、活動與校園照片、AI 生成。分析、標籤、加入創作。"
+        kicker="Creative Library"
+        title="素材庫"
+        description="Logo、龜龜、活動照片、社員、校園、淡水、海報、AI 生成。每個素材都可以分析、延伸、丟進創作。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="assets" />
@@ -291,13 +291,7 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
       ) : null}
 
       <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center">
-        <Input
-          data-testid="assets-search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="找以前晚上的茶會照片、龜龜、浮游禪光…"
-          className="max-w-sm"
-        />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="找以前晚上的茶會、龜龜、主視覺" className="max-w-sm" />
         <Select value={source} onValueChange={(v) => setSource(v as typeof source)}>
           <SelectTrigger className="md:w-40">
             <SelectValue placeholder="來源" />

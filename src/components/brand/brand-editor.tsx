@@ -151,13 +151,42 @@ export function BrandEditor() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="品牌記憶"
-        title="淡江禪學社"
-        description="Logo、龜龜、三色光、語氣、喜歡與不喜歡的風格，每次生成都會先讀。"
-        actions={<BrandSubnav current="brand" />}
+        kicker="Brand Memory"
+        title="品牌記憶"
+        description="Logo、龜龜、三色光、語氣、喜歡與不喜歡的風格。每次 AI 生成前會先讀這裡。"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <BrandSubnav current="brand" />
+            <Button variant="secondary" onClick={() => setActiveId(createBrand("新品牌").id)}>
+              <Plus className="size-4" />
+              新增品牌
+            </Button>
+            {brands.length > 1 && (
+              <Button variant="outline" onClick={() => deleteBrand(brand.id)}>
+                <Trash2 className="size-4" />
+                刪除
+              </Button>
+            )}
+          </div>
+        }
       />
 
       <StorageNotice />
+
+      {brands.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {brands.map((b) => (
+            <Button
+              key={b.id}
+              size="sm"
+              variant={b.id === brand.id ? "default" : "secondary"}
+              onClick={() => setActiveId(b.id)}
+            >
+              {b.name}
+            </Button>
+          ))}
+        </div>
+      )}
 
       <div
         className="overflow-hidden rounded-2xl p-5 shadow-[var(--shadow-border)]"

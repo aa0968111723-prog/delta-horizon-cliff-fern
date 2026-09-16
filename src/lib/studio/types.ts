@@ -28,24 +28,7 @@ export type Align = "left" | "center" | "right";
 
 export type ColorRole = "primary" | "secondary" | "accent" | "background" | "ink";
 
-/** 一人創作流程只需要這五個狀態。沒有審核、沒有負責人。 */
-export type ContentStatus = "idea" | "making" | "done" | "scheduled" | "published";
-
-/** 禪學社實際會發的內容型態。 */
-export type ContentKind =
-  | "ig-post"
-  | "carousel"
-  | "story"
-  | "reels"
-  | "threads"
-  | "line"
-  | "poster"
-  | "recap"
-  | "member-story"
-  | "countdown"
-  | "qa"
-  | "poll"
-  | "knowledge";
+export type ProjectStatus = "idea" | "creating" | "done" | "scheduled" | "published";
 
 export type ContentKind =
   | "ig-post"
@@ -61,20 +44,58 @@ export type ContentKind =
   | "qa"
   | "poll"
   | "knowledge";
-
-export type ContentStatus = "idea" | "creating" | "done" | "scheduled" | "published";
-
-export type EventKind = "tea" | "sitting" | "light" | "workshop" | "recruit" | "talk" | "other";
 
 export type CopyTone = "short" | "normal" | "emotional" | "student" | "life" | "humor";
 
-export type SourceKind = "drive" | "canva" | "instagram" | "generated" | "upload" | "brand" | "memory";
-
 export type SourceRef = {
-  kind: SourceKind;
+  source: "drive" | "canva" | "instagram" | "generated" | "brand" | "upload";
   label: string;
   id?: string;
-  url?: string;
+};
+
+export type StudentSim = {
+  wouldStop: boolean;
+  understandable: boolean;
+  tooReligious: boolean;
+  tooSerious: boolean;
+  tooLiterary: boolean;
+  tooAi: boolean;
+  tooLong: boolean;
+  knowsWhat: boolean;
+  knowsWhenWhere: boolean;
+  wouldBringFriend: boolean;
+  knowsHowToJoin: boolean;
+  notes: string[];
+  revisions: string[];
+};
+
+export type CreativeDirection = {
+  id: string;
+  name: string;
+  concept: string;
+  palette: string;
+  composition: string;
+  typeDirection: string;
+  imagePrompt: string;
+  headline: string;
+  subhead: string;
+};
+
+export type ReelsBeat = {
+  start: string;
+  end: string;
+  visual: string;
+  caption: string;
+  voice: string;
+  transition: string;
+  assetHint: string;
+};
+
+export type StoryFrame = {
+  headline: string;
+  body: string;
+  visualNote: string;
+  cta: string;
 };
 
 export type EditorTool = "select" | "text" | "rect" | "ellipse" | "line";
@@ -211,17 +232,15 @@ export type AssetCategory =
   | "illustration"
   | "icon"
   | "logo"
-  | "mascot"
+  | "template"
+  | "history"
+  | "turtle"
   | "campus"
   | "tamsui"
   | "poster"
-  | "ai"
-  | "ig"
-  | "story-asset"
+  | "story"
   | "reels"
-  | "archive"
-  | "template"
-  | "history";
+  | "archive";
 
 export type AssetSourceKind = "upload" | "seed" | "generated";
 
@@ -502,13 +521,13 @@ export type CampaignPlan = {
   copyPack?: CopyPack;
   generatedAt: number;
   source: PlanSource;
-  directions?: VisualDirection[];
-  copyPacks?: CopyPack[];
+  studentSim?: StudentSim;
+  directions?: CreativeDirection[];
   threadsPost?: string;
+  reelsScript?: ReelsBeat[];
   lineCopy?: string;
-  reelsScript?: ReelsScript;
-  studentReview?: StudentReview;
-  storyFrames?: string[];
+  sources?: SourceRef[];
+  scheduleNotes?: string;
 };
 
 export type PlanVersion = {
@@ -614,10 +633,9 @@ export type Project = {
   activeFormatId: FormatId;
   status: ProjectStatus;
   contentKind: ContentKind;
-  contentStatus: ContentStatus;
+  campaignId: string | null;
   scheduledAt: number | null;
   publishedAt: number | null;
-  campaignId: string | null;
   sourceRefs: SourceRef[];
   brief: Brief;
   copy: CopyDeck;

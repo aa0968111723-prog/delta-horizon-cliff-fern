@@ -1,15 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { InstagramCenter } from "@/components/ig/instagram-center";
-import { igSearchParams, type IgSearch } from "@/lib/studio/ig-search";
+import { IgCenter } from "@/components/ig/ig-center";
 
-export type { IgSearch };
+type Search = {
+  item?: string;
+};
 
 export const Route = createFileRoute("/ig")({
-  validateSearch: (search: Record<string, unknown>): IgSearch => {
-    return igSearchParams({
-      posted: typeof search.posted === "string" ? search.posted : undefined,
-      campaign: typeof search.campaign === "string" ? search.campaign : undefined,
-    });
-  },
-  component: InstagramCenter,
+  validateSearch: (s: Record<string, unknown>): Search => ({
+    item: typeof s.item === "string" ? s.item : undefined,
+  }),
+  component: IgRoute,
 });
+
+function IgRoute() {
+  const { item } = Route.useSearch();
+  return <IgCenter focusProjectId={item} />;
+}

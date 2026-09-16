@@ -63,7 +63,8 @@ export function roleEyebrow(role?: CarouselPageRole, coverEyebrow = ""): string 
 export function typeScaleFor(formatId: FormatId): number {
   if (formatId === "story" || formatId === "reels-cover") return 1.2;
   if (formatId === "feed-landscape") return 0.62;
-  if (formatId === "feed-square" || formatId === "threads" || formatId === "line") return 0.94;
+  if (formatId === "line") return 0.92;
+  if (formatId === "feed-square") return 0.94;
   return 1;
 }
 

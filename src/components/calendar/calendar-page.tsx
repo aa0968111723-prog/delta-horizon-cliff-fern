@@ -1,435 +1,488 @@
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { addDays, format, isSameDay, startOfMonth, startOfWeek, endOfMonth, endOfWeek } from "date-fns";
+import { addDays, format, startOfMonth, startOfWeek } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
-import { PageHeader } from "@/components/shared/page-header";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { CalendarThumb } from "@/components/calendar/calendar-thumb";
+import { DuePublishBar } from "@/components/calendar/due-publish-bar";
+import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { runPublishItem } from "@/lib/connect/publish-item";
-import { igMemoryFromSchedule } from "@/lib/zen/memory";
-import { formatTaipeiClock } from "@/lib/zen/dates";
-import { agendaSorted, firstPublishable, isDue } from "@/lib/zen/schedule";
-import { campaignsForCalendar, hasLiveEventCampaign, scheduleForCampaign } from "@/lib/studio/calendar-search";
-import { igSearchParams } from "@/lib/studio/ig-search";
-import { contentKindLabel, contentStatusLabel } from "@/lib/studio/content";
-import { uid } from "@/lib/studio/ids";
-import { cn } from "@/lib/utils";
+import { calendarCoverIds, calendarFrom, rescheduleCalendarItem } from "@/lib/creative/calendar";
+import { createSearchForCalendarItem, displayDay } from "@/lib/creative/schedule";
+import { contentKindLabel } from "@/lib/studio/content";
+import { STATUS_META } from "@/lib/studio/status";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
-import { useUi } from "@/stores/ui-store";
-import { AssetMedia } from "@/components/shared/asset-media";
-import { previewMediaId } from "@/lib/ai/reels-asset";
-import { ScheduleEditor } from "@/components/calendar/schedule-editor";
+import { cn } from "@/lib/utils";
+import type { CalendarItem } from "@/lib/creative/types";
 
-type View = "month" | "week" | "agenda";
-
-export function CalendarPage() {
+export function CalendarPage({ focusDay }: { focusDay?: string }) {
+  const campaigns = useCreative((s) => s.campaigns);
+  const duplicateWave = useCreative((s) => s.duplicateWave);
+  const projects = useStudio((s) => s.projects);
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { campaign?: string };
-  const hydrated = useStudio((s) => s.hydrated);
-  const scheduleAll = useStudio((s) => s.schedule);
-  const campaigns = useStudio((s) => s.campaigns);
-  const moveSchedule = useStudio((s) => s.moveSchedule);
-  const upsertSchedule = useStudio((s) => s.upsertSchedule);
-  const publishSchedule = useStudio((s) => s.publishSchedule);
-  const setCreateOpen = useUi((s) => s.setCreateOpen);
-  const campaignId = search.campaign;
-  const focused = campaigns.find((row) => row.id === campaignId);
-  const hideSeed = !campaignId && hasLiveEventCampaign(campaigns);
-  const schedule = useMemo(
-    () => scheduleForCampaign(scheduleAll, campaignId, { hideSeed }),
-    [scheduleAll, campaignId, hideSeed],
-  );
-  const visibleCampaigns = useMemo(() => campaignsForCalendar(campaigns, campaignId), [campaigns, campaignId]);
-  const urls = useAssetUrls(
-    schedule.flatMap((item) => [item.imageAssetId, item.videoAssetId]).filter((id): id is string => Boolean(id)),
-  );
-  const [cursor, setCursor] = useState(() => new Date());
-  const [view, setView] = useState<View>("agenda");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [cursor, setCursor] = useState(() => (focusDay ? new Date(`${focusDay}T12:00:00+08:00`) : new Date()));
+  const [view, setView] = useState<"month" | "week" | "agenda">("agenda");
+  const items = calendarFrom(campaigns, projects);
+  const urls = useAssetUrls(calendarCoverIds(items));
+  const focusProjectId = focusDay
+    ? items.find((item) => item.date === focusDay && item.kind !== "event" && item.projectId)?.projectId
+    : undefined;
 
   useEffect(() => {
-    if (campaignId) {
-      setView("agenda");
-      return;
-    }
-    if (window.matchMedia("(min-width: 768px)").matches) setView("month");
-  }, [campaignId]);
+    if (!focusDay) return;
+    setCursor(new Date(`${focusDay}T12:00:00+08:00`));
+  }, [focusDay]);
 
   useEffect(() => {
-    if (!focused?.date) return;
-    const next = new Date(`${focused.date}T12:00:00+08:00`);
-    if (!Number.isNaN(next.getTime())) setCursor(next);
-  }, [focused?.date]);
+    if (!focusDay) return;
+    const el = document.getElementById(`cal-day-${focusDay}`);
+    const mobile = window.matchMedia("(max-width: 767px)").matches;
+    el?.scrollIntoView({ block: mobile ? "start" : "center", behavior: "smooth" });
+  }, [focusDay, items.length, view]);
 
-  const days = useMemo(() => {
+  const weeks = useMemo(() => {
     const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 });
-    const end = endOfWeek(endOfMonth(cursor), { weekStartsOn: 1 });
-    const list: Date[] = [];
-    for (let d = start; d <= end; d = addDays(d, 1)) list.push(d);
-    return list;
+    const rows: Date[][] = [];
+    for (let week = 0; week < 6; week += 1) {
+      const row: Date[] = [];
+      for (let day = 0; day < 7; day += 1) {
+        row.push(addDays(start, week * 7 + day));
+      }
+      rows.push(row);
+    }
+    return rows;
   }, [cursor]);
 
   const weekDays = useMemo(() => {
     const start = startOfWeek(cursor, { weekStartsOn: 1 });
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i += 1) days.push(addDays(start, i));
+    return days;
   }, [cursor]);
 
-  function itemsOn(day: Date) {
-    return schedule.filter((item) => isSameDay(item.scheduledAt, day));
-  }
-
-  function dropOn(day: Date, raw: string) {
-    const item = schedule.find((row) => row.id === raw);
-    if (!item) return;
-    const next = new Date(day);
-    const prev = new Date(item.scheduledAt);
-    next.setHours(prev.getHours(), prev.getMinutes(), 0, 0);
-    moveSchedule(item.id, next.getTime());
-  }
-
-  function shiftDay(id: string, days: number) {
-    const item = schedule.find((row) => row.id === id);
-    if (!item || item.status === "published") return;
-    moveSchedule(item.id, item.scheduledAt + days * 86_400_000);
-  }
-
-  function duplicate(id: string) {
-    const item = schedule.find((row) => row.id === id);
-    if (!item) return;
-    upsertSchedule({
-      ...item,
-      id: uid("sch"),
-      title: `${item.title} · 複製`,
-      status: "idea",
-      scheduledAt: addDays(item.scheduledAt, 1).getTime(),
-    });
-  }
-
-  async function publishItem(id: string) {
-    const item = schedule.find((row) => row.id === id);
-    if (!item) return;
-    setPublishingId(id);
-    try {
-      const result = await runPublishItem(item);
-      toast.message(result.note);
-      if (result.marked) {
-        publishSchedule(item.id, result.extra);
-        const memory = igMemoryFromSchedule({
-          ...item,
-          status: "published",
-          publishedAt: Date.now(),
-          permalink: result.extra?.permalink ?? item.permalink,
-          mediaUrl: result.extra?.mediaUrl ?? item.mediaUrl,
-          igMediaId: result.extra?.igMediaId ?? item.igMediaId,
-        });
-        toast.success("已寫進過去 IG");
-        void navigate({
-          to: "/ig",
-          search: igSearchParams({ posted: memory.id, campaign: item.campaignId ?? campaignId }),
-        });
-      }
-    } finally {
-      setPublishingId(null);
+  function onDrop(dateIso: string, itemId: string) {
+    const result = rescheduleCalendarItem({ campaigns, itemId, dateIso });
+    if (!result) return;
+    useCreative.setState({ campaigns: result.campaigns });
+    if (result.projectId) {
+      useStudio.getState().updateProject(result.projectId, { scheduledAt: result.scheduledAt });
     }
   }
 
-  const cells = view === "month" ? days : weekDays;
-  const agenda = useMemo(() => agendaSorted(schedule), [schedule]);
-  const publishTarget = firstPublishable(agenda);
+  function extend(item: CalendarItem) {
+    void navigate({
+      to: "/create",
+      search: { q: `延續：${item.title}`, go: "1", campaign: item.campaignId },
+    });
+  }
 
-  if (!hydrated) {
-    return (
-      <main data-testid="calendar-loading" className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
-        <PageHeader kicker="排程" title="什麼時候要發？" description="讀取排程…" />
-      </main>
-    );
+  function createWave(item: CalendarItem) {
+    const name = campaigns.find((campaign) => campaign.id === item.campaignId)?.name;
+    const search = createSearchForCalendarItem(item, name);
+    if (!search) return false;
+    void navigate({ to: "/create", search });
+    return true;
+  }
+
+  function openItem(item: CalendarItem) {
+    if (item.projectId) {
+      void navigate({ to: "/ig", search: { item: item.projectId } });
+      return;
+    }
+    if (createWave(item)) return;
+    if (item.campaignId) {
+      void navigate({ to: "/campaigns/$campaignId", params: { campaignId: item.campaignId } });
+    }
   }
 
   return (
-    <main data-testid="calendar-ready" className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-6 pb-nav md:px-8 md:py-10">
-      <PageHeader
-        kicker="排程"
-        title={focused ? `什麼時候發「${focused.name}」？` : "什麼時候要發？"}
-        description={
-          focused
-            ? "只看這一場。沒有負責人、沒有審核。拖曳可改日期。"
-            : "只服務創作與發布。沒有負責人、沒有審核。拖曳可改日期。"
-        }
-        actions={
-          <Button onClick={() => setCreateOpen(true)} size="sm">
-            快速新增
-          </Button>
-        }
-      />
-
-      {focused ? (
-        <div className="mt-4 flex flex-wrap items-center gap-2" data-testid="calendar-campaign">
-          <p className="text-sm">只看 {focused.name}</p>
-          <Button size="sm" variant="secondary" asChild>
-            <Link to="/calendar" search={{}}>
-              看全部
-            </Link>
-          </Button>
-        </div>
+    <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10" data-calendar="">
+      <p className="text-xs tracking-[0.18em] text-muted uppercase">排程</p>
+      <h1 className="mt-1 font-display text-3xl">什麼時候發</h1>
+      <p className="mt-2 text-sm text-muted">只服務創作與發布。沒有審核人。桌面可拖曳改日期。</p>
+      {focusDay ? (
+        <p className="mt-3 rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]">
+          這次排在 {displayDay(focusDay)}。Agenda 會亮出來，週視圖從這週看。
+          {focusProjectId ? (
+            <>
+              {" "}
+              <Link
+                to="/ig"
+                search={{ item: focusProjectId }}
+                className="text-accent underline-offset-2 hover:underline"
+              >
+                去 IG 看 Grid
+              </Link>
+            </>
+          ) : null}
+        </p>
       ) : null}
-
       <div className="mt-4 flex flex-wrap gap-2">
-        {(["month", "week", "agenda"] as View[]).map((id) => (
+        {(["agenda", "week", "month"] as const).map((id) => (
           <Button key={id} size="sm" variant={view === id ? "default" : "secondary"} onClick={() => setView(id)}>
             {id === "month" ? "月" : id === "week" ? "週" : "Agenda"}
           </Button>
         ))}
         <Button size="sm" variant="ghost" onClick={() => setCursor(addDays(cursor, view === "month" ? -30 : -7))}>
-          上一段
+          上一檔
         </Button>
         <Button size="sm" variant="ghost" onClick={() => setCursor(addDays(cursor, view === "month" ? 30 : 7))}>
-          下一段
+          下一檔
+        </Button>
+        <Button asChild size="sm" variant="secondary">
+          <Link data-cal-quick="" to="/create" search={{ day: focusDay || format(cursor, "yyyy-MM-dd") }}>
+            快速新增
+          </Link>
         </Button>
       </div>
 
-      {view !== "agenda" ? (
-        <div className={cn("mt-4 grid gap-1", view === "month" ? "grid-cols-7" : "grid-cols-1 md:grid-cols-7")}>
-          {cells.map((day) => {
-            const items = itemsOn(day);
-            const visible = view === "month" ? items.slice(0, 3) : items;
-            const hidden = items.length - visible.length;
+      <DuePublishBar />
+
+      {view === "agenda" ? (
+        <ul className="mt-6 space-y-2 pb-28 md:pb-0">
+          {items.map((item) => (
+            <AgendaRow
+              key={item.id}
+              item={item}
+              urls={urls}
+              focused={Boolean(focusDay && item.date === focusDay && item.kind !== "event")}
+              onExtend={() => extend(item)}
+              onCopy={() => item.campaignId && item.waveId && duplicateWave(item.campaignId, item.waveId)}
+              onCreate={() => createWave(item)}
+              onReschedule={(dateIso) => onDrop(dateIso, item.waveId ?? item.id)}
+            />
+          ))}
+        </ul>
+      ) : null}
+
+      {view === "month" ? (
+        <div className="mt-6 hidden md:block">
+          <div className="grid grid-cols-7 gap-1">
+            {["一", "二", "三", "四", "五", "六", "日"].map((d) => (
+              <p key={d} className="px-1 text-xs text-muted">
+                {d}
+              </p>
+            ))}
+            {weeks.flat().map((day) => {
+              const iso = format(day, "yyyy-MM-dd");
+              const dayItems = items.filter((item) => item.date === iso);
+              const inMonth = day.getMonth() === cursor.getMonth();
+              return (
+                <div
+                  key={iso}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const id = e.dataTransfer.getData("text/plain");
+                    if (id) onDrop(iso, id);
+                  }}
+                  className={cn("min-h-24 rounded-xl bg-surface p-1.5 shadow-[var(--shadow-border)]", !inMonth && "opacity-40")}
+                >
+                  <p className="text-xs text-muted">{format(day, "d", { locale: zhTW })}</p>
+                  <ul className="mt-1 space-y-1">
+                    {dayItems.map((item) => (
+                      <li key={item.id}>
+                        <CalChip
+                          item={item}
+                          urls={urls}
+                          focused={Boolean(focusDay && item.date === focusDay && item.kind !== "event")}
+                          onOpen={() => openItem(item)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {view === "week" ? (
+        <div className="mt-6 hidden gap-2 md:grid md:grid-cols-7">
+          {weekDays.map((day) => {
+            const iso = format(day, "yyyy-MM-dd");
             return (
               <div
-                key={day.toISOString()}
-                className="min-h-24 min-w-0 overflow-y-auto rounded-xl bg-surface p-2 shadow-[var(--shadow-border)]"
+                key={iso}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
-                  dropOn(day, e.dataTransfer.getData("text/plain"));
+                  const id = e.dataTransfer.getData("text/plain");
+                  if (id) onDrop(iso, id);
                 }}
+                className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
               >
-                <p className="text-xs text-muted">{format(day, view === "month" ? "d" : "M/d EEE", { locale: zhTW })}</p>
-                <ul className="mt-1 space-y-1">
-                  {visible.map((item) => (
-                    <li key={item.id}>
-                      <div
-                        draggable
-                        onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
-                        className="w-full rounded-lg bg-surface-2 px-2 py-1 text-left text-[11px] leading-snug"
-                      >
-                        <p className="truncate">
-                          {contentKindLabel(item.kind)} · {item.title}
-                        </p>
-                        {view !== "month" && previewMediaId(item) && urls[previewMediaId(item)!] ? (
-                          <AssetMedia
-                            src={urls[previewMediaId(item)!]}
-                            video={Boolean(item.videoAssetId && previewMediaId(item) === item.videoAssetId)}
-                            alt=""
-                            testId="schedule-thumb"
-                            className="mt-1 size-10 rounded-lg object-cover"
-                          />
-                        ) : null}
-                        {view === "month" && previewMediaId(item) && urls[previewMediaId(item)!] ? (
-                          <AssetMedia
-                            src={urls[previewMediaId(item)!]}
-                            video={Boolean(item.videoAssetId && previewMediaId(item) === item.videoAssetId)}
-                            alt=""
-                            testId="schedule-thumb"
-                            className="mt-1 size-6 rounded-md object-cover"
-                          />
-                        ) : null}
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          <button type="button" className="min-h-8 text-[10px] text-muted" onClick={() => duplicate(item.id)}>
-                            複製
-                          </button>
-                          <button type="button" className="min-h-8 text-[10px] text-muted" onClick={() => setEditingId(item.id)}>
-                            編輯
-                          </button>
-                          {view !== "month" ? (
-                            <button
-                              type="button"
-                              className="min-h-8 text-xs text-muted"
-                              disabled={publishingId === item.id}
-                              onClick={() => void publishItem(item.id)}
-                            >
-                              發布
-                            </button>
-                          ) : null}
-                          <Link
-                            to="/create"
-                            search={{ mode: "idea", idea: item.caption || item.title }}
-                            className="inline-flex min-h-8 items-center text-[10px] text-accent"
-                          >
-                            AI 延伸
-                          </Link>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
+                <p className="text-xs text-muted">{format(day, "EEE d", { locale: zhTW })}</p>
+                <ul className="mt-2 space-y-1">
+                  {items
+                    .filter((item) => item.date === iso)
+                    .map((item) => (
+                      <li key={item.id}>
+                        <CalChip
+                          item={item}
+                          urls={urls}
+                          dense
+                          focused={Boolean(focusDay && item.date === focusDay && item.kind !== "event")}
+                          onOpen={() => openItem(item)}
+                        />
+                      </li>
+                    ))}
                 </ul>
-                {hidden > 0 ? <p className="mt-1 text-[10px] text-muted">還有 {hidden} 則</p> : null}
               </div>
             );
           })}
         </div>
-      ) : (
-        <ul data-testid="calendar-agenda" className="mt-4 space-y-2 pb-8">
-          {agenda.map((item) => (
-              <li
-                key={item.id}
-                className={cn(
-                  "flex gap-3 rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]",
-                  isDue(item) && "ring-1 ring-amber/40",
-                )}
-              >
-                {previewMediaId(item) && urls[previewMediaId(item)!] ? (
-                  <AssetMedia
-                    src={urls[previewMediaId(item)!]}
-                    video={Boolean(item.videoAssetId && previewMediaId(item) === item.videoAssetId)}
-                    alt=""
-                    testId="schedule-thumb"
-                    className="size-14 shrink-0 rounded-xl object-cover"
-                  />
-                ) : null}
-                <div className="min-w-0 flex-1">
-                <p className="text-sm" data-testid="agenda-title">
-                  {item.title}
-                </p>
-                {item.caption ? (
-                  <p className="mt-1 line-clamp-2 text-xs text-muted" data-testid="schedule-caption">
-                    {item.caption}
-                  </p>
-                ) : null}
-                <p className="text-xs text-muted" data-testid="agenda-when">
-                  {formatTaipeiClock(item.scheduledAt)} · {contentKindLabel(item.kind)} · {contentStatusLabel(item.status)}
-                  {isDue(item) ? (
-                    <span
-                      data-testid={item.id === agenda.find((row) => isDue(row))?.id ? "calendar-due" : undefined}
-                      className="ml-2 inline-flex rounded-full bg-amber/20 px-2 py-0.5 text-[10px] text-warn"
-                    >
-                      現在可以發
-                    </span>
-                  ) : null}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => duplicate(item.id)}>
-                    複製
-                  </Button>
-                  {item.status !== "published" ? (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="min-h-11"
-                        data-testid={item.id === agenda.find((row) => row.status === "scheduled")?.id ? "agenda-shift-earlier" : undefined}
-                        onClick={() => shiftDay(item.id, -1)}
-                      >
-                        前一天
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="min-h-11"
-                        data-testid={item.id === agenda.find((row) => row.status === "scheduled")?.id ? "agenda-shift-later" : undefined}
-                        onClick={() => shiftDay(item.id, 1)}
-                      >
-                        後一天
-                      </Button>
-                    </>
-                  ) : null}
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    data-testid={item.id === agenda.find((row) => row.status === "scheduled")?.id ? "calendar-edit" : undefined}
-                    onClick={() => setEditingId(item.id)}
-                  >
-                    直接編輯
-                  </Button>
-                  <Button
-                    size="sm"
-                    disabled={publishingId === item.id || item.status === "published"}
-                    data-testid={
-                      item.id === publishTarget?.id
-                        ? "calendar-publish"
-                        : item.kind === "reels"
-                          ? "calendar-reels-publish"
-                          : item.kind === "story" || item.kind === "countdown"
-                            ? "calendar-story-publish"
-                            : undefined
-                    }
-                    onClick={() => void publishItem(item.id)}
-                    className="min-h-11"
-                  >
-                    發布到 IG
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => publishSchedule(item.id)}
-                  >
-                    標記已發布
-                  </Button>
-                  <Button size="sm" variant="secondary" asChild>
-                    <Link to="/create" search={{ mode: "idea", idea: item.caption || item.title }}>
-                      AI 延伸
-                    </Link>
-                  </Button>
-                </div>
-                </div>
-              </li>
-            ))}
-        </ul>
-      )}
-
-      {editingId ? (
-        <div className="mt-6">
-          {(() => {
-            const item = schedule.find((row) => row.id === editingId);
-            if (!item) return null;
-            return (
-              <ScheduleEditor
-                item={item}
-                onSave={(next) => {
-                  upsertSchedule(next);
-                  setEditingId(null);
-                }}
-                onClose={() => setEditingId(null)}
-              />
-            );
-          })()}
-        </div>
       ) : null}
 
-      <section className="mt-8">
-        <h2 className="text-sm font-medium">活動</h2>
-        <ul className="mt-3 grid gap-3 sm:grid-cols-2">
-          {visibleCampaigns.map((c) => (
-            <li key={c.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-              <p className="text-xs text-muted">
-                {c.date} {c.time}
-              </p>
-              <p className="mt-1 font-medium">{c.name}</p>
-              <p className="mt-1 text-sm text-muted" data-testid="campaign-oneliner">
-                {c.oneLiner}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-3">
-                <Link
-                  to="/calendar"
-                  search={{ campaign: c.id }}
-                  className="text-sm text-accent"
-                >
-                  只看這場
-                </Link>
-                <Link
-                  to="/create"
-                  search={{ mode: "campaign", idea: c.name, campaign: c.id }}
-                  className="text-sm text-accent"
-                >
-                  AI 延伸
-                </Link>
-              </div>
-            </li>
-          ))}
+      {view === "month" ? (
+        <ul className="mt-6 space-y-2 pb-28 md:hidden">
+          {weeks
+            .flat()
+            .filter((day) => day.getMonth() === cursor.getMonth())
+            .map((day) => {
+              const iso = format(day, "yyyy-MM-dd");
+              const dayItems = items.filter((item) => item.date === iso);
+              if (!dayItems.length) return null;
+              return (
+                <li key={iso} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+                  <p className="text-xs text-muted">{format(day, "M/d EEE", { locale: zhTW })}</p>
+                  {dayItems.map((item) => (
+                    <div
+                      key={item.id}
+                      id={item.date === focusDay ? `cal-day-${item.date}` : undefined}
+                      className={cn(
+                        "mt-2 border-t border-border pt-2",
+                        focusDay && item.date === focusDay && item.kind !== "event" && "rounded-xl ring-2 ring-primary",
+                      )}
+                    >
+                      <MobileTitle item={item} urls={urls} />
+                      <ItemActions
+                        item={item}
+                        onExtend={() => extend(item)}
+                        onCreate={() => createWave(item)}
+                        onReschedule={(dateIso) => onDrop(dateIso, item.waveId ?? item.id)}
+                      />
+                    </div>
+                  ))}
+                </li>
+              );
+            })}
         </ul>
-      </section>
+      ) : null}
+
+      {view === "week" ? (
+        <ul className="mt-6 space-y-2 pb-28 md:hidden">
+          {weekDays.map((day) => {
+            const iso = format(day, "yyyy-MM-dd");
+            const dayItems = items.filter((item) => item.date === iso);
+            return (
+              <li key={iso} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+                <p className="text-xs text-muted">{format(day, "M/d EEE", { locale: zhTW })}</p>
+                {dayItems.length ? (
+                  dayItems.map((item) => (
+                    <div
+                      key={item.id}
+                      id={item.date === focusDay ? `cal-day-${item.date}` : undefined}
+                      className={cn(
+                        "mt-2 border-t border-border pt-2 first:mt-1 first:border-0 first:pt-0",
+                        focusDay && item.date === focusDay && item.kind !== "event" && "rounded-xl ring-2 ring-primary",
+                      )}
+                    >
+                      <MobileTitle item={item} urls={urls} />
+                      <ItemActions
+                        item={item}
+                        onExtend={() => extend(item)}
+                        onCopy={
+                          item.campaignId && item.waveId
+                            ? () => duplicateWave(item.campaignId!, item.waveId!)
+                            : undefined
+                        }
+                        onCreate={() => createWave(item)}
+                        onReschedule={(dateIso) => onDrop(dateIso, item.waveId ?? item.id)}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <p className="mt-1 text-xs text-subtle">
+                    這天還沒排。{" "}
+                    <Link to="/create" search={{ day: iso }} className="text-accent underline-offset-2 hover:underline">
+                      這天發一篇
+                    </Link>
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
     </main>
+  );
+}
+
+function CalChip({
+  item,
+  urls,
+  focused,
+  dense,
+  onOpen,
+}: {
+  item: CalendarItem;
+  urls: Record<string, string>;
+  focused?: boolean;
+  dense?: boolean;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      draggable
+      onDragStart={(event) => event.dataTransfer.setData("text/plain", item.id)}
+      onClick={onOpen}
+      className={cn(
+        "flex w-full cursor-grab items-center gap-1 rounded-lg text-left leading-tight",
+        dense ? "px-1 py-1 text-sm" : "bg-surface-2 px-1.5 py-1 text-xs",
+        focused && "ring-2 ring-primary",
+      )}
+    >
+      <CalendarThumb item={item} urls={urls} size="sm" />
+      <span className="min-w-0 truncate">{item.title}</span>
+    </button>
+  );
+}
+
+function MobileTitle({ item, urls }: { item: CalendarItem; urls: Record<string, string> }) {
+  return (
+    <div className="flex items-center gap-3">
+      <CalendarThumb item={item} urls={urls} />
+      <p className="min-w-0 flex-1 text-sm">{item.title}</p>
+    </div>
+  );
+}
+
+function AgendaRow({
+  item,
+  urls,
+  focused,
+  onExtend,
+  onCopy,
+  onCreate,
+  onReschedule,
+}: {
+  item: CalendarItem;
+  urls: Record<string, string>;
+  focused?: boolean;
+  onExtend: () => void;
+  onCopy: () => void;
+  onCreate: () => void;
+  onReschedule: (dateIso: string) => void;
+}) {
+  return (
+    <li
+      id={focused ? `cal-day-${item.date}` : undefined}
+      className={cn(
+        "scroll-mt-4 scroll-mb-28 rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]",
+        focused && "ring-2 ring-primary",
+      )}
+    >
+      <p className="text-xs text-muted">{format(new Date(`${item.date}T12:00:00+08:00`), "M/d EEE", { locale: zhTW })}</p>
+      <div className="mt-1 flex items-start gap-3">
+        <CalendarThumb item={item} urls={urls} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm">{item.title}</p>
+          <p className="text-xs text-subtle">
+            {item.kind === "event" ? "活動" : contentKindLabel(item.kind)} · {STATUS_META[item.status].label}
+            {item.publishedAt ? ` · 實際發布 ${format(item.publishedAt, "M/d HH:mm", { locale: zhTW })}` : ""}
+            {item.kind !== "event" && item.status !== "published" && item.date <= format(new Date(), "yyyy-MM-dd")
+              ? " · 該發了"
+              : ""}
+          </p>
+        </div>
+      </div>
+      <ItemActions item={item} onExtend={onExtend} onCopy={onCopy} onCreate={onCreate} onReschedule={onReschedule} />
+    </li>
+  );
+}
+
+function ItemActions({
+  item,
+  onExtend,
+  onCopy,
+  onCreate,
+  onReschedule,
+}: {
+  item: CalendarItem;
+  onExtend: () => void;
+  onCopy?: () => void;
+  onCreate?: () => void;
+  onReschedule?: (dateIso: string) => void;
+}) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {!item.projectId && item.kind !== "event" && item.status !== "published" && onCreate ? (
+        <Button size="sm" variant="secondary" onClick={onCreate}>
+          生成這一波
+        </Button>
+      ) : null}
+      <Button size="sm" variant="ghost" onClick={onExtend}>
+        AI 延伸
+      </Button>
+      {onCopy ? (
+        <Button size="sm" variant="ghost" onClick={onCopy}>
+          複製
+        </Button>
+      ) : null}
+      {item.kind !== "event" && item.status !== "published" && onReschedule ? (
+        <label className="flex min-h-11 items-center gap-2 rounded-full bg-surface-2 px-3 text-xs text-muted">
+          改日期
+          <input
+            type="date"
+            value={item.date}
+            aria-label={`改 ${item.title} 的日期`}
+            className="min-h-11 min-w-[9.5rem] bg-transparent text-sm text-fg"
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next && next !== item.date) onReschedule(next);
+            }}
+          />
+        </label>
+      ) : null}
+      {item.projectId ? (
+        <Button asChild size="sm" variant="ghost">
+          <Link to="/studio/$projectId" params={{ projectId: item.projectId }}>
+            編輯
+          </Link>
+        </Button>
+      ) : null}
+      <IgPreviewLink projectId={item.projectId} />
+      {item.status === "published" ? (
+        <span className="self-center text-xs text-subtle" data-published-memory="">
+          已進 Content Memory
+        </span>
+      ) : item.kind !== "event" ? (
+        <PublishButton
+          campaignId={item.campaignId}
+          waveId={item.waveId}
+          projectId={item.projectId}
+          title={item.title}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function IgPreviewLink({ projectId }: { projectId?: string }) {
+  return (
+    <Button asChild size="sm" variant="ghost">
+      {projectId ? (
+        <Link to="/ig" search={{ item: projectId }}>
+          IG Preview
+        </Link>
+      ) : (
+        <Link to="/ig">IG Preview</Link>
+      )}
+    </Button>
   );
 }
 

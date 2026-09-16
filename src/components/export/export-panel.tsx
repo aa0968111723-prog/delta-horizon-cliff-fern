@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Calendar, Plus } from "lucide-react";
+import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DownloadPackButton, PackExportHint } from "@/components/export/download-pack";
@@ -189,40 +189,15 @@ export function ExportPanel({
       >
         複製貼文文案
       </Button>
-      <Button
-        variant="outline"
-        className="w-full gap-1.5 text-xs border-primary/40 text-primary hover:bg-primary/5"
-        onClick={() => {
-          const contentType =
-            pages.length > 1
-              ? "carousel"
-              : format.id === "story"
-              ? "story"
-              : format.id === "reels-cover"
-              ? "reels"
-              : "ig-post";
-
-          addScheduledPost({
-            projectId: project.id,
-            title: project.name,
-            contentType,
-            status: "scheduled",
-            scheduledAt: new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 16).replace("T", " "),
-            hook: project.copy.headline.replace("\n", " "),
-            caption: project.copy.caption,
-            hashtags: project.copy.hashtags,
-            cta: project.copy.cta,
-            visualDirection: `${format.name} · ${brand.name}`,
-            slidesCount: pages.length,
-            sourceKind: "brand-memory",
-            sourceRef: `Studio 畫布 / ${project.name}`,
-          });
-          toast.success(`已將「${project.name}」排入社團內容日曆！`);
-        }}
-      >
-        <Calendar className="size-3.5" />
-        排入社團內容日曆
-      </Button>
+      <p className="text-xs text-muted">下載只是檔案，不會當成已發布。真正發出後再標記，下次 AI 才會學這篇。</p>
+      <PublishButton
+        projectId={project.id}
+        campaignId={project.campaignId ?? undefined}
+        title={project.name}
+        size="default"
+        variant="secondary"
+        className="w-full"
+      />
       {project.copy.altText ? (
         <Button
           variant="secondary"

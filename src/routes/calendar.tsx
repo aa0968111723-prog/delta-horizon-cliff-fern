@@ -3,13 +3,18 @@ import { useState } from "react";
 import { CalendarPage } from "@/components/calendar/calendar-page";
 import { calendarSearchParams, type CalendarSearch } from "@/lib/studio/calendar-search";
 
-export type { CalendarSearch };
+type Search = {
+  day?: string;
+};
 
 export const Route = createFileRoute("/calendar")({
-  validateSearch: (search: Record<string, unknown>): CalendarSearch => {
-    return calendarSearchParams({
-      campaign: typeof search.campaign === "string" ? search.campaign : undefined,
-    });
-  },
-  component: CalendarPage,
+  validateSearch: (s: Record<string, unknown>): Search => ({
+    day: typeof s.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s.day) ? s.day : undefined,
+  }),
+  component: CalendarRoute,
 });
+
+function CalendarRoute() {
+  const { day } = Route.useSearch();
+  return <CalendarPage focusDay={day} />;
+}
