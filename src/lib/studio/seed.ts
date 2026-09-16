@@ -1,8 +1,7 @@
 import { emptyBoilerplate } from "./boilerplate";
 import { migrateBrief, migratePlan, migratePlanVersions } from "./brief";
 import { buildLayout } from "./layout";
-import { DEFAULT_SHADOW } from "./layers";
-import type { AssetMeta, BrandKit, Layer, LineLayer, Project } from "./types";
+import type { AssetMeta, BrandKit, Layer, Project } from "./types";
 
 export const SEED_BRAND_ID = "brand_tku_zenclub";
 export const SEED_PROJECT_ID = "proj_floating_light";
@@ -25,7 +24,7 @@ export const SEED_ASSETS: AssetMeta[] = [
     tags: ["logo", "品牌", "圖標", "三色光", "淡江禪學社"],
     createdAt: SEED_TIME,
     updatedAt: SEED_TIME,
-    seedSrc: "/seed/nisshoku-mark.svg",
+    seedSrc: "/seed/zen-mark.svg",
     source: "seed",
     licenseNotes: "社團自有標誌，淡江禪學社網宣創作專用。",
     licenseOwner: "淡江大學禪學社",
@@ -46,7 +45,7 @@ export const SEED_ASSETS: AssetMeta[] = [
     tags: ["茶會", "生活感", "熱茶", "溫暖", "活動紀錄"],
     createdAt: SEED_TIME,
     updatedAt: SEED_TIME,
-    seedSrc: "/seed/cup.jpg",
+    seedSrc: "/seed/turtle.svg",
     source: "seed",
     licenseNotes: "歷屆茶會實拍，可作 IG 主視覺與貼文插圖。",
     licenseOwner: "淡江大學禪學社",
@@ -67,7 +66,7 @@ export const SEED_ASSETS: AssetMeta[] = [
     tags: ["淡江校園", "宮燈", "夜景", "背景", "微光"],
     createdAt: SEED_TIME,
     updatedAt: SEED_TIME,
-    seedSrc: "/seed/beans.jpg",
+    seedSrc: "/seed/tricolor.svg",
     source: "seed",
     licenseNotes: "淡江校園實景拍攝，可作背景底圖。",
     licenseOwner: "淡江大學禪學社",
@@ -76,6 +75,44 @@ export const SEED_ASSETS: AssetMeta[] = [
     useCount: 1,
     attribution: "淡江校園實景／宮燈教室",
     analysisNotes: "",
+  },
+  {
+    id: SEED_TAMSUI_ID,
+    name: "淡水暮色",
+    kind: "image",
+    category: "tamsui",
+    mime: "image/svg+xml",
+    width: 1080,
+    height: 1080,
+    tags: ["淡水", "傍晚", "生活"],
+    createdAt: SEED_TIME,
+    updatedAt: SEED_TIME,
+    seedSrc: "/seed/tamsui.svg",
+    source: "seed",
+    licenseNotes: "淡水生活感，不是觀光明信片。",
+    licenseOwner: "淡江大學禪學社",
+    favorite: false,
+    lastUsedAt: null,
+    useCount: 0,
+  },
+  {
+    id: SEED_CAMPUS_ID,
+    name: "淡江校園光影",
+    kind: "image",
+    category: "campus",
+    mime: "image/svg+xml",
+    width: 1080,
+    height: 1350,
+    tags: ["淡江", "校園", "背景"],
+    createdAt: SEED_TIME,
+    updatedAt: SEED_TIME,
+    seedSrc: "/seed/campus.svg",
+    source: "seed",
+    licenseNotes: "校園光影，可作限動或背景。",
+    licenseOwner: "淡江大學禪學社",
+    favorite: false,
+    lastUsedAt: null,
+    useCount: 0,
   },
 ];
 
@@ -160,9 +197,7 @@ function stabilize(layers: Layer[], prefix: string): Layer[] {
 
 export function createSeedProject(): Project {
   const now = SEED_TIME;
-  const page1 = buildLayout("feed-portrait", copy, SEED_BRAND, "product", {
-    imageAssetId: SEED_CUP_ID,
-  });
+  const page1 = buildLayout("feed-portrait", copy, SEED_BRAND, "product", { imageAssetId: SEED_LIGHT_ID });
   page1.layers = stabilize(page1.layers, "seed_ly_");
   page1.role = "cover";
   page1.templateId = "product";
@@ -172,10 +207,10 @@ export function createSeedProject(): Project {
     {
       ...copy,
       eyebrow: "ISSUE",
-      headline: "專程來一趟\n值不值得？",
-      subhead: "受眾要的是可以相信的理由。",
-      body: "不是更大聲的促銷，是這包豆值不值得出門。",
-      cta: "查看風味",
+      headline: "連休息\n都有點罪惡？",
+      subhead: "開學以後行程被填滿。",
+      body: "不是要你變得更努力，是想留一個晚上。",
+      cta: "來坐一下",
     },
     SEED_BRAND,
     "quote",
@@ -189,33 +224,16 @@ export function createSeedProject(): Project {
     {
       ...copy,
       eyebrow: "FOCUS",
-      headline: "茉莉 · 佛手柑\n蜂蜜尾韻",
-      subhead: "淺中焙 · 水洗處理 · G1",
-      body: "建議手沖 92°C、1:16，悶蒸 30 秒。",
-      cta: "到店手沖",
+      headline: "燈先亮\n人慢慢到",
+      subhead: "09/24 19:30 · 淡江校園",
+      body: "三色光、可以坐著、可以帶朋友。",
+      cta: "看活動時間",
     },
     SEED_BRAND,
     "editorial",
-    { imageAssetId: SEED_BEANS_ID },
+    { imageAssetId: SEED_TURTLE_ID },
   );
-  const line: LineLayer = {
-    id: "seed_p3_line",
-    name: "分隔線",
-    type: "line",
-    x: 72,
-    y: 820,
-    w: 220,
-    h: 32,
-    rotation: 0,
-    opacity: 1,
-    locked: false,
-    hidden: false,
-    fromLayout: false,
-    stroke: "#B85C38",
-    strokeWidth: 3,
-    shadow: { ...DEFAULT_SHADOW },
-  };
-  page3.layers = [...stabilize(page3.layers, "seed_p3_ly_"), line];
+  page3.layers = stabilize(page3.layers, "seed_p3_ly_");
   page3.role = "detail";
   page3.templateId = "editorial";
 
@@ -224,14 +242,14 @@ export function createSeedProject(): Project {
     {
       ...copy,
       eyebrow: "PROOF",
-      headline: "九月櫃上\n只放一批",
-      subhead: "日食咖啡門市",
-      body: "喝完就換豆。來的人通常會再帶一包回家。",
-      cta: "查看地點",
+      headline: "第一次來\n也沒關係",
+      subhead: "對禪完全不了解也可以。",
+      body: "去年就有人問同一句。答案都是：可以。",
+      cta: "帶朋友一起來",
     },
     SEED_BRAND,
     "product",
-    { imageAssetId: SEED_BEANS_ID },
+    { imageAssetId: SEED_TEA_ID },
   );
   page4.layers = stabilize(page4.layers, "seed_p4_ly_");
   page4.role = "proof";
@@ -242,10 +260,10 @@ export function createSeedProject(): Project {
     {
       ...copy,
       eyebrow: "NOW",
-      headline: "到店手沖",
-      subhead: "2026年9月櫃上 · 日食咖啡門市",
-      body: "來的時候帶這則貼文即可。",
-      cta: "到店手沖",
+      headline: "09/24\n19:30",
+      subhead: "淡江校園 · 活動教室",
+      body: "到了再找位子。不用準時到分。",
+      cta: "來坐一下",
     },
     SEED_BRAND,
     "offer",
@@ -259,10 +277,10 @@ export function createSeedProject(): Project {
     {
       ...copy,
       eyebrow: "NOTE",
-      headline: "這個月\n只烘一個產地。",
-      subhead: "日食咖啡",
-      body: "歡迎到店手沖，或帶一包回家。",
-      cta: "查看風味",
+      headline: "人到了\n就好。",
+      subhead: "淡江大學禪學社",
+      body: "想帶朋友來也可以。",
+      cta: "來坐一下",
     },
     SEED_BRAND,
     "quote",
@@ -364,41 +382,52 @@ export function createSeedProject(): Project {
       },
     ],
     assetNeeds: [
-      { kind: "photo", title: "手沖杯主視覺", detail: "窗邊自然光，保留杯緣。", required: true },
-      { kind: "logo", title: "日食標誌", detail: "淺底或透明版本。", required: true },
-      { kind: "background", title: "烘焙豆", detail: "可作第二頁或背景。", required: false },
+      { kind: "photo", title: "夜間現場或三色光", detail: "學生生活感，直式。", required: true },
+      { kind: "illustration", title: "龜龜", detail: "可小入鏡。", required: false },
+      { kind: "logo", title: "禪學社標誌", detail: "角落，不壓字。", required: true },
     ],
-    checklist: [
-      "標題兩行以內，落在安全區",
-      "時間（九月）有出現",
-      "CTA 可讀",
-      "沒用禁用詞",
-      "Logo 沒壓到杯緣",
-    ],
+    checklist: ["第一句不是公文", "時間地點有出現", "不太宗教", "CTA 可讀", "Logo 沒壓主體"],
     altText: copy.altText,
-    qaNotes: ["避免把價格放上主畫面", "Logo 放右下，不要壓到杯緣"],
+    qaNotes: ["避免佛光與說教", "Hook 要像學生會停下來的那句"],
     generatedAt: now,
     source: "live",
+    threadsPost: {
+      caption: "最近是不是很久沒有好好坐下來？\n下週三 19:30，浮游禪光。人到了就好。",
+      visualNote: "裁成 1:1，保留光暈與第一句。",
+    },
+    lineCopy: {
+      title: "09/24 浮游禪光",
+      body: "一個給淡江學生的晚上。不需要先懂禪。",
+      cta: "來看時間",
+    },
+    reelsScript: [
+      { start: 0, end: 3, visual: "捷運出站／風", caption: "很久沒坐下來？", voiceover: "最近是不是連休息都有點罪惡感。", transition: "切到室內光", assetHint: "淡水或捷運" },
+      { start: 3, end: 7, visual: "三色光亮起", caption: "燈會先亮", voiceover: "下週三晚上。", transition: "疊字", assetHint: "三色光" },
+      { start: 7, end: 12, visual: "有人坐下", caption: "人到了就好", voiceover: "沒有人要你懂禪。", transition: "慢推", assetHint: "茶會或現場" },
+      { start: 12, end: 17, visual: "時間地點", caption: "09/24 19:30 淡江", voiceover: "帶朋友來也可以。", transition: "切卡片", assetHint: "主視覺" },
+      { start: 17, end: 20, visual: "龜龜或 logo", caption: "來坐一下", voiceover: "來坐一下。", transition: "淡出", assetHint: "龜龜" },
+    ],
   });
 
   return {
     id: SEED_PROJECT_ID,
-    name: "九月單品・耶加雪菲",
+    name: "浮游禪光",
     createdAt: now,
     updatedAt: now,
     brandId: SEED_BRAND_ID,
     templateId: "product",
     activeFormatId: "feed-portrait",
     status: "ready",
+    campaignId: "camp_floating_light",
+    contentKind: "carousel",
+    contentStatus: "done",
+    scheduledAt: Date.parse("2026-09-17T19:00:00+08:00"),
+    publishedAt: null,
     brief,
     copy,
     plan,
-    artboards: {
-      "feed-portrait": page1,
-    },
-    slides: {
-      "feed-portrait": slides,
-    },
+    artboards: { "feed-portrait": page1 },
+    slides: { "feed-portrait": slides },
     slideIndex: 0,
     snapshots: [
       {
@@ -418,55 +447,51 @@ export function createSeedProject(): Project {
 }
 
 export function createSeedDraft(): Project {
-  const now = Date.parse("2026-09-03T10:00:00+08:00");
+  const now = Date.parse("2026-09-14T10:00:00+08:00");
   const draftCopy = {
-    eyebrow: "WEEKEND",
-    headline: "週末手沖",
-    subhead: "兩人座，預約制。",
+    eyebrow: "NOW",
+    headline: "先喘一口氣",
+    subhead: "限動草稿",
     body: "",
-    cta: "預約席次",
-    handle: "@nisshoku.coffee",
+    cta: "來坐一下",
+    handle: "@tku.zen",
     caption: "",
-    hashtags: ["#日食咖啡"],
+    hashtags: ["#淡江禪學社"],
     altText: "",
   };
-  const artboard = buildLayout("story", draftCopy, SEED_BRAND, "offer", {
-    imageAssetId: SEED_BEANS_ID,
-  });
-  artboard.layers = artboard.layers.map((layer, index) => ({
-    ...layer,
-    id: `seed_draft_ly_${index}`,
-  }));
+  const artboard = buildLayout("story", draftCopy, SEED_BRAND, "offer", { imageAssetId: SEED_TAMSUI_ID });
+  artboard.layers = artboard.layers.map((layer, index) => ({ ...layer, id: `seed_draft_ly_${index}` }));
   return {
     id: SEED_DRAFT_ID,
-    name: "週末限時・手沖體驗",
+    name: "限動草稿・坐下來",
     createdAt: now,
     updatedAt: now,
     brandId: SEED_BRAND_ID,
     templateId: "offer",
     activeFormatId: "story",
     status: "draft",
+    campaignId: "camp_floating_light",
+    contentKind: "story",
+    contentStatus: "idea",
+    scheduledAt: Date.parse("2026-09-22T21:00:00+08:00"),
+    publishedAt: null,
     brief: migrateBrief({
-      product: "週末手沖體驗席",
-      eventName: "週末手沖體驗",
-      schedule: "週末午后",
-      location: "日食咖啡",
-      offer: "兩人座，預約制",
-      audience: "想慢慢喝一杯的附近住戶",
+      product: "浮游禪光限動",
+      eventName: "浮游禪光",
+      schedule: "活動前兩天晚上",
+      location: "淡江校園",
+      offer: "",
+      audience: "淡江學生",
       goal: "traffic",
-      features: "兩人座、預約制",
-      style: "安靜、不催促",
-      notes: "尚未定標題層級，先當草稿。",
+      features: "倒數、時間地點",
+      style: "短、口語",
+      notes: "尚未定稿。",
       deliverables: { post: false, story: true, carousel: false, reels: false },
     }),
     copy: draftCopy,
     plan: null,
-    artboards: {
-      story: artboard,
-    },
-    slides: {
-      story: [artboard],
-    },
+    artboards: { story: artboard },
+    slides: { story: [artboard] },
     slideIndex: 0,
     snapshots: [],
     planVersions: [],

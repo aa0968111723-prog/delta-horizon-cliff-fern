@@ -1,7 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AssistantForm } from "@/components/assistant/assistant-form";
-import { PageHeader } from "@/components/shared/page-header";
-import { useStudio } from "@/stores/studio-store";
+import { CreateHub } from "@/components/create/create-hub";
 
 export const Route = createFileRoute("/assistant")({ component: AssistantPage });
 

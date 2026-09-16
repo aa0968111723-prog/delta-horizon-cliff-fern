@@ -1,3 +1,5 @@
+import { isZenClub } from "../club/identity.ts";
+import { buildZenMockPlan } from "../club/mock-plan.ts";
 import { goalLabel } from "../studio/goals.ts";
 import type { CampaignPlan, CarouselPagePlan, TemplateId } from "../studio/types.ts";
 import type { BriefInput } from "./schema.ts";
@@ -33,6 +35,9 @@ function stripForbidden(text: string, words: string[]) {
 }
 
 export function buildMockPlan(data: BriefInput): CampaignPlan {
+  if (isZenClub(data.brandName) || isZenClub(data.audience) || isZenClub(data.handle)) {
+    return buildZenMockPlan(data);
+  }
   const name = data.eventName.trim();
   const when = data.schedule.trim() || "近期檔期";
   const where = data.location.trim() || "到店";

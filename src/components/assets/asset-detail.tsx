@@ -38,6 +38,7 @@ export function AssetDetailSheet({
 }) {
   const navigate = useNavigate();
   const updateAsset = useStudio((s) => s.updateAsset);
+  const addAsset = useStudio((s) => s.addAsset);
   const placeAsset = useStudio((s) => s.placeAsset);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
