@@ -24,6 +24,18 @@ export function applyDirectionToPlan(plan: CampaignPlan, dir: VisualDirection): 
     subhead: dir.subhead || plan.subhead,
     hook,
     copyPacks: plan.copyPacks?.map((pack) => ({ ...pack, hook })),
+    threadsPost: plan.threadsPost
+      ? plan.threadsPost.replace(plan.hook, hook)
+      : plan.threadsPost,
+    reelsScript: plan.reelsScript
+      ? {
+          ...plan.reelsScript,
+          hook,
+          beats: plan.reelsScript.beats.map((beat, index) =>
+            index === 0 ? { ...beat, caption: hook, voice: hook } : beat,
+          ),
+        }
+      : plan.reelsScript,
   };
 }
 

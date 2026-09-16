@@ -30,6 +30,14 @@ test("applyDirectionToPlan follows the picked visual, not a temple poster", () =
     generatedAt: 1,
     source: "mock" as const,
     copyPacks: [{ tone: "student" as const, hook: "舊", body: "x", cta: "來坐一下", hashtags: [] }],
+    threadsPost: "最近是不是很久沒有好好坐下來？\n9/24 晚上來坐一下。",
+    reelsScript: {
+      hook: "最近是不是很久沒有好好坐下來？",
+      beats: [
+        { start: "0", end: "3", onScreen: "光", caption: "最近是不是很久沒有好好坐下來？", voice: "hook", transition: "切", assetHint: "燈" },
+        { start: "3", end: "7", onScreen: "淡水", caption: "人可以慢", voice: "課表", transition: "淡", assetHint: "河" },
+      ],
+    },
   };
   const next = applyDirectionToPlan(plan, {
     id: "b",
@@ -45,6 +53,10 @@ test("applyDirectionToPlan follows the picked visual, not a temple poster", () =
   assert.match(next.visualDirection, /朋友位/);
   assert.equal(next.hook, "可以自己來？");
   assert.equal(next.copyPacks?.[0]?.hook, "可以自己來？");
+  assert.match(next.threadsPost ?? "", /^可以自己來？/);
+  assert.equal(next.reelsScript?.hook, "可以自己來？");
+  assert.equal(next.reelsScript?.beats[0]?.caption, "可以自己來？");
+  assert.equal(next.reelsScript?.beats[1]?.caption, "人可以慢");
   assert.equal("assignee" in next, false);
 });
 

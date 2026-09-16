@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { convertPlan, captionFromCopyPack, rewriteCopyPack } from "./convert.ts";
+import { convertPlan, captionFromCopyPack, rewriteCopyPack, packCaption } from "./convert.ts";
 import { buildMockPlan } from "./mock.ts";
 
 const zenBrief = {
@@ -107,4 +107,17 @@ test("convertPlan threads and line stay copy-to-app posts, not a campaign dump",
   assert.doesNotMatch(threads.items[0] ?? "", /誠摯邀請|負責人|審核|Assignee/);
   assert.match(line.items[0] ?? "", /浮游禪光/);
   assert.doesNotMatch(line.items[0] ?? "", /誠摯邀請|審核人/);
+});
+
+test("packCaption for reels keeps one student hook", () => {
+  const plan = {
+    ...buildMockPlan(zenBrief),
+    hook: "有時候我們需要的不是答案，只是一個安靜的晚上。",
+    body: "可以自己來？\n2026/09/23 19:00 淡江大學淡水校園 · 禪學社\n想找人一起的話，把這則傳給他。",
+    cta: "來坐一下",
+    hashtags: ["#淡江禪學社"],
+  };
+  const caption = packCaption(plan, convertPlan(plan, "reels"));
+  assert.match(caption, /^有時候我們需要的不是答案/);
+  assert.doesNotMatch(caption, /可以自己來/);
 });

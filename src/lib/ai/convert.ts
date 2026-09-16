@@ -82,8 +82,10 @@ export function packCaption(plan: CampaignPlan, pack: ConvertedPack) {
   if (pack.kind === "ig-post" || pack.kind === "threads" || pack.kind === "line") {
     return pack.items.join("\n");
   }
-  const tags = plan.hashtags.join(" ");
-  return [plan.hook, plan.body, plan.cta, tags].filter(Boolean).join("\n");
+  return rewriteCopyPack(
+    { hook: plan.hook, body: plan.body, cta: plan.cta, hashtags: plan.hashtags },
+    undefined,
+  ).caption;
 }
 
 export function captionFromCopyPack(pack: { hook: string; body: string; cta: string; hashtags?: string[] }) {

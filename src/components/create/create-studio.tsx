@@ -1034,7 +1034,12 @@ export function CreateStudio() {
 
   async function realizeDirection(dir: VisualDirection) {
     if (!plan) return;
-    const next = applyDirectionToPlan(plan, dir);
+    const directed = applyDirectionToPlan(plan, dir);
+    const cleaned = rewriteCopyPack(
+      { hook: directed.hook, body: directed.body, cta: directed.cta, hashtags: directed.hashtags },
+      plan.hook,
+    );
+    const next = { ...directed, hook: cleaned.hook, body: cleaned.body };
     adoptDirection(dir, true);
     setPlan(next);
     setBusy(true);
@@ -1049,6 +1054,9 @@ export function CreateStudio() {
       scheduleConverted(next, created, project?.id ?? null, imageId);
       if (imageId) {
         await attachWaveLooks(created, dir, imageId);
+      }
+      for (const item of useStudio.getState().schedule.filter((row) => row.campaignId === created.id)) {
+        upsertSchedule({ ...item, caption: cleaned.caption, body: cleaned.body });
       }
       toast.success("已用這個方向做出整套：主視覺、文案、各平台、月曆");
       requestAnimationFrame(() => {
