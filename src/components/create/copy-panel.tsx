@@ -1,4 +1,5 @@
 import { Check, RefreshCw, Sparkles, UserRound, Wand2, X } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import type { CopyDraft, StudentReview, ToneId } from "@/lib/studio/types";
@@ -31,6 +32,12 @@ export function CopyPanel({
 }) {
   const smell = detectAiSmell(`${copy.hook}\n${copy.body}`);
   const hasCopy = Boolean(copy.hook || copy.body);
+  const reviewRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!review) return;
+    reviewRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [review]);
 
   return (
     <section className="min-w-0 rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)] md:p-5">
@@ -129,7 +136,7 @@ export function CopyPanel({
       </div>
 
       {/* 反向學生模擬 */}
-      <div className="mt-5 rounded-2xl bg-glow-card p-4">
+      <div ref={reviewRef} className="mt-5 rounded-2xl bg-glow-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-full bg-surface text-accent">

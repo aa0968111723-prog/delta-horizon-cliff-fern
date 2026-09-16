@@ -25,7 +25,7 @@ import {
 } from "@/lib/ai/zen";
 import type { CampaignContextInput } from "@/lib/ai/zen-schema";
 import { brandMemoryContext } from "@/lib/studio/brand";
-import { campaignToContext, ideaToContext, waveDateIso } from "@/lib/studio/campaigns";
+import { campaignToContext, ideaToContext, nextCampaign, waveDateIso } from "@/lib/studio/campaigns";
 import { importUserImage, saveGeneratedImage } from "@/lib/studio/generated-assets";
 import type { AssetInsight, ContentItem, ContentStatus, ContentType, CopyDraft, CreativeDirection, ToneId } from "@/lib/studio/types";
 import { studentContext } from "@/lib/zen/context";
@@ -72,6 +72,7 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
   const [imageUnavailable, setImageUnavailable] = useState(false);
   const [busy, setBusy] = useState<{ copy?: boolean; review?: boolean; dir?: boolean; img?: boolean; conv?: boolean; ana?: boolean }>({});
   const autoRan = useRef(false);
+  const defaultedCampaign = useRef(false);
   const photoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -81,6 +82,21 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
   useEffect(() => {
     if (search.contentId && search.contentId !== contentId) setContentId(search.contentId);
   }, [search.contentId, contentId]);
+
+  useEffect(() => {
+    if (!hydrated || defaultedCampaign.current) return;
+    if (campaignId || search.campaignId || search.contentId || search.idea) {
+      defaultedCampaign.current = true;
+      return;
+    }
+    if (mode === "idea" || mode === "drive" || mode === "canva" || mode === "ig" || mode === "photo") {
+      defaultedCampaign.current = true;
+      return;
+    }
+    const next = nextCampaign(campaigns);
+    defaultedCampaign.current = true;
+    if (next) setCampaignId(next.id);
+  }, [hydrated, campaignId, campaigns, mode, search.campaignId, search.contentId, search.idea]);
 
   useEffect(() => {
     if (content) setType(content.type);
@@ -150,7 +166,7 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
           campaign: ctx,
           contentType: target.type,
           tone,
-          angle: wave?.angle || target.visualDirection || undefined,
+          angle: wave?.angle || undefined,
           waveRole: wave?.role,
           idea: idea || undefined,
         },

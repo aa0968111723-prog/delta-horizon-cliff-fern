@@ -41,6 +41,17 @@ test("localCopy six tones all produce a hook", () => {
   }
 });
 
+test("localCopy does not use visualDirection or wave angle as the hook", () => {
+  const visual = "夜晚宮燈大道的一盞燈，三色光暈，下方留白。";
+  const waveAngle = "活動正式登場。一張圖、一句 Hook、時間地點。";
+  const short = localCopy(ctx, "short", 0, visual);
+  const keyed = localCopy(ctx, "normal", 0, waveAngle);
+  assert.notEqual(short.hook, visual);
+  assert.notEqual(keyed.hook, waveAngle);
+  assert.equal(/宮燈|光暈|留白|主視覺|一張圖/.test(short.hook), false);
+  assert.equal(/主視覺|一張圖/.test(keyed.hook), false);
+});
+
 test("localDirections returns three distinct directions with prompts", () => {
   const dirs = localDirections(ctx);
   assert.equal(dirs.length, 3);

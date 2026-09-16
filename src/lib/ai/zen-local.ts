@@ -74,9 +74,9 @@ const LIFE_LINES = [
   "覺生圖書館坐了六小時之後，你需要的不是咖啡，是停下來。",
 ];
 
-export function localCopy(c: CampaignContextInput, tone: ToneId, seed = 0, angle?: string): CopyDraft {
+export function localCopy(c: CampaignContextInput, tone: ToneId, seed = 0, _angle?: string): CopyDraft {
   const hooks = pickHooks({ painPoints: c.painPoints, type: c.type, seed });
-  const hook = angle?.trim() && angle.length < 40 ? angle : hooks[0] ?? "有時候我們需要的不是答案，只是一個安靜的晚上。";
+  const hook = hooks[0] ?? "有時候我們需要的不是答案，只是一個安靜的晚上。";
   const when = whenLine(c);
   const where = c.location || "社辦";
   const intro = c.oneLiner || `${campaignTypeLabel(c.type)}，${c.theme || "來坐一下就好"}。`;
