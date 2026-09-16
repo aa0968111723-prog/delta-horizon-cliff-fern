@@ -159,3 +159,50 @@ export function convertedScheduleInput(input: {
     sourceLabel: input.hook ? `AI 轉換 / ${input.hook.slice(0, 24)}` : "AI 轉換",
   };
 }
+
+export function convertedScheduleDrafts(input: {
+  eventDate: string;
+  eventName: string;
+  kinds: ContentKind[];
+  hook?: string;
+  campaignId: string | null;
+  projectId: string | null;
+}) {
+  return input.kinds.map((kind) => convertedScheduleInput({ ...input, kind }));
+}
+
+export function isSameScheduleDay(a: number, b: number) {
+  const left = new Date(a);
+  const right = new Date(b);
+  return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
+}
+
+/** Reuse the same-day slot of this format. Never steal another day's Story / Reels. */
+export function matchingScheduleRow<
+  T extends {
+    campaignId: string | null;
+    contentKind: ContentKind;
+    plannedAt: number;
+    status: ContentStatus;
+  },
+>(
+  rows: T[],
+  input: { campaignId: string | null; kind: ContentKind; plannedAt: number },
+): T | undefined {
+  return rows.find((row) => {
+    if (row.contentKind !== input.kind) return false;
+    if (row.status === "published") return false;
+    if (!isSameScheduleDay(row.plannedAt, input.plannedAt)) return false;
+    if (input.campaignId) return row.campaignId === input.campaignId;
+    return !row.campaignId;
+  });
+}
+
+export function scheduleChipLabel(row: { contentKind: ContentKind; title: string }) {
+  const kind = CONTENT_KIND_META[row.contentKind].label;
+  const title = row.title.trim();
+  if (title === kind || title.startsWith(`${kind} `) || title.startsWith(`${kind}·`) || title.startsWith(`${kind} ·`)) {
+    return title;
+  }
+  return `${kind} ${title}`;
+}

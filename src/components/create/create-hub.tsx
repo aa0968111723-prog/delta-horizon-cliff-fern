@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { AssistantForm } from "@/components/assistant/assistant-form";
 import { IdeaFlow } from "@/components/create/idea-flow";
@@ -28,6 +29,7 @@ import { useCreative } from "@/stores/creative-store";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { lessonPrompt } from "@/lib/club/insights";
 import { kindFromFormat, lastPackFromPlan, lastPackPreviewSrc, withPackKind } from "@/lib/club/last-pack";
+import { convertedScheduleInput, matchingScheduleRow } from "@/lib/club/schedule";
 import type { ContentKind, CreativeDirection, FormatId } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 
@@ -521,8 +523,12 @@ function ConvertStudio({
 }) {
   const projects = useStudio((s) => s.projects);
   const lastProjectId = useStudio((s) => s.lastProjectId);
+  const updateProject = useStudio((s) => s.updateProject);
   const lastPack = useCreative((s) => s.lastPack);
   const setLastPack = useCreative((s) => s.setLastPack);
+  const campaigns = useCreative((s) => s.campaigns);
+  const upsertSchedule = useCreative((s) => s.upsertSchedule);
+  const navigate = useNavigate();
   const project = projects.find((p) => p.id === lastProjectId);
   const [kind, setKind] = useState<ContentKind>(seedKind || "carousel");
   const urls = useAssetUrls(lastPack?.heroAssetId ? [lastPack.heroAssetId] : []);
@@ -555,6 +561,37 @@ function ConvertStudio({
     if (current) setLastPack(withPackKind(current, next, pack.items));
   }
 
+  function putKindOnCalendar(nextKind = kind) {
+    const pack = lastPack;
+    const campaign = campaigns.find((item) => item.id === pack?.campaignId);
+    if (!pack || !campaign?.date) {
+      toast.message("先在活動宣傳生成一篇，就能排進 Calendar。");
+      return;
+    }
+    const draft = convertedScheduleInput({
+      eventDate: campaign.date,
+      eventName: pack.eventName,
+      kind: nextKind,
+      hook: pack.hook,
+      campaignId: pack.campaignId,
+      projectId: pack.projectId,
+    });
+    const existing = matchingScheduleRow(useCreative.getState().schedule, {
+      campaignId: pack.campaignId,
+      kind: nextKind,
+      plannedAt: draft.plannedAt,
+    });
+    upsertSchedule({ ...draft, id: existing?.id });
+    updateProject(pack.projectId, {
+      campaignId: pack.campaignId,
+      contentKind: nextKind,
+      contentStatus: "scheduled",
+      scheduledAt: draft.plannedAt,
+    });
+    toast.success(`已排入 Calendar · ${draft.title}`);
+    void navigate({ to: "/calendar" });
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
@@ -583,16 +620,25 @@ function ConvertStudio({
           ))}
         </ul>
       </div>
-      <Button
-        variant="secondary"
-        onClick={async () => {
-          await navigator.clipboard.writeText(converted.items.map((item) => `${item.heading}\n${item.body}`).join("\n\n"));
-          window.open("https://www.canva.com", "_blank", "noopener,noreferrer");
-          toast.success("文案已複製，可在 Canva 繼續編");
-        }}
-      >
-        送進 Canva 微調
-      </Button>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Button
+          variant="secondary"
+          data-testid="convert-calendar"
+          onClick={() => putKindOnCalendar()}
+        >
+          排入這個格式
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={async () => {
+            await navigator.clipboard.writeText(converted.items.map((item) => `${item.heading}\n${item.body}`).join("\n\n"));
+            window.open("https://www.canva.com", "_blank", "noopener,noreferrer");
+            toast.success("文案已複製，可在 Canva 繼續編");
+          }}
+        >
+          送進 Canva 微調
+        </Button>
+      </div>
     </div>
   );
 }

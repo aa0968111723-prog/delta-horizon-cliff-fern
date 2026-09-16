@@ -13,7 +13,7 @@ import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, not
 import { formatIdFromKind, lastPackFromPlan, withPackKind } from "@/lib/club/last-pack";
 import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
-import { convertedScheduleInput } from "@/lib/club/schedule";
+import { convertedScheduleInput, matchingScheduleRow } from "@/lib/club/schedule";
 import { CONVERT_TARGETS, convertPlan } from "@/lib/convert/pack";
 import { createCanvaFromPlan } from "@/lib/connections/oauth";
 import { folderSearchInput } from "@/lib/connections/presets";
@@ -214,32 +214,58 @@ export function IdeaFlow({
     toast.success(`已加入創作 · 來源：${sourceLabel(item.source)} / ${item.title}`);
   }
 
-  function putOnCalendar() {
-    if (!plan) return;
+  function upsertConverted(kind: ContentKind) {
+    if (!plan) return null;
     const parsed = parseIdea(idea);
     const draft = convertedScheduleInput({
       eventDate: parsed.date,
       eventName: parsed.eventName,
-      kind: packKind,
+      kind,
       hook: plan.hook,
       campaignId,
       projectId,
     });
-    const existing = useCreative
-      .getState()
-      .schedule.find((row) => row.campaignId === campaignId && row.contentKind === packKind && row.status !== "published");
-    upsertSchedule({ ...draft, id: existing?.id });
+    const existing = matchingScheduleRow(useCreative.getState().schedule, {
+      campaignId,
+      kind,
+      plannedAt: draft.plannedAt,
+    });
+    return upsertSchedule({ ...draft, id: existing?.id });
+  }
+
+  function putOnCalendar() {
+    if (!plan) return;
+    const row = upsertConverted(packKind);
+    if (!row) return;
     if (projectId) {
       updateProject(projectId, {
         campaignId: campaignId,
         contentKind: packKind,
         contentStatus: "scheduled",
-        scheduledAt: draft.plannedAt,
+        scheduledAt: row.plannedAt,
       });
     }
     const current = useCreative.getState().lastPack;
     if (current) setLastPack(withPackKind(current, packKind, convertPlan(plan, packKind).items));
-    toast.success(`已排入 Calendar · ${draft.title}`);
+    toast.success(`已排入 Calendar · ${row.title}`);
+    void navigate({ to: "/calendar" });
+  }
+
+  function putAllOnCalendar() {
+    if (!plan) return;
+    const rows = CONVERT_TARGETS.map((item) => upsertConverted(item.id)).filter(Boolean);
+    const currentRow = rows.find((row) => row && row.contentKind === packKind);
+    if (projectId) {
+      updateProject(projectId, {
+        campaignId: campaignId,
+        contentKind: packKind,
+        contentStatus: "scheduled",
+        scheduledAt: currentRow?.plannedAt ?? Date.now(),
+      });
+    }
+    const current = useCreative.getState().lastPack;
+    if (current) setLastPack(withPackKind(current, packKind, convertPlan(plan, packKind).items));
+    toast.success("已排入 IG Post、Carousel、Story、Threads、LINE、Reels");
     void navigate({ to: "/calendar" });
   }
 
@@ -524,7 +550,14 @@ export function IdeaFlow({
               data-testid="idea-calendar"
               onClick={() => putOnCalendar()}
             >
-              排入 Calendar
+              排入這個格式
+            </Button>
+            <Button
+              variant="secondary"
+              data-testid="idea-calendar-all"
+              onClick={() => putAllOnCalendar()}
+            >
+              排入全部格式
             </Button>
             <Button variant="secondary" onClick={() => void navigate({ to: "/instagram" })}>
               看 IG Preview

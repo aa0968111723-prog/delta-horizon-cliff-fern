@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildCampaignRhythm, convertedScheduleInput, offsetDaysForKind, scheduleDraftsFromCampaign } from "./schedule.ts";
+import {
+  buildCampaignRhythm,
+  convertedScheduleDrafts,
+  convertedScheduleInput,
+  matchingScheduleRow,
+  offsetDaysForKind,
+  scheduleChipLabel,
+  scheduleDraftsFromCampaign,
+} from "./schedule.ts";
 
 test("tea ceremony rhythm is not a wall of ads", () => {
   const waves = buildCampaignRhythm({ eventDate: "2026-09-24", eventType: "浮游禪光", leadDays: 10 });
@@ -40,6 +48,51 @@ test("converted story lands the night before the event", () => {
   assert.equal(row.status, "scheduled");
   assert.equal(row.contentKind, "story");
   assert.equal(new Date(row.plannedAt).getDate(), 23);
+});
+
+test("converted story reuses the countdown slot, not the day-of story", () => {
+  const waves = buildCampaignRhythm({ eventDate: "2026-09-24", eventType: "茶會", leadDays: 8 });
+  const rows = scheduleDraftsFromCampaign(
+    { id: "camp_tea", name: "茶會", date: "2026-09-24", waves, projectIds: ["proj_tea"] },
+    Date.parse("2026-09-16T12:00:00+08:00"),
+  );
+  const converted = convertedScheduleInput({
+    eventDate: "2026-09-24",
+    eventName: "茶會",
+    kind: "story",
+    campaignId: "camp_tea",
+    projectId: "proj_tea",
+  });
+  const match = matchingScheduleRow(rows, {
+    campaignId: "camp_tea",
+    kind: "story",
+    plannedAt: converted.plannedAt,
+  });
+  assert.ok(match);
+  assert.match(match.title, /倒數/);
+  assert.ok(rows.filter((row) => row.contentKind === "story").length >= 2);
+  const dayOf = rows.find((row) => row.title.includes("當日"));
+  assert.ok(dayOf);
+  assert.notEqual(match.title, dayOf?.title);
+});
+
+test("chip label does not double the format name", () => {
+  assert.equal(scheduleChipLabel({ contentKind: "story", title: "Story · 浮游禪光" }), "Story · 浮游禪光");
+  assert.equal(scheduleChipLabel({ contentKind: "story", title: "當日 · 浮游禪光" }), "Story 當日 · 浮游禪光");
+});
+
+test("all converted formats land on distinct days around the event", () => {
+  const drafts = convertedScheduleDrafts({
+    eventDate: "2026-09-24",
+    eventName: "茶會",
+    kinds: ["ig-post", "carousel", "story", "threads", "line", "reels"],
+    campaignId: "camp_tea",
+    projectId: "proj_tea",
+  });
+  assert.equal(drafts.length, 6);
+  const days = new Set(drafts.map((row) => new Date(row.plannedAt).getDate()));
+  assert.equal(days.size, 6);
+  assert.ok(drafts.some((row) => row.title === "Reels · 茶會"));
 });
 
 test("short lead compresses into a dense sequence", () => {

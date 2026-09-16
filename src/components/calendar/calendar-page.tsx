@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { writeHandoff } from "@/lib/create/handoff";
 import { CONTENT_KIND_META, CONTENT_STATUS_META } from "@/lib/studio/status";
+import { scheduleChipLabel } from "@/lib/club/schedule";
 import type { ContentKind } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useCreative, type ScheduleItem } from "@/stores/creative-store";
@@ -182,12 +183,13 @@ export function CalendarPage() {
                           type="button"
                           draggable
                           data-testid="calendar-chip"
+                          data-chip={scheduleChipLabel(row)}
                           onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", row.id)}
                           onClick={() => setSelected(row)}
                           className="w-full truncate rounded-lg bg-surface px-1 py-1 text-[10px]"
                           title="點開可複製、標記發布或讓 AI 延伸"
                         >
-                          {CONTENT_KIND_META[row.contentKind].label} {row.title}
+                          {scheduleChipLabel(row)}
                         </button>
                       </li>
                     ))}
