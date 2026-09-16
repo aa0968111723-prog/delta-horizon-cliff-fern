@@ -1,4 +1,6 @@
 import { cookieName, encryptBundle, providerConfig, type ProviderId } from "@/lib/connect/oauth";
+import { createPkce, pkceCookieName } from "@/lib/connect/pkce";
+import { cookieFromRequest } from "@/lib/connect/tokens";
 
 function providerFromPath(pathname: string): ProviderId | null {
   if (pathname.includes("drive")) return "drive";
@@ -32,6 +34,15 @@ async function start(request: Request, provider: ProviderId) {
   authorize.searchParams.set("state", state);
   const res = Response.redirect(authorize.toString(), 302);
   res.headers.append("Set-Cookie", cookieHeader(`zen_oauth_state_${provider}`, state, 600, request));
+  if (provider === "canva") {
+    const pkce = createPkce();
+    authorize.searchParams.set("code_challenge", pkce.challenge);
+    authorize.searchParams.set("code_challenge_method", "S256");
+    const redirect = Response.redirect(authorize.toString(), 302);
+    redirect.headers.append("Set-Cookie", cookieHeader(`zen_oauth_state_${provider}`, state, 600, request));
+    redirect.headers.append("Set-Cookie", cookieHeader(pkceCookieName("canva"), pkce.verifier, 600, request));
+    return redirect;
+  }
   return res;
 }
 
@@ -65,16 +76,21 @@ async function exchangeGoogle(code: string, request: Request) {
 }
 
 async function exchangeCanva(code: string, request: Request) {
+  const id = process.env.CANVA_CLIENT_ID ?? "";
+  const secret = process.env.CANVA_CLIENT_SECRET ?? "";
+  const verifier = cookieFromRequest(request, pkceCookieName("canva")) ?? "";
   const body = new URLSearchParams({
     code,
-    client_id: process.env.CANVA_CLIENT_ID ?? "",
-    client_secret: process.env.CANVA_CLIENT_SECRET ?? "",
-    redirect_uri: redirectUri(request, "canva"),
     grant_type: "authorization_code",
+    redirect_uri: redirectUri(request, "canva"),
+    code_verifier: verifier,
   });
   const res = await fetch("https://api.canva.com/rest/v1/oauth/token", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${Buffer.from(`${id}:${secret}`).toString("base64")}`,
+    },
     body,
   });
   if (!res.ok) return null;
@@ -131,6 +147,9 @@ async function callback(request: Request, provider: ProviderId) {
   const jwt = await encryptBundle(bundle);
   const res = Response.redirect(`${originOf(request)}/connect?ok=${provider}`, 302);
   res.headers.append("Set-Cookie", cookieHeader(cookieName(provider), jwt, 60 * 60 * 24 * 30, request));
+  if (provider === "canva") {
+    res.headers.append("Set-Cookie", cookieHeader(pkceCookieName("canva"), "", 0, request));
+  }
   return res;
 }
 

@@ -21,6 +21,7 @@ export function ConnectionCenter() {
   const connections = useStudio((s) => s.connections);
   const setConnection = useStudio((s) => s.setConnection);
   const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
+  const upsertIgMemory = useStudio((s) => s.upsertIgMemory);
   const [server, setServer] = useState<Awaited<ReturnType<typeof getConnectionStatus>> | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -47,13 +48,24 @@ export function ConnectionCenter() {
   async function sync(provider: "drive" | "canva" | "instagram") {
     setBusy(provider);
     try {
-      const result = await syncConnection({ data: { provider } });
+      const result = await syncConnection({
+        data: {
+          provider,
+          folderName: provider === "drive" ? connections.find((c) => c.provider === "drive")?.folderName : undefined,
+        },
+      });
       if (result.files.length) {
         upsertRemoteFiles(result.files);
       } else {
         upsertRemoteFiles(SEED_REMOTE_FILES.filter((file) => file.provider === provider));
       }
-      setConnection(provider, { lastSyncAt: Date.now() });
+      if (result.igPosts.length) upsertIgMemory(result.igPosts);
+      setConnection(provider, {
+        lastSyncAt: Date.now(),
+        status: result.connected ? "connected" : "disconnected",
+        ...(result.accountLabel ? { accountLabel: result.accountLabel } : {}),
+        ...(result.folderName ? { folderName: result.folderName } : {}),
+      });
       toast.message(result.note);
     } finally {
       setBusy(null);

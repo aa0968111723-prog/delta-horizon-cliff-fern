@@ -561,6 +561,12 @@ export type IgMemoryPost = {
   likes?: number;
   comments?: number;
   saves?: number;
+  impressions?: number;
+  reach?: number;
+  shares?: number;
+  plays?: number;
+  permalink?: string;
+  mediaUrl?: string;
   source: "instagram" | "local";
   projectId?: string;
   assetId?: string;

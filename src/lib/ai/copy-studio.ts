@@ -12,8 +12,17 @@ const CopyInput = z.object({
   schedule: z.string().max(120).optional(),
   location: z.string().max(120).optional(),
   tone: ToneSchema.optional(),
+  memoryHint: z.string().max(400).optional(),
   forceMock: z.boolean().optional(),
 });
+
+function parseCopyInput(input: unknown) {
+  if (input && typeof input === "object" && "data" in input) {
+    const inner = (input as { data: unknown }).data;
+    if (inner && typeof inner === "object" && "idea" in inner) return CopyInput.parse(inner);
+  }
+  return CopyInput.parse(input);
+}
 
 export type CopyResult =
   | { ok: true; adapter: "live" | "mock"; packs: CopyPack[]; review: StudentReview }
@@ -45,7 +54,7 @@ function mockPacks(idea: string, eventName: string, schedule: string, location: 
 export { studentReviewOf };
 
 export const generateCopyPacks = createServerFn({ method: "POST" })
-  .validator((input: unknown) => CopyInput.parse(input))
+  .validator((input: unknown) => parseCopyInput(input))
   .handler(async ({ data }): Promise<CopyResult> => {
     const apiKey = process.env.XAI_API_KEY;
     const packsMock = mockPacks(data.idea, data.eventName ?? "", data.schedule ?? "", data.location ?? "");
@@ -74,6 +83,7 @@ export const generateCopyPacks = createServerFn({ method: "POST" })
             role: "user",
             content: `為淡江禪學社寫 IG 文案。想法：${data.idea}
 活動：${data.eventName || "未定"} 時間：${data.schedule || ""} 地點：${data.location || ""}
+過去表現：${data.memoryHint || "問句 Hook 收藏較高"}
 需要 JSON：{packs:[{tone,hook,body,cta,hashtags}], review:{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,tooLong,knowsWhat,knowsWhenWhere,wouldBringFriend,knowsHowToSignup,rewriteHook,notes[]}}
 tones 必含 short,normal,emotional,student,life,humor。禁止誠摯邀請。`,
           },

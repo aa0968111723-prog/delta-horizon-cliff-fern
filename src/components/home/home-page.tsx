@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { contentKindLabel } from "@/lib/studio/content";
-import { daysUntil } from "@/lib/zen/context";
+import { daysUntil, academicBeatLabel, academicBeat } from "@/lib/zen/context";
 import { INSPIRATION } from "@/lib/zen/inspiration";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
@@ -42,6 +42,7 @@ export function HomePage() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <p className="text-xs tracking-[0.2em] text-muted uppercase">淡江大學禪學社</p>
+      <p className="mt-2 text-xs text-subtle">{academicBeatLabel(academicBeat())} · 一人完成網宣</p>
       <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl">今天可以創作什麼？</h1>
       <p className="mt-2 max-w-xl text-sm text-muted">
         一人完成網宣。AI 幫你想、寫、畫、排，Instagram 是主要出口。
@@ -185,6 +186,14 @@ export function HomePage() {
           <p className="mt-1 text-xs text-muted">
             {strong.date} · 收藏 {strong.saves ?? 0} · {strong.analysis || "生活問句當 Hook 比較容易停。"}
           </p>
+          <Button
+            className="mt-3"
+            size="sm"
+            variant="secondary"
+            onClick={() => void navigate({ to: "/create", search: { mode: "from-ig", idea: strong.caption } })}
+          >
+            用這個 Hook 再寫一篇
+          </Button>
         </section>
       ) : null}
 

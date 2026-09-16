@@ -139,6 +139,7 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
 希望風格：${data.style || "無"}
 需要產出：${deliverables || "單張貼文"}
 補充：${data.notes || "無"}
+過去 IG 表現：${data.memoryHint || "問句 Hook 與生活向收藏較高"}
 
 Hook 必須先讓淡江學生覺得「這好像在講我」，禁止「誠摯邀請您」。
 文案自然、偶爾口語，不要每句金句、不要過度詩意。

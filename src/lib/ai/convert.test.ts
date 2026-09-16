@@ -30,6 +30,7 @@ test("convertPlan expands carousel and reels without assignee fields", () => {
   assert.ok(carousel.items.length >= 5);
   const reels = convertPlan(plan, "reels");
   assert.match(reels.items[0] ?? "", /0–3|Hook|秒/);
+  assert.ok(plan.reelsScript?.beats.length);
   assert.ok(plan.hook.length > 0);
   assert.equal("assignee" in plan, false);
 });

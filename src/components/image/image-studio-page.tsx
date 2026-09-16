@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
@@ -28,6 +29,7 @@ const VARIATIONS: { id: "composition" | "mood" | "background" | "style" | "text"
 ];
 
 export function ImageStudioPage() {
+  const navigate = useNavigate();
   const addAsset = useStudio((s) => s.addAsset);
   const [idea, setIdea] = useState("我要宣傳茶會");
   const [format, setFormat] = useState<FormatId>("feed-portrait");
@@ -163,6 +165,27 @@ export function ImageStudioPage() {
                 <li key={s}>{s}</li>
               ))}
             </ul>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: vision.content } })}>
+                延續這個風格
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/create", search: { mode: "story", idea: vision.content } })}>
+                做成限動
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/create", search: { mode: "carousel", idea: vision.content } })}>
+                做成 Carousel
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setFormat("reels-cover");
+                  void directionsGo();
+                }}
+              >
+                做成 Reels Cover
+              </Button>
+            </div>
           </div>
         ) : null}
       </section>

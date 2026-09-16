@@ -134,6 +134,7 @@ type StudioState = {
   setRemoteFiles: (files: RemoteFile[]) => void;
   upsertRemoteFiles: (files: RemoteFile[]) => void;
   addIgMemory: (post: IgMemoryPost) => void;
+  upsertIgMemory: (posts: IgMemoryPost[]) => void;
   applyCampaignPlan: (projectId: string, plan: CampaignPlan, brief: Brief) => void;
   restorePlanVersion: (projectId: string, versionId: string) => void;
   patchPlan: (projectId: string, patch: Partial<CampaignPlan> | ((plan: CampaignPlan) => CampaignPlan)) => void;
@@ -560,6 +561,12 @@ export const useStudio = create<StudioState>()(
           return { remoteFiles: [...map.values()] };
         }),
       addIgMemory: (post) => set((s) => ({ igMemory: [post, ...s.igMemory.filter((item) => item.id !== post.id)] })),
+      upsertIgMemory: (posts) =>
+        set((s) => {
+          const map = new Map(s.igMemory.map((row) => [row.id, row]));
+          for (const post of posts) map.set(post.id, { ...map.get(post.id), ...post });
+          return { igMemory: [...map.values()] };
+        }),
       applyCampaignPlan: (projectId, plan, brief) => {
         const s = get();
         const project = s.projects.find((p) => p.id === projectId);

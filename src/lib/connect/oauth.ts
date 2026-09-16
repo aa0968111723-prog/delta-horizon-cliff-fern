@@ -5,13 +5,14 @@ import { z } from "zod";
 
 export type ProviderId = "drive" | "canva" | "instagram";
 
-type TokenBundle = {
+export type TokenBundle = {
   provider: ProviderId;
   accessToken: string;
   refreshToken?: string;
   expiresAt: number;
   accountLabel: string;
   folderId?: string;
+  folderName?: string;
 };
 
 function secretKey() {
@@ -36,11 +37,12 @@ export function providerConfig(provider: ProviderId): { configured: boolean; aut
   }
   if (provider === "canva") {
     const id = process.env.CANVA_CLIENT_ID;
+    const scope = "design:meta:read design:content:read design:content:write asset:read profile:read";
     return {
       configured: Boolean(id && process.env.CANVA_CLIENT_SECRET),
       label: "Canva",
       authorize: id
-        ? `https://www.canva.com/api/oauth/authorize?client_id=${encodeURIComponent(id)}&response_type=code`
+        ? `https://www.canva.com/api/oauth/authorize?client_id=${encodeURIComponent(id)}&response_type=code&scope=${encodeURIComponent(scope)}`
         : undefined,
     };
   }
@@ -88,7 +90,12 @@ export const getConnectedProfile = createServerFn({ method: "POST" })
     if (!match) return { connected: false as const };
     const bundle = await decryptBundle(decodeURIComponent(match[1]));
     if (!bundle) return { connected: false as const };
-    return { connected: true as const, accountLabel: bundle.accountLabel, folderId: bundle.folderId };
+    return {
+      connected: true as const,
+      accountLabel: bundle.accountLabel,
+      folderId: bundle.folderId,
+      folderName: bundle.folderName,
+    };
   });
 
 export { cookieName };

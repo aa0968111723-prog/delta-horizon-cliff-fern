@@ -5,7 +5,7 @@ import type { BriefInput } from "./schema";
 export function toBriefInput(
   brief: Brief,
   brand: BrandKit,
-  extra?: { forceMock?: boolean },
+  extra?: { forceMock?: boolean; memoryHint?: string },
 ): BriefInput {
   const b = migrateBrief(brief);
   const eventName = b.eventName.trim() || b.product.trim();
@@ -37,6 +37,7 @@ export function toBriefInput(
     imageStyle: [brand.imageStyle?.mood, brand.imageStyle?.lighting, brand.imageStyle?.paletteHint]
       .filter(Boolean)
       .join("；"),
+    ...(extra?.memoryHint ? { memoryHint: extra.memoryHint } : {}),
     ...(extra?.forceMock ? { forceMock: true } : {}),
   };
 }

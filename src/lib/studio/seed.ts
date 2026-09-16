@@ -657,6 +657,17 @@ export const SEED_IG_MEMORY: IgMemoryPost[] = [
     assetId: SEED_TAMSUI_ID,
     analysis: "生活問句當 Hook，比活動全名更容易停滑。",
   },
+  {
+    id: "ig_mem_info",
+    caption: "淡江大學禪學社 9/24 浮游禪光活動開始報名，地點在社團教室。",
+    date: "2025-09-10",
+    kind: "post",
+    likes: 22,
+    comments: 1,
+    saves: 4,
+    source: "local",
+    analysis: "資訊堆疊、沒有問句，停留感較弱。下一次先讓學生覺得被看見。",
+  },
 ];
 
 export const SEED_PROJECT = createSeedProject();

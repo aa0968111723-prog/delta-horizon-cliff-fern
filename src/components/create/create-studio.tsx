@@ -6,6 +6,8 @@ import { generateCampaignPlan, getCampaignAiStatus, describeAdapter, type AiStat
 import { generateCopyPacks } from "@/lib/ai/copy-studio";
 import { generateStudioImage, generateVisualDirections } from "@/lib/ai/image-studio";
 import { toBriefInput } from "@/lib/ai/payload";
+import { createCanvaDesign } from "@/lib/connect/canva";
+import { searchDriveLive } from "@/lib/connect/sync";
 import { emptyBrief, migrateBrief } from "@/lib/studio/brief";
 import { putAssetBlob } from "@/lib/studio/assets-idb";
 import { blobFromBase64 } from "@/lib/studio/bytes";
@@ -13,9 +15,13 @@ import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { parseEventDate, parseEventTime } from "@/lib/zen/dates";
 import { DEFAULT_AUDIENCE } from "@/lib/zen/context";
+import { learnFromIg } from "@/lib/zen/insights";
+import { rhythmHint } from "@/lib/zen/rhythm";
 import { searchCreative, type CreativeHit } from "@/lib/zen/search";
 import { suggestWaves, eventKindFromText, waveLabel } from "@/lib/zen/schedule";
 import type { CampaignPlan, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
+import { ReelsBoard } from "@/components/create/reels-board";
+import { WaveList } from "@/components/create/wave-list";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,13 +53,17 @@ export function CreateStudio() {
   const campaigns = useStudio((s) => s.campaigns);
   const igMemory = useStudio((s) => s.igMemory);
   const remoteFiles = useStudio((s) => s.remoteFiles);
+  const calendar = useStudio((s) => s.schedule);
   const createProject = useStudio((s) => s.createProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const createCampaign = useStudio((s) => s.createCampaign);
   const updateCampaign = useStudio((s) => s.updateCampaign);
   const upsertSchedule = useStudio((s) => s.upsertSchedule);
   const addAsset = useStudio((s) => s.addAsset);
+  const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
   const brand = brands[0];
+  const memoryHint = learnFromIg(igMemory).promptBlock;
+  const recentKinds = calendar.slice(-4).map((item) => item.kind);
 
   const [idea, setIdea] = useState(search.idea || "下週有一場茶會");
   const [eventName, setEventName] = useState(search.idea?.includes("浮游") ? "浮游禪光" : "");
@@ -94,6 +104,14 @@ export function CreateStudio() {
   async function runCopy() {
     setBusy(true);
     gatherHits(idea);
+    if (mode === "from-drive") {
+      try {
+        const live = await searchDriveLive({ data: { query: idea } });
+        if (live.files.length) upsertRemoteFiles(live.files);
+      } catch {
+        /* keep local index */
+      }
+    }
     try {
       const result = await generateCopyPacks({
         data: {
@@ -101,6 +119,7 @@ export function CreateStudio() {
           eventName,
           schedule,
           location,
+          memoryHint,
           forceMock: !status?.available,
         },
       });
@@ -138,7 +157,7 @@ export function CreateStudio() {
         deliverables: { post: true, story: true, carousel: true, reels: true },
       });
       const result = await generateCampaignPlan({
-        data: toBriefInput(brief, brand, { forceMock: !status?.available }),
+        data: toBriefInput(brief, brand, { forceMock: !status?.available, memoryHint }),
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -271,6 +290,38 @@ export function CreateStudio() {
     }
     setCampaign(created);
     toast.success("活動與節奏已進月曆");
+    toast.message(rhythmHint(recentKinds));
+  }
+
+  async function sendToCanva() {
+    if (!plan) return;
+    setBusy(true);
+    try {
+      const result = await createCanvaDesign({
+        data: {
+          title: plan.campaignName,
+          hook: plan.hook,
+          body: activePack?.body || plan.body,
+          cta: plan.cta,
+          format: mode === "story" ? "story" : mode === "reels" ? "reels-cover" : "feed-portrait",
+          palette: plan.colorMood,
+        },
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      if (result.connected) {
+        window.open(result.editUrl, "_blank", "noopener,noreferrer");
+        toast.success("已在 Canva 建立設計，可繼續微調");
+        return;
+      }
+      await navigator.clipboard.writeText(result.brief).catch(() => undefined);
+      window.open(result.editUrl, "_blank", "noopener,noreferrer");
+      toast.message(result.note);
+    } finally {
+      setBusy(false);
+    }
   }
 
   const converted = useMemo(() => {
@@ -409,6 +460,12 @@ export function CreateStudio() {
             <Button variant="secondary" onClick={saveCampaignAndWaves}>
               排入 Calendar
             </Button>
+            <Button variant="secondary" disabled={busy} onClick={() => void sendToCanva()}>
+              送進 Canva
+            </Button>
+            <Button variant="secondary" onClick={() => void navigate({ to: "/ig" })}>
+              IG Preview
+            </Button>
           </div>
           {campaign ? (
             <p className="mt-3 text-xs text-muted">
@@ -416,6 +473,14 @@ export function CreateStudio() {
             </p>
           ) : null}
         </section>
+      ) : null}
+
+      {plan?.reelsScript ? (
+        <ReelsBoard script={plan.reelsScript} eventName={eventName || plan.campaignName} onSchedule={saveCampaignAndWaves} />
+      ) : null}
+
+      {campaign?.waves.length ? (
+        <WaveList waves={campaign.waves} name={campaign.name} schedule={schedule} location={location} idea={idea} />
       ) : null}
 
       <p className="mt-8 text-xs text-subtle">來源會標成 Google Drive / Canva / Instagram / AI Generated。沒連接時先用品牌記憶與本機素材。</p>

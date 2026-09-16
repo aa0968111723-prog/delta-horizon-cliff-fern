@@ -269,6 +269,27 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
     threadsPost: zen ? `${hook}\n${when} ${where}。${cta}` : undefined,
     lineCopy: zen ? `【${name}】\n${when} ${where}\n${cta}` : undefined,
     storyFrames: zen ? [hook, `${name}`, `${when} ${where}`, cta] : undefined,
+    reelsScript: zen
+      ? {
+          hook,
+          beats: [
+            { start: "0", end: "3", onScreen: "光或呼吸，字極少", caption: hook, voice: hook, transition: "切", assetHint: "三色光夜底" },
+            { start: "3", end: "7", onScreen: "淡水或校園走廊", caption: "人可以慢", voice: "課表很滿的時候", transition: "淡", assetHint: "淡水暮色／校園" },
+            { start: "7", end: "12", onScreen: "座位、茶、燈", caption: name, voice: `${name}是一個可以坐下的晚上`, transition: "切", assetHint: "歷屆茶會或燈光" },
+            { start: "12", end: "17", onScreen: "空一個位子", caption: "可以自己來", voice: "也可以揪人", transition: "切", assetHint: "同學互動局部" },
+            { start: "17", end: "20", onScreen: "時間地點", caption: `${when} ${where}`, voice: cta, transition: "切", assetHint: "主視覺最後一格" },
+          ],
+        }
+      : data.wantReels
+        ? {
+            hook,
+            beats: [
+              { start: "0", end: "3", onScreen: "主視覺", caption: hook, voice: hook, transition: "切", assetHint: "主視覺" },
+              { start: "3", end: "12", onScreen: "現場", caption: name, voice: features, transition: "切", assetHint: "現場" },
+              { start: "12", end: "20", onScreen: "時間地點", caption: cta, voice: `${when} ${where}`, transition: "切", assetHint: "主視覺" },
+            ],
+          }
+        : undefined,
     studentReview,
   };
 }
