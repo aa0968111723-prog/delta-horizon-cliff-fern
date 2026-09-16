@@ -15,7 +15,7 @@ import {
 } from "@/lib/ai/image-directions";
 import { generateCopyPack } from "@/lib/ai/copy";
 import { generateCreativePack } from "@/lib/ai/pack";
-import { createCanvaDraft } from "@/lib/ai/oauth";
+import { openCanvaDraft } from "@/components/create/open-canva";
 import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
@@ -25,7 +25,7 @@ import type { VisionAnalysis } from "@/lib/ai/image";
 import { canvaDraftNotes, canvaPresetForAspect } from "@/lib/zen/canva-draft";
 import { LAUNCH_ACTIONS, launchSuccessMessage, type LaunchAction } from "@/lib/zen/from-asset";
 import { materializeCampaignFromPack, parseEventIdea } from "@/lib/zen/from-idea";
-import { clientMemoryLines, composeMemoryNotes, parseDataUrl } from "@/lib/zen/ingest";
+import { clientMemoryLines, composeMemoryNotes } from "@/lib/zen/ingest";
 import { igDnaBlock } from "@/lib/zen/insights";
 import { searchCreativeKnowledge } from "@/lib/zen/search";
 import { seasonContext } from "@/lib/zen/season";
@@ -363,7 +363,6 @@ export function ImageStudio() {
       toast.message("先生成一張圖，再送進 Canva。");
       return;
     }
-    const parts = parseDataUrl(preview);
     setBusy("canva");
     try {
       const notes = canvaDraftNotes({
@@ -371,29 +370,13 @@ export function ImageStudio() {
         body: current?.concept,
         cta: "晚上見",
       });
-      const result = await createCanvaDraft({
-        data: {
-          title: current?.headline.replace(/\n/g, " ") || prompt,
-          hook: current?.headline.replace(/\n/g, " "),
-          notes,
-                  preset: canvaPresetForAspect(format === "reels-cover" ? "reels-cover" : aspect),
-          imageB64: parts?.b64,
-          mime: parts?.mime,
-        },
+      await openCanvaDraft({
+        title: current?.headline.replace(/\n/g, " ") || prompt,
+        hook: current?.headline.replace(/\n/g, " "),
+        notes,
+        preset: canvaPresetForAspect(format === "reels-cover" ? "reels-cover" : aspect),
+        imageSrc: preview,
       });
-      if (!result.ok) {
-        toast.message(result.error);
-        return;
-      }
-      if (notes) {
-        try {
-          await navigator.clipboard.writeText(notes);
-        } catch {
-          /* clipboard optional */
-        }
-      }
-      toast.success(result.uploaded ? "已把這張圖送進 Canva" : "已在 Canva 開稿，可貼上圖與文案");
-      window.open(result.editUrl, "_blank", "noopener,noreferrer");
     } finally {
       setBusy(null);
     }

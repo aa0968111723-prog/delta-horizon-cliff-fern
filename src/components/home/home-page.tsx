@@ -5,7 +5,7 @@ import { ArrowRight, Images, Plus, Search, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreateLaunchSheet } from "@/components/create/create-sheet";
-import { applyVisualDirection } from "@/components/create/apply-visual";
+import { applyPickedDirection } from "@/components/create/apply-picked";
 import { createFromHit } from "@/components/create/from-hit";
 import { PackResult } from "@/components/create/pack-result";
 import { NewProjectDialog } from "@/components/dashboard/new-project-dialog";
@@ -301,19 +301,15 @@ export function HomePage() {
                   (campaign) =>
                     campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name),
                 )?.id ?? featured?.id;
-              const result = await applyVisualDirection({
+              const result = await applyPickedDirection({
                 pack: lastPack,
                 directionId,
                 campaignId,
               });
-              if (!result.ok) {
-                toast.error(result.error);
-                return;
-              }
-              toast.success("已生成主視覺，打開 IG Preview");
+              if (!result.ok) return;
               void navigate({ to: "/instagram" });
             }}
-            onSuiteDone={() => navigate({ to: "/calendar" })}
+            onSuiteDone={() => navigate({ to: "/instagram" })}
           />
         </section>
       ) : null}

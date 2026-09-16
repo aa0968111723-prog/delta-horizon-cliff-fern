@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { ConvertPanel } from "@/components/create/convert-panel";
-import { applyVisualDirection } from "@/components/create/apply-visual";
+import { applyPickedDirection } from "@/components/create/apply-picked";
 import { PackResult } from "@/components/create/pack-result";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -331,19 +331,15 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
             pack={lastPack}
             campaignId={campaign.id}
             onApply={async (directionId) => {
-              const result = await applyVisualDirection({
+              const result = await applyPickedDirection({
                 pack: lastPack,
                 directionId,
                 campaignId: campaign.id,
               });
-              if (!result.ok) {
-                toast.error(result.error);
-                return;
-              }
-              toast.success("已生成主視覺，打開 IG Preview");
+              if (!result.ok) return;
               void navigate({ to: "/instagram" });
             }}
-            onSuiteDone={() => navigate({ to: "/calendar" })}
+            onSuiteDone={() => navigate({ to: "/instagram" })}
           />
           <ConvertPanel pack={lastPack} campaignId={campaign.id} />
         </section>

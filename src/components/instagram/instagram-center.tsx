@@ -5,6 +5,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { applyVisualDirection } from "@/components/create/apply-visual";
 import { applyFormatSequence } from "@/components/create/apply-sequence";
+import { openCanvaDraft } from "@/components/create/open-canva";
 import { openScheduledPreview } from "@/components/create/open-preview";
 import { FormatScriptPanel } from "@/components/instagram/format-script";
 import { PublishIgButton } from "@/components/instagram/publish-button";
@@ -19,6 +20,7 @@ import { ingestUrlToLibrary } from "@/lib/zen/ingest-client";
 import { FORMATS } from "@/lib/studio/formats";
 import { pagesOf } from "@/lib/studio/layers";
 import { SEED_ASSETS } from "@/lib/studio/seed";
+import { canvaDraftNotes, canvaPresetForFormat } from "@/lib/zen/canva-draft";
 import type { FormatId } from "@/lib/studio/types";
 import { uid } from "@/lib/studio/ids";
 import { dnaPromptIdea, igDnaBlock, learnFromPosts, recentPostedNotes } from "@/lib/zen/insights";
@@ -90,6 +92,7 @@ export function InstagramCenter() {
   const [dnaBusy, setDnaBusy] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
   const [beatBusy, setBeatBusy] = useState<string | null>(null);
+  const [canvaBusy, setCanvaBusy] = useState(false);
   const [previewFormat, setPreviewFormat] = useState<FormatId>(igFormat);
   const [caption, setCaption] = useState("");
   const post = igPosts.find((p) => p.id === active);
@@ -247,6 +250,35 @@ export function InstagramCenter() {
     setActiveFormat(previewProject.id, previewFormat);
     setCopy(previewProject.id, { caption });
     toast.success("已更新 Caption");
+  }
+
+  async function sendPreviewToCanva() {
+    const slide = previewProject?.slideIndex ?? 0;
+    const assetId =
+      lastVisualAssetId ??
+      filmstrip?.assetIds[slide] ??
+      filmstrip?.assetIds[0] ??
+      null;
+    const seedSrc = assets.find((a) => a.id === assetId)?.seedSrc;
+    const imageSrc = resolveAssetSrc(assetId, urls, seedSrc);
+    setCanvaBusy(true);
+    try {
+      await openCanvaDraft({
+        title: lastPack?.campaignName || previewProject?.name || "禪光",
+        hook: lastPack?.copy.hook || caption.split("\n")[0],
+        notes:
+          canvaDraftNotes({
+            hook: lastPack?.copy.hook,
+            body: caption,
+            cta: lastPack?.copy.cta,
+            hashtags: lastPack?.copy.hashtags,
+          }) || caption,
+        preset: canvaPresetForFormat(previewFormat),
+        imageSrc,
+      });
+    } finally {
+      setCanvaBusy(false);
+    }
   }
 
   function scheduleCurrent() {
@@ -615,8 +647,18 @@ export function InstagramCenter() {
               <p className="text-sm font-medium">Caption</p>
               <Textarea value={caption} onChange={(e) => setCaption(e.target.value)} rows={8} />
               <p className="text-xs text-muted">{IG_DNA.hashtags.join(" ")}</p>
+              <p className="text-xs text-muted">下一步：Canva 微調 → 排進日曆 → 發布</p>
               <Button size="sm" onClick={saveCaption} disabled={!previewProject}>
                 更新文案
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                data-testid="preview-canva"
+                disabled={canvaBusy}
+                onClick={() => void sendPreviewToCanva()}
+              >
+                {canvaBusy ? "送出中…" : "送到 Canva 微調"}
               </Button>
               <Button size="sm" variant="secondary" onClick={scheduleCurrent} disabled={!caption.trim()}>
                 排進日曆

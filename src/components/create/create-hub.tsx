@@ -1,4 +1,4 @@
-import { applyVisualDirection } from "@/components/create/apply-visual";
+import { applyPickedDirection } from "@/components/create/apply-picked";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -157,16 +157,12 @@ export function CreateHub() {
 
   async function applyDirection(directionId?: string) {
     if (!lastPack) return;
-    const result = await applyVisualDirection({
+    const result = await applyPickedDirection({
       pack: lastPack,
       directionId,
       campaignId: ideaCampaignId,
     });
-    if (!result.ok) {
-      toast.error(result.error);
-      return;
-    }
-    toast.success(result.adapter === "mock" ? "已生成本機主視覺，打開 IG Preview" : "已生成主視覺，打開 IG Preview");
+    if (!result.ok) return;
     void navigate({ to: "/instagram" });
   }
 
@@ -245,7 +241,7 @@ export function CreateHub() {
             pack={lastPack}
             campaignId={ideaCampaignId}
             onApply={applyDirection}
-            onSuiteDone={() => navigate({ to: "/calendar" })}
+            onSuiteDone={() => navigate({ to: "/instagram" })}
           />
           {ideaCampaignId ? (
             <div className="mt-3 flex flex-wrap gap-2">

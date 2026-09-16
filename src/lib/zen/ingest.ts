@@ -83,6 +83,40 @@ export function parseDataUrl(value: string): { mime: string; b64: string } | nul
   return { mime: match[1], b64: match[2].replace(/\s+/g, "") };
 }
 
+const CANVA_B64_MAX = 4_000_000;
+
+export function bytesToBase64(bytes: Uint8Array) {
+  if (typeof Buffer !== "undefined" && typeof Buffer.from === "function") {
+    return Buffer.from(bytes).toString("base64");
+  }
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+export async function rasterB64FromSrc(src?: string | null): Promise<{ mime: string; b64: string } | null> {
+  if (!src?.trim()) return null;
+  const parsed = parseDataUrl(src);
+  if (parsed) return parsed.b64.length > CANVA_B64_MAX ? null : parsed;
+  if (!src.startsWith("blob:") && !src.startsWith("http://") && !src.startsWith("https://")) return null;
+  try {
+    const res = await fetch(src);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const mime = (blob.type || "").split(";")[0]?.trim() ?? "";
+    if (!isRasterImageMime(mime) || blob.size > INGEST_MAX_BYTES) return null;
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const b64 = bytesToBase64(bytes);
+    if (b64.length > CANVA_B64_MAX) return null;
+    return { mime, b64 };
+  } catch {
+    return null;
+  }
+}
+
 export function composeMemoryNotes(parts: Array<string | undefined | null>) {
   const seen = new Set<string>();
   const lines: string[] = [];

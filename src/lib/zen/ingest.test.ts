@@ -10,6 +10,7 @@ import {
   isRasterImageMime,
   mergeCitedSources,
   parseDataUrl,
+  rasterB64FromSrc,
   sourcesFromMemoryNotes,
 } from "./ingest.ts";
 
@@ -62,4 +63,12 @@ test("composeMemoryNotes dedupes and stays within cap", () => {
 test("raster mime rejects svg", () => {
   assert.equal(isRasterImageMime("image/jpeg"), true);
   assert.equal(isRasterImageMime("image/svg+xml"), false);
+});
+
+test("rasterB64FromSrc only accepts raster data urls", async () => {
+  assert.equal(await rasterB64FromSrc(""), null);
+  assert.equal(await rasterB64FromSrc("data:image/svg+xml;base64,AAAA"), null);
+  const png = await rasterB64FromSrc("data:image/png;base64,AAAA");
+  assert.equal(png?.mime, "image/png");
+  assert.equal(png?.b64, "AAAA");
 });

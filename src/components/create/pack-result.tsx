@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Layers } from "lucide-react";
 import { applyFormatSuite } from "@/components/create/apply-suite";
+import { openCanvaDraft } from "@/components/create/open-canva";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { createCanvaDraft } from "@/lib/ai/oauth";
 import { canvaDraftNotes, canvaPresetForKind } from "@/lib/zen/canva-draft";
 import { convertFromPlan } from "@/lib/zen/convert";
 import type { CreativePack } from "@/lib/zen/types";
@@ -55,6 +55,7 @@ export function PackResult({
               <Button
                 className="mt-3 w-full"
                 size="sm"
+                data-testid={dir.id === pack.directions?.[0]?.id ? "direction-suite" : undefined}
                 disabled={locked}
                 onClick={() => {
                   setPickedId(dir.id);
@@ -62,7 +63,7 @@ export function PackResult({
                   void Promise.resolve(onApply(dir.id)).finally(() => setBusyId(null));
                 }}
               >
-                {busyId === dir.id ? "生成主視覺中…" : "生成這個方向的主視覺"}
+                {busyId === dir.id ? "正在做成整套…" : "用這個方向做成整套"}
               </Button>
             ) : (
               <Button
@@ -97,7 +98,7 @@ export function PackResult({
                   toast.error(result.error);
                   return;
                 }
-                toast.success(`已做成 ${result.count} 種格式（${result.pages} 張分鏡）並排進日曆`);
+                toast.success(`已做成 ${result.count} 種格式（${result.pages} 張分鏡），打開 IG Preview`);
                 return onSuiteDone?.(result);
               })
               .catch((err) => {
@@ -151,40 +152,19 @@ export function PackResult({
           <Button
             className="mt-4"
             variant="secondary"
-            onClick={async () => {
+            onClick={() => {
               const notes = canvaDraftNotes({
                 hook: pack.copy.hook,
                 body: pack.copy.body,
                 cta: pack.copy.cta,
                 hashtags: pack.copy.hashtags,
               });
-              const result = await createCanvaDraft({
-                data: {
-                  title: pack.campaignName || pack.copy.hook,
-                  hook: pack.copy.hook,
-                  notes,
-                  preset: canvaPresetForKind("event"),
-                },
+              void openCanvaDraft({
+                title: pack.campaignName || pack.copy.hook,
+                hook: pack.copy.hook,
+                notes,
+                preset: canvaPresetForKind("event"),
               });
-              if (!result.ok) {
-                toast.message(result.error);
-                return;
-              }
-              if (notes) {
-                try {
-                  await navigator.clipboard.writeText(notes);
-                  toast.success(
-                    result.uploaded
-                      ? "已把主視覺送進 Canva，文案已複製"
-                      : "已在 Canva 開 IG 稿，文案已複製，可貼進去微調",
-                  );
-                } catch {
-                  toast.success(result.uploaded ? "已把主視覺送進 Canva" : "已在 Canva 開 IG 稿，可繼續微調");
-                }
-              } else {
-                toast.success(result.uploaded ? "已把主視覺送進 Canva" : "已在 Canva 開一張 IG 稿，可繼續微調");
-              }
-              window.open(result.editUrl, "_blank", "noopener,noreferrer");
             }}
           >
             送到 Canva 繼續編

@@ -17,6 +17,12 @@ export function canvaPresetForAspect(aspect: string): CanvaPreset {
   return "instagramPost";
 }
 
+export function canvaPresetForFormat(formatId: string): CanvaPreset {
+  if (formatId === "story") return "instagramStory";
+  if (formatId === "reels-cover" || formatId === "reels") return "instagramReel";
+  return "instagramPost";
+}
+
 export function canvaDraftNotes(input: {
   hook?: string;
   body?: string;
