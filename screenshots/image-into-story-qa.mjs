@@ -48,6 +48,10 @@ if (/預熱|情緒共鳴|參加理由|倒數/.test(kitName)) {
 if (!/一篇|限動/.test(kitName)) {
   issues.push(`kit 沒說這是一篇限動: ${kitName}`);
 }
+const sched = (await page.locator('[data-testid="event-schedule"]').inputValue()) ?? "";
+if (/09\/23|09\/24/.test(sched)) {
+  issues.push(`做成限動還在排活動日: ${sched}`);
+}
 await page.screenshot({ path: "/workspace/screenshots/image-into-story.png", fullPage: true });
 
 await page.goto(`${base}/`, { waitUntil: "networkidle" });
@@ -58,6 +62,14 @@ if (/限動|Carousel/.test(recommend)) {
 }
 if (!/浮游禪光|茶會/.test(recommend)) {
   issues.push(`首頁今天推薦不是活動: ${recommend}`);
+}
+await page.waitForSelector('[data-testid="home-scheduled-title"]', { timeout: 10_000 });
+const scheduledTitle = ((await page.locator('[data-testid="home-scheduled-title"]').first().innerText()) ?? "").trim();
+if (!/Story|限動/.test(scheduledTitle)) {
+  issues.push(`首頁已排程不是這則限動: ${scheduledTitle}`);
+}
+if (/預熱|參加理由/.test(scheduledTitle)) {
+  issues.push(`首頁已排程還是活動節奏: ${scheduledTitle}`);
 }
 await page.screenshot({ path: "/workspace/screenshots/image-into-story-home.png" });
 
@@ -73,7 +85,7 @@ await page.screenshot({ path: "/workspace/screenshots/image-into-story-390.png" 
 if (errors.length) issues.push(`pageerror ${errors.join(" | ")}`);
 await browser.close();
 if (issues.length) {
-  console.error(JSON.stringify({ ok: false, issues, eventName, url, source: source.slice(0, 120), kitName, recommend }, null, 2));
+  console.error(JSON.stringify({ ok: false, issues, eventName, url, source: source.slice(0, 120), kitName, recommend, sched, scheduledTitle }, null, 2));
   process.exit(1);
 }
-console.log(JSON.stringify({ ok: true, eventName, kitName, recommend, url: url.slice(0, 180) }));
+console.log(JSON.stringify({ ok: true, eventName, kitName, recommend, scheduledTitle, sched, url: url.slice(0, 180) }));

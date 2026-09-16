@@ -26,7 +26,7 @@ import { persistGeneratedImage } from "@/lib/studio/raster";
 import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById, FORMATS } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
-import { parseEventDate, parseEventTime, guessEventName, defaultScheduleText, preferredScheduleText, campaignMatchingIdea, campaignNameForIdea, shouldReopenCampaign, pieceNameForIdea } from "@/lib/zen/dates";
+import { parseEventDate, parseEventTime, guessEventName, defaultScheduleText, defaultPieceScheduleText, preferredScheduleText, campaignMatchingIdea, campaignNameForIdea, shouldReopenCampaign, pieceNameForIdea } from "@/lib/zen/dates";
 import { DEFAULT_AUDIENCE, academicBeat } from "@/lib/zen/context";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
@@ -146,7 +146,9 @@ export function CreateStudio() {
         : "",
   );
   const studioHook = useMemo(() => ideaStudioHook(igMemory, idea, eventName), [igMemory, idea, eventName]);
-  const [schedule, setSchedule] = useState(() => defaultScheduleText(search.idea || "下週有一場茶會"));
+  const [schedule, setSchedule] = useState(() =>
+    search.into ? defaultPieceScheduleText() : defaultScheduleText(search.idea || "下週有一場茶會"),
+  );
   const [location, setLocation] = useState("淡江大學淡水校園 · 禪學社");
   const [signupUrl, setSignupUrl] = useState("");
   const [studentPain, setStudentPain] = useState("開學後行程變滿，休息會心虛。");
@@ -243,7 +245,7 @@ export function CreateStudio() {
       setSourceCredit("");
       setSourceEmbed("");
       sourcePhotoRef.current = { embed: "", credit: "" };
-      if (search.idea) setSchedule(defaultScheduleText(search.idea));
+      setSchedule(search.into ? defaultPieceScheduleText() : defaultScheduleText(search.idea || "下週有一場茶會"));
       return;
     }
     const guessed = guessEventName(search.idea || "");
@@ -1069,15 +1071,34 @@ export function CreateStudio() {
     return created;
   }
 
-  function scheduleConverted(nextPlan: CampaignPlan, created: ClubCampaign, projectId: string | null = null, assetId = lastImage?.assetId) {
+  function scheduleConverted(
+    nextPlan: CampaignPlan,
+    created: ClubCampaign,
+    projectId: string | null = null,
+    assetId = lastImage?.assetId,
+    opts?: { kinds?: ContentKind[] },
+  ) {
+    const kinds = opts?.kinds ?? (search.into ? KINDS.filter((kind) => kind === search.into) : KINDS);
+    const piece = Boolean(search.into && !search.campaign);
     const date = parseEventDate(`${schedule} ${idea}`);
-    const when = Date.parse(`${date}T19:00:00+08:00`);
+    const clock = parseEventTime(schedule);
+    const parsed = Date.parse(`${date}T${clock}:00+08:00`);
+    const eventWhen = Number.isNaN(parsed)
+      ? Date.now()
+      : piece
+        ? parsed
+        : Date.parse(`${date}T19:00:00+08:00`);
     const existing = useStudio.getState().schedule.filter((row) => row.campaignId === created.id);
-    for (const pack of KINDS.map((kind) => convertPlan(nextPlan, kind))) {
+    const pieceName = created.name || eventName || nextPlan.campaignName || idea.slice(0, 12);
+    for (const pack of kinds.map((kind) => convertPlan(nextPlan, kind))) {
       if (pack.kind === "ig-post" && skipConvertedIgPost(created.waves ?? [])) continue;
-      const scheduledAt = Number.isNaN(when)
-        ? Date.now()
-        : convertedScheduledAt(pack.kind, when, created.waves ?? []);
+      const scheduledAt = piece
+        ? eventWhen > Date.now() + 120_000
+          ? eventWhen
+          : Date.now()
+        : Number.isNaN(eventWhen)
+          ? Date.now()
+          : convertedScheduledAt(pack.kind, eventWhen, created.waves ?? []);
       if (pack.kind === "story") {
         const frames = storyFrameLines(nextPlan);
         for (const row of storyRowsForFrames(existing, frames, created.id)) {
@@ -1087,7 +1108,7 @@ export function CreateStudio() {
             projectId,
             campaignId: created.id,
             kind: "story",
-            title: `Story ${row.index + 1} · ${eventName || nextPlan.campaignName || idea.slice(0, 12)}`,
+            title: `Story ${row.index + 1} · ${pieceName}`,
             scheduledAt: prev?.status === "published" ? prev.scheduledAt : scheduledAt + row.index * 90_000,
             publishedAt: null,
             status: "scheduled",
@@ -1106,7 +1127,7 @@ export function CreateStudio() {
         projectId,
         campaignId: created.id,
         kind: pack.kind,
-        title: `${pack.title} · ${eventName || nextPlan.campaignName || idea.slice(0, 12)}`,
+        title: `${pack.title} · ${pieceName}`,
         scheduledAt: prev?.status === "published" ? prev.scheduledAt : scheduledAt,
         publishedAt: null,
         status: "scheduled",
@@ -1129,7 +1150,7 @@ export function CreateStudio() {
   function scheduleAllFormats() {
     if (!plan) return;
     const created = saveCampaignAndWaves(plan);
-    scheduleConverted(plan, created);
+    scheduleConverted(plan, created, null, lastImage?.assetId, { kinds: KINDS });
     toast.success("IG／Story／Reels／Threads 已依節奏排進月曆");
   }
 
@@ -1363,12 +1384,13 @@ export function CreateStudio() {
       }
       const photo = sourcePhotoRef.current;
       const previewOpts = {
-        eventName: eventName || next.campaignName,
+        eventName: created.name || eventName || next.campaignName,
         campaignId: created.id,
         projectId: project?.id ?? null,
         look: photo.embed
           ? { photoEmbed: photo.embed, sourceCredit: photo.credit || undefined }
           : undefined,
+        scheduleKinds: search.into ? ([search.into] as ContentKind[]) : undefined,
       };
       await saveIgPreviewStills(next, previewOpts).catch(() => undefined);
       setBusy(false);

@@ -4,6 +4,7 @@ import {
   campaignMatchingIdea,
   campaignNameForIdea,
   defaultScheduleText,
+  defaultPieceScheduleText,
   guessEventName,
   hasScheduleCue,
   isArchivalEventIdea,
@@ -94,6 +95,12 @@ test("做成限動 from a Drive tea still is a piece, not a reopen of 茶會", (
     }),
     "茶會",
   );
+});
+
+test("做成限動 is dated tonight, not 下週茶會節奏", () => {
+  const now = new Date("2026-09-16T10:07:00+08:00");
+  assert.equal(defaultPieceScheduleText(now), "2026/09/16 10:07");
+  assert.equal(defaultScheduleText("我要宣傳茶會", now), "2026/09/23 19:00");
 });
 
 test("from-ig keeps the learned Hook as the name, not last week's 茶會", () => {

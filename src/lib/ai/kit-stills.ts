@@ -5,21 +5,32 @@ import { saveReelsKit } from "@/lib/ai/reels-persist";
 import { saveStoryStills } from "@/lib/ai/story-persist";
 import { saveThreadsStill } from "@/lib/ai/threads-persist";
 import type { SourceLook } from "@/lib/ai/poster";
-import type { CampaignPlan } from "@/lib/studio/types";
+import type { CampaignPlan, ContentKind } from "@/lib/studio/types";
+import { createsScheduleRow } from "./schedule-kinds.ts";
 
 export type KitStillOpts = {
   eventName?: string;
   campaignId?: string | null;
   projectId?: string | null;
   look?: SourceLook;
+  scheduleKinds?: ContentKind[];
 };
+
+export { createsScheduleRow } from "./schedule-kinds.ts";
 
 export async function saveIgPreviewStills(
   plan: CampaignPlan,
   opts: KitStillOpts,
 ): Promise<{ countdown: string[]; reels: { coverId: string; videoId?: string } }> {
-  const reels = await saveReelsKit(plan, opts);
-  const countdown = await saveCountdownStills(plan, opts);
+  if (!createsScheduleRow(opts.scheduleKinds, "reels") && !createsScheduleRow(opts.scheduleKinds, "countdown")) {
+    return { countdown: [], reels: { coverId: "" } };
+  }
+  const reels = createsScheduleRow(opts.scheduleKinds, "reels")
+    ? await saveReelsKit(plan, opts)
+    : { coverId: "" };
+  const countdown = createsScheduleRow(opts.scheduleKinds, "countdown")
+    ? await saveCountdownStills(plan, opts)
+    : [];
   return { countdown, reels };
 }
 
@@ -36,12 +47,13 @@ export async function saveKitStills(
   countdown: string[];
   reels: { coverId: string; videoId?: string };
 }> {
+  const kinds = opts.scheduleKinds;
   const preview = flags?.skipPreview
     ? { countdown: [] as string[], reels: { coverId: "" } }
     : await saveIgPreviewStills(plan, opts);
-  const carousel = await saveCarouselStills(plan, opts);
-  const story = await saveStoryStills(plan, opts);
-  const line = await saveLineStill(plan, opts);
-  const threads = await saveThreadsStill(plan, opts);
+  const carousel = createsScheduleRow(kinds, "carousel") ? await saveCarouselStills(plan, opts) : [];
+  const story = createsScheduleRow(kinds, "story") ? await saveStoryStills(plan, opts) : [];
+  const line = createsScheduleRow(kinds, "line") ? await saveLineStill(plan, opts) : "";
+  const threads = createsScheduleRow(kinds, "threads") ? await saveThreadsStill(plan, opts) : "";
   return { carousel, story, line, threads, ...preview };
 }

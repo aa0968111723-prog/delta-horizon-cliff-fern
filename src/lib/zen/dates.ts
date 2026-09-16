@@ -146,6 +146,12 @@ export function defaultScheduleText(idea: string, now = new Date()): string {
   return `${date.replaceAll("-", "/")} ${time}`;
 }
 
+/** 做成限動 is a post for tonight, not 下週茶會節奏. */
+export function defaultPieceScheduleText(now = new Date()): string {
+  const part = taipeiParts(now.getTime());
+  return `${part.year}/${part.month}/${part.day} ${part.hour}:${part.minute}`;
+}
+
 /**
  * Reopening 茶會 from a 2025 Drive file must not keep a leftover「today」date.
  * Opening the same campaign from Calendar keeps the date that was already set.
