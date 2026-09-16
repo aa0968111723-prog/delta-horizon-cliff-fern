@@ -163,7 +163,7 @@ export function VisualDirectionCard({
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={runGenerate} disabled={busy}>
+          <Button size="sm" onClick={runGenerate} disabled={busy} data-testid="visual-generate">
             {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
             {preview ? "換一張" : "生成圖片"}
           </Button>

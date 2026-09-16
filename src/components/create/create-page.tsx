@@ -1006,8 +1006,15 @@ export function CreatePage({ search }: { search: CreateSearch }) {
                   used={usedDraftId === draft.id}
                   onUse={() => {
                     const id = commitDraft(draft);
-                    if (id && !linkedProject) {
-                      void navigate({ to: "/create", search: { contentId: id, kind } });
+                    if (id && search.contentId !== id) {
+                      void navigate({
+                        to: "/create",
+                        search: {
+                          ...search,
+                          contentId: id,
+                          kind,
+                        },
+                      });
                     }
                   }}
                   onReview={() => void runReview(draft)}
