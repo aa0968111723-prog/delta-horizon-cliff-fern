@@ -1,11 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="構幀">
-  <rect width="32" height="32" rx="7" fill="#F3F0EA"/>
-  <rect x="6" y="4" width="20" height="24" rx="3" fill="#1E4A45"/>
-  <rect x="11" y="7" width="10" height="18" rx="1.2" fill="#F3F0EA"/>
-  <rect x="7.4" y="8" width="2.2" height="3" rx="0.6" fill="#F3F0EA"/>
-  <rect x="7.4" y="14.5" width="2.2" height="3" rx="0.6" fill="#F3F0EA"/>
-  <rect x="7.4" y="21" width="2.2" height="3" rx="0.6" fill="#F3F0EA"/>
-  <rect x="22.4" y="8" width="2.2" height="3" rx="0.6" fill="#F3F0EA"/>
-  <rect x="22.4" y="14.5" width="2.2" height="3" rx="0.6" fill="#F3F0EA"/>
-  <rect x="22.4" y="21" width="2.2" height="3" rx="0.6" fill="#F3F0EA"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="禅光">
+  <rect width="32" height="32" rx="8" fill="#3F6F64"/>
+  <ellipse cx="8" cy="23.2" rx="2.4" ry="1.7" fill="#F4F1EA"/>
+  <ellipse cx="24" cy="23.2" rx="2.4" ry="1.7" fill="#F4F1EA"/>
+  <ellipse cx="16" cy="20" rx="9.4" ry="7.1" fill="#F4F1EA"/>
+  <circle cx="16" cy="9.2" r="3.5" fill="#F4F1EA"/>
+  <circle cx="11.4" cy="19.2" r="2.15" fill="#7EC8C3"/>
+  <circle cx="16" cy="17.6" r="2.15" fill="#E8A060"/>
+  <circle cx="20.6" cy="19.2" r="2.15" fill="#E8A8B8"/>
 </svg>
