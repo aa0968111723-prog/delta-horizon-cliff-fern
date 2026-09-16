@@ -1,6 +1,6 @@
-import { formatById } from "./formats";
-import { uid } from "./ids";
-import { DEFAULT_CROP, DEFAULT_FILTER, DEFAULT_SHADOW } from "./layers";
+import { formatById } from "./formats.ts";
+import { uid } from "./ids.ts";
+import { DEFAULT_CROP, DEFAULT_FILTER, DEFAULT_SHADOW } from "./layers.ts";
 import type {
   Artboard,
   BrandKit,
@@ -140,7 +140,134 @@ export function buildLayout(
   const isStory = formatId === "story" || formatId === "reels-cover";
   const isLand = formatId === "feed-landscape";
 
-  if (templateId === "product") {
+  if (templateId === "product" && isLand) {
+    const imgW = Math.round(W * 0.46);
+    push(
+      imageId
+        ? imageLayer({
+            name: "主視覺",
+            x: 0,
+            y: 0,
+            w: imgW,
+            h: H,
+            assetId: imageId,
+          })
+        : shapeLayer({
+            name: "主視覺色塊",
+            x: 0,
+            y: 0,
+            w: imgW,
+            h: H,
+            shape: "rect",
+            fill: primary,
+            radius: 0,
+          }),
+    );
+    push(
+      shapeLayer({
+        name: "資訊底板",
+        x: imgW,
+        y: 0,
+        w: W - imgW,
+        h: H,
+        shape: "rect",
+        fill: bg,
+        radius: 0,
+      }),
+    );
+    const tx = imgW + 36;
+    const tw = W - imgW - 36 - S.right;
+    let ty = S.top;
+    if (copy.eyebrow) {
+      push(
+        textLayer({
+          name: "眉題",
+          role: "eyebrow",
+          x: tx,
+          y: ty,
+          w: tw,
+          h: 28,
+          text: copy.eyebrow,
+          fontFamily: body,
+          fontWeight: 500,
+          fontSize: 16,
+          letterSpacing: 3,
+          color: accent,
+          align: "left",
+        }),
+      );
+      ty += 26;
+    }
+    push(
+      textLayer({
+        name: "標題",
+        role: "headline",
+        x: tx,
+        y: ty,
+        w: tw,
+        h: 96,
+        text: copy.headline,
+        fontFamily: display,
+        fontWeight: 600,
+        fontSize: 32,
+        lineHeight: 1.15,
+        letterSpacing: -0.6,
+        color: ink,
+        align: "left",
+      }),
+    );
+    ty += 92;
+    if (copy.subhead) {
+      push(
+        textLayer({
+          name: "副標",
+          role: "subhead",
+          x: tx,
+          y: ty,
+          w: tw,
+          h: 52,
+          text: copy.subhead,
+          fontFamily: body,
+          fontWeight: 400,
+          fontSize: 18,
+          lineHeight: 1.35,
+          color: ink,
+          align: "left",
+        }),
+      );
+    }
+    const ctaY = H - S.bottom - 44;
+    push(
+      shapeLayer({
+        name: "CTA 底",
+        x: tx,
+        y: ctaY,
+        w: 180,
+        h: 44,
+        shape: "pill",
+        fill: primary,
+        radius: 999,
+      }),
+    );
+    push(
+      textLayer({
+        name: "CTA",
+        role: "cta",
+        x: tx,
+        y: ctaY,
+        w: 180,
+        h: 44,
+        text: copy.cta,
+        fontFamily: body,
+        fontWeight: 600,
+        fontSize: 16,
+        color: bg,
+        align: "center",
+        lineHeight: 2.6,
+      }),
+    );
+    push(logoLayer(brand, W - S.right - 52, H - S.bottom - 52, 44));
+  } else if (templateId === "product") {
     const imgH = isLand ? H : isStory ? Math.round(H * 0.42) : Math.round(H * 0.56);
     push(
       imageId

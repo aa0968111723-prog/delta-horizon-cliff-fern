@@ -1,8 +1,8 @@
-import { BrainCircuit, Star, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Star, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ASSET_DRAG_MIME, categoryLabel, provenanceLabel, sourceLabel, usageLabel } from "@/lib/studio/assets";
+import { ASSET_DRAG_MIME, assetPreviewFitClass, categoryLabel, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import type { AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 
@@ -27,12 +27,20 @@ export function AssetCard({
   onPlace?: () => void;
   onCreate?: () => void;
 }) {
-  const [broken, setBroken] = useState(false);
-  const referenceOnly = !url && asset.width === 0 && !asset.seedSrc;
+  const [failed, setFailed] = useState<string | null>(null);
+  const candidates = useMemo(() => {
+    const list = [asset.seedSrc, url].filter((value): value is string => Boolean(value));
+    return [...new Set(list)];
+  }, [asset.seedSrc, url]);
+  const src = candidates.find((value) => value !== failed);
+
+  useEffect(() => {
+    setFailed(null);
+  }, [asset.id]);
 
   return (
     <article
-      className="group overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-border)]"
+      className="group overflow-hidden rounded-2xl surface-card"
       draggable={draggable}
       onDragStart={(e) => {
         e.dataTransfer.setData(ASSET_DRAG_MIME, asset.id);
@@ -41,17 +49,17 @@ export function AssetCard({
     >
       <button type="button" onClick={onOpen} className="block w-full text-left">
         <div className="relative aspect-square bg-bg">
-          {url && !broken ? (
+          {src ? (
             <img
-              src={url}
+              src={src}
               alt={asset.name}
-              className="size-full object-cover"
+              className={cn("size-full", assetPreviewFitClass(asset, url))}
               draggable={false}
-              onError={() => setBroken(true)}
+              onError={() => setFailed(src)}
             />
           ) : (
             <div className="flex size-full items-center justify-center px-3 text-center text-xs text-muted">
-              {referenceOnly ? "來源參考，沒有原圖像素" : broken ? "預覽失敗" : "載入中"}
+              {failed ? "預覽失敗" : "載入中"}
             </div>
           )}
           <span className="absolute top-2 left-2">
@@ -94,8 +102,13 @@ export function AssetCard({
           <p className="truncate text-xs text-subtle">{asset.tags.slice(0, 3).join(" · ")}</p>
         ) : null}
         <div className="flex items-center gap-1 pt-1">
-          {onPlace && !referenceOnly ? (
-            <Button size="sm" variant="secondary" className="min-h-11 flex-1" onClick={onPlace}>
+          {onCreate ? (
+            <Button size="sm" className="flex-1" onClick={onCreate}>
+              用這張創作
+            </Button>
+          ) : null}
+          {onPlace ? (
+            <Button size="sm" variant="secondary" className="flex-1" onClick={onPlace}>
               放到畫布
             </Button>
           ) : null}

@@ -1,0 +1,1 @@
+import{r as e}from"./useRouter-Dpb7RwMI.js";import{dt as t,nt as n}from"./index-BGNWvc1f.js";var r=e();function i({status:e}){let i=t[e];return(0,r.jsx)(n,{variant:i.tone,children:i.label})}export{i as t};

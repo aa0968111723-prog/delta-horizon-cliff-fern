@@ -1,9 +1,9 @@
 import { BrainCircuit, WandSparkles } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { Loader2, Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { launchFromAsset } from "@/components/create/from-asset";
-import { createFromHit } from "@/components/create/from-hit";
+import { ImageRevisionBar } from "@/components/create/image-revision";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,10 +15,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { ASSET_CATEGORIES, sourceLabel, usageLabel } from "@/lib/studio/assets";
-import { kindFromCategory } from "@/lib/studio/assets";
+import { analyzeImage, generateImage, insightFromAnalysis } from "@/lib/ai/image-ai";
+import { formatBrandMemory, toggleLegacyAssetId } from "@/lib/studio/brand";
+import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
+import { ASSET_CATEGORIES, assetPreviewFitClass, kindFromCategory, similarAssets, sourceLabel, usageLabel } from "@/lib/studio/assets";
+import { saveGeneratedImage, urlToDataUrl } from "@/lib/studio/generated-image";
 import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
-import { LAUNCH_ACTIONS, launchSuccessMessage } from "@/lib/zen/from-asset";
+import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 
 export function AssetDetailSheet({
@@ -43,10 +46,21 @@ export function AssetDetailSheet({
   const placeAsset = useStudio((s) => s.placeAsset);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
-  const [busy, setBusy] = useState<string | null>(null);
+  const assets = useStudio((s) => s.assets);
+  const brand = useStudio((s) => s.brands[0]);
+  const updateBrand = useStudio((s) => s.updateBrand);
+  const igDnaText = useIgDnaText();
+  const insightsText = useIgInsightsText();
+  const [busy, setBusy] = useState<"analyze" | "extend" | null>(null);
+
+  const similar = useMemo(
+    () => (asset ? similarAssets(asset, assets, 4) : []),
+    [asset, assets],
+  );
 
   if (!asset) return null;
   const current = asset;
+  const preview = url || current.seedSrc;
 
   async function analyze() {
     if (!brand) return;
@@ -110,14 +124,101 @@ export function AssetDetailSheet({
     void navigate({ to: "/studio/$projectId", params: { projectId: lastProjectId } });
   }
 
+  async function analyze() {
+    if (!preview) {
+      toast.error("這張圖還沒載入，稍後再試。");
+      return;
+    }
+    setBusy("analyze");
+    try {
+      const imageUrl = await urlToDataUrl(preview);
+      const res = await analyzeImage({
+        data: {
+          imageUrl,
+          question: "這張圖適不適合禪學社網宣？可以怎麼延續？",
+          name: current.name,
+          category: current.category,
+          tags: current.tags,
+          licenseNotes: current.licenseNotes,
+          source: current.source,
+          brandMemoryText: brand ? formatBrandMemory(brand.memory, assets) : undefined,
+          igDnaText: igDnaText || undefined,
+          insightsText: insightsText || undefined,
+        },
+      });
+      if (!res.ok) {
+        toast.warning(res.error);
+      }
+      updateAsset(current.id, {
+        insight: insightFromAnalysis(res.analysis, res.adapter),
+      });
+      toast.success(res.adapter === "local" ? "已用本機規則讀完這張圖" : "已讀完這張圖");
+    } catch {
+      toast.error("讀圖時出錯了。");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function extendStyle() {
+    const prompt = current.insight?.stylePrompt;
+    if (!prompt) {
+      toast.error("先按「讀這張圖」，才有風格可以延續。");
+      return;
+    }
+    setBusy("extend");
+    try {
+      const res = await generateImage({
+        data: {
+          prompt,
+          ratio: "4:5",
+          styleHint: brand
+            ? `${brand.imageStyle.mood}｜${brand.imageStyle.lighting}｜${brand.imageStyle.composition}`
+            : undefined,
+        },
+      });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      const meta = await saveGeneratedImage({
+        dataUrl: res.dataUrl,
+        name: `${current.name} 延續`,
+        prompt: res.revisedPrompt || prompt,
+        tags: ["延續風格", current.name],
+      });
+      addAsset(meta);
+      toast.success("延續圖已存進素材庫");
+    } catch {
+      toast.error("生成時出錯了。");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function useCaption() {
+    const idea = current.insight?.captionIdea;
+    if (!idea) {
+      toast.error("先讀這張圖，才有文案可以帶走。");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(idea);
+      toast.success("已複製文案想法");
+    } catch {
+      toast.error("複製失敗");
+    }
+    void navigate({ to: "/create", search: { from: "image", seed: idea } });
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="flex max-h-[88dvh] flex-col gap-4 overflow-y-auto">
         <SheetTitle>{asset.name}</SheetTitle>
         <div className="flex gap-3">
           <div className="size-24 overflow-hidden rounded-xl bg-bg">
-            {url ? (
-              <img src={url} alt="" className="size-full object-cover" />
+            {preview ? (
+              <img src={preview} alt="" className={cn("size-full", assetPreviewFitClass(current, preview))} />
             ) : (
               <div className="flex size-full items-center justify-center text-xs text-muted">無預覽</div>
             )}
@@ -145,52 +246,91 @@ export function AssetDetailSheet({
             ) : null}
           </div>
         </div>
-        <div className="rounded-2xl bg-glow-card p-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium">AI 怎麼看這張</p>
-            <Button size="sm" variant="secondary" className="rounded-full" onClick={() => void analyze()} disabled={analyzing}>
-              {analyzing ? <RefreshCw className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
-              {asset.insight ? "重新分析" : "AI 分析"}
-            </Button>
-          </div>
+
+        <div className="rounded-2xl bg-surface-2/70 p-3">
+          <p className="text-sm font-medium">AI 怎麼用這張</p>
           {asset.insight ? (
-            <div className="mt-2 text-xs">
-              <p className="text-sm leading-relaxed">{asset.insight.summary}</p>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                {asset.insight.palette.slice(0, 5).map((hex, i) => (
-                  <span key={`${hex}-${i}`} className="size-4 rounded-full ring-2 ring-surface" style={{ backgroundColor: hex }} />
-                ))}
-                <span className="text-muted">
-                  {asset.insight.mood} · 學生感 {Math.round(asset.insight.studentFit)} · 品牌感 {Math.round(asset.insight.brandFit)} · 停留感 {Math.round(asset.insight.stopPower)}
-                </span>
-              </div>
-              {asset.insight.suggestions.length ? (
-                <ul className="mt-2 space-y-0.5 text-muted">
-                  {asset.insight.suggestions.map((sug, i) => (
-                    <li key={i}>· {sug}</li>
-                  ))}
-                </ul>
-              ) : null}
+            <div className="mt-2 space-y-1.5 text-xs text-muted">
+              <p>
+                {asset.insight.source === "live" ? "AI 看圖" : "本機規則"}
+                {asset.insight.source === "local" ? "（依名稱、分類與標籤，不是線上模型看圖）" : ""}
+              </p>
+              <p>{asset.insight.summary}</p>
+              {asset.insight.captionIdea ? <p>文案想法：{asset.insight.captionIdea}</p> : null}
+              <p>
+                {asset.insight.fitsTku ? "看起來像淡江學生的生活。" : "不太像淡江學生會停下來的畫面。"}
+                {asset.insight.tooReligious ? " 偏宗教。" : ""}
+                {asset.insight.tooAi ? " 有 AI 感。" : ""}
+              </p>
             </div>
           ) : (
-            <p className="mt-1 text-xs text-muted">分析畫面內容、色彩、構圖、學生感、品牌感、停留感，並自動加標籤。</p>
+            <p className="mt-1 text-xs text-muted">還沒讀過。讀完之後可以延續風格、寫文案，或找相近的素材。</p>
           )}
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <Button size="sm" className="rounded-full" onClick={() => useInCreate("photo")}>
-              加入創作
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => void analyze()} disabled={busy !== null}>
+              {busy === "analyze" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+              讀這張圖
             </Button>
-            <Button size="sm" variant="ghost" className="rounded-full" onClick={() => useInCreate("story")}>
-              做成限動
+            <Button size="sm" variant="secondary" onClick={() => void extendStyle()} disabled={busy !== null}>
+              {busy === "extend" ? <Loader2 className="size-4 animate-spin" /> : null}
+              延續這個風格
             </Button>
-            <Button size="sm" variant="ghost" className="rounded-full" onClick={() => useInCreate("carousel")}>
-              做成 Carousel
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                onOpenChange(false);
+                void navigate({ to: "/create", search: { from: "image", asset: current.id } });
+              }}
+            >
+              用這張創作
             </Button>
-            <Button size="sm" variant="ghost" className="rounded-full" onClick={() => useInCreate("reels")}>
-              Reels 封面
+            <Button size="sm" variant="secondary" onClick={() => void useCaption()}>
+              用這張寫文案
             </Button>
+            {brand ? (
+              <Button
+                size="sm"
+                variant={brand.memory.legacyAssetIds.includes(current.id) ? "default" : "secondary"}
+                onClick={() => {
+                  updateBrand(brand.id, {
+                    memory: {
+                      ...brand.memory,
+                      legacyAssetIds: toggleLegacyAssetId(brand.memory.legacyAssetIds, current.id),
+                    },
+                  });
+                  toast.success(
+                    brand.memory.legacyAssetIds.includes(current.id)
+                      ? "已從歷屆文宣拿掉"
+                      : "已標成歷屆文宣，生成時會讀這張",
+                  );
+                }}
+              >
+                {brand.memory.legacyAssetIds.includes(current.id) ? "已是歷屆文宣" : "標成歷屆文宣"}
+              </Button>
+            ) : null}
           </div>
-          {asset.externalRef ? <p className="mt-2 text-[11px] text-subtle">來源：{asset.externalRef.label ?? asset.externalRef.provider}</p> : null}
         </div>
+
+        {preview ? (
+          <div className="rounded-2xl bg-surface-2/70 p-3">
+            <ImageRevisionBar imageUrl={preview} sourceLabel={asset.name} />
+          </div>
+        ) : null}
+
+        {similar.length ? (
+          <div>
+            <p className="mb-2 text-sm font-medium">相近素材</p>
+            <ul className="flex flex-wrap gap-1.5">
+              {similar.map((item) => (
+                <li key={item.id} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">
+                  {item.name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         <div>
           <Label className="mb-1.5 block">名稱</Label>
           <Input value={asset.name} onChange={(e) => patch("name", e.target.value)} />
@@ -316,109 +456,15 @@ export function AssetDetailSheet({
           <Input
             value={asset.licenseOwner}
             onChange={(e) => patch("licenseOwner", e.target.value)}
-            placeholder="例如：淡江禪學社、社員姓名"
+            placeholder="例如：淡江大學禪學社、拍攝的社員"
           />
         </div>
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="secondary"
-            disabled={busy !== null}
-            onClick={async () => {
-              const ok = await createFromHit({
-                id: current.id,
-                source: current.source === "generated" ? "generated" : current.source === "drive" || current.source === "canva" || current.source === "instagram" ? current.source : "asset",
-                title: current.name,
-                subtitle: current.tags.join(" · ") || current.category,
-                thumbAssetId: current.id,
-                tags: current.tags,
-              });
-              if (ok) {
-                onOpenChange(false);
-                void navigate({ to: "/create" });
-              }
-            }}
-          >
-            加入創作
-          </Button>
-          <Button onClick={place} disabled={!lastProjectId || busy !== null}>
+        <div className="flex flex-wrap gap-2 pb-4">
+          <Button onClick={place} disabled={!lastProjectId}>
             放到目前畫布
           </Button>
-          <Button
-            variant="secondary"
-            disabled={busy !== null}
-            onClick={async () => {
-              if (!url) {
-                toast.error("還沒有預覽可以分析。");
-                return;
-              }
-              try {
-                const dataUrl = url.startsWith("data:") ? url : await blobToDataUrl(url);
-                const { analyzeStudioImage } = await import("@/lib/ai/image");
-                const result = await analyzeStudioImage({
-                  data: { imageDataUrl: dataUrl, question: "幫這張素材打標，看適不適合淡江學生 IG。" },
-                });
-                if (!result.ok) {
-                  toast.error(result.error);
-                  return;
-                }
-                const tags = Array.from(
-                  new Set([
-                    ...current.tags,
-                    ...[result.analysis.color, result.analysis.brand, result.analysis.student]
-                      .join(" ")
-                      .split(/[、，,\s]+/)
-                      .map((t) => t.trim())
-                      .filter((t) => t.length >= 2 && t.length <= 12)
-                      .slice(0, 6),
-                  ]),
-                );
-                updateAsset(current.id, {
-                  tags,
-                  licenseNotes: [current.licenseNotes, result.analysis.content, `太宗教？${result.analysis.tooReligious}`, `太 AI？${result.analysis.tooAi}`]
-                    .filter(Boolean)
-                    .join("\n"),
-                });
-                toast.success("已寫入 AI 標籤");
-              } catch (err) {
-                toast.error(err instanceof Error ? err.message : "分析失敗");
-              }
-            }}
-          >
-            AI 分析／打標
-          </Button>
-        </div>
-        <div>
-          <p className="text-xs text-muted">從這張開始</p>
-          <div className="mt-2 flex flex-wrap gap-2 pb-4">
-          {LAUNCH_ACTIONS.map((action) => (
-            <Button
-              key={action.id}
-              variant="secondary"
-              disabled={busy !== null}
-              onClick={async () => {
-                setBusy(action.id);
-                try {
-                  const result = await launchFromAsset({ asset: current, action: action.id });
-                  if (!result.ok) {
-                    toast.error(result.error);
-                    return;
-                  }
-                  toast.success(launchSuccessMessage(action.id));
-                  onOpenChange(false);
-                  void navigate({ to: "/instagram" });
-                } finally {
-                  setBusy(null);
-                }
-              }}
-            >
-              {busy === action.id ? "生成中…" : action.label}
-            </Button>
-          ))}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2 pb-4">
-          <Button variant="secondary" disabled={busy !== null} onClick={() => toggleFavorite(asset.id)}>
+          <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}
           </Button>
           <Button variant="outline" disabled={busy !== null} onClick={onDelete}>

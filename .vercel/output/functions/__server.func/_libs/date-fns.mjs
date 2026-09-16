@@ -198,6 +198,50 @@ function addDays(date, amount, options) {
 	return _date;
 }
 //#endregion
+//#region node_modules/date-fns/addMonths.js
+/**
+* The {@link addMonths} function options.
+*/
+/**
+* @name addMonths
+* @category Month Helpers
+* @summary Add the specified number of months to the given date.
+*
+* @description
+* Add the specified number of months to the given date.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The date to be changed
+* @param amount - The amount of months to be added.
+* @param options - The options object
+*
+* @returns The new date with the months added
+*
+* @example
+* // Add 5 months to 1 September 2014:
+* const result = addMonths(new Date(2014, 8, 1), 5)
+* //=> Sun Feb 01 2015 00:00:00
+*
+* // Add one month to 30 January 2023:
+* const result = addMonths(new Date(2023, 0, 30), 1)
+* //=> Tue Feb 28 2023 00:00:00
+*/
+function addMonths(date, amount, options) {
+	const _date = toDate(date, options?.in);
+	if (isNaN(amount)) return constructFrom(options?.in || date, NaN);
+	if (!amount) return _date;
+	const dayOfMonth = _date.getDate();
+	const endOfDesiredMonth = constructFrom(options?.in || date, _date.getTime());
+	endOfDesiredMonth.setMonth(_date.getMonth() + amount + 1, 0);
+	if (dayOfMonth >= endOfDesiredMonth.getDate()) return endOfDesiredMonth;
+	else {
+		_date.setFullYear(endOfDesiredMonth.getFullYear(), endOfDesiredMonth.getMonth(), dayOfMonth);
+		return _date;
+	}
+}
+//#endregion
 //#region node_modules/date-fns/_lib/defaultOptions.js
 var defaultOptions = {};
 function getDefaultOptions() {
@@ -459,6 +503,44 @@ function startOfISOWeekYear(date, options) {
 	return startOfISOWeek(fourthOfJanuary);
 }
 //#endregion
+//#region node_modules/date-fns/isSameDay.js
+/**
+* The {@link isSameDay} function options.
+*/
+/**
+* @name isSameDay
+* @category Day Helpers
+* @summary Are the given dates in the same day (and year and month)?
+*
+* @description
+* Are the given dates in the same day (and year and month)?
+*
+* @param laterDate - The first date to check
+* @param earlierDate - The second date to check
+* @param options - An object with options
+*
+* @returns The dates are in the same day (and year and month)
+*
+* @example
+* // Are 4 September 06:00:00 and 4 September 18:00:00 in the same day?
+* const result = isSameDay(new Date(2014, 8, 4, 6, 0), new Date(2014, 8, 4, 18, 0))
+* //=> true
+*
+* @example
+* // Are 4 September and 4 October in the same day?
+* const result = isSameDay(new Date(2014, 8, 4), new Date(2014, 9, 4))
+* //=> false
+*
+* @example
+* // Are 4 September, 2014 and 4 September, 2015 in the same day?
+* const result = isSameDay(new Date(2014, 8, 4), new Date(2015, 8, 4))
+* //=> false
+*/
+function isSameDay(laterDate, earlierDate, options) {
+	const [dateLeft_, dateRight_] = normalizeDates(options?.in, laterDate, earlierDate);
+	return +startOfDay(dateLeft_) === +startOfDay(dateRight_);
+}
+//#endregion
 //#region node_modules/date-fns/isDate.js
 /**
 * @name isDate
@@ -532,6 +614,74 @@ function isValid(date) {
 	return !(!isDate(date) && typeof date !== "number" || isNaN(+toDate(date)));
 }
 //#endregion
+//#region node_modules/date-fns/endOfMonth.js
+/**
+* The {@link endOfMonth} function options.
+*/
+/**
+* @name endOfMonth
+* @category Month Helpers
+* @summary Return the end of a month for the given date.
+*
+* @description
+* Return the end of a month for the given date.
+* The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The end of a month
+*
+* @example
+* // The end of a month for 2 September 2014 11:55:00:
+* const result = endOfMonth(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Tue Sep 30 2014 23:59:59.999
+*/
+function endOfMonth(date, options) {
+	const _date = toDate(date, options?.in);
+	const month = _date.getMonth();
+	_date.setFullYear(_date.getFullYear(), month + 1, 0);
+	_date.setHours(23, 59, 59, 999);
+	return _date;
+}
+//#endregion
+//#region node_modules/date-fns/startOfMonth.js
+/**
+* The {@link startOfMonth} function options.
+*/
+/**
+* @name startOfMonth
+* @category Month Helpers
+* @summary Return the start of a month for the given date.
+*
+* @description
+* Return the start of a month for the given date. The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments.
+* Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed,
+* or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The start of a month
+*
+* @example
+* // The start of a month for 2 September 2014 11:55:00:
+* const result = startOfMonth(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Mon Sep 01 2014 00:00:00
+*/
+function startOfMonth(date, options) {
+	const _date = toDate(date, options?.in);
+	_date.setDate(1);
+	_date.setHours(0, 0, 0, 0);
+	return _date;
+}
+//#endregion
 //#region node_modules/date-fns/startOfYear.js
 /**
 * The {@link startOfYear} function options.
@@ -563,6 +713,48 @@ function startOfYear(date, options) {
 	date_.setFullYear(date_.getFullYear(), 0, 1);
 	date_.setHours(0, 0, 0, 0);
 	return date_;
+}
+//#endregion
+//#region node_modules/date-fns/endOfWeek.js
+/**
+* The {@link endOfWeek} function options.
+*/
+/**
+* @name endOfWeek
+* @category Week Helpers
+* @summary Return the end of a week for the given date.
+*
+* @description
+* Return the end of a week for the given date.
+* The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The end of a week
+*
+* @example
+* // The end of a week for 2 September 2014 11:55:00:
+* const result = endOfWeek(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Sat Sep 06 2014 23:59:59.999
+*
+* @example
+* // If the week starts on Monday, the end of the week for 2 September 2014 11:55:00:
+* const result = endOfWeek(new Date(2014, 8, 2, 11, 55, 0), { weekStartsOn: 1 })
+* //=> Sun Sep 07 2014 23:59:59.999
+*/
+function endOfWeek(date, options) {
+	const defaultOptions = getDefaultOptions();
+	const weekStartsOn = options?.weekStartsOn ?? options?.locale?.options?.weekStartsOn ?? defaultOptions.weekStartsOn ?? defaultOptions.locale?.options?.weekStartsOn ?? 0;
+	const _date = toDate(date, options?.in);
+	const day = _date.getDay();
+	const diff = (day < weekStartsOn ? -7 : 0) + 6 - (day - weekStartsOn);
+	_date.setDate(_date.getDate() + diff);
+	_date.setHours(23, 59, 59, 999);
+	return _date;
 }
 //#endregion
 //#region node_modules/date-fns/locale/en-US/_lib/formatDistance.js
@@ -2215,309 +2407,37 @@ function cleanEscapedString(input) {
 	return matched[1].replace(doubleQuoteRegExp, "'");
 }
 //#endregion
-//#region node_modules/date-fns/formatISO.js
+//#region node_modules/date-fns/isSameMonth.js
 /**
-* The {@link formatISO} function options.
+* The {@link isSameMonth} function options.
 */
 /**
-* @name formatISO
-* @category Common Helpers
-* @summary Format the date according to the ISO 8601 standard (https://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a003169814.htm).
+* @name isSameMonth
+* @category Month Helpers
+* @summary Are the given dates in the same month (and year)?
 *
 * @description
-* Return the formatted date string in ISO 8601 format. Options may be passed to control the parts and notations of the date.
+* Are the given dates in the same month (and year)?
 *
-* @param date - The original date
-* @param options - An object with options.
-*
-* @returns The formatted date string (in local time zone)
-*
-* @throws `date` must not be Invalid Date
-*
-* @example
-* // Represent 18 September 2019 in ISO 8601 format (local time zone is UTC):
-* const result = formatISO(new Date(2019, 8, 18, 19, 0, 52))
-* //=> '2019-09-18T19:00:52Z'
-*
-* @example
-* // Represent 18 September 2019 in ISO 8601, short format (local time zone is UTC):
-* const result = formatISO(new Date(2019, 8, 18, 19, 0, 52), { format: 'basic' })
-* //=> '20190918T190052'
-*
-* @example
-* // Represent 18 September 2019 in ISO 8601 format, date only:
-* const result = formatISO(new Date(2019, 8, 18, 19, 0, 52), { representation: 'date' })
-* //=> '2019-09-18'
-*
-* @example
-* // Represent 18 September 2019 in ISO 8601 format, time only (local time zone is UTC):
-* const result = formatISO(new Date(2019, 8, 18, 19, 0, 52), { representation: 'time' })
-* //=> '19:00:52Z'
-*/
-function formatISO(date, options) {
-	const date_ = toDate(date, options?.in);
-	if (isNaN(+date_)) throw new RangeError("Invalid time value");
-	const format = options?.format ?? "extended";
-	const representation = options?.representation ?? "complete";
-	let result = "";
-	let tzOffset = "";
-	const dateDelimiter = format === "extended" ? "-" : "";
-	const timeDelimiter = format === "extended" ? ":" : "";
-	if (representation !== "time") {
-		const day = addLeadingZeros(date_.getDate(), 2);
-		const month = addLeadingZeros(date_.getMonth() + 1, 2);
-		result = `${addLeadingZeros(date_.getFullYear(), 4)}${dateDelimiter}${month}${dateDelimiter}${day}`;
-	}
-	if (representation !== "date") {
-		const offset = date_.getTimezoneOffset();
-		if (offset !== 0) {
-			const absoluteOffset = Math.abs(offset);
-			const hourOffset = addLeadingZeros(Math.trunc(absoluteOffset / 60), 2);
-			const minuteOffset = addLeadingZeros(absoluteOffset % 60, 2);
-			tzOffset = `${offset < 0 ? "+" : "-"}${hourOffset}:${minuteOffset}`;
-		} else tzOffset = "Z";
-		const hour = addLeadingZeros(date_.getHours(), 2);
-		const minute = addLeadingZeros(date_.getMinutes(), 2);
-		const second = addLeadingZeros(date_.getSeconds(), 2);
-		const separator = result === "" ? "" : "T";
-		const time = [
-			hour,
-			minute,
-			second
-		].join(timeDelimiter);
-		result = `${result}${separator}${time}${tzOffset}`;
-	}
-	return result;
-}
-//#endregion
-//#region node_modules/date-fns/parseISO.js
-/**
-* The {@link parseISO} function options.
-*/
-/**
-* @name parseISO
-* @category Common Helpers
-* @summary Parse ISO string
-*
-* @description
-* Parse the given string in ISO 8601 format and return an instance of Date.
-*
-* Function accepts complete ISO 8601 formats as well as partial implementations.
-* ISO 8601: http://en.wikipedia.org/wiki/ISO_8601
-*
-* If the argument isn't a string, the function cannot parse the string or
-* the values are invalid, it returns Invalid Date.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param argument - The value to convert
+* @param laterDate - The first date to check
+* @param earlierDate - The second date to check
 * @param options - An object with options
 *
-* @returns The parsed date in the local time zone
+* @returns The dates are in the same month (and year)
 *
 * @example
-* // Convert string '2014-02-11T11:30:30' to date:
-* const result = parseISO('2014-02-11T11:30:30')
-* //=> Tue Feb 11 2014 11:30:30
+* // Are 2 September 2014 and 25 September 2014 in the same month?
+* const result = isSameMonth(new Date(2014, 8, 2), new Date(2014, 8, 25))
+* //=> true
 *
 * @example
-* // Convert string '+02014101' to date,
-* // if the additional number of digits in the extended year format is 1:
-* const result = parseISO('+02014101', { additionalDigits: 1 })
-* //=> Fri Apr 11 2014 00:00:00
+* // Are 2 September 2014 and 25 September 2015 in the same month?
+* const result = isSameMonth(new Date(2014, 8, 2), new Date(2015, 8, 25))
+* //=> false
 */
-function parseISO(argument, options) {
-	const invalidDate = () => constructFrom(options?.in, NaN);
-	const additionalDigits = options?.additionalDigits ?? 2;
-	const dateStrings = splitDateString(argument);
-	let date;
-	if (dateStrings.date) {
-		const parseYearResult = parseYear(dateStrings.date, additionalDigits);
-		date = parseDate(parseYearResult.restDateString, parseYearResult.year);
-	}
-	if (!date || isNaN(+date)) return invalidDate();
-	const timestamp = +date;
-	let time = 0;
-	let offset;
-	if (dateStrings.time) {
-		time = parseTime(dateStrings.time);
-		if (isNaN(time)) return invalidDate();
-	}
-	if (dateStrings.timezone) {
-		offset = parseTimezone(dateStrings.timezone);
-		if (isNaN(offset)) return invalidDate();
-	} else {
-		const tmpDate = new Date(timestamp + time);
-		const result = toDate(0, options?.in);
-		result.setFullYear(tmpDate.getUTCFullYear(), tmpDate.getUTCMonth(), tmpDate.getUTCDate());
-		result.setHours(tmpDate.getUTCHours(), tmpDate.getUTCMinutes(), tmpDate.getUTCSeconds(), tmpDate.getUTCMilliseconds());
-		return result;
-	}
-	return toDate(timestamp + time + offset, options?.in);
-}
-var patterns = {
-	dateTimeDelimiter: /[T ]/,
-	timeZoneDelimiter: /[Z ]/i,
-	timezone: /([Z+-].*)$/
-};
-var dateRegex = /^-?(?:(\d{3})|(\d{2})(?:-?(\d{2}))?|W(\d{2})(?:-?(\d{1}))?|)$/;
-var timeRegex = /^(\d{2}(?:[.,]\d*)?)(?::?(\d{2}(?:[.,]\d*)?))?(?::?(\d{2}(?:[.,]\d*)?))?$/;
-var timezoneRegex = /^([+-])(\d{2})(?::?(\d{2}))?$/;
-function splitDateString(dateString) {
-	const dateStrings = {};
-	const array = dateString.split(patterns.dateTimeDelimiter);
-	let timeString;
-	if (array.length > 2) return dateStrings;
-	if (/:/.test(array[0])) timeString = array[0];
-	else {
-		dateStrings.date = array[0];
-		timeString = array[1];
-		if (patterns.timeZoneDelimiter.test(dateStrings.date)) {
-			dateStrings.date = dateString.split(patterns.timeZoneDelimiter)[0];
-			timeString = dateString.substr(dateStrings.date.length, dateString.length);
-		}
-	}
-	if (timeString) {
-		const token = patterns.timezone.exec(timeString);
-		if (token) {
-			dateStrings.time = timeString.replace(token[1], "");
-			dateStrings.timezone = token[1];
-		} else dateStrings.time = timeString;
-	}
-	return dateStrings;
-}
-function parseYear(dateString, additionalDigits) {
-	const regex = new RegExp("^(?:(\\d{4}|[+-]\\d{" + (4 + additionalDigits) + "})|(\\d{2}|[+-]\\d{" + (2 + additionalDigits) + "})$)");
-	const captures = dateString.match(regex);
-	if (!captures) return {
-		year: NaN,
-		restDateString: ""
-	};
-	const year = captures[1] ? parseInt(captures[1]) : null;
-	const century = captures[2] ? parseInt(captures[2]) : null;
-	return {
-		year: century === null ? year : century * 100,
-		restDateString: dateString.slice((captures[1] || captures[2]).length)
-	};
-}
-function parseDate(dateString, year) {
-	if (year === null) return /* @__PURE__ */ new Date(NaN);
-	const captures = dateString.match(dateRegex);
-	if (!captures) return /* @__PURE__ */ new Date(NaN);
-	const isWeekDate = !!captures[4];
-	const dayOfYear = parseDateUnit(captures[1]);
-	const month = parseDateUnit(captures[2]) - 1;
-	const day = parseDateUnit(captures[3]);
-	const week = parseDateUnit(captures[4]);
-	const dayOfWeek = parseDateUnit(captures[5]) - 1;
-	if (isWeekDate) {
-		if (!validateWeekDate(year, week, dayOfWeek)) return /* @__PURE__ */ new Date(NaN);
-		return dayOfISOWeekYear(year, week, dayOfWeek);
-	} else {
-		const date = /* @__PURE__ */ new Date(0);
-		if (!validateDate(year, month, day) || !validateDayOfYearDate(year, dayOfYear)) return /* @__PURE__ */ new Date(NaN);
-		date.setUTCFullYear(year, month, Math.max(dayOfYear, day));
-		return date;
-	}
-}
-function parseDateUnit(value) {
-	return value ? parseInt(value) : 1;
-}
-function parseTime(timeString) {
-	const captures = timeString.match(timeRegex);
-	if (!captures) return NaN;
-	const hours = parseTimeUnit(captures[1]);
-	const minutes = parseTimeUnit(captures[2]);
-	const seconds = parseTimeUnit(captures[3]);
-	if (!validateTime(hours, minutes, seconds)) return NaN;
-	return hours * millisecondsInHour + minutes * millisecondsInMinute + seconds * 1e3;
-}
-function parseTimeUnit(value) {
-	return value && parseFloat(value.replace(",", ".")) || 0;
-}
-function parseTimezone(timezoneString) {
-	if (timezoneString === "Z") return 0;
-	const captures = timezoneString.match(timezoneRegex);
-	if (!captures) return 0;
-	const sign = captures[1] === "+" ? -1 : 1;
-	const hours = parseInt(captures[2]);
-	const minutes = captures[3] && parseInt(captures[3]) || 0;
-	if (!validateTimezone(hours, minutes)) return NaN;
-	return sign * (hours * millisecondsInHour + minutes * millisecondsInMinute);
-}
-function dayOfISOWeekYear(isoWeekYear, week, day) {
-	const date = /* @__PURE__ */ new Date(0);
-	date.setUTCFullYear(isoWeekYear, 0, 4);
-	const fourthOfJanuaryDay = date.getUTCDay() || 7;
-	const diff = (week - 1) * 7 + day + 1 - fourthOfJanuaryDay;
-	date.setUTCDate(date.getUTCDate() + diff);
-	return date;
-}
-var daysInMonths = [
-	31,
-	null,
-	31,
-	30,
-	31,
-	30,
-	31,
-	31,
-	30,
-	31,
-	30,
-	31
-];
-function isLeapYearIndex(year) {
-	return year % 400 === 0 || year % 4 === 0 && year % 100 !== 0;
-}
-function validateDate(year, month, date) {
-	return month >= 0 && month <= 11 && date >= 1 && date <= (daysInMonths[month] || (isLeapYearIndex(year) ? 29 : 28));
-}
-function validateDayOfYearDate(year, dayOfYear) {
-	return dayOfYear >= 1 && dayOfYear <= (isLeapYearIndex(year) ? 366 : 365);
-}
-function validateWeekDate(_year, week, day) {
-	return week >= 1 && week <= 53 && day >= 0 && day <= 6;
-}
-function validateTime(hours, minutes, seconds) {
-	if (hours === 24) return minutes === 0 && seconds === 0;
-	return seconds >= 0 && seconds < 60 && minutes >= 0 && minutes < 60 && hours >= 0 && hours < 25;
-}
-function validateTimezone(_hours, minutes) {
-	return minutes >= 0 && minutes <= 59;
-}
-//#endregion
-//#region node_modules/date-fns/setHours.js
-/**
-* The {@link setHours} function options.
-*/
-/**
-* @name setHours
-* @category Hour Helpers
-* @summary Set the hours to the given date.
-*
-* @description
-* Set the hours to the given date.
-*
-* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
-* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
-*
-* @param date - The date to be changed
-* @param hours - The hours of the new date
-* @param options - An object with options
-*
-* @returns The new date with the hours set
-*
-* @example
-* // Set 4 hours to 1 September 2014 11:30:00:
-* const result = setHours(new Date(2014, 8, 1, 11, 30), 4)
-* //=> Mon Sep 01 2014 04:30:00
-*/
-function setHours(date, hours, options) {
-	const _date = toDate(date, options?.in);
-	_date.setHours(hours);
-	return _date;
+function isSameMonth(laterDate, earlierDate, options) {
+	const [laterDate_, earlierDate_] = normalizeDates(options?.in, laterDate, earlierDate);
+	return laterDate_.getFullYear() === earlierDate_.getFullYear() && laterDate_.getMonth() === earlierDate_.getMonth();
 }
 //#endregion
 //#region node_modules/date-fns/locale/zh-TW/_lib/formatDistance.js
@@ -2973,4 +2893,4 @@ var zhTW = {
 	}
 };
 //#endregion
-export { format as a, formatISO as i, setHours as n, differenceInCalendarDays as o, parseISO as r, addDays as s, zhTW as t };
+export { startOfMonth as a, startOfDay as c, addDays as d, endOfWeek as i, startOfWeek as l, isSameMonth as n, endOfMonth as o, format as r, isSameDay as s, zhTW as t, addMonths as u };

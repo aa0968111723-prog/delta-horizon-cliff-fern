@@ -14,6 +14,7 @@ import { Group, Panel, Separator } from "react-resizable-panels";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AssetTray } from "@/components/editor/asset-tray";
+import { HeroPhotoStrip } from "@/components/editor/hero-photo-strip";
 import { ArtboardCanvas } from "@/components/editor/artboard-canvas";
 import { BrandOnCanvas } from "@/components/editor/brand-on-canvas";
 import { CopyPanel } from "@/components/editor/copy-panel";
@@ -23,10 +24,17 @@ import { LayerTree } from "@/components/editor/layer-tree";
 import { SlideBar } from "@/components/editor/slide-bar";
 import { CarouselPreview } from "@/components/editor/carousel-preview";
 import { VersionPanel } from "@/components/editor/version-panel";
+import { PublishPreview } from "@/components/create/publish-preview";
+import { ReelsTimeline } from "@/components/create/reels-timeline";
+import { ConvertBar } from "@/components/create/convert-bar";
+import { PackSyncButtons } from "@/components/shared/pack-sync";
+import { StudioIgPeekButton } from "@/components/instagram/studio-ig-peek";
 import { PlannerPanel } from "@/components/planner/planner-panel";
 import { QualityPanel } from "@/components/qa/quality-panel";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SaveIndicator } from "@/components/shared/save-indicator";
+import { ContentFlowBar } from "@/components/shared/content-flow";
+import { SourceList } from "@/components/shared/source-list";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -57,6 +65,17 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
   const carouselPreview = useUi((s) => s.carouselPreview);
   const setCarouselPreview = useUi((s) => s.setCarouselPreview);
   const [rightTab, setRightTab] = useState("inspect");
+
+  function openCopyPanel() {
+    setRightTab("copy");
+    if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) {
+      setPanel("copy");
+    }
+  }
+
+  function openReelsScript() {
+    openCopyPanel();
+  }
 
   useEffect(() => {
     setLastProjectId(projectId);
@@ -163,6 +182,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
           </Link>
         </Button>
         <h1 className="min-w-0 flex-1 truncate text-sm font-medium">{project.name}</h1>
+        <ContentFlowBar project={project} variant="compact" />
         <div className="hidden items-center gap-1 md:flex">
           {FORMATS.map((f) => (
             <Button
@@ -197,12 +217,22 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
           {qa.score}
         </button>
       </header>
+      <div className="shrink-0 space-y-2 overflow-x-auto border-b border-border bg-surface px-3 py-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <ConvertBar project={project} variant="compact" />
+          <StudioIgPeekButton project={project} brand={brand} />
+          <PackSyncButtons projectId={project.id} />
+        </div>
+        <p className="text-xs text-subtle">點照片當主視覺。Logo 到左側素材放入。</p>
+        <HeroPhotoStrip projectId={project.id} />
+        <SourceList sources={project.sources} />
+      </div>
 
       <div className="flex h-0 min-h-0 flex-1">
         <div className="hidden h-full min-h-0 min-w-0 flex-1 lg:block">
           <Group orientation="horizontal" className="h-full">
             <Panel defaultSize="20%" minSize="16%" className="bg-surface">
-              <Tabs defaultValue="layers" className="flex h-full min-h-0 flex-col">
+              <Tabs defaultValue="assets" className="flex h-full min-h-0 flex-col">
                 <div className="px-3 pt-3">
                   <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="layers">圖層</TabsTrigger>
@@ -229,7 +259,34 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
                   <BrandOnCanvas projectId={project.id} brand={brand} />
                   <SlideBar project={project} />
                 </div>
-                <ArtboardCanvas projectId={project.id} artboard={artboard} brand={brand} urls={urls} />
+                {project.contentKind === "reels" && project.reels ? (
+                  <div className="shrink-0 border-b border-border bg-surface px-3 py-2">
+                    <ReelsTimeline
+                      variant="compact"
+                      reels={project.reels}
+                      adapter={project.reels.source}
+                      projectId={project.id}
+                      onOpenScript={openReelsScript}
+                    />
+                  </div>
+                ) : project.contentKind === "threads" ? (
+                  <div className="min-h-0 flex-1 overflow-y-auto border-b border-border bg-surface px-3 py-3">
+                    <PublishPreview project={project} brand={brand} urls={urls} />
+                  </div>
+                ) : project.contentKind === "line" ? (
+                  <div className="shrink-0 border-b border-border bg-surface px-3 py-2">
+                    <PublishPreview
+                      project={project}
+                      brand={brand}
+                      urls={urls}
+                      variant="compact"
+                      onOpenCopy={openCopyPanel}
+                    />
+                  </div>
+                ) : null}
+                {project.contentKind === "threads" ? null : (
+                  <ArtboardCanvas projectId={project.id} artboard={artboard} brand={brand} urls={urls} />
+                )}
               </div>
             </Panel>
             <Separator className="w-1 bg-border hover:bg-border-strong" />
@@ -238,7 +295,9 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
                 <div className="px-3 pt-3">
                   <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="inspect">屬性</TabsTrigger>
-                    <TabsTrigger value="copy">文字</TabsTrigger>
+                    <TabsTrigger value="copy" data-testid="studio-tab-copy">
+                      文字
+                    </TabsTrigger>
                     <TabsTrigger value="qa">檢查</TabsTrigger>
                     <TabsTrigger value="ai" data-testid="studio-tab-ai">
                       企劃
@@ -269,9 +328,36 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
             <EditorToolbar projectId={project.id} />
             <BrandOnCanvas projectId={project.id} brand={brand} />
           </div>
-          <ArtboardCanvas projectId={project.id} artboard={artboard} brand={brand} urls={urls} />
-          <div className="shrink-0 border-t border-border bg-surface">
-            <SlideBar project={project} compact />
+          {project.contentKind === "reels" && project.reels ? (
+            <div className="shrink-0 border-b border-border bg-surface px-3 py-2">
+              <ReelsTimeline
+                variant="compact"
+                reels={project.reels}
+                adapter={project.reels.source}
+                projectId={project.id}
+                onOpenScript={openReelsScript}
+              />
+            </div>
+          ) : project.contentKind === "threads" ? (
+            <div className="min-h-0 flex-1 overflow-y-auto border-b border-border bg-surface px-3 py-3">
+              <PublishPreview project={project} brand={brand} urls={urls} />
+            </div>
+          ) : project.contentKind === "line" ? (
+            <div className="shrink-0 border-b border-border bg-surface px-3 py-2">
+              <PublishPreview
+                project={project}
+                brand={brand}
+                urls={urls}
+                variant="compact"
+                onOpenCopy={openCopyPanel}
+              />
+            </div>
+          ) : null}
+          {project.contentKind === "threads" ? null : (
+            <ArtboardCanvas projectId={project.id} artboard={artboard} brand={brand} urls={urls} />
+          )}
+          <div className="border-t border-border bg-surface">
+            <SlideBar project={project} />
           </div>
           <div className="flex h-12 min-w-0 shrink-0 overflow-x-auto border-t border-border bg-surface">
             <MobileTab icon={<Layers className="size-4" />} label="圖層" onClick={() => setPanel("layers")} active={panel === "layers"} />

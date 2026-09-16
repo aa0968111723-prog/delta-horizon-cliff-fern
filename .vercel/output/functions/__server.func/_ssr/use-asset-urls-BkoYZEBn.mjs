@@ -1,6 +1,6 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
-import { o as objectUrlForAsset } from "./badge-DWCS9kce.mjs";
+import { a as objectUrlForAsset } from "./assets-idb-DwbJEnrX.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/use-asset-urls-BkoYZEBn.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 function useAssetUrls(ids) {

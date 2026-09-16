@@ -5,10 +5,10 @@ export const GOALS: {
   label: string;
   hint: string;
 }[] = [
-  { id: "awareness", label: "讓學生停下來", hint: "先被看見，再看到活動" },
-  { id: "traffic", label: "來參加", hint: "時間地點清楚，走得動" },
-  { id: "conversion", label: "完成報名", hint: "CTA 與連結一眼看懂" },
-  { id: "ugc", label: "找朋友來", hint: "留言、標註、一起出現" },
+  { id: "awareness", label: "品牌認知", hint: "讓人停下來記住你" },
+  { id: "traffic", label: "引導到店", hint: "網站、地圖或門市" },
+  { id: "conversion", label: "轉換購買", hint: "下單、預約、兌換" },
+  { id: "ugc", label: "互動分享", hint: "留言、標註、轉發" },
 ];
 
 export function goalLabel(id: CampaignGoal): string {

@@ -2,41 +2,17 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { DownloadPackButton, PackExportHint } from "@/components/export/download-pack";
 import { canvasToBlob, collectArtboardAssetIds, downloadBlob, renderArtboardToCanvas } from "@/lib/studio/export-png";
-import { buildExportCopyPack } from "@/lib/studio/export-copy";
-import { publishPackManifest, safePackStem } from "@/lib/studio/export-pack";
-import { zipBlobs } from "@/lib/studio/zip-store";
+import { loadArtboardImages } from "@/lib/studio/export-download";
+import { exportFilename } from "@/lib/studio/export-name";
 import { formatById } from "@/lib/studio/formats";
-import { projectImageNote, scheduleReminder } from "@/lib/studio/ig-surfaces";
-import { getAssetBlob } from "@/lib/studio/assets-idb";
 import { uid } from "@/lib/studio/ids";
 import { pagesOf } from "@/lib/studio/layers";
+import { igPostText, packStats, packLimit, threadsPostText } from "@/lib/studio/post-pack";
 import type { Artboard, BrandKit, Project } from "@/lib/studio/types";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
-
-async function loadImages(ids: string[]): Promise<Record<string, HTMLImageElement>> {
-  const map: Record<string, HTMLImageElement> = {};
-  await Promise.all(
-    [...new Set(ids)].map(async (id) => {
-      const blob = await getAssetBlob(id);
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      try {
-        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const el = new Image();
-          el.onload = () => resolve(el);
-          el.onerror = () => reject(new Error("圖片載入失敗"));
-          el.src = url;
-        });
-        map[id] = img;
-      } finally {
-        URL.revokeObjectURL(url);
-      }
-    }),
-  );
-  return map;
-}
 
 export function ExportPanel({
   project,
@@ -48,8 +24,7 @@ export function ExportPanel({
   artboard: Artboard;
 }) {
   const recordExport = useStudio((s) => s.recordExport);
-  const contentItems = useCreative((s) => s.contentItems);
-  const campaigns = useCreative((s) => s.campaigns);
+  const assets = useStudio((s) => s.assets);
   const [scale, setScale] = useState<1 | 2 | 3>(2);
   const [type, setType] = useState<"image/png" | "image/jpeg">("image/png");
   const [busy, setBusy] = useState(false);
@@ -60,12 +35,11 @@ export function ExportPanel({
   const pages = pagesOf(project, artboard.formatId);
 
   async function exportArtboard(target: Artboard, suffix: string) {
-    const images = await loadImages(collectArtboardAssetIds(target, brand));
+    const images = await loadArtboardImages(collectArtboardAssetIds(target, brand), assets);
     const canvas = await renderArtboardToCanvas(target, brand, images, scale);
     const blob = await canvasToBlob(canvas, type, 0.95);
     const ext = type === "image/png" ? "png" : "jpg";
-    const safe = project.name.replace(/[\\/:*?"<>|]/g, "").slice(0, 40) || "export";
-    const filename = `${safe}-${format.short}${suffix}-${outW}x${outH}.${ext}`;
+    const filename = exportFilename(project.name, format.short, suffix, outW, outH, ext);
     downloadBlob(blob, filename);
     recordExport(project.id, {
       id: uid("exp"),
@@ -206,49 +180,45 @@ export function ExportPanel({
         variant="secondary"
         className="w-full min-h-11"
         onClick={async () => {
-          const text = `${project.copy.caption}\n\n${project.copy.hashtags.join(" ")}`.trim();
+          const text = igPostText(project.copy);
           await navigator.clipboard.writeText(text);
           toast.success("已複製貼文文案");
         }}
       >
         複製貼文文案
       </Button>
+      <p className="text-xs tabular-nums text-muted">
+        {(() => {
+          const stats = packStats(igPostText(project.copy), packLimit("ig"));
+          return `貼文 ${stats.length} / ${stats.limit} 字${stats.over ? "，超過上限了" : ""}`;
+        })()}
+      </p>
       <Button
         variant="secondary"
-        className="w-full min-h-11"
+        className="w-full"
         onClick={async () => {
-          const text = buildExportCopyPack(project, { contentItems, campaigns });
-          await navigator.clipboard.writeText(text);
-          toast.success("已複製文案與備註。畫布 PNG 請用下載一人發佈包。");
+          await navigator.clipboard.writeText(threadsPostText(project.copy));
+          toast.success("已複製 Threads 文案");
         }}
       >
-        複製一人發佈包
+        複製 Threads 文案
       </Button>
-      <Button
-        variant="secondary"
-        className="w-full min-h-11"
-        data-testid="download-publish-pack"
-        disabled={busy}
-        onClick={() => void exportPublishPack()}
-      >
-        {busy ? "打包中…" : "下載一人發佈包"}
-      </Button>
-      <p className="text-xs leading-5 text-muted">
-        下載包含目前畫布 PNG、貼文文案、畫面備註與排程提醒。沒有官方 Insights，也不會幫你貼到 Instagram。
-      </p>
-      <p className="text-xs leading-5 text-muted whitespace-pre-line">
-        {scheduleReminder({
-          schedule: project.brief.schedule,
-          location: project.brief.location,
-          content: contentItems.find((item) => item.projectId === project.id) ?? null,
-        })}
-      </p>
-      {projectImageNote(project) ? (
-        <p className="text-xs leading-5 text-muted">畫面備註：{projectImageNote(project)}</p>
-      ) : null}
       {project.copy.altText ? (
-        <p className="text-xs text-muted">Alt：{project.copy.altText}</p>
-      ) : null}
+        <Button
+          variant="secondary"
+          className="w-full"
+          onClick={async () => {
+            await navigator.clipboard.writeText(project.copy.altText);
+            toast.success("已複製無障礙說明");
+          }}
+        >
+          複製 Alt
+        </Button>
+      ) : (
+        <p className="text-xs text-subtle">還沒有無障礙說明。套用一版文案後會自動寫一句畫面描述。</p>
+      )}
+      <DownloadPackButton projectId={project.id} className="w-full" variant="secondary" />
+      <PackExportHint projectId={project.id} />
     </div>
   );
 }

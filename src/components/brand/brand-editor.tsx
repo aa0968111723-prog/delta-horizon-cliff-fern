@@ -1,6 +1,5 @@
-import { useRouterState } from "@tanstack/react-router";
-import { Star, Trash2, Upload } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Check, Plus, Star, Trash2, Upload } from "lucide-react";
+import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { StyleMemoryPanel } from "@/components/brand/style-memory";
@@ -23,11 +22,11 @@ import { Switch } from "@/components/ui/switch";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { AssetUploadError, decodeAssetImage } from "@/lib/studio/asset-upload";
-import { emptyBrandMemory, LOGO_USAGE, logoUsageLabel } from "@/lib/studio/brand";
-import { lessonsFromLocalWork } from "@/lib/creative/learning";
+import { assetPreviewFitClass } from "@/lib/studio/assets";
+import { LOGO_USAGE, logoUsageLabel, toggleLegacyAssetId } from "@/lib/studio/brand";
 import { STUDIO_FONTS } from "@/lib/studio/fonts";
 import { uid } from "@/lib/studio/ids";
-import type { BrandColor, BrandKit, ColorRole, LogoUsage, LogoVariant } from "@/lib/studio/types";
+import type { AssetMeta, BrandColor, BrandKit, BrandMemory, ColorRole, LogoUsage, LogoVariant } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 import { SwatchBook } from "lucide-react";
@@ -42,7 +41,7 @@ const ROLES: { id: ColorRole; label: string }[] = [
 
 const SECTIONS = [
   { id: "identity", label: "識別" },
-  { id: "memory", label: "創作記憶" },
+  { id: "memory", label: "品牌記憶" },
   { id: "logo", label: "Logo" },
   { id: "colors", label: "色彩" },
   { id: "fonts", label: "字體" },
@@ -57,13 +56,6 @@ export function BrandEditor() {
   const createBrand = useStudio((s) => s.createBrand);
   const addAsset = useStudio((s) => s.addAsset);
   const assets = useStudio((s) => s.assets);
-  const projects = useStudio((s) => s.projects);
-  const lastProjectId = useStudio((s) => s.lastProjectId);
-  const applyBrandKit = useStudio((s) => s.applyBrandKit);
-  const campaigns = useCreative((s) => s.campaigns);
-  const contentItems = useCreative((s) => s.contentItems);
-  const outcomes = useCreative((s) => s.outcomes);
-  const styleReferences = useConnectionStore((s) => s.styleReferences);
   const [activeId, setActiveId] = useState(brands[0]?.id ?? "");
   const locationHash = useRouterState({ select: (state) => state.location.hash });
   const [section, setSection] = useState<(typeof SECTIONS)[number]["id"]>("identity");
@@ -102,6 +94,10 @@ export function BrandEditor() {
 
   function patch<K extends keyof BrandKit>(key: K, value: BrandKit[K]) {
     updateBrand(brand.id, { [key]: value });
+  }
+
+  function patchMemory<K extends keyof BrandMemory>(key: K, value: BrandMemory[K]) {
+    updateBrand(brand.id, { memory: { ...brand.memory, [key]: value } });
   }
 
   async function onLogo(file: File) {
@@ -155,9 +151,9 @@ export function BrandEditor() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="禪作所"
-        title="Brand Memory"
-        description="Logo、龜龜、三色光、語氣、CTA、圖片風格與禁用規則會優先進入每一次 AI 創作。"
+        kicker="品牌中心"
+        title="品牌記憶"
+        description="理念、龜龜、三色光、語氣與歷屆文宣會在每一次 AI 生成前先被讀進去。名稱與 Logo 仍然在這裡改。"
         actions={
           <BrandSubnav current="brand" />
         }
@@ -255,11 +251,7 @@ export function BrandEditor() {
         ))}
       </div>
 
-      <section
-        id="brand-identity"
-        hidden={section !== "identity"}
-        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
-      >
+      <section id="brand-identity" className="space-y-3 rounded-2xl surface-card p-5">
         <h2 className="text-sm font-medium">品牌識別</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="品牌名稱">
@@ -288,99 +280,114 @@ export function BrandEditor() {
         </div>
       </section>
 
-      <section
-        id="brand-memory"
-        hidden={section !== "memory"}
-        className="space-y-4 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
-      >
+      <section id="brand-memory" className="space-y-3 rounded-2xl surface-card p-5">
         <div>
-          <h2 className="text-sm font-medium">Brand Memory 記得什麼</h2>
-          <p className="mt-1 text-xs leading-5 text-muted">
-            這些不是對外的漂亮文案，而是每次 AI 企劃、文案與圖片生成前會讀取的淡江情境與已學到規律。
+          <h2 className="text-sm font-medium">品牌記憶</h2>
+          <p className="mt-0.5 text-xs text-muted">
+            這不是規範文件。是社團自己的東西：為什麼存在、龜龜是誰、三色光是什麼意思、喜歡與不喜歡的畫面。
           </p>
         </div>
-        <Field label="社團使命">
+        <Field label="理念">
           <Textarea
-            value={memory.mission}
-            onChange={(event) => patch("memory", { ...memory, mission: event.target.value, updatedAt: Date.now() })}
-            placeholder="我們希望為淡江學生帶來什麼？"
+            value={brand.memory.mission}
+            onChange={(e) => patchMemory("mission", e.target.value)}
+            placeholder="給淡江學生一個可以坐下來的地方。"
           />
         </Field>
-        <ChipList
-          label="核心學生"
-          hint="不要只寫大學生，記錄真正要理解的生活群體。"
-          values={memory.audienceSegments}
-          placeholder="例如：通勤生"
-          onChange={(audienceSegments) => patch("memory", { ...memory, audienceSegments, updatedAt: Date.now() })}
+        <Field label="固定短介紹">
+          <Textarea
+            value={brand.memory.introShort}
+            onChange={(e) => patchMemory("introShort", e.target.value)}
+          />
+        </Field>
+        <Field label="固定長介紹">
+          <Textarea
+            value={brand.memory.introLong}
+            onChange={(e) => patchMemory("introLong", e.target.value)}
+          />
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="吉祥物名字">
+            <Input value={brand.memory.mascotName} onChange={(e) => patchMemory("mascotName", e.target.value)} />
+          </Field>
+          <Field label="怎麼用">
+            <Input value={brand.memory.mascotUsage} onChange={(e) => patchMemory("mascotUsage", e.target.value)} />
+          </Field>
+        </div>
+        <Field label="長什麼樣子">
+          <Textarea value={brand.memory.mascotLook} onChange={(e) => patchMemory("mascotLook", e.target.value)} />
+        </Field>
+        <Field label="個性">
+          <Textarea
+            value={brand.memory.mascotPersonality}
+            onChange={(e) => patchMemory("mascotPersonality", e.target.value)}
+          />
+        </Field>
+        <div>
+          <p className="mb-2 text-sm">三色光</p>
+          <ul className="space-y-3">
+            {brand.memory.lights.map((light, index) => (
+              <li key={`${light.label}-${index}`} className="grid gap-2 sm:grid-cols-[5.5rem_1fr]">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={light.hex}
+                    onChange={(e) =>
+                      patchMemory(
+                        "lights",
+                        brand.memory.lights.map((item, i) =>
+                          i === index ? { ...item, hex: e.target.value.toUpperCase() } : item,
+                        ),
+                      )
+                    }
+                    className="size-10 cursor-pointer rounded-md border border-border bg-transparent"
+                    aria-label={light.label}
+                  />
+                  <Input
+                    value={light.label}
+                    onChange={(e) =>
+                      patchMemory(
+                        "lights",
+                        brand.memory.lights.map((item, i) => (i === index ? { ...item, label: e.target.value } : item)),
+                      )
+                    }
+                  />
+                </div>
+                <Input
+                  value={light.meaning}
+                  onChange={(e) =>
+                    patchMemory(
+                      "lights",
+                      brand.memory.lights.map((item, i) => (i === index ? { ...item, meaning: e.target.value } : item)),
+                    )
+                  }
+                  placeholder="這道光用在什麼時候"
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+        <Field label="喜歡的風格">
+          <Textarea
+            value={brand.memory.likedStyles}
+            onChange={(e) => patchMemory("likedStyles", e.target.value)}
+          />
+        </Field>
+        <Field label="不要的風格">
+          <Textarea
+            value={brand.memory.dislikedStyles}
+            onChange={(e) => patchMemory("dislikedStyles", e.target.value)}
+          />
+        </Field>
+        <p className="text-xs text-muted">點選素材，讓 AI 生成時把這些畫面當成社團自己的視覺記憶。</p>
+        <LegacyAssetPicker
+          selectedIds={brand.memory.legacyAssetIds}
+          assets={assets}
+          onToggle={(id) => patchMemory("legacyAssetIds", toggleLegacyAssetId(brand.memory.legacyAssetIds, id))}
         />
-        <ChipList
-          label="淡江生活情境"
-          hint="生成 Hook 時優先連結的真實場景。"
-          values={memory.campusContexts}
-          placeholder="例如：淡水雨天"
-          onChange={(campusContexts) => patch("memory", { ...memory, campusContexts, updatedAt: Date.now() })}
-        />
-        <ChipList
-          label="重要時機"
-          hint="讓排程與內容角度理解校園季節。"
-          values={memory.seasonalMoments}
-          placeholder="例如：期中前"
-          onChange={(seasonalMoments) => patch("memory", { ...memory, seasonalMoments, updatedAt: Date.now() })}
-        />
-        <ChipList
-          label="內容支柱"
-          hint="避免整個 IG 只剩連續活動廣告。"
-          values={memory.contentPillars}
-          placeholder="例如：社員故事"
-          onChange={(contentPillars) => patch("memory", { ...memory, contentPillars, updatedAt: Date.now() })}
-        />
-        <ChipList
-          label="辨識元素"
-          hint="AI 視覺優先參考，不代表每張都要全部放入。"
-          values={memory.signatureElements}
-          placeholder="例如：龜龜"
-          onChange={(signatureElements) => patch("memory", { ...memory, signatureElements, updatedAt: Date.now() })}
-        />
-        <ChipList
-          label="已學到的規律"
-          hint="把有效或踩雷經驗留下，供下一次生成使用。"
-          values={memory.learnedPatterns}
-          placeholder="例如：先說學生生活，再介紹活動"
-          onChange={(learnedPatterns) => patch("memory", { ...memory, learnedPatterns, updatedAt: Date.now() })}
-        />
-        <Button
-          type="button"
-          variant="secondary"
-          className="min-h-11"
-          onClick={() => {
-            patch("memory", {
-              ...memory,
-              learnedPatterns: lessonsFromLocalWork({
-                brand,
-                assets,
-                campaigns,
-                contentItems,
-                copyPacks: projects.flatMap((item) => item.plan?.copyPack ? [item.plan.copyPack] : []),
-                styleNotes: styleReferences.map((item) => `${item.provider}／${item.collection}「${item.title}」${item.notes}`),
-                outcomes,
-                insights: null,
-              }),
-              updatedAt: Date.now(),
-            });
-            toast.success("已從本機創作與已分析素材更新規律。沒有官方 Insights 時不會寫入模擬成效。");
-          }}
-        >
-          從本機工作學習
-        </Button>
-        <OutcomeJournal />
-        <StyleMemoryPanel />
       </section>
 
-      <section
-        id="brand-logo"
-        hidden={section !== "logo"}
-        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
-      >
+      <section id="brand-logo" className="space-y-3 rounded-2xl surface-card p-5">
         <div className="flex items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-medium">Logo 與版本</h2>
@@ -480,11 +487,7 @@ export function BrandEditor() {
         )}
       </section>
 
-      <section
-        id="brand-colors"
-        hidden={section !== "colors"}
-        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
-      >
+      <section id="brand-colors" className="space-y-3 rounded-2xl surface-card p-5">
         <h2 className="text-sm font-medium">色彩</h2>
         <p className="text-xs text-muted">主色、輔助色與背景色會進自動排版；強調色用於 CTA 與線條。</p>
         <ul className="space-y-3">
@@ -559,11 +562,7 @@ export function BrandEditor() {
         </Button>
       </section>
 
-      <section
-        id="brand-fonts"
-        hidden={section !== "fonts"}
-        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
-      >
+      <section id="brand-fonts" className="space-y-3 rounded-2xl surface-card p-5">
         <h2 className="text-sm font-medium">字體</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="標題字體">
@@ -605,11 +604,7 @@ export function BrandEditor() {
         </div>
       </section>
 
-      <section
-        id="brand-copy"
-        hidden={section !== "copy"}
-        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
-      >
+      <section id="brand-copy" className="space-y-3 rounded-2xl surface-card p-5">
         <h2 className="text-sm font-medium">固定標語與常用 CTA</h2>
         <ChipList
           label="固定標語"
@@ -658,11 +653,7 @@ export function BrandEditor() {
         </Field>
       </section>
 
-      <section
-        id="brand-style"
-        hidden={section !== "style"}
-        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
-      >
+      <section id="brand-style" className="space-y-3 rounded-2xl surface-card p-5">
         <h2 className="text-sm font-medium">圖片風格</h2>
         <p className="text-xs text-muted">給攝影師與 AI 企劃看的視覺方向，不會自動套濾鏡。</p>
         <Field label="畫面情緒">
@@ -707,11 +698,7 @@ export function BrandEditor() {
         </Field>
       </section>
 
-      <section
-        id="brand-rules"
-        hidden={section !== "rules"}
-        className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]"
-      >
+      <section id="brand-rules" className="space-y-3 rounded-2xl surface-card p-5">
         <h2 className="text-sm font-medium">品牌禁用規則</h2>
         <Field label="可以說">
           <Input value={brand.doSay} onChange={(e) => patch("doSay", e.target.value)} />
@@ -807,6 +794,72 @@ function ToggleRow({
         <p className="text-xs text-muted">{hint}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
+
+function LegacyAssetPicker({
+  selectedIds,
+  assets,
+  onToggle,
+}: {
+  selectedIds: string[];
+  assets: AssetMeta[];
+  onToggle: (id: string) => void;
+}) {
+  const selected = selectedIds
+    .map((id) => assets.find((asset) => asset.id === id))
+    .filter((asset): asset is AssetMeta => Boolean(asset));
+  const rest = assets.filter((asset) => !selectedIds.includes(asset.id)).slice(0, 16);
+  const visible = [...selected, ...rest];
+  const urls = useAssetUrls(visible.map((asset) => asset.id));
+
+  if (!assets.length) {
+    return <p className="text-xs text-subtle">素材庫還沒有圖。上傳一張海報或活動照片之後就可以標成歷屆文宣。</p>;
+  }
+
+  return (
+    <div>
+      <p className="mb-2 text-sm">歷屆文宣</p>
+      <p className="mb-2 text-xs text-subtle">
+        已選 {selected.length} 張。生成時會讀這些名字與分類，延續社團自己的畫面。
+      </p>
+      <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        {visible.map((asset) => {
+          const on = selectedIds.includes(asset.id);
+          const src = asset.seedSrc || urls[asset.id];
+          return (
+            <li key={asset.id}>
+              <button
+                type="button"
+                onClick={() => onToggle(asset.id)}
+                aria-pressed={on}
+                aria-label={on ? `移出歷屆文宣 ${asset.name}` : `加入歷屆文宣 ${asset.name}`}
+                className={cn(
+                  "relative w-full overflow-hidden rounded-2xl bg-bg text-left shadow-[var(--shadow-border)]",
+                  on ? "ring-2 ring-accent" : "",
+                )}
+              >
+                <span className="block aspect-square">
+                  {src ? (
+                    <img src={src} alt="" className={cn("size-full", assetPreviewFitClass(asset, src))} />
+                  ) : (
+                    <span className="flex size-full items-center justify-center px-2 text-center text-xs text-muted">
+                      {asset.name}
+                    </span>
+                  )}
+                </span>
+                {on ? (
+                  <span className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-accent text-accent-fg">
+                    <Check className="size-3.5" />
+                  </span>
+                ) : null}
+                <span className="block truncate px-2 py-1.5 text-xs">{asset.name}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

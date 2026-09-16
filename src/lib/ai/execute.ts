@@ -1,6 +1,7 @@
 import { actionLabel, type EditPlan, type EditorAction } from "@/lib/ai/actions";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { createGeneratedAsset } from "@/lib/studio/assets";
+import { sourceFromAsset } from "@/lib/studio/sources";
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import {
@@ -141,6 +142,7 @@ async function applyQr(projectId: string, action: Extract<EditorAction, { type: 
     category: "icon",
   });
   store.addAsset(meta);
+  store.addSources(projectId, [sourceFromAsset(meta, "報名 QR")]);
   store.addLayer(
     projectId,
     createImageLayer(assetId, action.caption || "報名 QR", { x, y, w: size, h: size, objectFit: "contain" }),

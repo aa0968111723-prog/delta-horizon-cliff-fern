@@ -3,9 +3,7 @@ export type FormatId =
   | "feed-portrait"
   | "feed-landscape"
   | "story"
-  | "reels-cover"
-  | "threads"
-  | "line";
+  | "reels-cover";
 
 export type TemplateId = "editorial" | "product" | "offer" | "quote";
 
@@ -28,8 +26,10 @@ export type Align = "left" | "center" | "right";
 
 export type ColorRole = "primary" | "secondary" | "accent" | "background" | "ink";
 
-export type ProjectStatus = "idea" | "creating" | "done" | "scheduled" | "published";
+/** 一人創作流程只需要這五個狀態。沒有審核、沒有負責人。 */
+export type ContentStatus = "idea" | "making" | "done" | "scheduled" | "published";
 
+/** 禪學社實際會發的內容型態。 */
 export type ContentKind =
   | "ig-post"
   | "carousel"
@@ -102,24 +102,36 @@ export type BrandRules = {
   notes: string;
 };
 
+/** AI 讀過這個帳號過去內容之後留下的整理，生成時會優先延續。 */
+export type IgHistoryReading = {
+  voice: string;
+  continueWith: string[];
+  avoid: string[];
+  nextPost: string;
+  analyzedAt: number;
+  sampleCount: number;
+  adapter: "live" | "local";
+};
+
 /**
- * Brand Memory — what the AI reads before every generation.
- * 淡江禪學社專用：龜龜角色、三色光、社團理念、固定介紹、喜歡 / 不喜歡的風格。
+ * 品牌記憶裡「不是規範、而是社團自己的東西」：理念、固定介紹、龜龜、三色光的意義、
+ * 喜歡與不喜歡的風格、歷屆文宣。AI 每次生成前都會先讀這一段。
  */
 export type BrandMemory = {
   mission: string;
-  fixedIntro: string;
+  introShort: string;
+  introLong: string;
   mascotName: string;
-  mascotDescription: string;
-  mascotAssetId: string | null;
-  signatureVisual: string;
-  likedStyles: string[];
-  dislikedStyles: string[];
-  audienceNotes: string;
-  toneExamples: string[];
-  recurringEvents: string[];
-  /** IG DNA 摘要：生成新內容時優先參考自己的 IG。 */
-  igDna: string;
+  mascotLook: string;
+  mascotPersonality: string;
+  mascotUsage: string;
+  lights: { label: string; hex: string; meaning: string }[];
+  likedStyles: string;
+  dislikedStyles: string;
+  /** 歷屆海報／文宣，AI 參考品牌 DNA 時會看 */
+  legacyAssetIds: string[];
+  /** 讀過過去 IG／本機內容後的整理。沒讀過就沒有。 */
+  igReading?: IgHistoryReading;
 };
 
 export type BrandKit = {
@@ -141,11 +153,8 @@ export type BrandKit = {
   imageStyle: ImageStyle;
   rules: BrandRules;
   boilerplate: BrandBoilerplate;
-  mascot: string;
-  signatureLights: string;
-  likes: string[];
-  dislikes: string[];
-  clubIntro: string;
+  /** 社團自己的記憶：龜龜、三色光、理念、歷屆文宣。AI 每次都會先讀。 */
+  memory: BrandMemory;
   updatedAt: number;
 };
 
@@ -158,6 +167,9 @@ export type AssetKind = "image" | "logo" | "pattern";
  * generated(AI 生成) / ig / story / reels / archive(歷屆活動)。
  */
 export type AssetCategory =
+  | "mascot"
+  | "campus"
+  | "poster"
   | "photo"
   | "people"
   | "background"
@@ -165,16 +177,7 @@ export type AssetCategory =
   | "icon"
   | "logo"
   | "template"
-  | "history"
-  | "mascot"
-  | "campus"
-  | "tamsui"
-  | "poster"
-  | "generated"
-  | "ig"
-  | "story"
-  | "reels"
-  | "archive";
+  | "history";
 
 export type AssetSourceKind = "upload" | "seed" | "generated" | "google-drive" | "canva" | "instagram";
 
@@ -206,20 +209,18 @@ export type AssetInsight = {
 
 export type AssetUsageStatus = "in-use" | "used" | "unused";
 
-export type AssetAnalysis = {
+/** AI 讀過這張圖之後留下的理解，方便延續風格或寫文案。 */
+export type AssetInsight = {
   summary: string;
-  subjects: string[];
-  colors: string[];
-  lighting: string;
-  composition: string;
-  textHierarchy: string;
-  brandFit: string;
-  studentFit: string;
-  stopPower: string;
-  risks: string[];
-  recommendations: string[];
-  suggestedTags: string[];
+  stylePrompt: string;
+  captionIdea: string;
+  tooReligious: boolean;
+  tooAi: boolean;
+  fitsTku: boolean;
+  nextSteps: string[];
   analyzedAt: number;
+  /** live = 線上模型看圖；local = 本機規則依名稱／分類／標籤。 */
+  source?: "live" | "local";
 };
 
 export type AssetMeta = {
@@ -241,9 +242,7 @@ export type AssetMeta = {
   favorite: boolean;
   lastUsedAt: number | null;
   useCount: number;
-  analysis?: AssetAnalysis;
-  generationPrompt?: string;
-  provenance?: AssetProvenance;
+  insight?: AssetInsight;
 };
 
 export type Background = {
@@ -480,56 +479,6 @@ export type CampaignPlan = {
   copyPack?: CopyPack;
   generatedAt: number;
   source: PlanSource;
-  visualDirections?: VisualDirection[];
-  threadsPost?: string;
-  lineCopy?: string;
-  reelsScript?: ReelsBeat[];
-  studentReview?: StudentReview;
-  citedSources?: CitedSource[];
-};
-
-export type VisualDirection = {
-  id: string;
-  title: string;
-  concept: string;
-  palette: string;
-  composition: string;
-  typeDirection: string;
-  imagePrompt: string;
-  headline: string;
-  subhead: string;
-};
-
-export type ReelsBeat = {
-  startSec: number;
-  endSec: number;
-  visual: string;
-  caption: string;
-  voiceover: string;
-  transition: string;
-  assetHint: string;
-};
-
-export type StudentReview = {
-  wouldStop: string;
-  understandable: string;
-  tooReligious: string;
-  tooSerious: string;
-  tooLiterary: string;
-  tooAi: string;
-  tooLong: string;
-  knowsWhat: string;
-  knowsWhenWhere: string;
-  wouldBringFriend: string;
-  knowsSignup: string;
-  notes: string[];
-  rewriteHook: string;
-};
-
-export type CitedSource = {
-  source: "drive" | "canva" | "instagram" | "generated" | "brand";
-  label: string;
-  detail: string;
 };
 
 export type PlanVersion = {
@@ -563,6 +512,68 @@ export type ExportVersion = {
   filename: string;
 };
 
+/** IG 文案 AI 的語氣版本。 */
+export type CopyTone = "short" | "normal" | "emotional" | "student" | "life" | "humor";
+
+export type CopyDraft = {
+  id: string;
+  tone: CopyTone;
+  hook: string;
+  body: string;
+  cta: string;
+  hashtags: string[];
+  /** IG 無障礙說明。舊草稿可能沒有。 */
+  altText?: string;
+  createdAt: number;
+  source: PlanSource;
+};
+
+/** 反向學生模擬：生成後用淡江學生視角重看一次。 */
+export type StudentReviewItem = {
+  question: string;
+  verdict: "ok" | "risk";
+  note: string;
+};
+
+export type StudentReview = {
+  score: number;
+  items: StudentReviewItem[];
+  rewriteHook: string;
+  suggestions: string[];
+  createdAt: number;
+  source: PlanSource;
+};
+
+export type ReelsBeat = {
+  range: string;
+  visual: string;
+  caption: string;
+  voice: string;
+  transition: string;
+  asset: string;
+};
+
+export type ReelsScript = {
+  hook: string;
+  cover: string;
+  /** 依腳本生成、存進素材庫的封面圖 */
+  coverAssetId?: string | null;
+  beats: ReelsBeat[];
+  createdAt: number;
+  source: PlanSource;
+};
+
+/** AI 參考過的素材來源，一定要能顯示給使用者看。 */
+export type CreativeSourceKind = "drive" | "canva" | "instagram" | "generated" | "local";
+
+export type CreativeSourceRef = {
+  kind: CreativeSourceKind;
+  label: string;
+  detail: string;
+  href?: string;
+  assetId?: string;
+};
+
 export type Project = {
   id: string;
   name: string;
@@ -571,10 +582,20 @@ export type Project = {
   brandId: string;
   templateId: TemplateId;
   activeFormatId: FormatId;
-  status: ProjectStatus;
+  status: ContentStatus;
+  contentKind: ContentKind;
+  campaignId: string | null;
+  scheduledAt: number | null;
+  publishedAt: number | null;
   brief: Brief;
   copy: CopyDeck;
   plan: CampaignPlan | null;
+  copyDrafts: CopyDraft[];
+  studentReview: StudentReview | null;
+  reels: ReelsScript | null;
+  sources: CreativeSourceRef[];
+  /** 從哪一則一鍵轉換來的。全套列表用這個把同一則的貼文／限動／Threads 收在一起。 */
+  convertedFromId?: string;
   artboards: Partial<Record<FormatId, Artboard>>;
   slides: Partial<Record<FormatId, Artboard[]>>;
   slideIndex: number;
@@ -826,12 +847,56 @@ export type ConnectionInfo = {
   rootLabel: string | null;
 };
 
+/** 活動（Campaign）。沒有負責人、沒有審核人。 */
+export type CampaignDirection = {
+  id: string;
+  title: string;
+  concept: string;
+  visual: string;
+  sampleHook: string;
+};
+
+export type CampaignWave = {
+  id: string;
+  /** 相對活動日的天數，負數代表提前幾天 */
+  offsetDays: number;
+  stage: string;
+  title: string;
+  kind: ContentKind;
+  hook: string;
+  note: string;
+  contentId: string | null;
+};
+
+export type Campaign = {
+  id: string;
+  name: string;
+  kind: string;
+  date: string;
+  time: string;
+  location: string;
+  oneLiner: string;
+  intro: string;
+  theme: string;
+  painPoint: string;
+  cta: string;
+  signupUrl: string;
+  coverAssetId: string | null;
+  assetIds: string[];
+  audienceIds: string[];
+  axis: string;
+  directions: CampaignDirection[];
+  waves: CampaignWave[];
+  createdAt: number;
+  updatedAt: number;
+  planSource: PlanSource | null;
+};
+
 export type PersistSlice = {
   brands: BrandKit[];
   assets: AssetMeta[];
   projects: Project[];
   campaigns: Campaign[];
-  contents: ContentItem[];
   lastProjectId: string | null;
 };
 

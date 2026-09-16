@@ -1,9 +1,9 @@
 import { completeCarouselPages } from "@/lib/studio/carousel";
 import { createServerFn } from "@tanstack/react-start";
 import type { CampaignPlan, TemplateId } from "@/lib/studio/types";
-import { completeCopyVariants, systemPrompt } from "@/lib/zen/voice";
 import { buildMockPlan } from "./mock";
 import { BriefInputSchema, PlanJsonSchema, type BriefInput } from "./schema";
+import { buildZenContext, ZEN_SYSTEM_PROMPT } from "./zen-context";
 
 export type PlanResult =
   | {
@@ -47,12 +47,9 @@ function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: Campaig
     subhead: parsed.subhead,
     body: parsed.body,
     cta: parsed.cta || "了解更多",
-    captions: completeCopyVariants({
-      hook: parsed.hook || headline,
-      body: parsed.body || parsed.insight || parsed.hook || headline,
-      cta: parsed.cta || "了解更多",
-      variants: parsed.captions,
-    }),
+    captions: parsed.captions.length
+      ? parsed.captions
+      : [{ style: "敘事", text: parsed.hook || parsed.concept || headline }],
     hashtags: parsed.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)),
     storyBeats: parsed.storyBeats,
     carouselPages: parsed.carouselPages,
@@ -62,14 +59,6 @@ function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: Campaig
     qaNotes: parsed.qaNotes,
     generatedAt: Date.now(),
     source,
-    visualDirections: parsed.visualDirections?.length
-      ? parsed.visualDirections.map((d, i) => ({ ...d, id: d.id || `dir_${i + 1}` }))
-      : undefined,
-    threadsPost: parsed.threadsPost,
-    lineCopy: parsed.lineCopy,
-    reelsScript: parsed.reelsScript,
-    studentReview: parsed.studentReview,
-    citedSources: parsed.citedSources,
   };
 }
 
@@ -111,66 +100,63 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
     return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
 
-  const forbidden = data.forbiddenWords.filter(Boolean).join("、") || "無";
   const deliverables = [
     data.wantPost ? "單張貼文" : null,
     data.wantCarousel ? "輪播" : null,
     data.wantStory ? "限時動態" : null,
-    data.wantReels ? "Reels" : null,
-    data.wantThreads ? "Threads" : null,
-    data.wantLine ? "LINE 宣傳圖" : null,
+    data.wantReels ? "Reels 封面" : null,
   ]
     .filter(Boolean)
     .join("、");
 
-  const prompt = `${systemPrompt("campaign", { dnaNotes: data.dnaNotes })}
-
-請只輸出 JSON。
-
-品牌：${data.brandName} ${data.handle}
-語氣：${data.voice || "像社團的人在發文"}
-可說：${data.doSay || "生活、具體、淡江學生"}
-不可說：${data.dontSay || "誠摯邀請、說教"}
-禁用詞：${forbidden}
-固定標語：${data.slogans || "無"}
-常用 CTA：${data.preferredCtas || "晚上見／找一個朋友來"}
-圖片風格：${data.imageStyle || "夜色、留白、空氣感"}
-吉祥物與燈光：讀品牌記憶裡的龜龜、三色光。
-
-活動名稱：${data.eventName}
-時間：${data.schedule || "未填"}
-地點：${data.location || "淡江大學淡水校園"}
-內容：${data.product || data.eventName}
-邀請：${data.offer || "無"}
-受眾：${data.audience || "淡江大學學生"}
-目的：${data.goal}
-特色：${data.features || "無"}
-希望風格：${data.style || "生活"}
-需要產出：${deliverables || "單張貼文"}
-補充：${data.notes || "無"}
-Creative Memory / 歷屆素材摘錄：
-${data.memoryNotes?.trim() || "無（仍須讀品牌記憶：龜龜、三色光、淡江學生語氣）"}
-citedSources 只能標你真正看到的 Drive / Canva / Instagram / Brand 來源，不要假裝讀過沒給的檔案。
-
-JSON 欄位：
-campaignName, concept, insight, hook, visualTheme, visualDirection,
-templateId(editorial|product|offer|quote), colorMood,
-eyebrow, headline, subhead, body, cta,
-captions[{style,text}] 含 短版/一般版/感性版/學生版/生活版/幽默版 至少三則，
-hashtags 6-10 個（#淡江禪學社 #淡江 #淡水 可納入）,
-storyBeats 3-5 則，第一則必須是 Hook,
-carouselPages[{role:cover|problem|detail|proof|cta|close,headline,subhead,body,cta,visualNote,templateId}] ${data.wantCarousel ? "必須 6 頁；cover.headline 必須是 Hook 問句，不要活動名當第一句" : "1 頁封面"},
-assetNeeds[{kind:photo|people|background|logo|illustration,title,detail,required}],
-checklist, altText, qaNotes,
-threadsPost, lineCopy,
-reelsScript[{startSec,endSec,visual,caption,voiceover,transition,assetHint}] 5 段 0-20 秒,
-studentReview{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,tooLong,knowsWhat,knowsWhenWhere,wouldBringFriend,knowsSignup,notes,rewriteHook},
-visualDirections[{id,title,concept,palette,composition,typeDirection,imagePrompt,headline,subhead}] 必須 3 個方向,
-citedSources[{source:drive|canva|instagram|generated|brand,label,detail}]。
-
-hook 必須像在講學生自己，禁止「誠摯邀請您」。
-headline 可含 \\n，最多兩行，每行不超過 10 字。
-cta 2-6 字。`;
+  const prompt = [
+    buildZenContext({
+      brandVoice: data.voice,
+      brandDoSay: data.doSay,
+      brandDontSay: data.dontSay,
+      forbiddenWords: data.forbiddenWords,
+      imageStyle: data.imageStyle,
+      brandMemoryText: data.brandMemoryText,
+      igDnaText: data.igDnaText,
+      insightsText: data.insightsText,
+    }),
+    "",
+    "【這次要寫的企劃】",
+    `活動名稱：${data.eventName}`,
+    `時間：${data.schedule || "未填"}`,
+    `地點：${data.location || "未填"}`,
+    `產品／內容：${data.product || data.eventName}`,
+    data.offer ? `優惠：${data.offer}` : "",
+    `受眾：${data.audience}`,
+    `目的：${data.goal}`,
+    data.features ? `特色：${data.features}` : "",
+    data.style ? `希望風格：${data.style}` : "",
+    `需要產出：${deliverables || "單張貼文"}`,
+    data.notes ? `補充：${data.notes}` : "",
+    data.slogans ? `固定標語：${data.slogans}` : "",
+    data.preferredCtas ? `常用 CTA：${data.preferredCtas}` : "",
+    "",
+    "【任務】只輸出 JSON。這是淡江大學禪學社一個人在做的網宣，不是台灣品牌代理提案。",
+    "JSON 欄位：",
+    "campaignName, concept, insight, hook, visualTheme, visualDirection,",
+    "templateId(editorial|product|offer|quote), colorMood,",
+    "eyebrow, headline, subhead, body, cta,",
+    "captions[{style,text}] 2-3 則（繁中，適合 IG，不要 emoji 堆砌，最多一個表情），",
+    "hashtags 8-12 個（含 #淡江大學 與社團標籤），",
+    "storyBeats 3 則限動分鏡（若不需要限動可給空陣列），",
+    `carouselPages[{role:cover|problem|detail|proof|cta|close,headline,subhead,body,cta,visualNote,templateId}] ${data.wantCarousel ? "必須 6 頁，角色依序 cover, problem, detail, proof, cta, close" : "1 頁封面"},`,
+    "assetNeeds[{kind:photo|people|background|logo|illustration,title,detail,required}],",
+    "checklist 5-8 則發布前檢查,",
+    "altText, qaNotes 2-4 則設計注意。",
+    "",
+    "headline 可含換行 \\n，最多兩行，每行不超過 10 個中文。",
+    "eyebrow 用英文或短中文，不超過 22 字。",
+    "cta 2-6 字，用社團自己的口氣。",
+    "文案避免禁用詞，不要「限時瘋搶／錯過就沒有」。",
+    "concept 是宣傳核心概念（2-3 句）。visualTheme 是視覺主題。",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const res = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
@@ -180,13 +166,13 @@ cta 2-6 字。`;
     },
     body: JSON.stringify({
       model: "grok-4.5",
-      temperature: 0.7,
-      max_tokens: 5000,
+      temperature: 0.6,
+      max_tokens: 4096,
       response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content: "Reply with a single JSON object only. Traditional Chinese.",
+          content: ZEN_SYSTEM_PROMPT,
         },
         { role: "user", content: prompt },
       ],

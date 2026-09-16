@@ -1,97 +1,159 @@
-export type StudentPersona = {
-  id: string;
+/**
+ * 淡江大學學生族群。AI 產生任何內容前都會讀這份清單，
+ * 讓文案講的是具體的人與處境，而不是「年輕人／Z 世代」這種抽象客群。
+ */
+
+export type AudienceId =
+  | "freshman"
+  | "sophomore-senior"
+  | "graduate"
+  | "dorm"
+  | "commuter"
+  | "new-to-tamsui"
+  | "club-newcomer"
+  | "wants-friends"
+  | "study-pressure"
+  | "relationship-trouble"
+  | "lost-about-future"
+  | "wants-belonging"
+  | "self-exploration"
+  | "zen-stranger";
+
+export type AudienceSegment = {
+  id: AudienceId;
   label: string;
-  life: string;
-  stopFor: string;
+  /** 這群人現在的處境 */
+  situation: string;
+  /** 真正的痛點，不是行銷話術 */
+  pain: string;
+  /** 什麼樣的一句話會讓他停下來 */
+  trigger: string;
 };
 
-export const STUDENT_PERSONAS: StudentPersona[] = [
+export const AUDIENCE_SEGMENTS: AudienceSegment[] = [
   {
     id: "freshman",
     label: "淡江大一新生",
-    life: "剛到淡水，路線、社團、宿舍都還不熟，晚上很容易覺得自己一個人。",
-    stopFor: "被看見、被邀請，而不是被上課。",
+    situation: "剛從高中畢業，一切都新，還在找自己的位置與朋友圈。",
+    pain: "怕自己格格不入，怕問了問題被覺得很蠢，行程被塞滿卻沒有一件事是自己想做的。",
+    trigger: "「開學一個多月了，你交到可以講真話的朋友了嗎？」",
   },
   {
-    id: "soph-senior",
+    id: "sophomore-senior",
     label: "大二到大四學生",
-    life: "課表、報告、社團、打工疊在一起，自由但不見得比較快樂。",
-    stopFor: "一個不用表演的晚上。",
+    situation: "課、打工、社團、實習同時進行，時間被切得很碎。",
+    pain: "一直在忙，但說不出自己在往哪裡去；累到連休息都在滑手機。",
+    trigger: "「你不是懶，你只是很久沒有真正休息了。」",
   },
   {
-    id: "grad",
+    id: "graduate",
     label: "研究生",
-    life: "時間被論文切得很碎，很少被當「學生」而不是產線。",
-    stopFor: "短、清楚、不必先懂禪。",
+    situation: "論文、研究進度、老師的期待，時間表由自己負責。",
+    pain: "進度焦慮長期存在，很難跟人講，也不好意思說自己撐不住。",
+    trigger: "「進度沒有動的那幾天，最難的不是研究，是面對自己。」",
   },
   {
     id: "dorm",
     label: "住宿生",
-    life: "晚上回到宿舍還是人群，想找一個不必一直講話的地方。",
-    stopFor: "校園內走幾步就到的活動。",
+    situation: "住學校宿舍或校外租屋，生活圈幾乎都在淡水。",
+    pain: "沒有真正一個人的空間，室友作息不同，情緒沒地方放。",
+    trigger: "「在宿舍，你有真正屬於自己的十分鐘嗎？」",
   },
   {
-    id: "commute",
+    id: "commuter",
     label: "通勤生",
-    life: "紅樹林／淡水線來回，時間很貴，不會為了抽象理念再跑一趟。",
-    stopFor: "時間地點清楚、值得特地留下來。",
+    situation: "每天搭捷運往返，通勤時間佔掉一大塊生活。",
+    pain: "一天有兩小時在移動，累積的疲勞比課業本身更消耗。",
+    trigger: "「捷運上那段時間，其實可以不用一直滑手機。」",
   },
   {
-    id: "new-tamsui",
+    id: "new-to-tamsui",
     label: "剛到淡水生活的人",
-    life: "河岸、老街、斜坡校園都還很新，想認識這裡，不想被推銷。",
-    stopFor: "淡水夜晚、校園生活感。",
+    situation: "剛搬來淡水，還在適應濕冷的雨、海風跟坡道。",
+    pain: "環境陌生，天氣一差心情就跟著低落，還沒有屬於自己的角落。",
+    trigger: "「淡水的雨下起來，你會想去哪裡待一下？」",
   },
   {
-    id: "club-new",
+    id: "club-newcomer",
     label: "社團新鮮人",
-    life: "想加入但怕很宗教、很嚴肅、或要先懂一堆名詞。",
-    stopFor: "像同學在發文，不是公告。",
+    situation: "想找一個社團，但不確定自己適不適合、會不會太晚加入。",
+    pain: "怕社團有既定的圈子，怕自己是唯一的新人。",
+    trigger: "「第一次來，什麼都不會，可以嗎？可以。」",
   },
   {
-    id: "friends",
+    id: "wants-friends",
     label: "想交朋友的人",
-    life: "大學很自由，但認識人的方式常常只剩喝酒或趕報告。",
-    stopFor: "可以找一個朋友一起來。",
+    situation: "認識的人不少，能講心裡話的很少。",
+    pain: "在人群裡也會孤單，不知道怎麼從「認識」走到「真的認識」。",
+    trigger: "「有時候我們不缺人，缺的是可以安靜待在一起的人。」",
   },
   {
-    id: "stress",
+    id: "study-pressure",
     label: "課業壓力大的學生",
-    life: "連休息都會有一點罪惡感。",
-    stopFor: "先被理解，再看到活動。",
+    situation: "期中期末連續趕，考試與報告疊在一起。",
+    pain: "腦袋停不下來，休息時有罪惡感，效率反而更低。",
+    trigger: "「最近是不是連休息都覺得有罪惡感？」",
   },
   {
-    id: "lonely",
+    id: "relationship-trouble",
     label: "人際困擾的人",
-    life: "不一定要被修復，只是想有一個不必表現好的空間。",
-    stopFor: "陪伴，而不是雞湯。",
+    situation: "跟室友、系上、社團或感情關係有摩擦。",
+    pain: "情緒一直在心裡繞，講出來怕被評價，不講又消化不掉。",
+    trigger: "「有些話不用講給誰聽，但你需要一個地方放它。」",
   },
   {
-    id: "lost",
+    id: "lost-about-future",
     label: "對未來迷惘的人",
-    life: "課可以修完，方向不一定有。",
-    stopFor: "自我探索，不是職涯講座。",
+    situation: "科系、實習、畢業後的路都還沒有答案。",
+    pain: "同學好像都有方向，只有自己還在原地。",
+    trigger: "「有時候我們需要的不是答案，只是一個安靜的晚上。」",
   },
   {
-    id: "belong",
+    id: "wants-belonging",
     label: "想找歸屬感的人",
-    life: "淡江很大，很容易變成過客。",
-    stopFor: "穩定出現的人與地方。",
+    situation: "在大學裡待了一段時間，還沒有一個真的想回去的地方。",
+    pain: "去哪裡都像客人，沒有被記住的感覺。",
+    trigger: "「有一個地方，你不用表現得很好也可以待著。」",
   },
   {
-    id: "explore",
+    id: "self-exploration",
     label: "對自我探索有興趣的人",
-    life: "願意試試靜下來，但拒絕被說教。",
-    stopFor: "具體體驗：坐一下、喝杯茶、看燈。",
+    situation: "會看心理、身心、冥想相關的內容，想更認識自己。",
+    pain: "資訊很多但零散，想要有人一起練習而不是自己讀。",
+    trigger: "「認識自己這件事，一個人做很慢。」",
   },
   {
-    id: "zen-new",
+    id: "zen-stranger",
     label: "對禪完全不了解的人",
-    life: "一看到佛學名詞就划走。",
-    stopFor: "生活語言：安定、專注、喘口氣。",
+    situation: "沒接觸過禪坐或靜心，對「禪」的印象是宗教或年紀大的人在做的事。",
+    pain: "怕被傳教、怕規矩很多、怕自己坐不住看起來很怪。",
+    trigger: "「不用盤腿、不用信什麼，坐下來就好。」",
   },
 ];
 
-export function audienceSummary() {
-  return STUDENT_PERSONAS.map((p) => `${p.label}：${p.life}`).join("\n");
+export const DEFAULT_AUDIENCE_IDS: AudienceId[] = [
+  "freshman",
+  "study-pressure",
+  "wants-belonging",
+  "zen-stranger",
+];
+
+export function audienceById(id: AudienceId): AudienceSegment | undefined {
+  return AUDIENCE_SEGMENTS.find((item) => item.id === id);
+}
+
+export function audienceLabel(id: AudienceId): string {
+  return audienceById(id)?.label ?? id;
+}
+
+export function resolveAudience(ids: readonly AudienceId[]): AudienceSegment[] {
+  const list = ids.map(audienceById).filter((item): item is AudienceSegment => Boolean(item));
+  return list.length ? list : DEFAULT_AUDIENCE_IDS.map((id) => audienceById(id)!).filter(Boolean);
+}
+
+/** 給 AI prompt 用的一段人物描述。 */
+export function describeAudience(ids: readonly AudienceId[]): string {
+  return resolveAudience(ids)
+    .map((seg) => `- ${seg.label}：${seg.situation} 痛點：${seg.pain} 會停下來的話：${seg.trigger}`)
+    .join("\n");
 }

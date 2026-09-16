@@ -5,13 +5,7 @@ import type { BriefInput } from "./schema";
 export function toBriefInput(
   brief: Brief,
   brand: BrandKit,
-  extra?: {
-    forceMock?: boolean;
-    dnaNotes?: string;
-    memoryNotes?: string;
-    foundCount?: number;
-    citedSources?: CitedSource[];
-  },
+  extra?: { forceMock?: boolean; igDnaText?: string; insightsText?: string; brandMemoryText?: string },
 ): BriefInput {
   const b = migrateBrief(brief);
   const eventName = b.eventName.trim() || b.product.trim();
@@ -45,18 +39,9 @@ export function toBriefInput(
     imageStyle: [brand.imageStyle?.mood, brand.imageStyle?.lighting, brand.imageStyle?.paletteHint]
       .filter(Boolean)
       .join("；"),
-    brandMemory: buildCreativeMemoryContext({
-      brand,
-      assets: extra?.assets ?? [],
-      campaigns: extra?.campaigns ?? [],
-      styleReferences: extra?.styleReferences,
-      instagramHashtags: extra?.instagramHashtags,
-      outcomeHashtags: extra?.outcomeHashtags,
-    }),
+    brandMemoryText: extra?.brandMemoryText,
+    igDnaText: extra?.igDnaText,
+    insightsText: extra?.insightsText,
     ...(extra?.forceMock ? { forceMock: true } : {}),
-    ...(extra?.dnaNotes ? { dnaNotes: extra.dnaNotes } : {}),
-    ...(extra?.memoryNotes ? { memoryNotes: extra.memoryNotes } : {}),
-    ...(typeof extra?.foundCount === "number" ? { foundCount: extra.foundCount } : {}),
-    ...(extra?.citedSources?.length ? { citedSources: extra.citedSources } : {}),
   };
 }

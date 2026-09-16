@@ -45,7 +45,7 @@ export function SectionHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-3 flex items-end justify-between gap-3">
+    <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
       <div>
         <h2 className="text-sm font-medium">{title}</h2>
         {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}

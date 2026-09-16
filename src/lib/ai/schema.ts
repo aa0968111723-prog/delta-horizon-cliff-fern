@@ -49,67 +49,6 @@ export const PlanJsonSchema = z.object({
   checklist: z.array(z.string()).max(10).catch([]),
   altText: z.string().catch(""),
   qaNotes: z.array(z.string()).max(8).catch([]),
-  threadsPost: z.string().optional().catch(""),
-  lineCopy: z.string().optional().catch(""),
-  visualDirections: z
-    .array(
-      z.object({
-        id: z.string().catch(""),
-        title: z.string().catch(""),
-        concept: z.string().catch(""),
-        palette: z.string().catch(""),
-        composition: z.string().catch(""),
-        typeDirection: z.string().catch(""),
-        imagePrompt: z.string().catch(""),
-        headline: z.string().catch(""),
-        subhead: z.string().catch(""),
-      }),
-    )
-    .max(3)
-    .optional()
-    .catch([]),
-  reelsScript: z
-    .array(
-      z.object({
-        startSec: z.number().catch(0),
-        endSec: z.number().catch(3),
-        visual: z.string().catch(""),
-        caption: z.string().catch(""),
-        voiceover: z.string().catch(""),
-        transition: z.string().catch(""),
-        assetHint: z.string().catch(""),
-      }),
-    )
-    .max(8)
-    .optional()
-    .catch([]),
-  studentReview: z
-    .object({
-      wouldStop: z.string().catch(""),
-      understandable: z.string().catch(""),
-      tooReligious: z.string().catch(""),
-      tooSerious: z.string().catch(""),
-      tooLiterary: z.string().catch(""),
-      tooAi: z.string().catch(""),
-      tooLong: z.string().catch(""),
-      knowsWhat: z.string().catch(""),
-      knowsWhenWhere: z.string().catch(""),
-      wouldBringFriend: z.string().catch(""),
-      knowsSignup: z.string().catch(""),
-      notes: z.array(z.string()).catch([]),
-      rewriteHook: z.string().catch(""),
-    })
-    .optional(),
-  citedSources: z
-    .array(
-      z.object({
-        source: z.enum(["drive", "canva", "instagram", "generated", "brand"]).catch("brand"),
-        label: z.string().catch(""),
-        detail: z.string().catch(""),
-      }),
-    )
-    .optional()
-    .catch([]),
 });
 
 export const BriefInputSchema = z.object({
@@ -138,6 +77,9 @@ export const BriefInputSchema = z.object({
   slogans: z.string().max(240).optional(),
   preferredCtas: z.string().max(160).optional(),
   imageStyle: z.string().max(400).optional(),
+  brandMemoryText: z.string().max(2500).optional(),
+  igDnaText: z.string().max(1500).optional(),
+  insightsText: z.string().max(1200).optional(),
   forceMock: z.boolean().optional(),
   dnaNotes: z.string().max(2000).optional(),
   memoryNotes: z.string().max(4000).optional(),

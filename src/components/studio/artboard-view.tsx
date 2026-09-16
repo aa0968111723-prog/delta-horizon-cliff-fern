@@ -1,4 +1,5 @@
 import type { CSSProperties, PointerEvent, ReactNode } from "react";
+import { isSvgPreviewSrc } from "@/lib/studio/assets";
 import { formatById } from "@/lib/studio/formats";
 import { cssFilter, cssShadow, cssTextShadow } from "@/lib/studio/layers";
 import type {
@@ -44,13 +45,13 @@ function shapeRadius(layer: ShapeLayer) {
   return layer.radius;
 }
 
-function imageStyle(layer: ImageLayer): CSSProperties {
+function imageStyle(layer: ImageLayer, src?: string): CSSProperties {
   const crop = layer.crop ?? { x: 50, y: 50, zoom: 1 };
   const zoom = Math.max(1, crop.zoom);
   return {
     width: "100%",
     height: "100%",
-    objectFit: layer.objectFit,
+    objectFit: isSvgPreviewSrc(src) ? "fill" : layer.objectFit,
     objectPosition: `${crop.x}% ${crop.y}%`,
     transform: zoom !== 1 ? `scale(${zoom})` : undefined,
     transformOrigin: `${crop.x}% ${crop.y}%`,
@@ -175,11 +176,12 @@ function LayerNode({
     const src = urls[layer.assetId];
     inner = src ? (
       <img
+        data-testid="artboard-photo"
         src={src}
         alt=""
         draggable={false}
         className="size-full"
-        style={imageStyle(layer)}
+        style={imageStyle(layer, src)}
         crossOrigin="anonymous"
       />
     ) : (
@@ -345,6 +347,9 @@ export function ArtboardView({
 
   return (
     <div
+      data-testid={interactive ? "artboard" : undefined}
+      data-ratio={format.ratio}
+      data-format={artboard.formatId}
       className="relative overflow-hidden bg-surface"
       data-testid="artboard-surface"
       data-bg={bg.color}
@@ -372,7 +377,10 @@ export function ArtboardView({
             src={backgroundImage}
             alt=""
             draggable={false}
-            className="pointer-events-none absolute inset-0 size-full object-cover"
+            className={cn(
+              "pointer-events-none absolute inset-0 size-full",
+              isSvgPreviewSrc(backgroundImage) ? "object-fill" : "object-cover",
+            )}
             crossOrigin="anonymous"
           />
         ) : null}

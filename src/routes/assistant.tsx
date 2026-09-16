@@ -30,7 +30,7 @@ function AssistantPage() {
         title="畫布與企劃"
         description="對目前編輯器下指令（放大標題、換圖、改尺寸），或填活動需求生成企劃。大幅修改會先預覽，每次操作都可撤銷。"
       />
-      <div className="mt-8 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] sm:p-6">
+      <div className="mt-8 rounded-2xl surface-card p-4 sm:p-6">
         <AssistantForm variant="page" projectId={lastProjectId} />
       </div>
     </main>

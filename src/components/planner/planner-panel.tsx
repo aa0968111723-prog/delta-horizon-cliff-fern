@@ -4,7 +4,8 @@ import { BriefFields } from "@/components/assistant/brief-fields";
 import { CanvasEditor } from "@/components/assistant/canvas-editor";
 import { PlanResult } from "@/components/assistant/plan-result";
 import { Button } from "@/components/ui/button";
-import { CreationLoop } from "@/components/shared/creation-loop";
+import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
+import { formatBrandMemory } from "@/lib/studio/brand";
 import { describeAdapter, generateCampaignPlan, getCampaignAiStatus, type AiStatus } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
@@ -13,8 +14,11 @@ import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 
 export function PlannerPanel({ project, brand }: { project: Project; brand: BrandKit }) {
+  const assets = useStudio((s) => s.assets);
   const updateProject = useStudio((s) => s.updateProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
+  const igDnaText = useIgDnaText();
+  const insightsText = useIgInsightsText();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<AiStatus | null>(null);
@@ -49,7 +53,12 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
     try {
       const connected = status?.available ?? false;
       const result = await generateCampaignPlan({
-        data: toBriefInput(brief, brand, { forceMock: forceMock || !connected }),
+        data: toBriefInput(brief, brand, {
+          forceMock: forceMock || !connected,
+          igDnaText: igDnaText || undefined,
+          insightsText: insightsText || undefined,
+          brandMemoryText: formatBrandMemory(brand.memory, assets),
+        }),
       });
       if (!result.ok) {
         setError(result.error);

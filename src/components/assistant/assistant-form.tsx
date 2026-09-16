@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CreationLoop } from "@/components/shared/creation-loop";
+import { formatBrandMemory } from "@/lib/studio/brand";
+import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
 import { describeAdapter, generateCampaignPlan, getCampaignAiStatus, type AiStatus } from "@/lib/ai/campaign";
 import { campaignToBrief } from "@/lib/creative/brief-from-campaign";
 import { memoryInjectionHints } from "@/lib/creative/memory";
@@ -41,10 +42,13 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
   const navigate = useNavigate();
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
+  const assets = useStudio((s) => s.assets);
   const createProject = useStudio((s) => s.createProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const setLastProjectId = useStudio((s) => s.setLastProjectId);
   const setAssistantOpen = useUi((s) => s.setAssistantOpen);
+  const igDnaText = useIgDnaText();
+  const insightsText = useIgInsightsText();
 
   const existing = projectId ? projects.find((p) => p.id === projectId) : undefined;
   const [targetId, setTargetId] = useState<string>(() => (useUi.getState().creativePreset ? "new" : (existing?.id ?? "new")));
@@ -155,7 +159,12 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
     setError(null);
     try {
       const connected = status?.available ?? false;
-      const payload = toBriefInput(brief, brand, { forceMock: forceMock || !connected });
+      const payload = toBriefInput(brief, brand, {
+        forceMock: forceMock || !connected,
+        igDnaText: igDnaText || undefined,
+        insightsText: insightsText || undefined,
+        brandMemoryText: brand ? formatBrandMemory(brand.memory, assets) : undefined,
+      });
       const result = await generateCampaignPlan({ data: payload });
       if (!result.ok) {
         setError(result.error);

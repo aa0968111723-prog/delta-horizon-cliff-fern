@@ -1,4 +1,4 @@
-import { uid } from "./ids";
+import { uid } from "./ids.ts";
 import type {
   Align,
   Artboard,

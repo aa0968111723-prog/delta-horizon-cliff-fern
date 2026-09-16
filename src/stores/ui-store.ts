@@ -14,8 +14,8 @@ export type StylePrompt = {
 
 type UiState = {
   assistantOpen: boolean;
-  creativePreset: Partial<Brief> | null;
-  contentLinkId: string | null;
+  /** 底部中央的「＋ AI 創作」面板 */
+  createOpen: boolean;
   saveStatus: SaveStatus;
   editorPanel: EditorPanel | null;
   carouselPreview: boolean;
@@ -27,6 +27,7 @@ type UiState = {
   clearCreativePreset: () => void;
   clearContentLink: () => void;
   toggleAssistant: () => void;
+  setCreateOpen: (open: boolean) => void;
   setSaveStatus: (status: SaveStatus) => void;
   setEditorPanel: (panel: EditorPanel | null) => void;
   setCarouselPreview: (open: boolean) => void;
@@ -34,8 +35,7 @@ type UiState = {
 
 export const useUi = create<UiState>((set) => ({
   assistantOpen: false,
-  creativePreset: null,
-  contentLinkId: null,
+  createOpen: false,
   saveStatus: "idle",
   editorPanel: null,
   carouselPreview: false,
@@ -49,6 +49,7 @@ export const useUi = create<UiState>((set) => ({
   clearCreativePreset: () => set({ creativePreset: null }),
   clearContentLink: () => set({ contentLinkId: null }),
   toggleAssistant: () => set((s) => ({ assistantOpen: !s.assistantOpen })),
+  setCreateOpen: (createOpen) => set({ createOpen }),
   setSaveStatus: (saveStatus) => set({ saveStatus }),
   setEditorPanel: (editorPanel) => set({ editorPanel }),
   setCarouselPreview: (carouselPreview) => set({ carouselPreview }),

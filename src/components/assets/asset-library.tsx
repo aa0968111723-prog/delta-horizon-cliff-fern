@@ -183,9 +183,9 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="Creative Library"
+        kicker="創作素材"
         title="素材庫"
-        description="每一張都可以 AI 分析、打標、加入創作、做成限動或 Carousel。不是只做檔案管理。"
+        description="依龜龜、淡水、海報、活動照片來找。AI 可以讀圖、延續風格，或從一張圖開始寫文案。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="assets" />
@@ -341,7 +341,7 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
                       const project = createFromTemplate({ templateId: tpl.id, brandId: brand.id });
                       void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
                     }}
-                    className="w-full rounded-2xl bg-surface p-3 text-left shadow-[var(--shadow-border)]"
+                    className="w-full rounded-2xl surface-card p-3 text-left"
                   >
                     <div className="flex h-32 items-center justify-center overflow-hidden rounded-lg bg-bg">
                       {preview && brand ? (
@@ -396,12 +396,7 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
                 onFavorite={() => toggleFavorite(asset.id)}
                 onDelete={() => setPendingDelete(asset.id)}
                 onPlace={lastProjectId ? () => place(asset) : undefined}
-                onCreate={() =>
-                  void navigate({
-                    to: "/create",
-                    search: { mode: "photo", idea: `用素材「${asset.name}」` },
-                  })
-                }
+                onCreate={() => void navigate({ to: "/create", search: { from: "image", asset: asset.id } })}
               />
             </li>
           ))}

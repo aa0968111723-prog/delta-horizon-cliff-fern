@@ -19,7 +19,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center rounded-2xl bg-surface px-6 py-14 text-center shadow-[var(--shadow-border)]",
+        "flex flex-col items-center rounded-2xl surface-card px-6 py-14 text-center",
         className,
       )}
     >
@@ -52,7 +52,7 @@ export function ErrorState({
   onRetry?: () => void;
 }) {
   return (
-    <div className="rounded-2xl bg-surface px-5 py-8 text-center shadow-[var(--shadow-border)]">
+    <div className="rounded-2xl surface-card px-5 py-8 text-center">
       <p className="font-medium">{title}</p>
       <p className="mt-2 text-sm text-danger">{message}</p>
       {onRetry ? (

@@ -38,14 +38,7 @@ export const PAGE_ROLE_LABEL: Record<CarouselPageRole, string> = {
   close: "結尾",
 };
 
-export const ADAPT_FORMATS: FormatId[] = [
-  "feed-square",
-  "feed-portrait",
-  "story",
-  "reels-cover",
-  "threads",
-  "line",
-];
+export const ADAPT_FORMATS: FormatId[] = ["feed-square", "feed-portrait", "story", "reels-cover"];
 
 export function isCarouselRole(value: unknown): value is CarouselPageRole {
   return typeof value === "string" && (CAROUSEL_ROLES as string[]).includes(value);
@@ -63,7 +56,7 @@ export function roleEyebrow(role?: CarouselPageRole, coverEyebrow = ""): string 
 export function typeScaleFor(formatId: FormatId): number {
   if (formatId === "story" || formatId === "reels-cover") return 1.2;
   if (formatId === "feed-landscape") return 0.62;
-  if (formatId === "feed-square" || formatId === "threads" || formatId === "line") return 0.94;
+  if (formatId === "feed-square") return 0.94;
   return 1;
 }
 

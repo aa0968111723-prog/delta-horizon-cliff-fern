@@ -46,7 +46,7 @@ test("migratePlan fills concept, visualTheme, checklist and source", () => {
     visualDirection: "上圖下文",
     colorMood: "亞麻",
     captions: [{ style: "敘事", text: "文案" }],
-    hashtags: ["#日食"],
+    hashtags: ["#淡江禪學社"],
     qaNotes: ["Logo 不壓杯緣"],
     generatedAt: 1,
   });
