@@ -19,12 +19,16 @@ export function ShareBoard({
   const threads = convertPlan(plan, "threads").items[0] ?? "";
   const line = convertPlan(plan, "line").items[0] ?? "";
   const schedule = useStudio((s) => s.schedule);
-  const lineAssetId = useMemo(() => {
-    if (!campaignId) return undefined;
-    return schedule.find((item) => item.campaignId === campaignId && item.kind === "line")?.imageAssetId;
+  const stills = useMemo(() => {
+    if (!campaignId) return { lineId: undefined, threadsId: undefined };
+    return {
+      lineId: schedule.find((item) => item.campaignId === campaignId && item.kind === "line")?.imageAssetId,
+      threadsId: schedule.find((item) => item.campaignId === campaignId && item.kind === "threads")?.imageAssetId,
+    };
   }, [schedule, campaignId]);
-  const urls = useAssetUrls(lineAssetId ? [lineAssetId] : []);
-  const lineSrc = lineAssetId ? urls[lineAssetId] : undefined;
+  const urls = useAssetUrls([stills.lineId, stills.threadsId].filter((id): id is string => Boolean(id)));
+  const lineSrc = stills.lineId ? urls[stills.lineId] : undefined;
+  const threadsSrc = stills.threadsId ? urls[stills.threadsId] : undefined;
 
   async function copy(text: string, label: string) {
     await navigator.clipboard.writeText(text).catch(() => undefined);
@@ -35,11 +39,14 @@ export function ShareBoard({
     <section className="mt-8" data-testid="share-board">
       <h2 className="text-sm font-medium">Threads 與 LINE</h2>
       <p className="mt-1 text-xs text-muted">
-        官方發布走 Instagram。LINE 宣傳圖是 1:1，複製到社團群組；Threads 複製到 App。
+        官方發布走 Instagram。Threads 與 LINE 都是 1:1 配圖，複製到 App；連接中心不接這兩個。
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <article className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
           <p className="text-xs tracking-[0.14em] text-muted uppercase">Threads</p>
+          {threadsSrc ? (
+            <AssetMedia src={threadsSrc} className="mt-3 aspect-square w-full rounded-2xl" testId="threads-still" />
+          ) : null}
           <p className="mt-2 whitespace-pre-wrap text-sm" data-testid="threads-copy">
             {threads}
           </p>
