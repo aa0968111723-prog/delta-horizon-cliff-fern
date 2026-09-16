@@ -17,12 +17,15 @@ import {
 } from "@/lib/ai/image-directions";
 import { generateCopyPack } from "@/lib/ai/copy";
 import { generateCreativePack } from "@/lib/ai/pack";
+import { createCanvaDraft } from "@/lib/ai/oauth";
 import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { uid } from "@/lib/studio/ids";
 import type { VisualDirection } from "@/lib/studio/types";
 import type { VisionAnalysis } from "@/lib/ai/image";
+import { canvaDraftNotes, canvaPresetForAspect } from "@/lib/zen/canva-draft";
+import { clientMemoryLines, parseDataUrl } from "@/lib/zen/ingest";
 import { igDnaBlock } from "@/lib/zen/insights";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -41,6 +44,7 @@ export function ImageStudio() {
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const setLastPack = useCreative((s) => s.setLastPack);
   const igPosts = useCreative((s) => s.igPosts);
+  const memory = useCreative((s) => s.memory);
   const [prompt, setPrompt] = useState("我要宣傳茶會");
   const [aspect, setAspect] = useState<ImageAspect>("4:5");
   const [busy, setBusy] = useState<string | null>(null);
@@ -164,7 +168,10 @@ export function ImageStudio() {
           },
         });
         const result = await generateCreativePack({
-          data: toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
+          data: {
+            ...toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
+            memoryNotes: clientMemoryLines(memory),
+          },
         });
         if (!result.ok) {
           toast.error(result.error);
@@ -193,6 +200,47 @@ export function ImageStudio() {
         return;
       }
       toast.success(result.pack.hook);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function sendToCanva() {
+    if (!preview) {
+      toast.message("先生成一張圖，再送進 Canva。");
+      return;
+    }
+    const parts = parseDataUrl(preview);
+    setBusy("canva");
+    try {
+      const notes = canvaDraftNotes({
+        hook: current?.headline.replace(/\n/g, " "),
+        body: current?.concept,
+        cta: "晚上見",
+      });
+      const result = await createCanvaDraft({
+        data: {
+          title: current?.headline.replace(/\n/g, " ") || prompt,
+          hook: current?.headline.replace(/\n/g, " "),
+          notes,
+          preset: canvaPresetForAspect(aspect),
+          imageB64: parts?.b64,
+          mime: parts?.mime,
+        },
+      });
+      if (!result.ok) {
+        toast.message(result.error);
+        return;
+      }
+      if (notes) {
+        try {
+          await navigator.clipboard.writeText(notes);
+        } catch {
+          /* clipboard optional */
+        }
+      }
+      toast.success(result.uploaded ? "已把這張圖送進 Canva" : "已在 Canva 開稿，可貼上圖與文案");
+      window.open(result.editUrl, "_blank", "noopener,noreferrer");
     } finally {
       setBusy(null);
     }
@@ -324,6 +372,9 @@ export function ImageStudio() {
           </Button>
           <Button size="sm" variant="ghost" onClick={openCanvas}>
             放到畫布
+          </Button>
+          <Button size="sm" variant="ghost" disabled={busy !== null || !preview} onClick={() => void sendToCanva()}>
+            {busy === "canva" ? "送出中…" : "送到 Canva"}
           </Button>
         </div>
       ) : null}

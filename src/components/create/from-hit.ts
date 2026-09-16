@@ -2,6 +2,8 @@ import { toast } from "sonner";
 import { generateCreativePack } from "@/lib/ai/pack";
 import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
+import { clientMemoryLines, composeMemoryNotes } from "@/lib/zen/ingest";
+import { ingestHitPixels } from "@/lib/zen/ingest-client";
 import { ideaFromHit, memorySourceFromHit } from "@/lib/zen/from-hit";
 import { igDnaBlock } from "@/lib/zen/insights";
 import type { SearchHit } from "@/lib/zen/search";
@@ -15,12 +17,14 @@ export async function createFromHit(hit: SearchHit) {
     return false;
   }
   const { memory, igPosts, addMemory, setLastPack } = useCreative.getState();
+  const addAsset = useStudio.getState().addAsset;
+  const thumbAssetId = (await ingestHitPixels(hit, addAsset)) ?? hit.thumbAssetId;
   addMemory({
     id: hit.id,
     source: memorySourceFromHit(hit),
     title: hit.title,
     subtitle: hit.subtitle,
-    thumbAssetId: hit.thumbAssetId,
+    thumbAssetId,
     tags: hit.tags,
     kind: hit.source,
     url: hit.url,
@@ -38,7 +42,10 @@ export async function createFromHit(hit: SearchHit) {
   const result = await generateCreativePack({
     data: {
       ...toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
-      memoryNotes: [`${hit.subtitle} / ${hit.title}`, ...memory.map((m) => m.subtitle)].join("\n"),
+      memoryNotes: composeMemoryNotes([
+        `${hit.subtitle} / ${hit.title}`,
+        clientMemoryLines(memory),
+      ]),
     },
   });
   if (!result.ok) {

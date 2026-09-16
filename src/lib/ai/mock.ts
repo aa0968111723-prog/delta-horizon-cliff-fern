@@ -1,5 +1,6 @@
 import { goalLabel } from "../studio/goals.ts";
 import type { CampaignPlan, CarouselPagePlan, TemplateId } from "../studio/types.ts";
+import { sourcesFromMemoryNotes } from "../zen/ingest.ts";
 import type { BriefInput } from "./schema.ts";
 
 function pickTemplate(goal: BriefInput["goal"], wantCarousel: boolean): TemplateId {
@@ -56,9 +57,10 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
     `${name}把「${features}」講給${audience}聽。目的是${goalLabel(data.goal)}，語氣維持${style}，不靠叫賣。`,
     data.forbiddenWords,
   );
+  const memoryLine = data.memoryNotes?.trim().split("\n").find(Boolean);
   const insight = isZen
-    ? `${audience}要的不是宗教說明，是一個可以停下來的晚上。把時間（${when}）與場域（${where}）講清楚就好。`
-    : `${audience}要的是可以相信的理由，不是更大聲的促銷。把時間（${when}）與場域（${where}）講清楚，特色只留一句能被記住的。`;
+    ? `${audience}要的不是宗教說明，是一個可以停下來的晚上。把時間（${when}）與場域（${where}）講清楚就好。${memoryLine ? `參考歷屆素材：${memoryLine}。` : ""}`
+    : `${audience}要的是可以相信的理由，不是更大聲的促銷。把時間（${when}）與場域（${where}）講清楚，特色只留一句能被記住的。${memoryLine ? `參考歷屆素材：${memoryLine}。` : ""}`;
   const visualTheme = data.imageStyle?.trim() || `${style}；主視覺放現場或物件，文字區留白。`;
   const visualDirection = `畫面用品牌色做底，上半主視覺、下半標題。風格：${style}。避免雜訊與浮水印。`;
   const subhead = offer || `${when} · ${where}`;
@@ -259,5 +261,6 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
           { startSec: 17, endSec: 20, visual: "CTA", caption: cta, voiceover: cta, transition: "切", assetHint: "報名或晚上見" },
         ]
       : undefined,
+    citedSources: sourcesFromMemoryNotes(data.memoryNotes),
   };
 }

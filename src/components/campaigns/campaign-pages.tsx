@@ -11,6 +11,7 @@ import { migrateBrief } from "@/lib/studio/brief";
 import { CAMPAIGN_TYPES } from "@/lib/zen/types";
 import type { CampaignType } from "@/lib/zen/types";
 import { igDnaBlock } from "@/lib/zen/insights";
+import { clientMemoryLines } from "@/lib/zen/ingest";
 import {
   emptyCampaign,
   applyPackToWaves,
@@ -175,6 +176,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   const lastPack = useCreative((s) => s.lastPack);
   const setLastPack = useCreative((s) => s.setLastPack);
   const igPosts = useCreative((s) => s.igPosts);
+  const memory = useCreative((s) => s.memory);
   const [busy, setBusy] = useState(false);
   const [waveBusy, setWaveBusy] = useState<string | null>(null);
   const [signupUrl, setSignupUrl] = useState(campaign?.signupUrl ?? "");
@@ -245,7 +247,10 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
             });
             const result = await generateCreativePack({
-              data: toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
+              data: toBriefInput(brief, brand, {
+                dnaNotes: igDnaBlock(igPosts),
+                memoryNotes: clientMemoryLines(memory),
+              }),
             });
             if (!result.ok) {
               toast.error("完整宣傳沒有生成出來");

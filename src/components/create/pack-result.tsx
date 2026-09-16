@@ -76,12 +76,16 @@ export function PackResult({
               if (notes) {
                 try {
                   await navigator.clipboard.writeText(notes);
-                  toast.success("已在 Canva 開 IG 稿，文案已複製，可貼進去微調");
+                  toast.success(
+                    result.uploaded
+                      ? "已把主視覺送進 Canva，文案已複製"
+                      : "已在 Canva 開 IG 稿，文案已複製，可貼進去微調",
+                  );
                 } catch {
-                  toast.success("已在 Canva 開 IG 稿，可繼續微調");
+                  toast.success(result.uploaded ? "已把主視覺送進 Canva" : "已在 Canva 開 IG 稿，可繼續微調");
                 }
               } else {
-                toast.success("已在 Canva 開一張 IG 稿，可繼續微調");
+                toast.success(result.uploaded ? "已把主視覺送進 Canva" : "已在 Canva 開一張 IG 稿，可繼續微調");
               }
               window.open(result.editUrl, "_blank", "noopener,noreferrer");
             }}

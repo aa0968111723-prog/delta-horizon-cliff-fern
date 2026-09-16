@@ -6,10 +6,13 @@ import { SearchHitCard } from "@/components/search/hit-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getConnectionCapabilities, searchClubDrive } from "@/lib/ai/drive";
+import { getConnectionCapabilities, syncClubDrive } from "@/lib/ai/drive";
 import { disconnectOAuth, searchCanvaWorld, syncInstagramMemory } from "@/lib/ai/oauth";
 import { redirectToLoginIfRequired } from "@/lib/app-data/login";
+import { ingestBytesToLibrary, ingestUrlToLibrary } from "@/lib/zen/ingest-client";
+import { isAllowedIngestUrl } from "@/lib/zen/ingest";
 import { useCreative } from "@/stores/creative-store";
+import { useStudio } from "@/stores/studio-store";
 
 type Caps = {
   drive: boolean;
@@ -27,6 +30,7 @@ export function ConnectionCenter() {
   const setConnection = useCreative((s) => s.setConnection);
   const addMemory = useCreative((s) => s.addMemory);
   const addIgPost = useCreative((s) => s.addIgPost);
+  const addAsset = useStudio((s) => s.addAsset);
   const memory = useCreative((s) => s.memory);
   const driveFolderQuery = useCreative((s) => s.driveFolderQuery);
   const setDriveFolderQuery = useCreative((s) => s.setDriveFolderQuery);
@@ -82,7 +86,7 @@ export function ConnectionCenter() {
     setBusy(id);
     try {
       if (id === "drive") {
-        const result = await searchClubDrive({
+        const result = await syncClubDrive({
           data: { query: "茶會 OR 浮游禪光 OR 龜龜", folderHint: driveFolderQuery },
         });
         if (!result.ok) {
@@ -108,14 +112,39 @@ export function ConnectionCenter() {
           detail: `已找到 ${result.items.length} 個相關檔案`,
         });
         for (const item of result.items.slice(0, 8)) {
+          const assetId = `asset_drive_${item.id}`.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 60);
+          let thumbAssetId: string | undefined;
+          if (item.imageB64 && item.imageMime) {
+            const ok = await ingestBytesToLibrary({
+              id: assetId,
+              name: item.name,
+              source: "drive",
+              b64: item.imageB64,
+              mime: item.imageMime,
+              tags: ["Drive", item.name],
+              addAsset,
+            });
+            if (ok) thumbAssetId = assetId;
+          } else if (item.imageUrl && isAllowedIngestUrl(item.imageUrl)) {
+            const ok = await ingestUrlToLibrary({
+              id: assetId,
+              name: item.name,
+              source: "drive",
+              url: item.imageUrl,
+              tags: ["Drive", item.name],
+              addAsset,
+            });
+            if (ok) thumbAssetId = assetId;
+          }
           addMemory({
             id: `drive_${item.id}`,
             source: "drive",
             title: item.name,
-            subtitle: "Google Drive",
+            subtitle: item.excerpt ? `Google Drive / ${item.excerpt.slice(0, 48)}` : "Google Drive",
             tags: ["Drive"],
             kind: item.mime ?? "file",
             url: item.url,
+            thumbAssetId,
           });
         }
         toast.success("Drive 已同步（官方連接）");
@@ -139,6 +168,16 @@ export function ConnectionCenter() {
             detail: `已找到 ${found.items.length} 個設計`,
           });
           for (const item of found.items.slice(0, 8)) {
+            const thumbAssetId = item.thumbUrl
+              ? await ingestUrlToLibrary({
+                  id: `asset_${item.id}`.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 60),
+                  name: item.title,
+                  source: "canva",
+                  url: item.thumbUrl,
+                  tags: item.tags,
+                  addAsset,
+                }).then((ok) => (ok ? `asset_${item.id}`.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 60) : undefined))
+              : undefined;
             addMemory({
               id: item.id,
               source: "canva",
@@ -147,6 +186,7 @@ export function ConnectionCenter() {
               tags: item.tags,
               kind: "Canva",
               url: item.url,
+              thumbAssetId,
             });
           }
           toast.success("Canva 已同步");
@@ -181,9 +221,21 @@ export function ConnectionCenter() {
             detail: `已讀取 ${found.posts.length} 則貼文`,
           });
           for (const post of found.posts.slice(0, 12)) {
+            const pixelId = `asset_${post.id}`.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 60);
+            const ingested = post.mediaUrl
+              ? await ingestUrlToLibrary({
+                  id: pixelId,
+                  name: post.hook || post.caption.slice(0, 24),
+                  source: "instagram",
+                  url: post.mediaUrl,
+                  tags: [post.mediaType],
+                  addAsset,
+                })
+              : false;
+            const assetId = ingested ? pixelId : "asset_tamsui";
             addIgPost({
               ...post,
-              assetId: post.mediaUrl ? "" : "asset_tamsui",
+              assetId,
             });
             addMemory({
               id: post.id,
@@ -195,6 +247,7 @@ export function ConnectionCenter() {
               tags: [post.mediaType],
               kind: "IG",
               url: post.permalink,
+              thumbAssetId: ingested ? pixelId : undefined,
             });
           }
           toast.success("Instagram 已同步進記憶");

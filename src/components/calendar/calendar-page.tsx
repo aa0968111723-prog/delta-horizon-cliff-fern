@@ -2,6 +2,7 @@ import { addDays, addWeeks, format, startOfMonth, startOfWeek, addMonths, isSame
 import { zhTW } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { PublishIgButton } from "@/components/instagram/publish-button";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -258,16 +259,24 @@ export function CalendarPage() {
                     改這則
                   </Button>
                   {item.status !== "published" ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        patchSchedule(item.id, { status: "published", publishedAt: Date.now() });
-                        toast.success("已標記發布，沒有審核流程");
-                      }}
-                    >
-                      標記已發布
-                    </Button>
+                    <>
+                      <PublishIgButton
+                        caption={item.captionPreview}
+                        onPublished={() =>
+                          patchSchedule(item.id, { status: "published", publishedAt: Date.now() })
+                        }
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          patchSchedule(item.id, { status: "published", publishedAt: Date.now() });
+                          toast.success("已標記發布，沒有審核流程");
+                        }}
+                      >
+                        標記已發布
+                      </Button>
+                    </>
                   ) : (
                     <p className="text-xs text-muted">已發布</p>
                   )}

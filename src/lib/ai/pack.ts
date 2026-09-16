@@ -1,15 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import type { CitedSource } from "@/lib/studio/types";
 import { applyStudentRewrite } from "@/lib/zen/review";
+import { composeMemoryNotes, mergeCitedSources, sourcesFromMemoryNotes } from "@/lib/zen/ingest";
 import type { CreativePack } from "@/lib/zen/types";
 import { generateCampaignPlan } from "./campaign";
 import { BriefInputSchema } from "./schema";
 import { buildMockPlan } from "./mock";
 
-const PackInput = BriefInputSchema.extend({
-  memoryNotes: z.string().max(1200).optional(),
-});
+const PackInput = BriefInputSchema;
 
 export const generateCreativePack = createServerFn({ method: "POST" })
   .validator((input: unknown) => {
@@ -22,20 +20,23 @@ export const generateCreativePack = createServerFn({ method: "POST" })
     | { ok: true; pack: CreativePack; adapter: "live" | "mock" }
     | { ok: false; error: string; adapter: "live" | "mock" }
   > => {
-    const { collectLiveSources } = await import("./sources.server");
-    const liveHits = await collectLiveSources(data.eventName);
-    const result = await generateCampaignPlan({ data });
+    const { collectLiveKnowledge } = await import("./sources.server");
+    const live = await collectLiveKnowledge(data.eventName);
+    const memoryNotes = composeMemoryNotes([data.memoryNotes, live.notes]);
+    const result = await generateCampaignPlan({ data: { ...data, memoryNotes } });
     if (!result.ok) return result;
     const plan = result.plan.visualDirections?.length ? result.plan : { ...result.plan, ...enrich(data.eventName) };
-    const sources: CitedSource[] = [
-      ...(plan.citedSources?.length ? plan.citedSources : defaultSources(data.memoryNotes)),
-      ...liveHits,
-    ].slice(0, 10);
+    const sources: CitedSource[] = mergeCitedSources(
+      live.sources,
+      sourcesFromMemoryNotes(memoryNotes),
+      plan.citedSources ?? [],
+      defaultSources(memoryNotes),
+    );
     const pack: CreativePack = {
       campaignName: plan.campaignName,
       insight: plan.insight,
       studentContext: data.audience,
-      foundCount: Math.max(sources.length, liveHits.length),
+      foundCount: Math.max(sources.length, live.sources.length),
       citedSources: sources,
       directions: plan.visualDirections,
       plan,

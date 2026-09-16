@@ -3,6 +3,7 @@ import { zhTW } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { PublishIgButton } from "@/components/instagram/publish-button";
 import { PageHeader } from "@/components/shared/page-header";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Textarea } from "@/components/ui/input";
 import { useAssetUrls, resolveAssetSrc } from "@/hooks/use-asset-urls";
 import { generateCopyPack } from "@/lib/ai/copy";
 import { syncInstagramMemory } from "@/lib/ai/oauth";
+import { ingestUrlToLibrary } from "@/lib/zen/ingest-client";
 import { FORMATS } from "@/lib/studio/formats";
 import { pagesOf } from "@/lib/studio/layers";
 import { SEED_ASSETS } from "@/lib/studio/seed";
@@ -38,6 +40,7 @@ export function InstagramCenter() {
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
+  const addAsset = useStudio((s) => s.addAsset);
   const setCopy = useStudio((s) => s.setCopy);
   const ensureArtboard = useStudio((s) => s.ensureArtboard);
   const setActiveFormat = useStudio((s) => s.setActiveFormat);
@@ -105,9 +108,20 @@ export function InstagramCenter() {
         return;
       }
       for (const live of result.posts) {
+        const pixelId = `asset_${live.id}`.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 60);
+        const ingested = live.mediaUrl
+          ? await ingestUrlToLibrary({
+              id: pixelId,
+              name: live.hook || live.caption.slice(0, 24),
+              source: "instagram",
+              url: live.mediaUrl,
+              tags: [live.mediaType],
+              addAsset,
+            })
+          : false;
         addIgPost({
           ...live,
-          assetId: live.mediaUrl ? "" : "asset_tamsui",
+          assetId: ingested ? pixelId : "asset_tamsui",
         });
       }
       if (result.posts[0]) setActive(result.posts[0].id);
@@ -295,6 +309,7 @@ export function InstagramCenter() {
               <Button size="sm" onClick={saveCaption} disabled={!previewProject}>
                 更新文案
               </Button>
+              <PublishIgButton caption={caption} />
             </div>
           </div>
         </section>
@@ -315,6 +330,9 @@ export function InstagramCenter() {
                   {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })} · {CONTENT_KIND_LABEL[item.contentKind]}
                 </p>
                 <p className="text-sm">{item.title}</p>
+                <div className="mt-2">
+                  <PublishIgButton caption={item.captionPreview} />
+                </div>
               </li>
             ))}
           </ul>

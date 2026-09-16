@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { creativeSearch, expandCreativeQuery, groupSearchHits } from "./search.ts";
 import { applyPackToWaves, copyKindForWave, emptyCampaign, nextWaveAngle, nextWaveVisual, scheduleItemsFromCampaign, suggestWaves } from "./schedule.ts";
-import { canvaDraftNotes, canvaDraftTitle, canvaPresetForKind } from "./canva-draft.ts";
+import { canvaDraftNotes, canvaDraftTitle, canvaPresetForAspect, canvaPresetForKind } from "./canva-draft.ts";
 import { convertFromPlan, CONVERT_TARGETS, briefFlagsForTarget, captionForTarget } from "./convert.ts";
 import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
 import { applyStudentRewrite } from "./review.ts";
@@ -365,5 +365,7 @@ test("canva draft title includes hook and stays short", () => {
   assert.ok(title.length <= 50);
   assert.equal(canvaPresetForKind("story"), "instagramStory");
   assert.equal(canvaPresetForKind("reels"), "instagramReel");
+  assert.equal(canvaPresetForAspect("9:16"), "instagramStory");
+  assert.equal(canvaPresetForAspect("4:5"), "instagramPost");
   assert.match(canvaDraftNotes({ hook: "坐好", cta: "晚上見", signupUrl: "https://forms" }), /報名/);
 });

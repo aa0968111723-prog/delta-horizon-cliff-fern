@@ -9,6 +9,7 @@ export type SearchHit = {
   thumbAssetId?: string;
   tags: string[];
   url?: string;
+  thumbUrl?: string;
 };
 
 function blob(...parts: Array<string | undefined | null>) {

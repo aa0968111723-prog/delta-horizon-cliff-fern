@@ -5,7 +5,7 @@ import type { BriefInput } from "./schema";
 export function toBriefInput(
   brief: Brief,
   brand: BrandKit,
-  extra?: { forceMock?: boolean; dnaNotes?: string },
+  extra?: { forceMock?: boolean; dnaNotes?: string; memoryNotes?: string },
 ): BriefInput {
   const b = migrateBrief(brief);
   const eventName = b.eventName.trim() || b.product.trim();
@@ -41,5 +41,6 @@ export function toBriefInput(
       .join("；"),
     ...(extra?.forceMock ? { forceMock: true } : {}),
     ...(extra?.dnaNotes ? { dnaNotes: extra.dnaNotes } : {}),
+    ...(extra?.memoryNotes ? { memoryNotes: extra.memoryNotes } : {}),
   };
 }

@@ -145,6 +145,9 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
 希望風格：${data.style || "生活"}
 需要產出：${deliverables || "單張貼文"}
 補充：${data.notes || "無"}
+Creative Memory / 歷屆素材摘錄：
+${data.memoryNotes?.trim() || "無（仍須讀品牌記憶：龜龜、三色光、淡江學生語氣）"}
+citedSources 只能標你真正看到的 Drive / Canva / Instagram / Brand 來源，不要假裝讀過沒給的檔案。
 
 JSON 欄位：
 campaignName, concept, insight, hook, visualTheme, visualDirection,

@@ -49,6 +49,18 @@ test("buildMockPlan is structured Traditional Chinese and marked mock", () => {
   assert.equal(plan.templateId, "product");
 });
 
+test("buildMockPlan cites Creative Memory notes", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "浮游禪光",
+    brandName: "淡江大學禪學社",
+    audience: "淡江大學學生",
+    memoryNotes: "Google Drive / 2025 茶會：晚上同學圍坐",
+  });
+  assert.match(plan.insight, /歷屆素材/);
+  assert.equal(plan.citedSources?.[0]?.source, "drive");
+});
+
 test("buildMockPlan strips forbidden words", () => {
   const plan = buildMockPlan({
     ...base,

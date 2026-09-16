@@ -11,6 +11,11 @@ export function canvaPresetForKind(kind: string): CanvaPreset {
   return "instagramPost";
 }
 
+export function canvaPresetForAspect(aspect: string): CanvaPreset {
+  if (aspect === "9:16") return "instagramStory";
+  return "instagramPost";
+}
+
 export function canvaDraftNotes(input: {
   hook?: string;
   body?: string;

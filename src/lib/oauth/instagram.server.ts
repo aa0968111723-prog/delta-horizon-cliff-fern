@@ -10,7 +10,11 @@ import {
 } from "@/lib/oauth/session.server";
 import { randomUrlToken } from "@/lib/oauth/crypto";
 
-const SCOPES = ["instagram_business_basic", "instagram_business_manage_insights"].join(",");
+const SCOPES = [
+  "instagram_business_basic",
+  "instagram_business_manage_insights",
+  "instagram_business_content_publish",
+].join(",");
 
 export function instagramRedirectUri(request: Request) {
   return `${publicOrigin(request)}/api/oauth/instagram/callback`;
@@ -101,6 +105,7 @@ export type IgMediaHit = {
   permalink?: string;
   timestamp?: string;
   thumbnail?: string;
+  mediaUrl?: string;
   likes?: number;
   comments?: number;
 };
@@ -141,6 +146,7 @@ export async function searchInstagramMedia(query: string): Promise<IgMediaHit[]>
       permalink: item.permalink,
       timestamp: item.timestamp,
       thumbnail: item.thumbnail_url ?? item.media_url,
+      mediaUrl: item.media_url,
       likes: item.like_count ?? 0,
       comments: item.comments_count ?? 0,
     }));
@@ -162,6 +168,64 @@ export async function mediaInsights(
   } catch {
     return { reach: 0, saves: 0 };
   }
+}
+
+export type IgPublishResult =
+  | { ok: true; mediaId: string }
+  | { ok: false; error: string; needsReauth?: boolean; needsPublicUrl?: boolean };
+
+export async function publishInstagramImage(input: {
+  imageUrl: string;
+  caption: string;
+}): Promise<IgPublishResult> {
+  const tokens = await readOAuthTokens("instagram");
+  if (!tokens?.accessToken) {
+    return { ok: false, error: "還沒連接 Instagram 官方帳號。", needsReauth: true };
+  }
+  const userId = tokens.accountId || "me";
+  const containerUrl = new URL(`https://graph.instagram.com/v21.0/${encodeURIComponent(userId)}/media`);
+  const container = await fetch(containerUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      image_url: input.imageUrl,
+      caption: input.caption.slice(0, 2200),
+      access_token: tokens.accessToken,
+    }),
+  });
+  if (!container.ok) {
+    const text = await container.text();
+    if (container.status === 403 || /permission|scope/i.test(text)) {
+      return {
+        ok: false,
+        error: "這個帳號還沒有官方發布權限。請重新授權後再試，或先複製文案手動發。",
+        needsReauth: true,
+      };
+    }
+    return {
+      ok: false,
+      error: "官方發布需要可被 Instagram 讀到的公開圖片網址。",
+      needsPublicUrl: true,
+    };
+  }
+  const created = (await container.json()) as { id?: string };
+  if (!created.id) {
+    return { ok: false, error: "官方 API 沒有回傳草稿。", needsPublicUrl: true };
+  }
+  const publishUrl = new URL(`https://graph.instagram.com/v21.0/${encodeURIComponent(userId)}/media_publish`);
+  const published = await fetch(publishUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      creation_id: created.id,
+      access_token: tokens.accessToken,
+    }),
+  });
+  if (!published.ok) {
+    return { ok: false, error: "草稿建好了，但發布失敗。文案可先複製。", needsPublicUrl: true };
+  }
+  const done = (await published.json()) as { id?: string };
+  return { ok: true, mediaId: done.id ?? created.id };
 }
 
 export async function revokeInstagram() {

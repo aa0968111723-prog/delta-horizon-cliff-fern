@@ -13,6 +13,7 @@ import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
 import type { CopyPack } from "@/lib/zen/types";
 import { igDnaBlock } from "@/lib/zen/insights";
+import { clientMemoryLines } from "@/lib/zen/ingest";
 import { applyStudentRewrite } from "@/lib/zen/review";
 import { COPY_KIND_OPTIONS, type CopyKindId } from "@/lib/zen/voice";
 import { useCreative } from "@/stores/creative-store";
@@ -71,7 +72,7 @@ export function CreateHub() {
       const result = await generateCreativePack({
         data: {
           ...toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
-          memoryNotes: memory.map((m) => m.subtitle).join("\n"),
+          memoryNotes: clientMemoryLines(memory),
         },
       });
       if (!result.ok) {
