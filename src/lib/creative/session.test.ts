@@ -89,6 +89,31 @@ test("session keeps the Canva return asset for IG Preview", () => {
   assert.equal(read?.canvaStep, "returned");
 });
 
+test("image-only posters remember they are not a full pack yet", () => {
+  const memory = new Map<string, string>();
+  const fake = {
+    getItem: (key: string) => memory.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      memory.set(key, value);
+    },
+  };
+  (globalThis as { sessionStorage?: typeof fake }).sessionStorage = fake;
+  writeLastSession({
+    pack: { query: "我要宣傳茶會", plan: { hook: "帶一個朋友就好" } },
+    posterOnly: true,
+    dirId: "dir_b",
+    copies: [],
+    tone: "student",
+    imageSrc: "https://cdn.example.com/poster.png",
+    aspect: "4:5",
+    savedAt: Date.now(),
+  } as unknown as LastCreateSession);
+  const read = readLastSession();
+  assert.equal(read?.posterOnly, true);
+  assert.equal(read?.dirId, "dir_b");
+  assert.equal(read?.imageSrc, "https://cdn.example.com/poster.png");
+});
+
 test("session keeps the 9:16 cover next to the feed hero", () => {
   const memory = new Map<string, string>();
   const fake = {

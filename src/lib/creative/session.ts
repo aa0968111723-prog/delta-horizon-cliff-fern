@@ -5,6 +5,8 @@ export type CanvaLoopStep = "kit" | "need-connect" | "opened" | "returned";
 
 export type LastCreateSession = {
   pack: CreativePack;
+  /** Image Studio 只出了主視覺，還沒跑完整宣傳。 */
+  posterOnly?: boolean;
   dirId: string | null;
   copies: CopyBlock[];
   tone: CopyBlock["tone"];
