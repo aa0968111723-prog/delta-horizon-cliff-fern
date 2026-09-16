@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { HeroVisual } from "@/components/create/hero-visual";
 import { StudentReviewCard } from "@/components/create/student-review-card";
 import { VisionCard } from "@/components/create/vision-card";
 import { PhotoDrop } from "@/components/shared/photo-drop";
@@ -65,7 +66,7 @@ export function ImageStudioPage() {
   const [vision, setVision] = useState<VisionAnalysis | null>(null);
   const [packs, setPacks] = useState<CopyPack[]>([]);
   const [tone, setTone] = useState<CopyPack["tone"]>("student");
-  const [lastImage, setLastImage] = useState<{ base64: string; mime: string } | null>(null);
+  const [lastImage, setLastImage] = useState<{ base64: string; mime: string; headline?: string } | null>(null);
   const [review, setReview] = useState<StudentReview | null>(null);
   const autoRan = useRef(false);
 
@@ -127,7 +128,17 @@ export function ImageStudioPage() {
     try {
       const nextFormat = formatOverride ?? format;
       const prompt = kind ? varyImagePrompt(dir.prompt, kind) : dir.prompt;
-      const result = await generateStudioImage({ data: { prompt, format: toImageFormat(nextFormat) } });
+      const result = await generateStudioImage({
+        data: {
+          prompt,
+          format: toImageFormat(nextFormat),
+          headline: dir.headline,
+          subhead: dir.subhead,
+          palette: dir.palette,
+          name: dir.name,
+          variation: kind,
+        },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -154,7 +165,7 @@ export function ImageStudioPage() {
         lastUsedAt: Date.now(),
         useCount: 0,
       });
-      setLastImage({ base64: result.imageBase64, mime: result.mime });
+      setLastImage({ base64: result.imageBase64, mime: result.mime, headline: dir.headline });
       toast.success("已存進素材庫（AI Generated）");
     } finally {
       setBusy(false);
@@ -265,6 +276,14 @@ export function ImageStudioPage() {
           送進 Canva
         </Button>
       </div>
+      {lastImage ? (
+        <section className="mt-6">
+          <h2 className="text-sm font-medium">主視覺</h2>
+          <div className="mt-3">
+            <HeroVisual base64={lastImage.base64} mime={lastImage.mime} headline={lastImage.headline} />
+          </div>
+        </section>
+      ) : null}
       <ul className="mt-6 space-y-3">
         {directions.map((dir) => (
           <li key={dir.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">

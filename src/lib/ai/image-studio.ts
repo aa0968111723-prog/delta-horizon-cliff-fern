@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { mockPosterImage } from "@/lib/ai/poster";
+import { formatById } from "@/lib/studio/formats";
 import { studentSituation, zenSystemPrompt } from "@/lib/zen/context";
 import { labelDirections } from "@/lib/zen/direction";
 import type { FormatId, VisualDirection } from "@/lib/studio/types";
@@ -159,23 +161,46 @@ JSON:{directions:[{id,name,concept,palette,composition,typeDirection,prompt,head
     }
   });
 
+const ImageGenInput = z.object({
+  prompt: z.string().min(8).max(1200),
+  format: z.enum(IMAGE_FORMAT_IDS).optional(),
+  headline: z.string().max(160).optional(),
+  subhead: z.string().max(160).optional(),
+  palette: z.string().max(80).optional(),
+  name: z.string().max(80).optional(),
+  variation: z.enum(["composition", "mood", "background", "style", "text"]).optional(),
+  forceMock: z.boolean().optional(),
+});
+
 function parseImageGen(input: unknown) {
-  const schema = z.object({
-    prompt: z.string().min(8).max(1200),
-    format: z.enum(IMAGE_FORMAT_IDS).optional(),
-  });
   if (input && typeof input === "object" && "data" in input) {
     const inner = (input as { data: unknown }).data;
-    if (inner && typeof inner === "object" && "prompt" in inner) return schema.parse(inner);
+    if (inner && typeof inner === "object" && "prompt" in inner) return ImageGenInput.parse(inner);
   }
-  return schema.parse(input);
+  return ImageGenInput.parse(input);
+}
+
+export function mockStudioImage(data: z.infer<typeof ImageGenInput>): ImageGenResult {
+  const format = data.format ?? "feed-portrait";
+  const spec = formatById(format);
+  const poster = mockPosterImage({
+    prompt: data.prompt,
+    headline: data.headline || "最近是不是很久沒坐好",
+    subhead: data.subhead,
+    palette: data.palette,
+    name: data.name,
+    width: spec.width,
+    height: spec.height,
+    variation: data.variation,
+  });
+  return { ok: true, adapter: "mock", ...poster };
 }
 
 export const generateStudioImage = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseImageGen(input))
   .handler(async ({ data }): Promise<ImageGenResult> => {
     const apiKey = process.env.XAI_API_KEY;
-    if (!apiKey) return { ok: false, adapter: "mock", error: "圖片生成需要連線 AI。可先用視覺方向與本機素材。" };
+    if (!apiKey || data.forceMock) return mockStudioImage(data);
     const aspect =
       data.format === "story" || data.format === "reels-cover"
         ? "9:16"
@@ -196,14 +221,14 @@ export const generateStudioImage = createServerFn({ method: "POST" })
         response_format: "b64_json",
       }),
     });
-    if (!res.ok) return { ok: false, adapter: "live", error: `圖片生成暫時無法使用（${res.status}）。` };
+    if (!res.ok) return mockStudioImage(data);
     const body = (await res.json()) as { data?: { b64_json?: string; url?: string }[] };
     const b64 = body.data?.[0]?.b64_json;
     if (b64) return { ok: true, adapter: "live", imageBase64: b64, mime: "image/png", prompt: data.prompt };
     const url = body.data?.[0]?.url;
-    if (!url) return { ok: false, adapter: "live", error: "沒有收到圖片。" };
+    if (!url) return mockStudioImage(data);
     const img = await fetch(url);
-    if (!img.ok) return { ok: false, adapter: "live", error: "圖片下載失敗。" };
+    if (!img.ok) return mockStudioImage(data);
     const buf = Buffer.from(await img.arrayBuffer());
     return { ok: true, adapter: "live", imageBase64: buf.toString("base64"), mime: img.headers.get("content-type") || "image/png", prompt: data.prompt };
   });

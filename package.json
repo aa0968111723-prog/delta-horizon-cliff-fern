@@ -16,7 +16,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/studio/brand.test.ts src/lib/studio/brief.test.ts src/lib/studio/carousel.test.ts src/lib/studio/quality.test.ts src/lib/studio/content.test.ts src/lib/zen/context.test.ts src/lib/zen/insights.test.ts src/lib/zen/dna.test.ts src/lib/zen/direction.test.ts src/lib/zen/memory.test.ts src/lib/zen/source-style.test.ts src/lib/zen/search.test.ts src/lib/connect/canva-format.test.ts src/lib/connect/instagram-graph.test.ts src/lib/ai/mock.test.ts src/lib/ai/edit-mock.test.ts src/lib/ai/convert.test.ts",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/studio/brand.test.ts src/lib/studio/brief.test.ts src/lib/studio/carousel.test.ts src/lib/studio/quality.test.ts src/lib/studio/content.test.ts src/lib/zen/context.test.ts src/lib/zen/insights.test.ts src/lib/zen/dna.test.ts src/lib/zen/direction.test.ts src/lib/zen/memory.test.ts src/lib/zen/source-style.test.ts src/lib/zen/search.test.ts src/lib/connect/canva-format.test.ts src/lib/connect/instagram-graph.test.ts src/lib/ai/mock.test.ts src/lib/ai/edit-mock.test.ts src/lib/ai/convert.test.ts src/lib/ai/poster.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

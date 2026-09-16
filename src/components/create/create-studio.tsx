@@ -31,6 +31,7 @@ import { pickSourceRefs, styleFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import { suggestWaves, eventKindFromText, waveLabel, contentKindForWave } from "@/lib/zen/schedule";
 import type { CampaignPlan, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
+import { HeroVisual } from "@/components/create/hero-visual";
 import { ReelsBoard } from "@/components/create/reels-board";
 import { WaveList } from "@/components/create/wave-list";
 import { StudentReviewCard } from "@/components/create/student-review-card";
@@ -109,7 +110,7 @@ export function CreateStudio() {
   const [pickedDirection, setPickedDirection] = useState<VisualDirection | null>(null);
   const [campaign, setCampaign] = useState<ClubCampaign | null>(null);
   const [vision, setVision] = useState<VisionAnalysis | null>(null);
-  const [lastImage, setLastImage] = useState<{ base64: string; mime: string; assetId?: string } | null>(null);
+  const [lastImage, setLastImage] = useState<{ base64: string; mime: string; assetId?: string; headline?: string } | null>(null);
   const autoRan = useRef(false);
 
   useEffect(() => {
@@ -314,13 +315,23 @@ export function CreateStudio() {
 
   async function saveGeneratedImage(
     dir: VisualDirection,
-    opts?: { kind?: (typeof VARIATIONS)[number]["id"]; format?: string },
+    opts?: { kind?: (typeof VARIATIONS)[number]["id"]; format?: string; silent?: boolean },
   ) {
     const format = toImageFormat(opts?.format ?? toCreateImageFormat(mode));
     const prompt = opts?.kind ? varyImagePrompt(dir.prompt, opts.kind) : dir.prompt;
-    const result = await generateStudioImage({ data: { prompt, format } });
+    const result = await generateStudioImage({
+      data: {
+        prompt,
+        format,
+        headline: dir.headline,
+        subhead: dir.subhead,
+        palette: dir.palette,
+        name: dir.name,
+        variation: opts?.kind,
+      },
+    });
     if (!result.ok) {
-      toast.message("主視覺先用畫布方向。連上圖片生成後可以再出圖。");
+      if (!opts?.silent) toast.message("主視覺先用畫布方向。連上圖片生成後可以再出圖。");
       return null;
     }
     const spec = formatById(format);
@@ -347,8 +358,8 @@ export function CreateStudio() {
       lastUsedAt: Date.now(),
       useCount: 0,
     });
-    setLastImage({ base64: result.imageBase64, mime: result.mime, assetId: id });
-    toast.success("圖片已進素材庫（AI Generated）");
+    setLastImage({ base64: result.imageBase64, mime: result.mime, assetId: id, headline: dir.headline });
+    if (!opts?.silent) toast.success("圖片已進素材庫（AI Generated）");
     return id;
   }
 
@@ -521,7 +532,7 @@ export function CreateStudio() {
     setPlan(next);
     setBusy(true);
     try {
-      const imageId = (await saveGeneratedImage(dir)) ?? undefined;
+      const imageId = (await saveGeneratedImage(dir, { silent: true })) ?? undefined;
       const project = applyToCanvas(next, false);
       const created = saveCampaignAndWaves(next, imageId, project?.id ?? null, { silent: true });
       scheduleConverted(next, created, project?.id ?? null, imageId);
@@ -780,6 +791,22 @@ export function CreateStudio() {
               </li>
             ))}
           </ul>
+        </section>
+      ) : null}
+
+      {lastImage ? (
+        <section className="mt-8">
+          <h2 className="text-sm font-medium">主視覺</h2>
+          <p className="mt-1 text-xs text-muted">
+            {pickedDirection?.name || "這次方向"} · 來源：AI Generated
+          </p>
+          <div className="mt-3">
+            <HeroVisual
+              base64={lastImage.base64}
+              mime={lastImage.mime}
+              headline={lastImage.headline || pickedDirection?.headline}
+            />
+          </div>
         </section>
       ) : null}
 
