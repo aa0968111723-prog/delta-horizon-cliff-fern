@@ -119,6 +119,26 @@ export function formatIgDna(dna: IgDna): string {
     .join("\n");
 }
 
+/** 給生成讀的真實成效。沒有數字就空字串，不編造觸及或收藏。 */
+export function formatIgInsights(insights: IgInsightSummary): string {
+  const hasMetrics = insights.totalLikes || insights.totalComments || insights.totalReach || insights.totalSaved;
+  if (!insights.sampleCount || !hasMetrics) return "";
+  return [
+    `真實成效樣本 ${insights.sampleCount} 則`,
+    insights.totalLikes ? `合計按讚 ${insights.totalLikes}` : "",
+    insights.totalComments ? `合計留言 ${insights.totalComments}` : "",
+    insights.totalReach ? `合計觸及 ${insights.totalReach}` : "",
+    insights.totalSaved ? `合計收藏 ${insights.totalSaved}` : "",
+    insights.hookWins.length
+      ? `比較有效的開頭：${insights.hookWins.map((row) => `${row.kind}「${row.sample}」`).join("／")}`
+      : "",
+    insights.topPosts[0] ? `互動較高：「${insights.topPosts[0].title}」` : "",
+    "生成時優先延續有效的開頭類型，不要編造成效數字。",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export function buildIgInsights(remotePosts: RemoteItem[]): IgInsightSummary {
   const withMetrics = remotePosts
     .map((post) => ({

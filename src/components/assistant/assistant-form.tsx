@@ -15,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatBrandMemory } from "@/lib/studio/brand";
+import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
 import { describeAdapter, generateCampaignPlan, getCampaignAiStatus, type AiStatus } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
 import { emptyBrief, formatsFromBrief, migrateBrief } from "@/lib/studio/brief";
@@ -37,6 +39,8 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const setLastProjectId = useStudio((s) => s.setLastProjectId);
   const setAssistantOpen = useUi((s) => s.setAssistantOpen);
+  const igDnaText = useIgDnaText();
+  const insightsText = useIgInsightsText();
 
   const existing = projectId ? projects.find((p) => p.id === projectId) : undefined;
   const [targetId, setTargetId] = useState<string>(existing?.id ?? "new");
@@ -104,7 +108,12 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
     setError(null);
     try {
       const connected = status?.available ?? false;
-      const payload = toBriefInput(brief, brand, { forceMock: forceMock || !connected });
+      const payload = toBriefInput(brief, brand, {
+        forceMock: forceMock || !connected,
+        igDnaText: igDnaText || undefined,
+        insightsText: insightsText || undefined,
+        brandMemoryText: formatBrandMemory(brand.memory),
+      });
       const result = await generateCampaignPlan({ data: payload });
       if (!result.ok) {
         setError(result.error);

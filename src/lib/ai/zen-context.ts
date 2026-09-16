@@ -21,6 +21,8 @@ export type ZenContextInput = {
   brandMemoryText?: string;
   /** formatIgDna() 的產出，讓生成延續這個帳號自己的習慣 */
   igDnaText?: string;
+  /** formatIgInsights() 的產出，讓生成參考真實有效的開頭 */
+  insightsText?: string;
   /** 覆寫「今天」，測試用 */
   now?: number;
 };
@@ -42,6 +44,9 @@ export function buildZenContext(input: ZenContextInput = {}): string {
     input.imageStyle ? `使用者設定的視覺風格：${input.imageStyle}` : "",
     input.igDnaText?.trim()
       ? `【這個帳號自己的 IG DNA】\n${input.igDnaText.trim()}\n生成時優先延續這些習慣，不要變成一般品牌帳號。`
+      : "",
+    input.insightsText?.trim()
+      ? `【這個帳號自己的 IG 成效】\n${input.insightsText.trim()}\n這是同步回來的真實數字。沒有數字就不要假裝有效。`
       : "",
     "",
     "【唯一客群：淡江大學學生】",

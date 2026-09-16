@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { SectionHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useIgDnaText } from "@/hooks/use-ig-dna";
+import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
 import { generateIdeas } from "@/lib/ai/campaign-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
 import { localTodayIdeas, type TodayIdea } from "@/lib/studio/ideas";
@@ -19,6 +19,7 @@ export function TodayIdeas() {
   const campaigns = useStudio((s) => s.campaigns);
   const brand = useStudio((s) => s.brands[0]);
   const igDnaText = useIgDnaText();
+  const insightsText = useIgInsightsText();
   const [ideas, setIdeas] = useState<TodayIdea[]>(() => localTodayIdeas());
   const [adapter, setAdapter] = useState<"live" | "local">("local");
 
@@ -40,6 +41,7 @@ export function TodayIdeas() {
         upcoming,
         brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
         igDnaText: igDnaText || undefined,
+        insightsText: insightsText || undefined,
       },
     }).then((res) => {
       if (!alive) return;
@@ -51,7 +53,7 @@ export function TodayIdeas() {
     return () => {
       alive = false;
     };
-  }, [brand, campaigns, igDnaText, projects]);
+  }, [brand, campaigns, igDnaText, insightsText, projects]);
 
   return (
     <section className="mt-10">

@@ -98,8 +98,8 @@ try {
     ["日曆", "/calendar", "依宣傳節奏排程"],
     ["IG 中心", "/instagram", "IG 中心"],
     ["搜尋", "/search", "找素材與過去的內容"],
-    ["連接", "/connections", "素材與帳號"],
-    ["素材庫", "/assets", "素材"],
+    ["連接", "/connections", "尚未設定憑證"],
+    ["素材庫", "/assets", "用這張創作"],
     ["品牌", "/brand", "品牌記憶"],
   ]) {
     await page.goto(`${base}${path}`, { waitUntil: "networkidle" });

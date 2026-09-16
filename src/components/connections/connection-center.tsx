@@ -174,7 +174,7 @@ export function ConnectionCenter({ focus, status }: { focus?: string; status?: s
                     ) : (
                       <Button size="sm" disabled>
                         <Link2 className="size-4" />
-                        尚未開放
+                        尚未設定憑證
                       </Button>
                     )}
                   </div>

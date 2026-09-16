@@ -28,6 +28,7 @@ const DirectionBriefSchema = z.object({
   imageStyle: z.string().max(600).optional(),
   brandMemoryText: z.string().max(2500).optional(),
   igDnaText: z.string().max(1500).optional(),
+  insightsText: z.string().max(1200).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -119,6 +120,7 @@ export const generateVisualDirections = createServerFn({ method: "POST" })
         imageStyle: data.imageStyle,
         brandMemoryText: data.brandMemoryText,
         igDnaText: data.igDnaText,
+        insightsText: data.insightsText,
       }),
       "",
       "【使用者想做的事】",
@@ -276,6 +278,7 @@ const VisionSchema = z.object({
   audienceIds: z.array(z.string().max(40)).max(8).catch([]),
   brandMemoryText: z.string().max(2500).optional(),
   igDnaText: z.string().max(1500).optional(),
+  insightsText: z.string().max(1200).optional(),
 });
 
 const VisionJsonSchema = z.object({
@@ -317,6 +320,7 @@ export const analyzeImage = createServerFn({ method: "POST" })
         audienceIds: data.audienceIds,
         brandMemoryText: data.brandMemoryText,
         igDnaText: data.igDnaText,
+        insightsText: data.insightsText,
       }),
       "",
       "【任務】看這張圖，用禪學社小編的眼光判斷它能不能用、怎麼用。",

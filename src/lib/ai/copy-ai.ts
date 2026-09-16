@@ -34,6 +34,7 @@ const CopyBriefSchema = z.object({
   forbiddenWords: z.array(z.string().max(40)).max(20).optional(),
   brandMemoryText: z.string().max(2500).optional(),
   igDnaText: z.string().max(1500).optional(),
+  insightsText: z.string().max(1200).optional(),
   imageUrl: z.string().min(8).max(3_000_000).optional(),
   forceLocal: z.boolean().optional(),
 });
@@ -102,6 +103,7 @@ export const generateIgCopy = createServerFn({ method: "POST" })
         forbiddenWords: data.forbiddenWords,
         brandMemoryText: data.brandMemoryText,
         igDnaText: data.igDnaText,
+        insightsText: data.insightsText,
       }),
       "",
       "【這次要寫的內容】",
@@ -168,6 +170,7 @@ const ReviewSchema = z.object({
   audienceIds: z.array(z.string().max(40)).max(8).catch([]),
   brandMemoryText: z.string().max(2500).optional(),
   igDnaText: z.string().max(1500).optional(),
+  insightsText: z.string().max(1200).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -213,7 +216,7 @@ export const reviewAsStudent = createServerFn({ method: "POST" })
     }
 
     const prompt = [
-      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText, igDnaText: data.igDnaText }),
+      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText, igDnaText: data.igDnaText, insightsText: data.insightsText }),
       "",
       "【任務】現在把身分切換成一個滑到這篇貼文的淡江學生（不是小編）。",
       "誠實回答下面每一題，會覺得怪就說怪。不要客套。",
@@ -266,6 +269,7 @@ const ReelsSchema = z.object({
   audienceIds: z.array(z.string().max(40)).max(8).catch([]),
   brandMemoryText: z.string().max(2500).optional(),
   igDnaText: z.string().max(1500).optional(),
+  insightsText: z.string().max(1200).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -312,7 +316,7 @@ export const generateReelsScript = createServerFn({ method: "POST" })
     }
 
     const prompt = [
-      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText, igDnaText: data.igDnaText }),
+      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText, igDnaText: data.igDnaText, insightsText: data.insightsText }),
       "",
       "【任務】寫一支 20 秒的 Reels 腳本，拍攝者只有一個人、只有手機。",
       data.eventName ? `活動：${data.eventName}｜${data.schedule}｜${data.location}` : "",

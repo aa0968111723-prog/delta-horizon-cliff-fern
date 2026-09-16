@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import type { CampaignPlan, TemplateId } from "@/lib/studio/types";
 import { buildMockPlan } from "./mock";
 import { BriefInputSchema, PlanJsonSchema, type BriefInput } from "./schema";
+import { buildZenContext, ZEN_SYSTEM_PROMPT } from "./zen-context";
 
 export type PlanResult =
   | {
@@ -99,7 +100,6 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
     return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
 
-  const forbidden = data.forbiddenWords.filter(Boolean).join("、") || "無";
   const deliverables = [
     data.wantPost ? "單張貼文" : null,
     data.wantCarousel ? "輪播" : null,
@@ -109,46 +109,54 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
     .filter(Boolean)
     .join("、");
 
-  const prompt = `你是資深 Instagram 網宣企劃，服務台灣品牌。請只輸出 JSON，不要 markdown。
-
-品牌：${data.brandName} ${data.handle}
-語氣：${data.voice || "專業、克制"}
-可說：${data.doSay || "具體、真實"}
-不可說：${data.dontSay || "誇大、叫賣"}
-禁用詞：${forbidden}
-固定標語：${data.slogans || "無"}
-常用 CTA：${data.preferredCtas || "無"}
-圖片風格：${data.imageStyle || "無"}
-
-活動名稱：${data.eventName}
-時間：${data.schedule || "未填"}
-地點：${data.location || "未填"}
-產品／內容：${data.product || data.eventName}
-優惠：${data.offer || "無"}
-受眾：${data.audience}
-目的：${data.goal}
-特色：${data.features || "無"}
-希望風格：${data.style || "無"}
-需要產出：${deliverables || "單張貼文"}
-補充：${data.notes || "無"}
-
-JSON 欄位：
-campaignName, concept, insight, hook, visualTheme, visualDirection,
-templateId(editorial|product|offer|quote), colorMood,
-eyebrow, headline, subhead, body, cta,
-captions[{style,text}] 2-3 則（繁中，適合 IG，不要 emoji 堆砌，最多一個表情），
-hashtags 8-12 個（含品牌名與精準詞），
-storyBeats 3 則限動分鏡（若不需要限動可給空陣列），
-carouselPages[{role:cover|problem|detail|proof|cta|close,headline,subhead,body,cta,visualNote,templateId}] ${data.wantCarousel ? "必須 6 頁，角色依序 cover, problem, detail, proof, cta, close" : "1 頁封面"},
-assetNeeds[{kind:photo|people|background|logo|illustration,title,detail,required}],
-checklist 5-8 則發布前檢查,
-altText, qaNotes 2-4 則設計注意。
-
-headline 可含換行 \\n，最多兩行，每行不超過 10 個中文。
-eyebrow 用英文或短中文，不超過 22 字。
-cta 2-6 字。
-文案避免禁用詞，不要「限時瘋搶／錯過就沒有」。
-concept 是宣傳核心概念（2-3 句）。visualTheme 是視覺主題。`;
+  const prompt = [
+    buildZenContext({
+      brandVoice: data.voice,
+      brandDoSay: data.doSay,
+      brandDontSay: data.dontSay,
+      forbiddenWords: data.forbiddenWords,
+      imageStyle: data.imageStyle,
+      brandMemoryText: data.brandMemoryText,
+      igDnaText: data.igDnaText,
+      insightsText: data.insightsText,
+    }),
+    "",
+    "【這次要寫的企劃】",
+    `活動名稱：${data.eventName}`,
+    `時間：${data.schedule || "未填"}`,
+    `地點：${data.location || "未填"}`,
+    `產品／內容：${data.product || data.eventName}`,
+    data.offer ? `優惠：${data.offer}` : "",
+    `受眾：${data.audience}`,
+    `目的：${data.goal}`,
+    data.features ? `特色：${data.features}` : "",
+    data.style ? `希望風格：${data.style}` : "",
+    `需要產出：${deliverables || "單張貼文"}`,
+    data.notes ? `補充：${data.notes}` : "",
+    data.slogans ? `固定標語：${data.slogans}` : "",
+    data.preferredCtas ? `常用 CTA：${data.preferredCtas}` : "",
+    "",
+    "【任務】只輸出 JSON。這是淡江大學禪學社一個人在做的網宣，不是台灣品牌代理提案。",
+    "JSON 欄位：",
+    "campaignName, concept, insight, hook, visualTheme, visualDirection,",
+    "templateId(editorial|product|offer|quote), colorMood,",
+    "eyebrow, headline, subhead, body, cta,",
+    "captions[{style,text}] 2-3 則（繁中，適合 IG，不要 emoji 堆砌，最多一個表情），",
+    "hashtags 8-12 個（含 #淡江大學 與社團標籤），",
+    "storyBeats 3 則限動分鏡（若不需要限動可給空陣列），",
+    `carouselPages[{role:cover|problem|detail|proof|cta|close,headline,subhead,body,cta,visualNote,templateId}] ${data.wantCarousel ? "必須 6 頁，角色依序 cover, problem, detail, proof, cta, close" : "1 頁封面"},`,
+    "assetNeeds[{kind:photo|people|background|logo|illustration,title,detail,required}],",
+    "checklist 5-8 則發布前檢查,",
+    "altText, qaNotes 2-4 則設計注意。",
+    "",
+    "headline 可含換行 \\n，最多兩行，每行不超過 10 個中文。",
+    "eyebrow 用英文或短中文，不超過 22 字。",
+    "cta 2-6 字，用社團自己的口氣。",
+    "文案避免禁用詞，不要「限時瘋搶／錯過就沒有」。",
+    "concept 是宣傳核心概念（2-3 句）。visualTheme 是視覺主題。",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const res = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
@@ -164,7 +172,7 @@ concept 是宣傳核心概念（2-3 句）。visualTheme 是視覺主題。`;
       messages: [
         {
           role: "system",
-          content: "You are a senior Instagram campaign planner for Taiwan brands. Reply with a single JSON object only.",
+          content: ZEN_SYSTEM_PROMPT,
         },
         { role: "user", content: prompt },
       ],

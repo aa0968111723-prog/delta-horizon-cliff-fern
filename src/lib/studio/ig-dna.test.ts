@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildIgInsights, engagementScore, formatIgDna } from "./ig-dna.ts";
+import { buildIgInsights, engagementScore, formatIgDna, formatIgInsights } from "./ig-dna.ts";
 import type { RemoteItem } from "../connections/remote.ts";
 
 test("engagementScore weights save and share above likes", () => {
@@ -71,4 +71,33 @@ test("empty remote posts stay empty instead of fabricating reach", () => {
   assert.equal(insights.sampleCount, 0);
   assert.equal(insights.totalReach, 0);
   assert.equal(insights.hookWins.length, 0);
+  assert.equal(formatIgInsights(insights), "");
+});
+
+test("formatIgInsights only speaks when there are real metrics", () => {
+  const blank = formatIgInsights(buildIgInsights([{
+    provider: "instagram",
+    id: "x",
+    title: "沒有數字的貼文",
+    kind: "image",
+    detail: "",
+    capturedAt: 1,
+  }]));
+  assert.equal(blank, "");
+  const filled = formatIgInsights(
+    buildIgInsights([
+      {
+        provider: "instagram",
+        id: "1",
+        title: "最近是不是連休息都覺得有罪惡感？",
+        kind: "image",
+        detail: "",
+        capturedAt: 1,
+        metrics: { likes: 40, comments: 6, saved: 8 },
+      },
+    ]),
+  );
+  assert.match(filled, /真實成效/);
+  assert.match(filled, /提問/);
+  assert.doesNotMatch(filled, /假數據|mock/i);
 });

@@ -26,6 +26,7 @@ const CampaignBriefSchema = z.object({
   availableAssets: z.array(z.string().max(120)).max(20).catch([]),
   brandMemoryText: z.string().max(2500).optional(),
   igDnaText: z.string().max(1500).optional(),
+  insightsText: z.string().max(1200).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -94,7 +95,7 @@ export const generateCampaignStrategy = createServerFn({ method: "POST" })
     }
 
     const prompt = [
-      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText, igDnaText: data.igDnaText }),
+      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText, igDnaText: data.igDnaText, insightsText: data.insightsText }),
       "",
       "【這場活動】",
       `名稱：${data.name || "未命名"}（${eventKindLabel(data.kind)}）`,
@@ -167,6 +168,7 @@ const IdeaSchema = z.object({
   upcoming: z.string().max(300).catch(""),
   brandMemoryText: z.string().max(2500).optional(),
   igDnaText: z.string().max(1500).optional(),
+  insightsText: z.string().max(1200).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -198,7 +200,7 @@ export const generateIdeas = createServerFn({ method: "POST" })
       return { ok: true, ideas: localTodayIdeas(), adapter: "local" };
     }
     const prompt = [
-      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText, igDnaText: data.igDnaText }),
+      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText, igDnaText: data.igDnaText, insightsText: data.insightsText }),
       "",
       data.upcoming ? `【近期活動】${data.upcoming}` : "【近期活動】沒有排定的活動。",
       data.recentTopics.length ? `【最近發過】${data.recentTopics.join("、")}（不要重複）` : "",

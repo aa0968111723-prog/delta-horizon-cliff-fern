@@ -27,7 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useIgDnaText } from "@/hooks/use-ig-dna";
+import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
 import { formatBrandMemory } from "@/lib/studio/brand";
 import { generateCampaignStrategy } from "@/lib/ai/campaign-ai";
 import {
@@ -55,6 +55,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
   const assets = useStudio((s) => s.assets);
   const remoteItems = useRemote((s) => s.items);
   const igDnaText = useIgDnaText();
+  const insightsText = useIgInsightsText();
   const updateCampaign = useStudio((s) => s.updateCampaign);
   const deleteCampaign = useStudio((s) => s.deleteCampaign);
   const createProject = useStudio((s) => s.createProject);
@@ -112,6 +113,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
           availableAssets,
           brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
           igDnaText: igDnaText || undefined,
+          insightsText: insightsText || undefined,
         },
       });
       if (!res.ok) {

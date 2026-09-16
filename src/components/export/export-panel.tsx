@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { canvasToBlob, collectArtboardAssetIds, downloadBlob, renderArtboardToCanvas } from "@/lib/studio/export-png";
+import { convertCopy } from "@/lib/studio/convert-copy";
 import { formatById } from "@/lib/studio/formats";
 import { getAssetBlob } from "@/lib/studio/assets-idb";
 import { uid } from "@/lib/studio/ids";
@@ -167,6 +168,17 @@ export function ExportPanel({
         }}
       >
         複製貼文文案
+      </Button>
+      <Button
+        variant="secondary"
+        className="w-full"
+        onClick={async () => {
+          const threads = convertCopy(project.copy, "threads");
+          await navigator.clipboard.writeText(threads.caption);
+          toast.success("已複製 Threads 文案");
+        }}
+      >
+        複製 Threads 文案
       </Button>
       {project.copy.altText ? (
         <p className="text-xs text-muted">Alt：{project.copy.altText}</p>

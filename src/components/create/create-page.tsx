@@ -36,7 +36,7 @@ import type { ContentKind, CopyDraft, CopyTone, StudentReview } from "@/lib/stud
 import { cn } from "@/lib/utils";
 import { AUDIENCE_SEGMENTS, DEFAULT_AUDIENCE_IDS } from "@/lib/zen/audience";
 import { semesterPhaseAt } from "@/lib/zen/semester";
-import { useIgDnaText } from "@/hooks/use-ig-dna";
+import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
 import { useStudio } from "@/stores/studio-store";
 
 type StartFrom = "idea" | "image";
@@ -72,6 +72,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const applyVisualAsset = useStudio((s) => s.applyVisualAsset);
   const layoutFromKind = useStudio((s) => s.layoutFromKind);
   const igDnaText = useIgDnaText();
+  const insightsText = useIgInsightsText();
 
   const brand = brands[0];
   const phase = semesterPhaseAt();
@@ -155,8 +156,9 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       forbiddenWords: brand?.forbiddenWords ?? [],
       brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
       igDnaText: igDnaText || undefined,
+      insightsText: insightsText || undefined,
     }),
-    [topic, eventName, schedule, location, idea, painPoint, signupUrl, audienceIds, brand, campaign, igDnaText],
+    [topic, eventName, schedule, location, idea, painPoint, signupUrl, audienceIds, brand, campaign, igDnaText, insightsText],
   );
 
   async function runCopy() {
@@ -199,6 +201,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
             : undefined,
           brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
           igDnaText: igDnaText || undefined,
+          insightsText: insightsText || undefined,
         },
       });
       setDirections(res.directions);
@@ -225,6 +228,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           audienceIds,
           brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
           igDnaText: igDnaText || undefined,
+          insightsText: insightsText || undefined,
         },
       });
       setReview(res.review);
@@ -429,6 +433,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           audienceIds,
           brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
           igDnaText: igDnaText || undefined,
+          insightsText: insightsText || undefined,
         },
       });
       if (!res.ok) toast.warning(res.error);

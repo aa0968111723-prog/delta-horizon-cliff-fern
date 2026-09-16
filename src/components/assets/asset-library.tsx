@@ -369,6 +369,7 @@ export function AssetLibrary() {
                 onFavorite={() => toggleFavorite(asset.id)}
                 onDelete={() => setPendingDelete(asset.id)}
                 onPlace={lastProjectId ? () => place(asset) : undefined}
+                onCreate={() => void navigate({ to: "/create", search: { from: "image", asset: asset.id } })}
               />
             </li>
           ))}
