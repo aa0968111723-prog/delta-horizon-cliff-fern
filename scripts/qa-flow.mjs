@@ -114,7 +114,29 @@ try {
   await page.waitForURL(/\/studio\//, { timeout: 15000 });
   await page.waitForSelector("text=1.91:1", { timeout: 15000 });
   await expectText("LINE 橫式", "1.91:1");
+  await expectText("LINE 預覽", "LINE 預覽");
+  await expectText("複製 LINE 文案", "複製 LINE 文案");
   await page.screenshot({ path: `${prefix}-line.png` });
+  await page.goBack({ waitUntil: "networkidle" });
+  await page.waitForSelector("text=這則完成了", { timeout: 15000 });
+  await page.getByRole("button", { name: /做成Threads/ }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForURL(/\/studio\//, { timeout: 15000 });
+  await page.waitForSelector("text=Threads 預覽", { timeout: 15000 });
+  await expectText("Threads 預覽", "Threads 預覽");
+  await expectText("複製 Threads 文案", "複製 Threads 文案");
+  await page.screenshot({ path: `${prefix}-threads.png` });
+  await page.goBack({ waitUntil: "networkidle" });
+  await page.waitForSelector("text=這則完成了", { timeout: 15000 });
+  await page.getByRole("button", { name: /做成Reels/ }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForURL(/\/studio\//, { timeout: 15000 });
+  await page.waitForSelector("text=Reels 預覽", { timeout: 15000 });
+  await expectText("Reels 預覽", "Reels 預覽");
+  await expectText("轉換後可複製腳本", "複製整支腳本");
+  await page.screenshot({ path: `${prefix}-reels-preview.png` });
   await page.goBack({ waitUntil: "networkidle" });
   await page.waitForSelector("text=這則完成了", { timeout: 15000 });
   await page.getByRole("button", { name: "這則完成了" }).first().evaluate((el) =>

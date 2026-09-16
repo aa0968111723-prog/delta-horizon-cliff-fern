@@ -22,6 +22,7 @@ import { LayerTree } from "@/components/editor/layer-tree";
 import { SlideBar } from "@/components/editor/slide-bar";
 import { CarouselPreview } from "@/components/editor/carousel-preview";
 import { VersionPanel } from "@/components/editor/version-panel";
+import { isPublishPreviewKind, PublishPreview } from "@/components/create/publish-preview";
 import { PlannerPanel } from "@/components/planner/planner-panel";
 import { QualityPanel } from "@/components/qa/quality-panel";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -230,7 +231,19 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
                   <EditorToolbar />
                   <SlideBar project={project} />
                 </div>
-                <ArtboardCanvas projectId={project.id} artboard={artboard} brand={brand} urls={urls} />
+                {isPublishPreviewKind(project.contentKind) ? (
+                  <div
+                    className={cn(
+                      "overflow-y-auto border-b border-border bg-surface px-3 py-3",
+                      project.contentKind === "threads" ? "min-h-0 flex-1" : "max-h-72 shrink-0",
+                    )}
+                  >
+                    <PublishPreview project={project} brand={brand} urls={urls} />
+                  </div>
+                ) : null}
+                {project.contentKind === "threads" ? null : (
+                  <ArtboardCanvas projectId={project.id} artboard={artboard} brand={brand} urls={urls} />
+                )}
               </div>
             </Panel>
             <Separator className="w-1 bg-border hover:bg-border-strong" />
@@ -269,7 +282,19 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
           <div className="border-b border-border bg-surface">
             <EditorToolbar />
           </div>
-          <ArtboardCanvas projectId={project.id} artboard={artboard} brand={brand} urls={urls} />
+          {isPublishPreviewKind(project.contentKind) ? (
+            <div
+              className={cn(
+                "overflow-y-auto border-b border-border bg-surface px-3 py-3",
+                project.contentKind === "threads" ? "min-h-0 flex-1" : "max-h-56 shrink-0",
+              )}
+            >
+              <PublishPreview project={project} brand={brand} urls={urls} />
+            </div>
+          ) : null}
+          {project.contentKind === "threads" ? null : (
+            <ArtboardCanvas projectId={project.id} artboard={artboard} brand={brand} urls={urls} />
+          )}
           <div className="border-t border-border bg-surface">
             <SlideBar project={project} />
           </div>

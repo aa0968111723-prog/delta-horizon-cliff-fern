@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { CopyDraftCard, copyDraftText } from "@/components/create/copy-results";
 import { ConvertBar } from "@/components/create/convert-bar";
 import { PostPackBar } from "@/components/create/post-pack";
+import { PublishPreview } from "@/components/create/publish-preview";
 import { ImageUnderstanding, type ImageMakePayload } from "@/components/create/image-understanding";
 import { ReelsTimeline } from "@/components/create/reels-timeline";
 import { SourceList } from "@/components/shared/source-list";
@@ -22,11 +23,7 @@ import { PageHeader, SectionHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  DirectionSourceNote,
-  RegenerateButton,
-  VisualDirectionCard,
-} from "@/components/create/visual-directions";
+import { DirectionSourceNote, RegenerateButton, VisualDirectionCard } from "@/components/create/visual-directions";
 import { COPY_TONES, COPY_TOPICS, type CopyTopic } from "@/lib/ai/copy-local";
 import { generateIgCopy, getZenAiStatus, reviewAsStudent, generateReelsScript } from "@/lib/ai/copy-ai";
 import { generateVisualDirections, type VisualDirection } from "@/lib/ai/image-ai";
@@ -52,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { AUDIENCE_SEGMENTS, DEFAULT_AUDIENCE_IDS } from "@/lib/zen/audience";
 import { semesterPhaseAt } from "@/lib/zen/semester";
 import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
+import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { useStudio } from "@/stores/studio-store";
 
 type StartFrom = "idea" | "image";
@@ -92,6 +90,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const insightsText = useIgInsightsText();
 
   const brand = brands[0];
+  const urls = useAssetUrls(assets.map((asset) => asset.id));
   const memoryText = useMemo(
     () => (brand ? formatBrandMemory(brand.memory, assets) : undefined),
     [brand, assets],
@@ -1067,6 +1066,9 @@ export function CreatePage({ search }: { search: CreateSearch }) {
 
       {linkedProject ? (
         <section className="mt-8 space-y-6 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          {linkedProject.contentKind === "threads" || linkedProject.contentKind === "line" ? (
+            <PublishPreview project={linkedProject} brand={brand} urls={urls} />
+          ) : null}
           <PostPackBar copy={linkedProject.copy} kind={linkedProject.contentKind} projectId={linkedProject.id} />
           <ContentFlowBar project={linkedProject} />
           <ConvertBar project={linkedProject} />
