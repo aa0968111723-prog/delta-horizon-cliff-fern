@@ -177,3 +177,49 @@ test("defaultScheduleAt uses tonight if it is still morning", () => {
   const next = defaultScheduleAt(night, 19, 0);
   assert.ok(next > night);
 });
+
+test("a convert pack shares one evening instead of filling a week", () => {
+  const origin = project({ id: "origin", status: "done", contentKind: "ig-post", updatedAt: 1 });
+  const line = project({
+    id: "line",
+    status: "done",
+    contentKind: "line",
+    convertedFromId: "origin",
+    updatedAt: 2,
+  });
+  const story = project({
+    id: "story",
+    status: "making",
+    contentKind: "story",
+    convertedFromId: "origin",
+    updatedAt: 3,
+  });
+  const other = project({ id: "other", status: "done", updatedAt: 4 });
+  const suggestions = suggestSchedule([origin, line, story, other], [], NOW);
+  const packHits = suggestions.filter((item) => item.projectId !== "other");
+  assert.equal(packHits.length, 3);
+  assert.equal(new Set(packHits.map((item) => item.at)).size, 1);
+  assert.equal(packHits[0]?.reason, "空檔晚上 · 全套");
+  const extra = suggestions.find((item) => item.projectId === "other");
+  assert.ok(extra);
+  assert.notEqual(startOfLocalDay(extra.at), startOfLocalDay(packHits[0]!.at));
+});
+
+test("wave-linked origin pulls unscheduled pack siblings onto the same night", () => {
+  const cover = project({ id: "cover", status: "done", campaignId: "camp", contentKind: "ig-post" });
+  const line = project({
+    id: "line",
+    status: "making",
+    contentKind: "line",
+    convertedFromId: "cover",
+    campaignId: "camp",
+  });
+  const camp = campaign({
+    id: "camp",
+    waves: [wave({ id: "w1", offsetDays: -7, stage: "主視覺", contentId: "cover" })],
+  });
+  const suggestions = suggestSchedule([cover, line], [camp], NOW);
+  assert.equal(suggestions.length, 2);
+  assert.equal(suggestions[0]?.at, suggestions[1]?.at);
+  assert.match(suggestions.find((item) => item.projectId === "line")?.reason ?? "", /全套/);
+});

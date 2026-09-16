@@ -160,7 +160,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
       return;
     }
     const count = applySchedule(suggestions);
-    toast.success(`已排 ${count} 則到日曆`);
+    toast.success(`已排 ${count} 則到日曆。同一套會排在同一晚。`);
     void navigate({ to: "/calendar" });
   }
 

@@ -151,7 +151,7 @@ export function CalendarPage() {
       return;
     }
     const count = applySchedule(suggestions);
-    toast.success(`已依宣傳節奏排了 ${count} 則，預設晚上發出。`);
+    toast.success(`已依宣傳節奏排了 ${count} 則，同一套會排在同一晚。`);
   }
 
   const pickedLabel = (() => {
@@ -451,7 +451,7 @@ function CalendarChip({
       )}
       title={tapMove ? "點選後再點日期改期" : item.project.name}
     >
-      {item.project.name}
+      {contentKindLabel(item.project.contentKind)}
     </Link>
   );
 }

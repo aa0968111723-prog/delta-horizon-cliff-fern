@@ -1,3 +1,4 @@
+import { convertPackOf, packRootId } from "./convert-pack.ts";
 import type { Campaign, Project } from "./types.ts";
 
 export type ScheduleSuggestion = {
@@ -73,10 +74,26 @@ function waveLinkedIds(campaigns: Campaign[]): Set<string> {
   return ids;
 }
 
+function unscheduledPackMates(
+  projects: Project[],
+  projectId: string,
+  claimed: Set<string>,
+): Project[] {
+  return convertPackOf(projects, projectId).filter(
+    (member) =>
+      member.id !== projectId &&
+      !claimed.has(member.id) &&
+      member.status !== "published" &&
+      !member.scheduledAt &&
+      (member.status === "making" || member.status === "done"),
+  );
+}
+
 /**
  * 依宣傳節奏排出建議發文時間。
  * 1. 已掛上波次的內容對齊活動日 ± offset，用活動時間（預設 19:00）。
- * 2. 還沒排程、狀態是創作中／完成的內容，補到沒有稿的晚上。
+ * 2. 同一則做成的全套跟主稿排在同一晚，不佔六個晚上。
+ * 3. 還沒排程、狀態是創作中／完成的內容，補到沒有稿的晚上。
  * 已發布的不動；已排程但沒掛波次的也不改。
  */
 export function suggestSchedule(
@@ -120,6 +137,10 @@ export function suggestSchedule(
       occupied.add(startOfLocalDay(at));
       claimed.add(project.id);
       suggestions.push({ projectId: project.id, at, reason });
+      for (const mate of unscheduledPackMates(projects, project.id, claimed)) {
+        claimed.add(mate.id);
+        suggestions.push({ projectId: mate.id, at, reason: `${reason} · 全套` });
+      }
     }
   }
 
@@ -132,11 +153,20 @@ export function suggestSchedule(
     )
     .sort((a, b) => a.updatedAt - b.updatedAt);
 
+  const seenPack = new Set<string>();
   for (const project of leftovers) {
+    const root = packRootId(project);
+    if (seenPack.has(root)) continue;
+    seenPack.add(root);
+    const members = leftovers.filter((item) => packRootId(item) === root);
     const at = nextFreeEvening(now, occupied);
     if (at == null) break;
     occupied.add(startOfLocalDay(at));
-    suggestions.push({ projectId: project.id, at, reason: "空檔晚上" });
+    const reason = members.length > 1 ? "空檔晚上 · 全套" : "空檔晚上";
+    for (const member of members) {
+      claimed.add(member.id);
+      suggestions.push({ projectId: member.id, at, reason });
+    }
   }
 
   return suggestions;

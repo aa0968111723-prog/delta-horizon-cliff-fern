@@ -240,9 +240,10 @@ try {
   const cal = await text();
   record(
     "AI 自動排程",
-    cal.includes("已排程") || cal.includes("主視覺") || cal.includes("沒有可以排"),
+    cal.includes("已排程") || cal.includes("主視覺") || cal.includes("沒有可以排") || cal.includes("同一晚"),
     "排程後日曆沒有更新",
   );
+  await expectText("日曆型態晶片", "IG 貼文");
   await page.screenshot({ path: `${prefix}-calendar.png` });
 
   // 8. 活動詳情 + AI 生成完整宣傳
