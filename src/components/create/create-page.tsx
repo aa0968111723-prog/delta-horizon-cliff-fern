@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CopyDraftCard, copyDraftText } from "@/components/create/copy-results";
 import { ConvertBar } from "@/components/create/convert-bar";
+import { ConvertPack } from "@/components/create/convert-pack";
 import { PostPackBar } from "@/components/create/post-pack";
 import { PublishPreview } from "@/components/create/publish-preview";
 import { ImageUnderstanding, type ImageMakePayload } from "@/components/create/image-understanding";
@@ -44,6 +45,7 @@ import {
   wantsArrivalAutofill,
 } from "@/lib/studio/wave-draft";
 import { uniqueById } from "@/lib/studio/ids";
+import { convertPackOf } from "@/lib/studio/convert-pack";
 import type { ContentKind, CopyDraft, CopyTone, StudentReview } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { AUDIENCE_SEGMENTS, DEFAULT_AUDIENCE_IDS } from "@/lib/zen/audience";
@@ -62,6 +64,7 @@ export type CreateSearch = {
   campaignId?: string;
   step?: string;
   asset?: string;
+  pack?: string;
 };
 
 const TEXTAREA =
@@ -100,6 +103,10 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const linkedProject = useMemo(
     () => projects.find((p) => p.id === search.contentId) ?? null,
     [projects, search.contentId],
+  );
+  const pack = useMemo(
+    () => (linkedProject ? convertPackOf(projects, linkedProject.id) : []),
+    [projects, linkedProject],
   );
   const arrivalKind: ContentKind =
     (search.kind && search.kind in CONTENT_KIND_META ? (search.kind as ContentKind) : null) ??
@@ -665,6 +672,13 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, campaign, kind, reels, linkedProject?.reels, idea, eventName, painPoint, search.seed, search.campaignId, search.contentId, search.from, search.asset, search.kind]);
 
+  useEffect(() => {
+    if (search.pack !== "1" || pack.length < 2) return;
+    window.requestAnimationFrame(() => {
+      document.getElementById("convert-pack")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [search.pack, pack.length]);
+
   function toggleTone(tone: CopyTone) {
     setTones((prev) =>
       prev.includes(tone) ? prev.filter((t) => t !== tone) : prev.length >= 4 ? prev : [...prev, tone],
@@ -1074,6 +1088,8 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           <ConvertBar project={linkedProject} />
         </section>
       ) : null}
+
+      {pack.length > 1 ? <ConvertPack members={pack} brand={brand} urls={urls} /> : null}
     </main>
   );
 }

@@ -218,6 +218,7 @@ export function convertContent(source: Project, brand: BrandKit, kind: ContentKi
       ...(source.sources ?? []),
       { kind: "local", label: `從「${source.name}」轉換`, detail: contentKindLabel(source.contentKind) },
     ],
+    convertedFromId: source.convertedFromId ?? source.id,
   };
 
   let pages: Artboard[];

@@ -2,7 +2,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { Repeat2, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { CONVERT_TARGETS, remainingConvertTargets } from "@/lib/studio/convert";
+import { CONVERT_TARGETS } from "@/lib/studio/convert";
+import { missingConvertTargets, packRootId } from "@/lib/studio/convert-pack";
 import type { ContentKind, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
@@ -18,7 +19,8 @@ export function ConvertBar({
 }) {
   const navigate = useNavigate();
   const convertProject = useStudio((s) => s.convertProject);
-  const remaining = remainingConvertTargets(project.contentKind);
+  const projects = useStudio((s) => s.projects);
+  const remaining = missingConvertTargets(project, projects);
 
   function run(kind: ContentKind) {
     const next = convertProject(project.id, kind);
@@ -39,6 +41,10 @@ export function ConvertBar({
       return;
     }
     toast.success(`已做成 ${made.map((item) => CONVERT_TARGETS.find((t) => t.id === item.contentKind)?.label).join("、")}。原本那則還在。`);
+    void navigate({
+      to: "/create",
+      search: { contentId: packRootId(project), pack: "1" },
+    });
   }
 
   if (!remaining.length) return null;

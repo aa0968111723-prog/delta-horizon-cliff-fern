@@ -135,6 +135,7 @@ try {
   await page.screenshot({ path: `${prefix}-reels-preview.png` });
   await page.goto(createUrl, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("text=這則完成了", { timeout: 15000 });
+  await expectText("全套列表", "這次做成的全套");
   await tap(page.getByRole("button", { name: "這則完成了" }).first());
   await page.waitForTimeout(500);
   await expectText("標成完成後可排程", "排到日曆");
@@ -150,12 +151,16 @@ try {
   await page.screenshot({ path: `${prefix}-reels.png` });
 
   await page.getByText("做成其他型態").scrollIntoViewIfNeeded();
-  await page.locator("[aria-label^='做成']").first().evaluate((el) =>
-    el instanceof HTMLElement ? el.click() : undefined,
+  await tap(page.getByRole("button", { name: "一次做成全套" }));
+  await page.waitForSelector("#convert-pack", { timeout: 15000 });
+  const afterPack = await text();
+  record(
+    "一次做成全套",
+    afterPack.includes("這次做成的全套") && afterPack.includes("輪播") && afterPack.includes("限動"),
+    "全套裡沒有輪播或限動",
   );
-  await page.waitForTimeout(800);
-  const afterConvert = await text();
-  record("一鍵轉換輪播", afterConvert.includes("輪播") || afterConvert.includes("做成其他型態"), "轉換後畫面沒更新");
+  await page.locator("#convert-pack").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${prefix}-pack.png` });
 
   // 7. 逐頁檢查
   for (const [name, path, needle] of [

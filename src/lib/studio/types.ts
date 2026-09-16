@@ -510,6 +510,8 @@ export type Project = {
   studentReview: StudentReview | null;
   reels: ReelsScript | null;
   sources: CreativeSourceRef[];
+  /** 從哪一則一鍵轉換來的。全套列表用這個把同一則的貼文／限動／Threads 收在一起。 */
+  convertedFromId?: string;
   artboards: Partial<Record<FormatId, Artboard>>;
   slides: Partial<Record<FormatId, Artboard[]>>;
   slideIndex: number;
