@@ -55,6 +55,20 @@ test("publishedToMemory writes IG history without fake insights", () => {
   assert.equal(memory.thumbAssetId, "asset_p1");
 });
 
+test("publishedToMemory uses the first story beat as the hook", () => {
+  const { post } = publishedToMemory({
+    now: Date.parse("2026-09-16T21:00:00+08:00"),
+    campaigns: [],
+    item: item({
+      id: "sch_story",
+      contentKind: "story",
+      scheduledAt: Date.parse("2026-09-16T20:00:00+08:00"),
+      captionPreview: "最近是不是很久沒有好好坐下來？ / 夜燈 / 晚上見 · 淡江大學淡水校園",
+    }),
+  });
+  assert.equal(post.hook, "最近是不是很久沒有好好坐下來？");
+});
+
 function day(ts: number) {
   const d = new Date(ts);
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;

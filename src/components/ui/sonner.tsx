@@ -4,8 +4,8 @@ export function Toaster() {
   return (
     <Sonner
       theme="light"
-      position="bottom-center"
-      offset="calc(var(--spacing-nav-safe) + 0.75rem)"
+      position="top-center"
+      offset="4.75rem"
       toastOptions={{
         classNames: {
           toast:

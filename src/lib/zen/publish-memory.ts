@@ -17,7 +17,8 @@ export function publishedToMemory(input: {
     input.item.sequence?.assetIds[0] ??
     schedulePreviewAssetId(input.item, input.campaigns) ??
     "asset_tamsui";
-  const hook = (input.item.captionPreview.split("\n")[0] || input.item.title).slice(0, 40);
+  const firstLine = (input.item.captionPreview.split("\n")[0] || input.item.title).trim();
+  const hook = firstLine.split(" → ")[0].split(" / ")[0].slice(0, 40);
   const postedAt = input.item.publishedAt ?? now;
   const kind = input.item.contentKind;
   const post: IgMemoryPost = {
