@@ -18,11 +18,10 @@ export function waveLabel(kind: CampaignWaveKind) {
   return WAVE_LABEL[kind];
 }
 
+/** Clock times are 淡水 evenings, not the host timezone. Taipei has no DST. */
 function at(dateIso: string, plusDays: number, hour = 19) {
-  const d = new Date(`${dateIso}T12:00:00+08:00`);
-  d.setDate(d.getDate() + plusDays);
-  d.setHours(hour, 0, 0, 0);
-  return d.getTime();
+  const [year, month, day] = dateIso.split("-").map(Number);
+  return Date.UTC(year, (month || 1) - 1, (day || 1) + plusDays, hour - 8, 0, 0);
 }
 
 function daysBetween(from: Date, to: Date) {

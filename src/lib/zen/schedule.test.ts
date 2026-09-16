@@ -242,3 +242,16 @@ test("浮游禪光 8 days out still includes 預熱", () => {
   );
   assert.ok(waves.some((wave) => wave.kind === "warmup"));
 });
+
+test("wave clocks stay 淡水 evening, not the host timezone 03:00", () => {
+  const waves = suggestWaves(
+    { date: "2026-09-23", type: "tea", name: "茶會" },
+    new Date("2026-09-16T10:00:00+08:00"),
+  );
+  const hero = waves.find((wave) => wave.kind === "hero");
+  const warmup = waves.find((wave) => wave.kind === "warmup");
+  const dayof = waves.find((wave) => wave.kind === "dayof");
+  assert.equal(new Date(hero?.scheduledAt ?? 0).toISOString(), "2026-09-17T11:00:00.000Z");
+  assert.equal(new Date(warmup?.scheduledAt ?? 0).toISOString(), "2026-09-17T12:00:00.000Z");
+  assert.equal(new Date(dayof?.scheduledAt ?? 0).toISOString(), "2026-09-23T08:00:00.000Z");
+});
