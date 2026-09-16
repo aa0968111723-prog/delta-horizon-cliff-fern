@@ -444,6 +444,18 @@ try {
   record("做成 Reels 畫布比例", reelsRatio === "9:16", `畫布是 ${reelsRatio ?? "沒有比例"}`);
   const reelsFormat = await page.getByTestId("artboard").first().getAttribute("data-format");
   record("做成 Reels 畫布格式", reelsFormat === "reels-cover", `格式是 ${reelsFormat ?? "沒有格式"}`);
+  await page.waitForSelector('[data-testid="artboard-photo"]', { timeout: 15000 });
+  const reelsPhoto = await page
+    .getByTestId("artboard")
+    .first()
+    .locator("[data-testid=artboard-photo]")
+    .count();
+  record(
+    "做成 Reels 封面有照片",
+    reelsPhoto > 0,
+    reelsPhoto > 0 ? `畫布上有 ${reelsPhoto} 張主視覺` : "封面沒有主視覺照片",
+  );
+  await expectText("做成 Reels 封面用照片", "這張照片當 9:16 封面");
   await page.screenshot({ path: `${prefix}-from-image-reels.png` });
 
   // 8d. 從一張圖片做成輪播：五頁 4:5

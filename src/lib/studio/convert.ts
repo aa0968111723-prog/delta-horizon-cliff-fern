@@ -25,23 +25,26 @@ function firstLine(text: string): string {
  */
 export function reelsFromCopy(
   copy: CopyDeck,
-  brief: { schedule?: string; location?: string; notes?: string },
+  brief: { schedule?: string; location?: string; notes?: string; fromPhoto?: boolean },
 ): ReelsScript {
   const hook = firstLine(copy.headline) || firstLine(copy.caption) || "先坐一下再說";
   const captionLines = copy.caption.split("\n").map((line) => line.trim()).filter(Boolean);
   const where = [brief.schedule, brief.location].filter(Boolean).join(" ") || copy.subhead;
   const mid = firstLine(copy.body) || copy.subhead || captionLines[1] || "一小時，什麼都不用做";
+  const fromPhoto = Boolean(brief.fromPhoto);
   return {
     hook,
-    cover: `紙白底＋一句「${hook}」，右下角三色光標誌。`,
+    cover: fromPhoto
+      ? `這張照片當 9:16 封面，疊一句「${hook}」。`
+      : `紙白底＋一句「${hook}」，右下角三色光標誌。`,
     beats: [
       {
         range: "0–3 秒",
-        visual: "安靜的窗邊或宿舍書桌",
+        visual: fromPhoto ? "這張照片滿版定格" : "安靜的窗邊或宿舍書桌",
         caption: hook,
         voice: "（無旁白）",
         transition: "畫面變慢",
-        asset: "現有主視覺",
+        asset: fromPhoto ? "這張封面照片" : "現有主視覺",
       },
       {
         range: "3–7 秒",
@@ -117,6 +120,16 @@ function storyPages(source: Project, brand: BrandKit, copy: CopyDeck): Artboard[
   );
 }
 
+/** 從一張圖做成 Reels 時，封面要把照片當主視覺，不要只用引號。 */
+function reelsCoverBoard(source: Project, brand: BrandKit, copy: CopyDeck): Artboard {
+  const imageAssetId = visualAssetOf(source);
+  const templateId = imageAssetId ? "product" : "quote";
+  const board = buildLayout("reels-cover", copy, brand, templateId, { imageAssetId });
+  board.role = "cover";
+  board.templateId = templateId;
+  return board;
+}
+
 /** 從一張圖做成輪播時，一頁主視覺不能當成已經寫好的五頁腳本。 */
 function photoCarouselFallback(copy: CopyDeck, brief: Project["brief"]) {
   const hook = firstLine(copy.caption) || firstLine(copy.headline) || "先坐一下再說";
@@ -185,6 +198,8 @@ export function applyKindLayout(project: Project, brand: BrandKit, kind: Content
   let pages: Artboard[];
   if (kind === "story") {
     pages = storyPages(project, brand, copy);
+  } else if (kind === "reels") {
+    pages = [reelsCoverBoard(project, brand, copy)];
   } else if (kindUsesPagedLayout(kind)) {
     pages = carouselPages(project, brand, copy);
   } else {
@@ -216,6 +231,7 @@ export function applyKindLayout(project: Project, brand: BrandKit, kind: Content
             schedule: project.brief.schedule,
             location: project.brief.location,
             notes: project.brief.notes,
+            fromPhoto: Boolean(visualAssetOf(project)),
           })
         : project.reels,
   };
@@ -249,16 +265,13 @@ export function convertContent(source: Project, brand: BrandKit, kind: ContentKi
   } else if (kind === "story") {
     pages = storyPages(source, brand, copy);
   } else if (kind === "reels") {
-    const cover = adaptArtboard(pagesOf(source)[0] ?? buildLayout(meta.formatId, copy, brand, "quote"), "reels-cover", brand, {
-      templateId: "quote",
-      copy,
-    });
-    pages = [cover];
+    pages = [reelsCoverBoard(source, brand, copy)];
     if (!next.reels) {
       next.reels = reelsFromCopy(copy, {
         schedule: source.brief.schedule,
         location: source.brief.location,
         notes: source.brief.notes,
+        fromPhoto: Boolean(visualAssetOf(source)),
       });
     }
   } else {

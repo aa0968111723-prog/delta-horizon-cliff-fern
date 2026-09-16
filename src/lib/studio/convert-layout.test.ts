@@ -165,6 +165,35 @@ test("convertContent to reels builds beats from the original copy", () => {
   assert.ok(next.reels.beats.some((beat) => beat.caption === "來坐一下" || beat.voice.includes("來坐一下")));
   assert.ok(next.reels.beats.some((beat) => /週三|B302|19:00/.test(`${beat.caption}${beat.voice}`)));
   assert.equal(next.reels.beats.length, 5);
+  const cover = pagesOf(next)[0];
+  assert.equal(cover?.formatId, "reels-cover");
+  assert.equal(extractImageAssetId(cover), "asset_photo");
+  assert.ok(cover?.layers.some((layer) => layer.type === "image" && layer.name === "主視覺"));
+  assert.equal(
+    cover?.layers.some((layer) => layer.name === "引號"),
+    false,
+  );
+  assert.match(next.reels.cover, /這張照片當 9:16 封面/);
+  assert.equal(next.reels.beats[0]?.visual, "這張照片滿版定格");
+});
+
+test("convertContent to reels without a photo keeps the quote cover", () => {
+  const brand = createEmptyBrand("禪學社");
+  const source = sampleProject();
+  const blank = buildLayout("feed-portrait", source.copy, brand, "editorial");
+  const next = convertContent(
+    {
+      ...source,
+      artboards: { "feed-portrait": blank },
+      slides: { "feed-portrait": [blank] },
+    },
+    brand,
+    "reels",
+  );
+  const cover = pagesOf(next)[0];
+  assert.ok(cover?.layers.some((layer) => layer.name === "引號"));
+  assert.equal(extractImageAssetId(cover), null);
+  assert.match(next.reels?.cover ?? "", /紙白底/);
 });
 
 test("reelsFromCopy uses headline and schedule instead of generic mock lines", () => {

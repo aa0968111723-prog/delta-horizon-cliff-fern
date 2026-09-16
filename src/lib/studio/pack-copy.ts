@@ -35,7 +35,9 @@ export function spreadCopyAcrossPack(
       projectId: member.id,
       copy,
       rebuildLayout: needsLayoutRebuild(member.contentKind),
-      ...(member.contentKind === "reels" ? { reels: reelsFromCopy(copy, member.brief) } : {}),
+      ...(member.contentKind === "reels"
+        ? { reels: reelsFromCopy(copy, { ...member.brief, fromPhoto: Boolean(visualAssetOf(member)) }) }
+        : {}),
     };
   });
 }
