@@ -105,7 +105,7 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
       headline: "靜坐不是\n把腦清空",
       subhead: "比較像把跑太快的自己，放回身體裡。",
       body: "",
-      cta: "帶朋友一起來",
+      cta: "收藏這句",
       handle: "",
       caption: "",
       hashtags: [],

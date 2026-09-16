@@ -163,24 +163,6 @@
     height: calc(100dvh - var(--spacing-nav-safe));
   }
 
-  .hero-wash {
-    background:
-      radial-gradient(ellipse 90% 55% at 8% -10%, color-mix(in oklab, var(--color-water) 28%, transparent), transparent 58%),
-      radial-gradient(ellipse 70% 45% at 96% 0%, color-mix(in oklab, var(--color-lantern) 22%, transparent), transparent 52%),
-      radial-gradient(ellipse 50% 40% at 70% 110%, color-mix(in oklab, var(--color-rose) 16%, transparent), transparent 55%);
-  }
-
-  .glass-card {
-    background: color-mix(in oklab, var(--color-surface) 82%, transparent);
-    box-shadow: var(--shadow-float);
-    backdrop-filter: blur(18px);
-  }
-
-  .card-3d {
-    transform: perspective(900px) rotateX(4deg);
-    box-shadow: var(--shadow-float);
-  }
-
   @media (min-width: 1024px) {
     .pb-nav {
       padding-bottom: 0;

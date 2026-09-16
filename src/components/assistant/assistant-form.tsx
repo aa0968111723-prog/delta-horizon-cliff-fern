@@ -18,12 +18,10 @@ import {
 import { describeAdapter, generateCampaignPlan, getCampaignAiStatus, type AiStatus } from "@/lib/ai/campaign";
 import { toBriefInput } from "@/lib/ai/payload";
 import { emptyBrief, formatsFromBrief, migrateBrief } from "@/lib/studio/brief";
-import { lessonPrompt } from "@/lib/club/insights";
 import { FORMATS } from "@/lib/studio/formats";
 import type { Brief, FormatId, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
-import { useCreative } from "@/stores/creative-store";
 import { useUi } from "@/stores/ui-store";
 
 type Props = {
@@ -39,8 +37,6 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const setLastProjectId = useStudio((s) => s.setLastProjectId);
   const setAssistantOpen = useUi((s) => s.setAssistantOpen);
-  const igPosts = useCreative((s) => s.igPosts);
-  const styleMemory = useCreative((s) => s.styleMemory);
 
   const existing = projectId ? projects.find((p) => p.id === projectId) : undefined;
   const [targetId, setTargetId] = useState<string>(existing?.id ?? "new");
@@ -108,11 +104,7 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
     setError(null);
     try {
       const connected = status?.available ?? false;
-      const payload = toBriefInput(brief, brand, {
-        forceMock: forceMock || !connected,
-        igLessons: lessonPrompt(igPosts),
-        styleMemory: (styleMemory ?? []).slice(0, 2).join("／").slice(0, 400),
-      });
+      const payload = toBriefInput(brief, brand, { forceMock: forceMock || !connected });
       const result = await generateCampaignPlan({ data: payload });
       if (!result.ok) {
         setError(result.error);
