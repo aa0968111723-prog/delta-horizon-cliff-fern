@@ -8,17 +8,19 @@ import { analyzeImage, insightFromAnalysis, type ImageAnalysis } from "@/lib/ai/
 import { formatBrandMemory } from "@/lib/studio/brand";
 import { assetPreviewFitClass } from "@/lib/studio/assets";
 import type { AssetInsight, AssetMeta, ContentKind } from "@/lib/studio/types";
+import type { ImageRatio } from "@/lib/studio/wave-draft";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 
-const MAKE_KINDS: { id: ContentKind; label: string }[] = [
-  { id: "ig-post", label: "做成貼文" },
-  { id: "story", label: "做成限動" },
-  { id: "carousel", label: "做成輪播" },
-  { id: "reels", label: "做成 Reels 封面" },
-  { id: "line", label: "做成 LINE 圖" },
+const MAKE_KINDS: { id: ContentKind; label: string; ratio?: ImageRatio; testId: string }[] = [
+  { id: "ig-post", label: "做成貼文", testId: "make-kind-ig-post" },
+  { id: "ig-post", label: "做成 1:1", ratio: "1:1", testId: "make-kind-square" },
+  { id: "story", label: "做成限動", testId: "make-kind-story" },
+  { id: "carousel", label: "做成輪播", testId: "make-kind-carousel" },
+  { id: "reels", label: "做成 Reels 封面", testId: "make-kind-reels" },
+  { id: "line", label: "做成 LINE 圖", testId: "make-kind-line" },
 ];
 
 function stripAssets<T extends { id: string }>(assets: T[], initialId?: string, limit = 12): T[] {
@@ -59,6 +61,7 @@ export type ImageMakePayload = {
   preview: string;
   assetId: string | null;
   summary: string;
+  ratio?: ImageRatio;
 };
 
 /**
@@ -95,7 +98,7 @@ export function ImageUnderstanding({
   const [preview, setPreview] = useState<string | null>(null);
   const [pickedAssetId, setPickedAssetId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [making, setMaking] = useState<ContentKind | null>(null);
+  const [making, setMaking] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<ImageAnalysis | null>(null);
   const [adapter, setAdapter] = useState<"live" | "local" | null>(null);
   const [cachedInsight, setCachedInsight] = useState(false);
@@ -201,17 +204,18 @@ export function ImageUnderstanding({
     }
   }
 
-  async function make(kind: ContentKind) {
+  async function make(item: (typeof MAKE_KINDS)[number]) {
     if (!preview || !onMakeKind) return;
-    setMaking(kind);
+    setMaking(item.testId);
     try {
       await onMakeKind({
-        kind,
+        kind: item.id,
         caption: analysis?.captionIdea ?? "",
         stylePrompt: analysis?.stylePrompt ?? "",
         preview,
         assetId: pickedAssetId,
         summary: analysis?.summary ?? "",
+        ratio: item.ratio,
       });
     } finally {
       setMaking(null);
@@ -349,7 +353,7 @@ export function ImageUnderstanding({
             <p className="text-sm text-muted">
               {busy
                 ? "正在用本機規則看這張適不適合淡江學生…"
-                : "選好圖就會先用本機規則看適不適合淡江學生。做成貼文、限動、輪播、Reels 封面或 LINE 圖時，會依 4:5、9:16 或 1.91:1 重構構圖。"}
+                : "選好圖就會先用本機規則看適不適合淡江學生。做成貼文、1:1、限動、輪播、Reels 封面或 LINE 圖時，會依 4:5、1:1、9:16 或 1.91:1 重構構圖。"}
             </p>
           )}
         </div>
@@ -360,7 +364,7 @@ export function ImageUnderstanding({
           <div>
             <p className="text-xs text-muted">用這張圖直接開始</p>
             <p className="mt-1 text-xs text-subtle">
-              做成貼文會排成 IG 4:5，照片當主視覺。限動與 Reels 封面會排成 Story 9:16，輪播排成 IG 4:5 並拆成五頁。做成 Reels 封面會同時寫一支 20 秒腳本。做成 LINE 圖會排成橫式 1.91:1，照片在左側。只改構圖比例與留白，不是 AI 生成的畫面。用這張寫文案會依畫面寫 Hook，並自動用淡江學生視角檢查。
+              做成貼文會排成 IG 4:5，做成 1:1 會排成正方形，照片當主視覺。限動與 Reels 封面會排成 Story 9:16，輪播排成 IG 4:5 並拆成五頁。做成 Reels 封面會同時寫一支 20 秒腳本。做成 LINE 圖會排成橫式 1.91:1，照片在左側。只改構圖比例與留白，不是 AI 生成的畫面。用這張寫文案會依畫面寫 Hook，並自動用淡江學生視角檢查。
             </p>
             <div className="mt-1.5 flex flex-wrap gap-2">
               {onGenerateCopy ? (
@@ -384,14 +388,14 @@ export function ImageUnderstanding({
               {onMakeKind
                 ? MAKE_KINDS.map((item) => (
                     <Button
-                      key={item.id}
+                      key={item.testId}
                       size="sm"
                       aria-label={item.label}
-                      data-testid={`make-kind-${item.id}`}
+                      data-testid={item.testId}
                       disabled={making !== null}
-                      onClick={() => void make(item.id)}
+                      onClick={() => void make(item)}
                     >
-                      {making === item.id ? (
+                      {making === item.testId ? (
                         <Loader2 className="size-4 animate-spin" />
                       ) : (
                         <Repeat2 className="size-4" />

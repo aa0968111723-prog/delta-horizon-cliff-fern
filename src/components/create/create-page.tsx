@@ -569,7 +569,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     if (!brand) return;
     try {
       const summary = payload.summary || payload.caption || "從一張圖片開始";
-      const ratio = defaultImageRatio(payload.kind);
+      const ratio = payload.ratio ?? defaultImageRatio(payload.kind);
       const ratioLabel = visualRatioLabel(ratio);
       const name = (payload.caption || summary).slice(0, 18) || "從圖片開始";
       let assetId = payload.assetId;
@@ -607,11 +607,11 @@ export function CreatePage({ search }: { search: CreateSearch }) {
         assetId = uploaded.id;
       }
       const asset = useStudio.getState().assets.find((item) => item.id === assetId);
-      const meta = CONTENT_KIND_META[payload.kind];
+      const formatId = formatIdForRatio(ratio, payload.kind);
       const project = createProject({
         name,
         brandId: brand.id,
-        formatId: meta.formatId,
+        formatId,
         contentKind: payload.kind,
         campaignId: campaign?.id ?? null,
         status: "making",
@@ -728,8 +728,12 @@ export function CreatePage({ search }: { search: CreateSearch }) {
               : "已做成輪播，已拆成五頁"
             : payload.kind === "ig-post"
               ? framedNote
-                ? `已做成貼文，已排成 ${ratioLabel}`
-                : "已做成貼文，照片當主視覺"
+                ? payload.ratio === "1:1"
+                  ? `已做成 1:1，已排成 ${ratioLabel}`
+                  : `已做成貼文，已排成 ${ratioLabel}`
+                : payload.ratio === "1:1"
+                  ? "已做成 1:1，照片當主視覺"
+                  : "已做成貼文，照片當主視覺"
               : framedNote
                 ? `已做成${kindLabel}，${framedNote}`
                 : `已做成${kindLabel}`,

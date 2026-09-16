@@ -271,6 +271,55 @@ test("applyKindLayout without a photo keeps the editorial post", () => {
   );
 });
 
+test("applyKindLayout keeps a 1:1 square product post", () => {
+  const brand = createEmptyBrand("禪學社");
+  const source = sampleProject();
+  const square = buildLayout("feed-square", source.copy, brand, "editorial", { imageAssetId: "asset_photo" });
+  const next = applyKindLayout(
+    {
+      ...source,
+      activeFormatId: "feed-square",
+      artboards: { "feed-square": square },
+      slides: { "feed-square": [square] },
+    },
+    brand,
+    "ig-post",
+  );
+  assert.equal(next.contentKind, "ig-post");
+  assert.equal(next.activeFormatId, "feed-square");
+  const cover = pagesOf(next)[0];
+  assert.equal(cover?.formatId, "feed-square");
+  assert.equal(cover?.templateId, "product");
+  assert.equal(extractImageAssetId(cover), "asset_photo");
+  const hero = cover?.layers.find((layer) => layer.type === "image" && layer.name === "主視覺");
+  assert.ok(hero && hero.type === "image");
+  assert.equal(hero.x, 0);
+  assert.equal(hero.y, 0);
+  assert.equal(hero.w, 1080);
+  assert.ok(hero.h > 1080 * 0.45, `photo height was ${hero.h}`);
+  assert.ok(hero.h < 1080, `photo should not fill the 1:1 canvas, height was ${hero.h}`);
+});
+
+test("convertContent to ig-post from a 1:1 photo still uses 4:5", () => {
+  const brand = createEmptyBrand("禪學社");
+  const source = sampleProject();
+  const square = buildLayout("feed-square", source.copy, brand, "product", { imageAssetId: "asset_photo" });
+  const next = convertContent(
+    {
+      ...source,
+      activeFormatId: "feed-square",
+      artboards: { "feed-square": square },
+      slides: { "feed-square": [square] },
+    },
+    brand,
+    "ig-post",
+  );
+  assert.equal(next.activeFormatId, "feed-portrait");
+  const cover = pagesOf(next)[0];
+  assert.equal(cover?.formatId, "feed-portrait");
+  assert.equal(extractImageAssetId(cover), "asset_photo");
+});
+
 test("convertContent to ig-post from a LINE photo uses 4:5 product", () => {
   const brand = createEmptyBrand("禪學社");
   const line = convertContent(sampleProject(), brand, "line");

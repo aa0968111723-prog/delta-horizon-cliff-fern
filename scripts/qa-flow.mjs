@@ -398,10 +398,12 @@ try {
   await page.waitForSelector('img[alt="待分析的圖片"]', { timeout: 10000 });
   await expectText("做成限動入口", "做成限動");
   await expectText("做成貼文入口", "做成貼文");
+  await expectText("做成 1:1 入口", "做成 1:1");
   await expectText("用這張寫文案", "用這張寫文案");
   await expectText("改這張圖", "改這張圖");
   await expectText("改版預設", "更像淡江生活");
   await expectText("做成貼文會排成 4:5", "做成貼文會排成 IG 4:5");
+  await expectText("做成 1:1 會排正方形", "做成 1:1 會排成正方形");
   await expectText("做成限動會排成 9:16", "限動與 Reels 封面會排成 Story 9:16");
   await expectText("做成 LINE 會排橫式", "做成 LINE 圖會排成橫式 1.91:1");
   await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
@@ -549,6 +551,42 @@ try {
     postPhoto > 0 ? `畫布上有 ${postPhoto} 張主視覺` : "貼文沒有主視覺照片",
   );
   await page.screenshot({ path: `${prefix}-from-image-post.png` });
+
+  // 8f. 從一張圖片做成 1:1：正方形，照片當主視覺
+  await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });
+  await page.waitForSelector('[data-testid="analyze-asset-asset_tamsui_dusk"]', { timeout: 15000 });
+  await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
+  await page.waitForSelector('[data-testid="image-analysis"]', { timeout: 20000 });
+  await page.waitForSelector('[data-testid="make-kind-square"]', { timeout: 15000 });
+  await expectText("做成 1:1 入口再點", "做成 1:1");
+  await tap(
+    page
+      .locator("section")
+      .filter({ hasText: "圖片理解" })
+      .getByTestId("make-kind-square"),
+  );
+  await page.waitForURL(/\/studio\//, { timeout: 25000 });
+  await page.waitForLoadState("networkidle");
+  await page.waitForSelector("text=這則用到的來源", { timeout: 15000 });
+  await expectText("做成 1:1 來源", "這則用到的來源");
+  await expectText("做成 1:1 已排成比例", "已排成 IG 1:1");
+  await page.waitForSelector('[data-testid="artboard"]', { timeout: 15000 });
+  const squareRatio = await page.getByTestId("artboard").first().getAttribute("data-ratio");
+  record("做成 1:1 畫布比例", squareRatio === "1:1", `畫布是 ${squareRatio ?? "沒有比例"}`);
+  const squareFormat = await page.getByTestId("artboard").first().getAttribute("data-format");
+  record("做成 1:1 畫布格式", squareFormat === "feed-square", `格式是 ${squareFormat ?? "沒有格式"}`);
+  await page.waitForSelector('[data-testid="artboard-photo"]', { timeout: 15000 });
+  const squarePhoto = await page
+    .getByTestId("artboard")
+    .first()
+    .locator("[data-testid=artboard-photo]")
+    .count();
+  record(
+    "做成 1:1 封面有照片",
+    squarePhoto > 0,
+    squarePhoto > 0 ? `畫布上有 ${squarePhoto} 張主視覺` : "1:1 沒有主視覺照片",
+  );
+  await page.screenshot({ path: `${prefix}-from-image-square.png` });
 
   await page.goto(`${base}/instagram`, { waitUntil: "networkidle" });
   await expectText("IG 個人頁", "追蹤者");

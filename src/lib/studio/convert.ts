@@ -10,7 +10,7 @@ import { buildLayout } from "./layout.ts";
 import { MAX_SLIDES, pagesOf } from "./layers.ts";
 import { pageVisualAsset, visualAssetOf } from "./pack-visual.ts";
 import { CONTENT_KIND_META, contentKindLabel, deliverablesForKind, kindUsesPagedLayout } from "./status.ts";
-import type { Artboard, BrandKit, ContentKind, CopyDeck, Project, ReelsScript } from "./types.ts";
+import type { Artboard, BrandKit, ContentKind, CopyDeck, FormatId, Project, ReelsScript } from "./types.ts";
 import { convertCopy } from "./convert-copy.ts";
 
 export { CONVERT_TARGETS, convertCopy, convertTargetLabel, remainingConvertTargets } from "./convert-copy.ts";
@@ -140,11 +140,20 @@ function lineBoard(source: Project, brand: BrandKit, copy: CopyDeck): Artboard {
   return board;
 }
 
-/** 從一張圖做成貼文：有照片就 4:5 上圖下文，沒有照片才走編輯大標。 */
-function postBoard(source: Project, brand: BrandKit, copy: CopyDeck): Artboard {
+function postFormatOf(source: Pick<Project, "activeFormatId">): Extract<FormatId, "feed-portrait" | "feed-square"> {
+  return source.activeFormatId === "feed-square" ? "feed-square" : "feed-portrait";
+}
+
+/** 從一張圖做成貼文：有照片就上圖下文，沒有照片才走編輯大標。4:5 或 1:1。 */
+function postBoard(
+  source: Project,
+  brand: BrandKit,
+  copy: CopyDeck,
+  formatId: Extract<FormatId, "feed-portrait" | "feed-square"> = "feed-portrait",
+): Artboard {
   const imageAssetId = visualAssetOf(source);
   const templateId = imageAssetId ? "product" : "editorial";
-  const board = buildLayout("feed-portrait", copy, brand, templateId, { imageAssetId });
+  const board = buildLayout(formatId, copy, brand, templateId, { imageAssetId });
   board.role = "cover";
   board.templateId = templateId;
   return board;
@@ -215,6 +224,7 @@ function carouselPages(source: Project, brand: BrandKit, copy: CopyDeck): Artboa
 export function applyKindLayout(project: Project, brand: BrandKit, kind: ContentKind): Project {
   const meta = CONTENT_KIND_META[kind];
   const copy = convertCopy(project.copy, kind);
+  const formatId = kind === "ig-post" ? postFormatOf(project) : meta.formatId;
   let pages: Artboard[];
   if (kind === "story") {
     pages = storyPages(project, brand, copy);
@@ -223,27 +233,27 @@ export function applyKindLayout(project: Project, brand: BrandKit, kind: Content
   } else if (kind === "line") {
     pages = [lineBoard(project, brand, copy)];
   } else if (kind === "ig-post") {
-    pages = [postBoard(project, brand, copy)];
+    pages = [postBoard(project, brand, copy, formatId === "feed-square" ? "feed-square" : "feed-portrait")];
   } else if (kindUsesPagedLayout(kind)) {
     pages = carouselPages(project, brand, copy);
   } else {
     const sourcePage = pagesOf(project)[0];
     pages = [
       sourcePage
-        ? adaptArtboard(sourcePage, meta.formatId, brand, {
+        ? adaptArtboard(sourcePage, formatId, brand, {
             templateId: project.templateId,
             copy,
           })
-        : buildLayout(meta.formatId, copy, brand, project.templateId),
+        : buildLayout(formatId, copy, brand, project.templateId),
     ];
   }
   return {
     ...project,
     copy,
     contentKind: kind,
-    activeFormatId: meta.formatId,
-    slides: { ...project.slides, [meta.formatId]: pages },
-    artboards: { ...project.artboards, [meta.formatId]: pages[0]! },
+    activeFormatId: formatId,
+    slides: { ...project.slides, [formatId]: pages },
+    artboards: { ...project.artboards, [formatId]: pages[0]! },
     slideIndex: 0,
     brief: {
       ...project.brief,
