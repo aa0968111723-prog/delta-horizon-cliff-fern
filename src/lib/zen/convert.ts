@@ -107,6 +107,31 @@ export function clipboardText(converted: ConvertedFormats, id: ConvertTargetId) 
   return converted.line;
 }
 
+export function aspectForTarget(id: ConvertTargetId): "4:5" | "1:1" | "9:16" {
+  if (id === "story" || id === "reels") return "9:16";
+  if (id === "threads" || id === "line") return "1:1";
+  return "4:5";
+}
+
+export function categoryForTarget(id: ConvertTargetId) {
+  if (id === "story") return "story" as const;
+  if (id === "reels") return "reels" as const;
+  if (id === "post" || id === "carousel") return "ig" as const;
+  return "generated" as const;
+}
+
+export function convertTargetForFormat(formatId: FormatId): ConvertTargetId {
+  if (formatId === "story") return "story";
+  if (formatId === "reels-cover") return "reels";
+  if (formatId === "threads") return "threads";
+  if (formatId === "line") return "line";
+  return "post";
+}
+
+export function contentKindForFormat(formatId: FormatId): ContentKind {
+  return convertTargetById(convertTargetForFormat(formatId)).contentKind;
+}
+
 export function captionForTarget(converted: ConvertedFormats, id: ConvertTargetId) {
   if (id === "post") return `${converted.post.hook}\n\n${converted.post.body}`;
   if (id === "carousel") return converted.carousel.map((p) => p.headline.replace(/\n/g, " ")).join(" → ");

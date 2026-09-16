@@ -1,15 +1,13 @@
+import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { applyVisualDirection } from "@/components/create/apply-visual";
 import { Button } from "@/components/ui/button";
-import { migrateBrief } from "@/lib/studio/brief";
-import type { FormatId } from "@/lib/studio/types";
 import {
   CONVERT_TARGETS,
-  briefFlagsForTarget,
   captionForTarget,
   clipboardText,
   convertFromPlan,
-  planForConvertTarget,
   previewLines,
   tonightAt,
   type ConvertTargetId,
@@ -18,7 +16,6 @@ import { convertStaggerDays } from "@/lib/zen/from-idea";
 import type { CreativePack } from "@/lib/zen/types";
 import { uid } from "@/lib/studio/ids";
 import { useCreative } from "@/stores/creative-store";
-import { useStudio } from "@/stores/studio-store";
 
 export function ConvertPanel({
   pack,
@@ -28,38 +25,35 @@ export function ConvertPanel({
   campaignId?: string | null;
 }) {
   const navigate = useNavigate();
-  const brands = useStudio((s) => s.brands);
-  const createProject = useStudio((s) => s.createProject);
-  const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
-  const updateProject = useStudio((s) => s.updateProject);
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
-  const brand = brands[0];
+  const patchCampaign = useCreative((s) => s.patchCampaign);
   const converted = convertFromPlan(pack.plan);
+  const [busyId, setBusyId] = useState<ConvertTargetId | null>(null);
 
-  async function toCanvas(id: ConvertTargetId) {
-    if (!brand) return;
+  async function toPreview(id: ConvertTargetId) {
     const target = CONVERT_TARGETS.find((row) => row.id === id)!;
-    const brief = migrateBrief({
-      eventName: pack.campaignName,
-      audience: "淡江大學學生",
-      location: "淡江大學淡水校園",
-      deliverables: briefFlagsForTarget(id),
-    });
-    const project = createProject({
-      name: `${pack.campaignName} · ${target.label}`,
-      brandId: brand.id,
-      formatId: target.formatId as FormatId,
-      brief,
-      templateId: pack.plan.templateId,
-    });
-    applyCampaignPlan(project.id, planForConvertTarget(pack.plan, converted, id), brief);
-    updateProject(project.id, { contentKind: target.contentKind });
-    toast.success(`已套進${target.label}畫布`);
-    await navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+    setBusyId(id);
+    try {
+      const result = await applyVisualDirection({
+        pack,
+        campaignId,
+        formatId: target.formatId,
+        caption: captionForTarget(converted, id),
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`已做成${target.label}，打開 IG Preview`);
+      await navigate({ to: "/instagram" });
+    } finally {
+      setBusyId(null);
+    }
   }
 
   function toCalendar(id: ConvertTargetId) {
     const target = CONVERT_TARGETS.find((row) => row.id === id)!;
+    const visualId = useCreative.getState().lastVisualAssetId;
     upsertSchedule({
       id: uid("sch"),
       title: `${pack.copy.hook} · ${target.label}`,
@@ -71,6 +65,14 @@ export function ConvertPanel({
       campaignId: campaignId ?? null,
       captionPreview: captionForTarget(converted, id),
     });
+    if (campaignId && visualId) {
+      const campaign = useCreative.getState().campaigns.find((row) => row.id === campaignId);
+      if (campaign) {
+        patchCampaign(campaignId, {
+          relatedAssetIds: [visualId, ...campaign.relatedAssetIds.filter((item) => item !== visualId)].slice(0, 8),
+        });
+      }
+    }
     const days = convertStaggerDays(id);
     toast.success(days ? `已排進日曆（${target.label}，${days} 天後）` : `已排進日曆（${target.label}，今晚）`);
     void navigate({ to: "/calendar" });
@@ -101,10 +103,10 @@ export function ConvertPanel({
               ))}
           </ul>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => void toCanvas(target.id)}>
-              套進畫布
+            <Button size="sm" disabled={Boolean(busyId)} onClick={() => void toPreview(target.id)}>
+              {busyId === target.id ? "生成中…" : `做成 ${target.label}`}
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => toCalendar(target.id)}>
+            <Button size="sm" variant="secondary" disabled={Boolean(busyId)} onClick={() => toCalendar(target.id)}>
               排進日曆
             </Button>
             <Button size="sm" variant="ghost" onClick={() => void copyText(target.id)}>

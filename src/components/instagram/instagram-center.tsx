@@ -20,7 +20,7 @@ import { uid } from "@/lib/studio/ids";
 import { dnaPromptIdea, igDnaBlock, learnFromPosts } from "@/lib/zen/insights";
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
-import { tonightAt } from "@/lib/zen/convert";
+import { tonightAt, contentKindForFormat } from "@/lib/zen/convert";
 import { schedulePreviewAssetId } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
@@ -28,7 +28,7 @@ import { useStudio } from "@/stores/studio-store";
 
 type Tab = "grid" | "preview" | "calendar";
 
-const PREVIEW_FORMATS: FormatId[] = ["feed-portrait", "feed-square", "story", "reels-cover", "threads"];
+const PREVIEW_FORMATS: FormatId[] = ["feed-portrait", "feed-square", "story", "reels-cover", "threads", "line"];
 
 export function InstagramCenter() {
   const navigate = useNavigate();
@@ -36,8 +36,11 @@ export function InstagramCenter() {
   const schedule = useCreative((s) => s.schedule);
   const campaigns = useCreative((s) => s.campaigns);
   const igView = useCreative((s) => s.igView);
+  const igFormat = useCreative((s) => s.igFormat);
   const setIgView = useCreative((s) => s.setIgView);
   const lastVisualAssetId = useCreative((s) => s.lastVisualAssetId);
+  const lastPack = useCreative((s) => s.lastPack);
+  const setIgFormat = useCreative((s) => s.setIgFormat);
   const addIgPost = useCreative((s) => s.addIgPost);
   const setConnection = useCreative((s) => s.setConnection);
   const igStatus = useCreative((s) => s.connections.find((c) => c.id === "instagram")?.status);
@@ -72,7 +75,7 @@ export function InstagramCenter() {
   const [busy, setBusy] = useState(false);
   const [dnaBusy, setDnaBusy] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
-  const [previewFormat, setPreviewFormat] = useState<FormatId>("feed-portrait");
+  const [previewFormat, setPreviewFormat] = useState<FormatId>(igFormat);
   const [caption, setCaption] = useState("");
   const post = igPosts.find((p) => p.id === active);
   const brand = brands[0];
@@ -87,6 +90,13 @@ export function InstagramCenter() {
   useEffect(() => {
     setTab(igView);
   }, [igView]);
+
+  useEffect(() => {
+    setPreviewFormat(igFormat);
+    if (igView !== "preview" || !lastProjectId) return;
+    ensureArtboard(lastProjectId, igFormat);
+    setActiveFormat(lastProjectId, igFormat);
+  }, [igFormat, lastProjectId, igView]);
 
   useEffect(() => {
     if (previewProject) setCaption(previewProject.copy.caption || previewProject.copy.headline);
@@ -198,6 +208,31 @@ export function InstagramCenter() {
     setActiveFormat(previewProject.id, previewFormat);
     setCopy(previewProject.id, { caption });
     toast.success("已更新 Caption");
+  }
+
+  function scheduleCurrent() {
+    if (!caption.trim()) {
+      toast.message("還沒有文案可以排。");
+      return;
+    }
+    const campaignId =
+      lastPack?.campaignName
+        ? campaigns.find((row) => row.name === lastPack.campaignName || lastPack.campaignName.includes(row.name))?.id ??
+          null
+        : null;
+    upsertSchedule({
+      id: uid("sch"),
+      title: (lastPack?.copy.hook || previewProject?.name || "今晚").slice(0, 48),
+      contentKind: contentKindForFormat(previewFormat),
+      status: "scheduled",
+      scheduledAt: tonightAt(0),
+      publishedAt: null,
+      projectId: previewProject?.id ?? null,
+      campaignId,
+      captionPreview: caption,
+    });
+    toast.success("已排進日曆（今晚）");
+    void navigate({ to: "/calendar" });
   }
 
   return (
@@ -356,6 +391,7 @@ export function InstagramCenter() {
                   variant={previewFormat === id ? "default" : "secondary"}
                   onClick={() => {
                     setPreviewFormat(id);
+                    setIgFormat(id);
                     if (previewProject) {
                       ensureArtboard(previewProject.id, id);
                       setActiveFormat(previewProject.id, id);
@@ -381,6 +417,9 @@ export function InstagramCenter() {
               <p className="text-xs text-muted">{IG_DNA.hashtags.join(" ")}</p>
               <Button size="sm" onClick={saveCaption} disabled={!previewProject}>
                 更新文案
+              </Button>
+              <Button size="sm" variant="secondary" onClick={scheduleCurrent} disabled={!caption.trim()}>
+                排進日曆
               </Button>
               <PublishIgButton caption={caption} />
             </div>

@@ -4,7 +4,7 @@ import { SEED_MEMORY } from "./memory.ts";
 import { creativeSearch, expandCreativeQuery, groupSearchHits, knowledgeFromHits, searchCreativeKnowledge, searchTerms } from "./search.ts";
 import { applyPackToWaves, contentKindForWave, copyKindForWave, emptyCampaign, nextWaveAngle, nextWaveVisual, rhythmHint, scheduleItemsFromCampaign, schedulePreviewAssetId, suggestWaves, waveOffsets } from "./schedule.ts";
 import { canvaDraftNotes, canvaDraftTitle, canvaPresetForAspect, canvaPresetForKind } from "./canva-draft.ts";
-import { convertFromPlan, CONVERT_TARGETS, briefFlagsForTarget, captionForTarget } from "./convert.ts";
+import { convertFromPlan, CONVERT_TARGETS, aspectForTarget, briefFlagsForTarget, captionForTarget, contentKindForFormat, convertTargetForFormat } from "./convert.ts";
 import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
 import { applyStudentRewrite } from "./review.ts";
 import { migrateStatus } from "../studio/status.ts";
@@ -179,6 +179,10 @@ test("convert targets map six formats to canvas and calendar kinds", () => {
     source: "mock",
   });
   assert.match(captionForTarget(converted, "post"), /坐好/);
+  assert.equal(aspectForTarget("story"), "9:16");
+  assert.equal(aspectForTarget("line"), "1:1");
+  assert.equal(contentKindForFormat("reels-cover"), "reels");
+  assert.equal(convertTargetForFormat("story"), "story");
 });
 
 test("expandCreativeQuery adds tea night terms", () => {

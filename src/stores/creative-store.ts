@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { FormatId } from "@/lib/studio/types";
 import { uid } from "@/lib/studio/ids";
 import { SEED_CAMPUS_ID, SEED_CUP_ID, SEED_DRAFT_ID, SEED_LIGHT_ID, SEED_PROJECT_ID } from "@/lib/studio/seed";
 import { SEED_CAMPAIGN_ID, SEED_CONNECTIONS, SEED_IG_POSTS, SEED_MEMORY, SEED_TEA_ID } from "@/lib/zen/memory";
@@ -81,6 +82,7 @@ type CreativeState = {
   lastPack: CreativePack | null;
   lastVisualAssetId: string | null;
   igView: IgView;
+  igFormat: FormatId;
   searchQuery: string;
   createIntent: CreateIntent | null;
   driveFolderQuery: string;
@@ -91,7 +93,8 @@ type CreativeState = {
   setDriveFolderQuery: (q: string) => void;
   setLastPack: (pack: CreativePack | null) => void;
   setIgView: (igView: IgView) => void;
-  setIgPreview: (assetId: string | null) => void;
+  setIgFormat: (igFormat: FormatId) => void;
+  setIgPreview: (assetId: string | null, formatId?: FormatId) => void;
   upsertCampaign: (campaign: ClubCampaign) => void;
   patchCampaign: (id: string, patch: Partial<ClubCampaign>) => void;
   removeCampaign: (id: string) => void;
@@ -121,6 +124,7 @@ export const useCreative = create<CreativeState>()(
       lastPack: null,
       lastVisualAssetId: null,
       igView: "grid",
+      igFormat: "feed-portrait",
       searchQuery: "",
       createIntent: null,
       driveFolderQuery: "淡江禪學社",
@@ -147,7 +151,13 @@ export const useCreative = create<CreativeState>()(
       setDriveFolderQuery: (driveFolderQuery) => set({ driveFolderQuery }),
       setLastPack: (lastPack) => set({ lastPack }),
       setIgView: (igView) => set({ igView }),
-      setIgPreview: (assetId) => set({ lastVisualAssetId: assetId, igView: assetId ? "preview" : "grid" }),
+      setIgFormat: (igFormat) => set({ igFormat }),
+      setIgPreview: (assetId, formatId) =>
+        set({
+          lastVisualAssetId: assetId,
+          igView: assetId ? "preview" : "grid",
+          ...(formatId ? { igFormat: formatId } : {}),
+        }),
       upsertCampaign: (campaign) =>
         set((s) => {
           const exists = s.campaigns.some((c) => c.id === campaign.id);
@@ -240,7 +250,7 @@ export const useCreative = create<CreativeState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 3,
+      version: 4,
       migrate: (persisted) => {
         const row = (persisted ?? {}) as {
           campaigns: ClubCampaign[];
@@ -251,8 +261,17 @@ export const useCreative = create<CreativeState>()(
           lastPack: CreativePack | null;
           lastVisualAssetId?: string | null;
           igView?: IgView;
+          igFormat?: FormatId;
           driveFolderQuery?: string;
         };
+        const igFormat: FormatId =
+          row.igFormat === "story" ||
+          row.igFormat === "reels-cover" ||
+          row.igFormat === "threads" ||
+          row.igFormat === "line" ||
+          row.igFormat === "feed-square"
+            ? row.igFormat
+            : "feed-portrait";
         return {
           campaigns: row.campaigns,
           schedule: row.schedule,
@@ -262,6 +281,7 @@ export const useCreative = create<CreativeState>()(
           lastPack: row.lastPack ?? null,
           lastVisualAssetId: row.lastVisualAssetId ?? null,
           igView: row.igView === "preview" || row.igView === "calendar" ? row.igView : "grid",
+          igFormat,
           driveFolderQuery: row.driveFolderQuery || "淡江禪學社",
         };
       },
@@ -274,6 +294,7 @@ export const useCreative = create<CreativeState>()(
         lastPack: s.lastPack,
         lastVisualAssetId: s.lastVisualAssetId,
         igView: s.igView,
+        igFormat: s.igFormat,
         driveFolderQuery: s.driveFolderQuery,
       }),
     },
