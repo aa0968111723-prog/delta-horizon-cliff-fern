@@ -251,24 +251,12 @@ if (seedAutoRun) return;
     const packs = allConvertedPacks(nextPlan);
     const formatAssetIds: Partial<Record<ContentKind, string>> = {};
     const nextKindUrls: Partial<Record<ContentKind, string>> = {};
-    const painted = await paintHero(direction, nextPlan, raw, packKind);
-    const heroAssetId = painted?.id ?? null;
-    if (painted) {
-      formatAssetIds[packKind] = painted.id;
-      nextKindUrls[packKind] = painted.url;
-    }
     for (const target of CONVERT_TARGETS) {
-      if (target.id === packKind) continue;
-      if (painted && formatIdFromKind(target.id) === formatIdFromKind(packKind)) {
-        formatAssetIds[target.id] = painted.id;
-        nextKindUrls[target.id] = painted.url;
-        continue;
-      }
       const composed = await composeKindHero(direction, nextPlan, raw, target.id);
-      if (composed) {
-        formatAssetIds[target.id] = composed.id;
-        nextKindUrls[target.id] = composed.url;
-      }
+      if (!composed) continue;
+      formatAssetIds[target.id] = composed.id;
+      nextKindUrls[target.id] = composed.url;
+      if (target.id === packKind) setHeroUrl(composed.url);
     }
     setKindUrls(nextKindUrls);
     const formatPublicUrls = Object.fromEntries(
@@ -292,7 +280,7 @@ if (seedAutoRun) return;
       formatAssetIds,
       formatPublicUrls,
       directionName: direction.name,
-      heroAssetId,
+      heroAssetId: formatAssetIds[packKind] ?? null,
       heroThumb: currentHits[0]?.thumb,
       sourceIdea: raw,
     });
@@ -301,11 +289,31 @@ if (seedAutoRun) return;
     setStatus("已生成完整宣傳，並排入 Calendar。");
     setPublishHint(rasterReadyMessage(packed));
     toast.success("已生成主視覺、文案與多模態內容，並排入 Calendar");
-    void ensurePublicRaster({
-      pack: packed,
-      previewSrc: nextKindUrls[packKind] || currentHits[0]?.thumb || "/seed/tea.svg",
-      title: parsed.eventName,
-    })
+    void paintHero(direction, nextPlan, raw, packKind)
+      .then((painted) => {
+        if (!painted) return packed;
+        setKindUrls((prev) => ({ ...prev, [packKind]: painted.url }));
+        const current = useCreative.getState().lastPack ?? packed;
+        const next = {
+          ...current,
+          heroAssetId: painted.id,
+          formatAssetIds: { ...current.formatAssetIds, [packKind]: painted.id },
+          formatPublicUrls: {
+            ...current.formatPublicUrls,
+            ...(httpsRasterUrl(painted.url) ? { [packKind]: httpsRasterUrl(painted.url) } : {}),
+          },
+          updatedAt: Date.now(),
+        };
+        setLastPack(next);
+        return next;
+      })
+      .then((current) =>
+        ensurePublicRaster({
+          pack: current,
+          previewSrc: nextKindUrls[packKind] || currentHits[0]?.thumb || "/seed/tea.svg",
+          title: parsed.eventName,
+        }),
+      )
       .then((result) => {
         if (result.changed) {
           setLastPack(result.pack);
@@ -316,7 +324,7 @@ if (seedAutoRun) return;
         setPublishHint(rasterReadyMessage(useCreative.getState().lastPack ?? packed));
       })
       .catch(() => {
-        setPublishHint(rasterReadyMessage(packed));
+        setPublishHint(rasterReadyMessage(useCreative.getState().lastPack ?? packed));
       });
   }
 
