@@ -35,7 +35,7 @@ import { composeMemoryHint } from "@/lib/zen/memory-hook";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction";
 import { researchInspiration } from "@/lib/zen/inspiration";
-import { convertedScheduledAt, offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
+import { convertedScheduledAt, skipConvertedIgPost, rhythmHint } from "@/lib/zen/rhythm";
 import { searchCreative, groupCreativeHits, hitFromRemote, igSearchHookBlock, type CreativeHit } from "@/lib/zen/search";
 import { pickSourceRefs, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
@@ -982,6 +982,7 @@ export function CreateStudio() {
     const when = Date.parse(`${date}T19:00:00+08:00`);
     const existing = useStudio.getState().schedule.filter((row) => row.campaignId === created.id);
     for (const pack of KINDS.map((kind) => convertPlan(nextPlan, kind))) {
+      if (pack.kind === "ig-post" && skipConvertedIgPost(created.waves ?? [])) continue;
       const scheduledAt = Number.isNaN(when)
         ? Date.now()
         : convertedScheduledAt(pack.kind, when, created.waves ?? []);
@@ -1282,11 +1283,25 @@ export function CreateStudio() {
   }
 
   function schedulePack(pack: ConvertedPack) {
+    const waves = campaign?.waves ?? [];
+    if (pack.kind === "ig-post" && campaign && skipConvertedIgPost(waves)) {
+      const hero = heroScheduleItem(useStudio.getState().schedule, campaign.id);
+      if (hero) {
+        upsertSchedule({
+          ...hero,
+          caption: plan ? packCaption(plan, pack) : pack.items.join("\n"),
+          body: pack.items.join("\n"),
+          imageAssetId: lastImage?.assetId ?? hero.imageAssetId,
+        });
+        toast.success("主視覺就是這篇 IG，沒有另開一則活動廣告");
+        return;
+      }
+    }
     const date = parseEventDate(`${schedule} ${idea}`);
     const when = Date.parse(`${date}T19:00:00+08:00`);
     const scheduledAt = Number.isNaN(when)
       ? Date.now()
-      : when + offsetDaysForConvertedKind(pack.kind) * 86_400_000;
+      : convertedScheduledAt(pack.kind, when, waves);
     upsertSchedule({
       id: uid("sch"),
       projectId: null,
@@ -1426,7 +1441,7 @@ export function CreateStudio() {
           <h2 className="text-sm font-medium">找到 {found.length} 個相關素材</h2>
           <p className="mt-1 text-xs text-muted" data-testid="live-found-note">
             可釘選給 AI 當風格參考。來源會標出來。
-            {liveNote ? ` ${liveNote}。` : ""}{" "}
+            {liveNote ? ` ${liveNote.replace(/[。.]+\s*$/, "")}。` : ""}{" "}
             {Object.entries(foundGroups)
               .map(([source, list]) => `${sourceLabelOf(source)} ${list.length}`)
               .join(" · ")}
@@ -1682,6 +1697,9 @@ export function CreateStudio() {
             {converted.map((pack) => (
               <article key={pack.kind} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
                 <p className="text-sm font-medium">{pack.title}</p>
+                {pack.kind === "ig-post" && campaign && skipConvertedIgPost(campaign.waves ?? []) ? (
+                  <p className="mt-1 text-xs text-muted">主視覺就是這篇 IG，不會再疊一則活動廣告。</p>
+                ) : null}
                 <ul className="mt-2 space-y-1 text-sm text-muted">
                   {pack.items.map((item) => (
                     <li key={item}>{item}</li>

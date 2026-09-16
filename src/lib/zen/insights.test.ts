@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { awaitingFeel, hookLine, learnFromIg } from "./insights.ts";
-import { nextKindAfter, offsetDaysForConvertedKind, convertedScheduledAt, rhythmHint } from "./rhythm.ts";
+import { nextKindAfter, offsetDaysForConvertedKind, convertedScheduledAt, rhythmHint, skipConvertedIgPost } from "./rhythm.ts";
 import { createPkce } from "../connect/pkce.ts";
 import { canvaBrief, canvaSize } from "../connect/canva-format.ts";
 import { mockWaveDraft } from "../ai/wave-draft.ts";
@@ -176,6 +176,12 @@ test("converted IG Post follows 主視覺 instead of jumping ahead of 預熱", (
   assert.ok(ig > warmup);
   assert.ok(carousel > ig);
   assert.equal(convertedScheduledAt("ig-post", event, []), event - 7 * 86_400_000);
+});
+
+test("tea kit with 主視覺 does not also schedule a twin IG Post", () => {
+  assert.equal(skipConvertedIgPost([{ kind: "hero" }, { kind: "warmup" }]), true);
+  assert.equal(skipConvertedIgPost([]), false);
+  assert.equal(skipConvertedIgPost([{ kind: "warmup" }]), false);
 });
 
 test("pkce verifier is not the challenge", () => {

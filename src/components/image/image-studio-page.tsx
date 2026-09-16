@@ -79,6 +79,7 @@ export function ImageStudioPage() {
   const [lastImage, setLastImage] = useState<{ base64: string; mime: string; headline?: string } | null>(null);
   const [review, setReview] = useState<StudentReview | null>(null);
   const autoRan = useRef(false);
+  const regenTick = useRef<Record<string, number>>({});
 
   const activePack = packs.find((p) => p.tone === tone) ?? packs[0];
 
@@ -355,11 +356,26 @@ export function ImageStudioPage() {
             <p className="mt-2 text-sm">
               {dir.headline} · {dir.subhead}
             </p>
+            <details className="mt-2">
+              <summary className="text-xs text-muted">圖片 Prompt</summary>
+              <p className="mt-1 text-xs text-subtle" data-testid="direction-prompt">
+                {dir.prompt}
+              </p>
+            </details>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" disabled={busy} onClick={() => void gen(dir)}>
                 生成此方向
               </Button>
-              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void gen(dir)}>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => {
+                  const tick = regenTick.current[dir.id] ?? 0;
+                  regenTick.current[dir.id] = tick + 1;
+                  void gen(dir, VARIATIONS[tick % VARIATIONS.length].id);
+                }}
+              >
                 重新生成
               </Button>
               {VARIATIONS.map((item) => (

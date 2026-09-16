@@ -52,6 +52,11 @@ export function offsetDaysForConvertedKind(kind: ContentKind): number {
   }
 }
 
+/** 主視覺 already is the Feed post — a twin「IG Post」on the same night is another ad. */
+export function skipConvertedIgPost(waves: { kind: string }[]) {
+  return waves.some((wave) => wave.kind === "hero");
+}
+
 /** When a campaign has waves, converted IG/Carousel follow 主視覺 — they must not jump ahead of 預熱. */
 export function convertedScheduledAt(
   kind: ContentKind,

@@ -118,14 +118,14 @@ JSON:{directions:[{id,name,concept,palette,composition,typeDirection,prompt,head
         ],
       }),
     });
-    if (!res.ok) return { ok: false, adapter: "live", error: `視覺方向暫時無法使用（${res.status}）。` };
+    if (!res.ok) return { ok: true, adapter: "mock", directions: mock };
     const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     try {
       const parsed = JSON.parse(body.choices?.[0]?.message?.content ?? "{}") as { directions?: VisualDirection[] };
       if (!parsed.directions?.length) throw new Error("empty");
       return { ok: true, adapter: "live", directions: labelDirections(parsed.directions) };
     } catch {
-      return { ok: false, adapter: "live", error: "視覺方向無法解析。" };
+      return { ok: true, adapter: "mock", directions: mock };
     }
   });
 
@@ -262,12 +262,12 @@ export const analyzeStudioImage = createServerFn({ method: "POST" })
         ],
       }),
     });
-    if (!res.ok) return { ok: false, adapter: "live", error: `圖片理解暫時無法使用（${res.status}）。` };
+    if (!res.ok) return { ok: true, adapter: "mock", analysis: mock };
     const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     try {
       const analysis = JSON.parse(body.choices?.[0]?.message?.content ?? "{}") as Partial<VisionAnalysis>;
       return { ok: true, adapter: "live", analysis: { ...mock, ...analysis } };
     } catch {
-      return { ok: false, adapter: "live", error: "圖片分析無法解析。" };
+      return { ok: true, adapter: "mock", analysis: mock };
     }
   });

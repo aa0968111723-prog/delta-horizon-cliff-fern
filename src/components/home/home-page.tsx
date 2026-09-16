@@ -151,7 +151,7 @@ export function HomePage() {
         </section>
       ) : null}
 
-      <section className="mt-10">
+      <section className="mt-10" data-testid="home-inspiration">
         <SectionHeader
           title="今日靈感"
           hint={`${academicBeatLabel(beat)} · 研究構圖與 Hook，不要抄別人`}
@@ -161,9 +161,9 @@ export function HomePage() {
             </Link>
           }
         />
-        <ul className="flex gap-3 overflow-x-auto pb-1">
+        <ul className="flex gap-3 overflow-x-auto pb-3">
           {inspiration.map((card) => (
-            <li key={card.id} className="min-w-[16rem] rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+            <li key={card.id} className="min-w-[15.5rem] snap-start rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
               <p className="text-sm font-medium">{card.title}</p>
               <p className="mt-2 text-xs text-muted">{card.hookShape}</p>
               <p className="mt-1 text-xs text-subtle">{card.composition}</p>

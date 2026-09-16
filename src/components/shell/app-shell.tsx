@@ -90,6 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="relative flex h-14 flex-col items-center justify-end pb-1">
               <button
                 type="button"
+                data-testid="mobile-create-fab"
                 onClick={() => setCreateOpen(true)}
                 className="absolute -top-5 flex size-14 items-center justify-center rounded-full bg-accent text-accent-fg shadow-[var(--shadow-lift)]"
                 aria-label="AI 創作"
