@@ -4,6 +4,7 @@ import {
   buildCampaignRhythm,
   convertedScheduleDrafts,
   convertedScheduleInput,
+  convertedScheduleUpserts,
   matchingScheduleRow,
   offsetDaysForKind,
   publishableScheduleRows,
@@ -106,6 +107,29 @@ test("floating-light tease is publishable on the matching day", () => {
   assert.ok(due.some((row) => row.title.includes("浮游禪光")));
   assert.ok(due.some((row) => row.title.includes("預熱")));
   assert.equal(due.some((row) => row.title.includes("回顧")), false);
+});
+
+test("auto-scheduling converted formats reuses the same-day wave slot", () => {
+  const waves = buildCampaignRhythm({ eventDate: "2026-09-24", eventType: "茶會", leadDays: 8 });
+  const rows = scheduleDraftsFromCampaign(
+    { id: "camp_tea", name: "茶會", date: "2026-09-24", waves, projectIds: ["proj_tea"] },
+    Date.parse("2026-09-16T12:00:00+08:00"),
+  ).map((row, index) => ({ ...row, id: `sch_${index}` }));
+  const upserts = convertedScheduleUpserts(rows, {
+    eventDate: "2026-09-24",
+    eventName: "茶會",
+    kinds: ["ig-post", "carousel", "story", "threads", "line", "reels"],
+    campaignId: "camp_tea",
+    projectId: "proj_tea",
+  });
+  assert.equal(upserts.length, 6);
+  const story = upserts.find((row) => row.contentKind === "story");
+  assert.ok(story?.id);
+  const match = rows.find((row) => row.id === story?.id);
+  assert.match(match?.title ?? "", /倒數/);
+  assert.ok(upserts.some((row) => row.title === "Reels · 茶會"));
+  assert.ok(upserts.some((row) => row.title === "LINE · 茶會"));
+  assert.ok(upserts.every((row) => row.status === "scheduled"));
 });
 
 test("short lead compresses into a dense sequence", () => {

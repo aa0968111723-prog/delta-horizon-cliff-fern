@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { asDriveHits, adoptIdeaFromHit, driveThumb, mergeRanked } from "./hits.ts";
+import { asDriveHits, adoptIdeaFromHit, assetFromHit, assetIdFromHit, driveThumb, mergeRanked } from "./hits.ts";
 
 test("Drive files keep a useful thumb and club tags", () => {
   assert.equal(driveThumb({ name: "2024 茶會現場.JPG" }), "/seed/tea.svg");
@@ -61,4 +61,43 @@ test("adopting a search hit continues brand DNA instead of copying the old work"
     notes: "Hook 有效。",
   });
   assert.match(ig, /Hook|停留感/);
+});
+
+test("Drive tea hits become library assets with source tags, not duplicate seed ids", () => {
+  const hits = asDriveHits({
+    files: [{ id: "drv_tea_2025", name: "夜間茶會照片", mimeType: "image/jpeg", modifiedTime: "2025-11-12T19:00:00Z" }],
+  });
+  const asset = assetFromHit(hits[0]!);
+  assert.equal(asset.id, "asset_drv_tea_2025");
+  assert.equal(assetIdFromHit({ id: "asset_tea" }), "asset_tea");
+  assert.equal(asset.source, "drive");
+  assert.ok(asset.tags.includes("茶會"));
+  assert.equal(asset.seedSrc, "/seed/tea.svg");
+  assert.match(asset.licenseNotes, /Google Drive/);
+  assert.equal(asset.licenseOwner, "Google Drive");
+  const canva = assetFromHit({
+    id: "cnv_tea_poster",
+    source: "canva",
+    title: "茶會海報",
+    subtitle: "Canva / 茶會",
+    tags: ["茶會", "海報"],
+    kind: "poster",
+    date: "2025-10-02",
+    thumb: "/seed/tea.svg",
+    notes: "留白多。",
+  });
+  assert.equal(canva.source, "canva");
+  assert.equal(canva.category, "poster");
+  const ig = assetFromHit({
+    id: "ig_tea_recap",
+    source: "instagram",
+    title: "茶會回顧",
+    subtitle: "Instagram / 2025-11-13",
+    tags: ["茶會"],
+    kind: "carousel",
+    date: "2025-11-13",
+    thumb: "/seed/tea.svg",
+    notes: "Hook 有效。",
+  });
+  assert.equal(ig.source, "instagram");
 });

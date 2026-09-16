@@ -1,5 +1,7 @@
 import type { MemoryItem } from "../club/memory.ts";
 import { matchHit, rankHits } from "../club/rank.ts";
+import { inferCategory, migrateAsset } from "../studio/assets.ts";
+import type { AssetMeta, AssetSourceKind } from "../studio/types.ts";
 import { styleBriefFromReport, styleReportFromHit } from "../vision/from-hit.ts";
 
 export type FileLike = {
@@ -67,4 +69,63 @@ export function adoptIdeaFromHit(item: Pick<MemoryItem, "title" | "notes" | "sub
           ? "用現場感覺當參考，不要直接重貼舊照片。"
           : "延續龜龜與三色光，不要做成廟宇海報。";
   return `延續這個來源的品牌 DNA，做新的活動。不要直接複製舊作品。來源：${source}。參考：「${item.title}」。${dna}${styleBriefFromReport(report, source)}${item.notes}`.slice(0, 420);
+}
+
+export function uniqueIds(ids: string[]) {
+  return ids.filter((id, index, all) => id && all.indexOf(id) === index);
+}
+
+export function assetIdFromHit(item: Pick<MemoryItem, "id">) {
+  return item.id.startsWith("asset_") ? item.id : `asset_${item.id}`;
+}
+
+export function assetSourceFromHit(source: MemoryItem["source"]): AssetSourceKind {
+  if (source === "drive" || source === "canva" || source === "instagram" || source === "generated") return source;
+  return "seed";
+}
+
+function licenseOwnerFromHit(source: MemoryItem["source"]) {
+  if (source === "drive") return "Google Drive";
+  if (source === "canva") return "Canva";
+  if (source === "instagram") return "Instagram";
+  if (source === "generated") return "AI Generated";
+  return "淡江大學禪學社";
+}
+
+export function assetFromHit(item: Pick<MemoryItem, "id" | "source" | "title" | "subtitle" | "tags" | "kind" | "date" | "thumb" | "notes" | "mimeType">): AssetMeta {
+  const source = assetSourceFromHit(item.source);
+  const thumb = item.thumb || "";
+  const seedSrc = thumb.startsWith("/") || thumb.startsWith("https://") || thumb.startsWith("data:") ? thumb : undefined;
+  const tall = item.kind === "story" || item.kind === "reels";
+  const hinted =
+    item.kind === "story"
+      ? ("story-asset" as const)
+      : item.kind === "reels"
+        ? ("reels-asset" as const)
+        : item.kind === "poster" || item.kind === "ig-post" || item.kind === "carousel"
+          ? ("poster" as const)
+          : undefined;
+  const createdAt = item.date ? Date.parse(item.date) || Date.now() : Date.now();
+  return migrateAsset({
+    id: assetIdFromHit(item),
+    name: item.title,
+    category: hinted ?? inferCategory({ name: item.title, tags: item.tags }),
+    mime: item.mimeType || (thumb.includes(".svg") ? "image/svg+xml" : "image/jpeg"),
+    width: 1080,
+    height: tall ? 1920 : 1080,
+    tags: item.tags,
+    createdAt,
+    updatedAt: createdAt,
+    seedSrc,
+    source,
+    licenseNotes: `${item.subtitle}${item.notes ? `。${item.notes}` : ""}`.slice(0, 280),
+    licenseOwner: licenseOwnerFromHit(item.source),
+  });
+}
+
+export function assetsFromHits(items: Array<Parameters<typeof assetFromHit>[0]>) {
+  return uniqueIds(items.map((item) => assetIdFromHit(item))).map((id) => {
+    const hit = items.find((item) => assetIdFromHit(item) === id);
+    return assetFromHit(hit!);
+  });
 }

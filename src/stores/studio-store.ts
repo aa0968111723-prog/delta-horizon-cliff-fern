@@ -2,7 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { buildCampaignBoards, copyForCarouselPage } from "@/lib/ai/apply";
 import { adaptArtboard, adaptPages, copyFromArtboard } from "@/lib/studio/adapt";
-import { migrateAsset, fitPlacedAsset } from "@/lib/studio/assets";
+import { migrateAsset, fitPlacedAsset, uniqueAssets, upsertAssetList } from "@/lib/studio/assets";
+import { hydrateSeedAsset } from "@/lib/studio/assets-idb";
 import { createEmptyBrand, migrateBrand } from "@/lib/studio/brand";
 import { MAX_PLAN_VERSIONS, migrateBrief, migratePlan, migratePlanVersions } from "@/lib/studio/brief";
 import {
@@ -320,7 +321,13 @@ export const useStudio = create<StudioState>()(
             ),
           };
         }),
-      addAsset: (meta) => set((s) => ({ assets: [migrateAsset(meta), ...s.assets] })),
+      addAsset: (meta) => {
+        const next = migrateAsset(meta);
+        set((s) => ({ assets: upsertAssetList(s.assets, next) }));
+        if (next.seedSrc && typeof indexedDB !== "undefined") {
+          void hydrateSeedAsset(next.id, next.seedSrc).catch(() => undefined);
+        }
+      },
       updateAsset: (id, patch) =>
         set((s) => ({
           assets: s.assets.map((a) =>
@@ -1111,7 +1118,7 @@ export const useStudio = create<StudioState>()(
           lastProjectId: string | null;
         }>;
         const brands = (p.brands ?? current.brands).map(migrateBrandRecord);
-        const assets = (p.assets ?? current.assets).map(migrateAssetRecord);
+        const assets = uniqueAssets((p.assets ?? current.assets).map(migrateAssetRecord));
         const projects = (p.projects ?? current.projects).map(migrateProject);
         return {
           ...current,
@@ -1141,7 +1148,7 @@ export const useStudio = create<StudioState>()(
           };
         }
         const brands = (state.brands ?? []).map(migrateBrandRecord);
-        const assets = (state.assets ?? []).map(migrateAssetRecord);
+        const assets = uniqueAssets((state.assets ?? []).map(migrateAssetRecord));
         const projects = (state.projects ?? []).map(migrateProject);
         return {
           brands: brands.length ? brands : [SEED_BRAND],

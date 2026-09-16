@@ -171,6 +171,35 @@ export function convertedScheduleDrafts(input: {
   return input.kinds.map((kind) => convertedScheduleInput({ ...input, kind }));
 }
 
+export function convertedScheduleUpserts<
+  T extends {
+    id: string;
+    campaignId: string | null;
+    contentKind: ContentKind;
+    plannedAt: number;
+    status: ContentStatus;
+  },
+>(
+  rows: T[],
+  input: {
+    eventDate: string;
+    eventName: string;
+    kinds: ContentKind[];
+    hook?: string;
+    campaignId: string | null;
+    projectId: string | null;
+  },
+) {
+  return convertedScheduleDrafts(input).map((draft) => {
+    const existing = matchingScheduleRow(rows, {
+      campaignId: input.campaignId,
+      kind: draft.contentKind,
+      plannedAt: draft.plannedAt,
+    });
+    return { ...draft, id: existing?.id };
+  });
+}
+
 export function isSameScheduleDay(a: number, b: number) {
   const left = new Date(a);
   const right = new Date(b);

@@ -14,7 +14,7 @@ import { applyCanvaPush, canvaPushMessage, ensurePublicRaster, pushHeroToCanva }
 import { formatIdFromKind, httpsRasterUrl, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, publicReelsCoverUrl, withPackKind, withReelsVideo } from "@/lib/club/last-pack";
 import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
-import { convertedScheduleInput, matchingScheduleRow } from "@/lib/club/schedule";
+import { convertedScheduleUpserts } from "@/lib/club/schedule";
 import { generateReelsClip } from "@/lib/club/reels-video";
 import { runPackPublish } from "@/lib/club/run-publish";
 import { CONVERT_TARGETS, allConvertedPacks, convertPlan, reelsVideoPrompt } from "@/lib/convert/pack";
@@ -27,7 +27,7 @@ import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { pagesOf } from "@/lib/studio/layers";
 import { searchCreative, type SearchHit } from "@/lib/search/creative";
-import { adoptIdeaFromHit } from "@/lib/search/hits";
+import { adoptIdeaFromHit, assetFromHit, uniqueIds } from "@/lib/search/hits";
 import { styleBriefFromReport, styleReportFromHit } from "@/lib/vision/from-hit";
 import type { CampaignPlan, ContentKind, CreativeDirection } from "@/lib/studio/types";
 import { sourceLabel, useCreative } from "@/stores/creative-store";
@@ -79,6 +79,7 @@ export function IdeaFlow({
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
   const [kindUrls, setKindUrls] = useState<Partial<Record<ContentKind, string>>>({});
   const [busy, setBusy] = useState(false);
+  const [formatsOnCalendar, setFormatsOnCalendar] = useState(false);
 
   const brand = brands[0];
   const projects = useStudio((s) => s.projects);
@@ -120,6 +121,7 @@ export function IdeaFlow({
     setHeroUrl(null);
     setKindUrls({});
     setProjectId(null);
+    setFormatsOnCalendar(false);
     setStatus("正在找歷屆素材與品牌記憶…");
     try {
       setLastSearch(parsed.searchQuery);
@@ -164,6 +166,14 @@ export function IdeaFlow({
     const nextPlan = reviewed.plan;
     const brief = briefFromIdea(parsed, notesFromHits(parsed, currentHits, useCreative.getState().styleMemory));
     const existing = campaigns.find((item) => item.name === parsed.eventName);
+    const relatedAssetIds = uniqueIds([
+      ...(existing?.relatedAssetIds ?? []),
+      ...currentHits.map((hit) => {
+        const asset = assetFromHit(hit);
+        addAsset(asset);
+        return asset.id;
+      }),
+    ]);
     const campaign = upsertCampaign({
       id: existing?.id,
       name: parsed.eventName,
@@ -176,6 +186,8 @@ export function IdeaFlow({
       theme: nextPlan.visualTheme,
       studentPain: nextPlan.insight,
       cta: nextPlan.cta,
+      relatedAssetIds,
+      imageAssetIds: uniqueIds([...(existing?.imageAssetIds ?? []), ...relatedAssetIds]).slice(0, 8),
     });
     const projectNext = createProject({
       name: nextPlan.campaignName,
@@ -189,6 +201,8 @@ export function IdeaFlow({
     attachProject(campaign.id, projectNext.id);
     if (nextPlan.waves?.length) setWaves(campaign.id, nextPlan.waves, { syncCalendar: true });
     if (nextPlan.directions?.length) setDirections(campaign.id, nextPlan.directions);
+    scheduleKinds(nextPlan, CONVERT_TARGETS.map((item) => item.id), raw, campaign.id, projectNext.id);
+    setFormatsOnCalendar(true);
     setPlan(nextPlan);
     setPicked(direction);
     setProjectId(projectNext.id);
@@ -222,11 +236,10 @@ export function IdeaFlow({
         .map(([kind, url]) => [kind, httpsRasterUrl(url)] as const)
         .filter(([, url]) => url),
     ) as Partial<Record<ContentKind, string>>;
-    const scheduled = Boolean(nextPlan.waves?.length);
     updateProject(projectNext.id, {
       campaignId: campaign.id,
-      contentStatus: scheduled ? "scheduled" : "done",
-      scheduledAt: scheduled ? Date.now() : null,
+      contentStatus: "scheduled",
+      scheduledAt: Date.now(),
     });
     const packed = lastPackFromPlan({
       projectId: projectNext.id,
@@ -244,7 +257,7 @@ export function IdeaFlow({
     });
     setLastPack(packed);
     setPhase("pack");
-    toast.success("已生成主視覺、文案與多模態內容，並依淡江學生視角改過一輪");
+    toast.success("已生成主視覺、文案與多模態內容，並排入 Calendar");
     void ensurePublicRaster({
       pack: packed,
       previewSrc: nextKindUrls[packKind] || currentHits[0]?.thumb || "/seed/tea.svg",
@@ -259,6 +272,8 @@ export function IdeaFlow({
   }
 
   function adoptHit(item: SearchHit) {
+    const asset = assetFromHit(item);
+    addAsset(asset);
     setHeroUrl(item.thumb);
     setIdea(adoptIdeaFromHit(item));
     rememberStyle(styleBriefFromReport(styleReportFromHit(item), sourceLabel(item.source)));
@@ -266,26 +281,41 @@ export function IdeaFlow({
     if (current) {
       setLastPack({ ...current, heroThumb: item.thumb, updatedAt: Date.now() });
     }
+    if (campaignId) {
+      const camp = useCreative.getState().campaigns.find((row) => row.id === campaignId);
+      if (camp) {
+        upsertCampaign({
+          id: campaignId,
+          name: camp.name,
+          relatedAssetIds: uniqueIds([...(camp.relatedAssetIds ?? []), asset.id]),
+        });
+      }
+    }
     toast.success(`已加入創作 · 來源：${sourceLabel(item.source)} / ${item.title}`);
+  }
+
+  function scheduleKinds(
+    currentPlan: CampaignPlan,
+    kinds: ContentKind[],
+    raw: string,
+    campId: string | null,
+    projId: string | null,
+  ) {
+    const parsed = parseIdea(raw);
+    const drafts = convertedScheduleUpserts(useCreative.getState().schedule, {
+      eventDate: parsed.date,
+      eventName: parsed.eventName,
+      kinds,
+      hook: currentPlan.hook,
+      campaignId: campId,
+      projectId: projId,
+    });
+    return drafts.map((draft) => upsertSchedule(draft));
   }
 
   function upsertConverted(kind: ContentKind) {
     if (!plan) return null;
-    const parsed = parseIdea(idea);
-    const draft = convertedScheduleInput({
-      eventDate: parsed.date,
-      eventName: parsed.eventName,
-      kind,
-      hook: plan.hook,
-      campaignId,
-      projectId,
-    });
-    const existing = matchingScheduleRow(useCreative.getState().schedule, {
-      campaignId,
-      kind,
-      plannedAt: draft.plannedAt,
-    });
-    return upsertSchedule({ ...draft, id: existing?.id });
+    return scheduleKinds(plan, [kind], idea, campaignId, projectId)[0] ?? null;
   }
 
   function putOnCalendar() {
@@ -303,6 +333,7 @@ export function IdeaFlow({
     const current = useCreative.getState().lastPack;
     if (current) setLastPack(withPackKind(current, packKind, convertPlan(plan, packKind).items));
     toast.success(`已排入 Calendar · ${row.title}`);
+    setFormatsOnCalendar(true);
     void navigate({ to: "/calendar" });
   }
 
@@ -321,6 +352,7 @@ export function IdeaFlow({
     const current = useCreative.getState().lastPack;
     if (current) setLastPack(withPackKind(current, packKind, convertPlan(plan, packKind).items));
     toast.success("已排入 IG Post、Carousel、Story、Threads、LINE、Reels");
+    setFormatsOnCalendar(true);
     void navigate({ to: "/calendar" });
   }
 
@@ -716,6 +748,12 @@ export function IdeaFlow({
             </p>
           ) : null}
 
+          {formatsOnCalendar ? (
+            <p className="text-sm text-muted" data-testid="idea-scheduled">
+              已排入 IG Post、Carousel、Story、Threads、LINE、Reels
+            </p>
+          ) : null}
+
           <div className="grid gap-2 sm:grid-cols-2">
             <Button disabled={busy} onClick={() => void renderHero()}>
               {busy ? "生成中…" : "生成主視覺"}
@@ -732,7 +770,7 @@ export function IdeaFlow({
               data-testid="idea-calendar-all"
               onClick={() => putAllOnCalendar()}
             >
-              排入全部格式
+              {formatsOnCalendar ? "已排入全部格式" : "排入全部格式"}
             </Button>
             <Button data-testid="idea-publish" disabled={busy} onClick={() => void publishNow()}>
               發布到 IG
