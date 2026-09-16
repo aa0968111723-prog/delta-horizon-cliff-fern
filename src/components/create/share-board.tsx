@@ -16,19 +16,25 @@ export function ShareBoard({
   campaignId?: string | null;
   onSchedule?: (kind: "threads" | "line") => void;
 }) {
-  const threads = convertPlan(plan, "threads").items[0] ?? "";
-  const line = convertPlan(plan, "line").items[0] ?? "";
   const schedule = useStudio((s) => s.schedule);
   const stills = useMemo(() => {
-    if (!campaignId) return { lineId: undefined, threadsId: undefined };
+    if (!campaignId) {
+      return { lineId: undefined, threadsId: undefined, lineCaption: undefined, threadsCaption: undefined };
+    }
+    const lineRow = schedule.find((item) => item.campaignId === campaignId && item.kind === "line");
+    const threadsRow = schedule.find((item) => item.campaignId === campaignId && item.kind === "threads");
     return {
-      lineId: schedule.find((item) => item.campaignId === campaignId && item.kind === "line")?.imageAssetId,
-      threadsId: schedule.find((item) => item.campaignId === campaignId && item.kind === "threads")?.imageAssetId,
+      lineId: lineRow?.imageAssetId,
+      threadsId: threadsRow?.imageAssetId,
+      lineCaption: lineRow?.caption,
+      threadsCaption: threadsRow?.caption,
     };
   }, [schedule, campaignId]);
   const urls = useAssetUrls([stills.lineId, stills.threadsId].filter((id): id is string => Boolean(id)));
   const lineSrc = stills.lineId ? urls[stills.lineId] : undefined;
   const threadsSrc = stills.threadsId ? urls[stills.threadsId] : undefined;
+  const threads = stills.threadsCaption || convertPlan(plan, "threads").items[0] || "";
+  const line = stills.lineCaption || convertPlan(plan, "line").items[0] || "";
 
   async function copy(text: string, label: string) {
     await navigator.clipboard.writeText(text).catch(() => undefined);
