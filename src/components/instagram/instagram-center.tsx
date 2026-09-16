@@ -21,7 +21,7 @@ import { pagesOf } from "@/lib/studio/layers";
 import { SEED_ASSETS } from "@/lib/studio/seed";
 import type { FormatId } from "@/lib/studio/types";
 import { uid } from "@/lib/studio/ids";
-import { dnaPromptIdea, igDnaBlock, learnFromPosts } from "@/lib/zen/insights";
+import { dnaPromptIdea, igDnaBlock, learnFromPosts, recentPostedNotes } from "@/lib/zen/insights";
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
 import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatIdForContentKind, formatScript } from "@/lib/zen/convert";
@@ -418,6 +418,7 @@ export function InstagramCenter() {
         </p>
         <p className="mt-2 text-sm">{learned.whatWorks}</p>
         <p className="mt-1 text-xs text-muted">{learned.whatFails}</p>
+        <p className="mt-2 text-sm">{recentPostedNotes(igPosts)}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button size="sm" disabled={dnaBusy} onClick={() => void writeFromDna()}>
             {dnaBusy ? "寫作中…" : "用這個 DNA 寫新文案"}
