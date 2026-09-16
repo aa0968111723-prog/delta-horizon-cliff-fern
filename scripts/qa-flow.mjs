@@ -526,6 +526,14 @@ try {
     storyPhoto > 0,
     storyPhoto > 0 ? `畫布上有 ${storyPhoto} 張主視覺` : "封面沒有主視覺照片",
   );
+  await page.waitForSelector("[data-testid=slide-bar-label]", { timeout: 8000 });
+  const storySlideLabel = ((await page.getByTestId("slide-bar-label").first().textContent()) ?? "").trim();
+  record("限動頁列名稱", storySlideLabel === "限動", storySlideLabel || "沒有頁列名稱");
+  record(
+    "限動不展開六頁輪播",
+    (await page.getByTestId("slide-bar-expand").count()) === 0,
+    "限動不該出現展開六頁",
+  );
   await page.getByTestId("studio-ig-peek").first().evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );
@@ -683,6 +691,30 @@ try {
     postPhoto > 0,
     postPhoto > 0 ? `畫布上有 ${postPhoto} 張主視覺` : "貼文沒有主視覺照片",
   );
+  await page.getByTestId("studio-ig-peek").first().evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForSelector("[data-testid=ig-post-viewer]", { timeout: 8000 });
+  await expectText("編輯裡用貼文看", "貼文預覽");
+  const studioPostPeek = await page.evaluate(() => {
+    const viewer = document.querySelector("[data-testid=ig-post-viewer]");
+    const board = viewer?.querySelector('[data-ratio="4:5"], [data-ratio="1:1"]');
+    const box = board?.getBoundingClientRect();
+    const id = viewer?.getAttribute("data-post-id") ?? "";
+    const ratio = board?.getAttribute("data-ratio") ?? "";
+    if (!box) return { ok: false, detail: "沒有貼文畫面" };
+    return {
+      ok: (ratio === "4:5" || ratio === "1:1") && box.width >= 160 && id.length > 0,
+      detail: `${id} ${ratio} ${Math.round(box.width)}×${Math.round(box.height)}`,
+    };
+  });
+  record("編輯裡貼文是直式", Boolean(studioPostPeek.ok), studioPostPeek.detail);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${prefix}-studio-ig-post-peek.png` });
+  await page.getByTestId("ig-peek-close").evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForSelector("[data-testid=ig-peek]", { state: "hidden", timeout: 8000 }).catch(() => null);
   await page.screenshot({ path: `${prefix}-from-image-post.png` });
 
   // 8f. 從一張圖片做成 1:1：正方形，照片當主視覺
@@ -861,7 +893,7 @@ try {
     el instanceof HTMLElement ? el.click() : undefined,
   );
   await page.waitForSelector("[data-testid=ig-post-viewer]", { timeout: 8000 });
-  await expectText("格子打開貼文", "動態預覽");
+  await expectText("格子打開貼文", "貼文預覽");
   const peekPostId = await page.locator("[data-testid=ig-post-viewer]").getAttribute("data-post-id");
   record(
     "格子打開同一則",

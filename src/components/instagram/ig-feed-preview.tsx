@@ -34,7 +34,7 @@ export function IgFeedPreview({
       data-post-id={projects.length === 1 ? projects[0]?.id : undefined}
     >
       <p className={cn("mb-2 text-xs", tone === "overlay" ? "text-accent-fg" : "pr-12 text-subtle")}>
-        動態預覽 · {CLUB_HANDLE}
+        {tone === "overlay" ? "貼文預覽" : "動態預覽"} · {CLUB_HANDLE}
       </p>
       <div className="isolate overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-lift)]">
         <ul>

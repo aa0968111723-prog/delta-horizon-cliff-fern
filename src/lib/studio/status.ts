@@ -118,6 +118,31 @@ export function contentKindLabel(kind: ContentKind): string {
   return CONTENT_KIND_META[kind]?.label ?? "內容";
 }
 
+/** 畫面編輯頁列名稱：限動／知識卡不是輪播，單張貼文也不是。 */
+export function slideBarKindLabel(kind: ContentKind): string {
+  switch (kind) {
+    case "story":
+    case "countdown":
+    case "poll":
+      return "限動";
+    case "carousel":
+      return "輪播";
+    case "knowledge":
+      return "知識卡";
+    case "recap":
+      return "回顧";
+    case "qa":
+      return "Q&A";
+    default:
+      return "各頁";
+  }
+}
+
+/** 只有輪播才展開成六頁腳本。限動三到五張，不要套輪播展開。 */
+export function slideBarCanExpand(kind: ContentKind): boolean {
+  return kind === "carousel";
+}
+
 export function isContentKind(value: unknown): value is ContentKind {
   return typeof value === "string" && value in CONTENT_KIND_META;
 }

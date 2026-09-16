@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyFlowToProject, flowActions, inferContentKind, primaryFlowAction, statusLabel } from "./status.ts";
+import {
+  applyFlowToProject,
+  flowActions,
+  inferContentKind,
+  primaryFlowAction,
+  slideBarCanExpand,
+  slideBarKindLabel,
+  statusLabel,
+} from "./status.ts";
 
 test("flowActions for making starts with 這則完成了", () => {
   assert.equal(primaryFlowAction("making")?.id, "done");
@@ -63,4 +71,16 @@ test("inferContentKind maps landscape to LINE", () => {
   assert.equal(inferContentKind("feed-landscape", 1), "line");
   assert.equal(inferContentKind("reels-cover", 1), "reels");
   assert.equal(inferContentKind("story", 3), "story");
+});
+
+test("slideBarKindLabel does not call stories 輪播", () => {
+  assert.equal(slideBarKindLabel("story"), "限動");
+  assert.equal(slideBarKindLabel("countdown"), "限動");
+  assert.equal(slideBarKindLabel("carousel"), "輪播");
+  assert.equal(slideBarKindLabel("knowledge"), "知識卡");
+  assert.equal(slideBarKindLabel("ig-post"), "各頁");
+  assert.equal(slideBarKindLabel("reels"), "各頁");
+  assert.equal(slideBarCanExpand("carousel"), true);
+  assert.equal(slideBarCanExpand("story"), false);
+  assert.equal(slideBarCanExpand("ig-post"), false);
 });

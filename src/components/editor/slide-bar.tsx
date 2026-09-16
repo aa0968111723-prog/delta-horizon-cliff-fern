@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ADAPT_FORMATS, PAGE_ROLE_LABEL } from "@/lib/studio/carousel";
 import { formatById } from "@/lib/studio/formats";
 import { MAX_SLIDES, pagesOf } from "@/lib/studio/layers";
+import { slideBarCanExpand, slideBarKindLabel } from "@/lib/studio/status";
 import type { FormatId, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
@@ -37,7 +38,9 @@ export function SlideBar({ project }: { project: Project }) {
   return (
     <div className="space-y-1.5 px-2 py-1.5">
       <div className="flex items-center gap-1 overflow-x-auto">
-        <p className="mr-1 shrink-0 text-xs text-muted">輪播</p>
+        <p className="mr-1 shrink-0 text-xs text-muted" data-testid="slide-bar-label">
+          {slideBarKindLabel(project.contentKind)}
+        </p>
         {pages.map((page, i) => (
           <Button
             key={`${page.role ?? "page"}-${i}`}
@@ -121,11 +124,12 @@ export function SlideBar({ project }: { project: Project }) {
           <Rows3 className="size-4" />
           整組預覽
         </Button>
-        {pages.length < 6 ? (
+        {slideBarCanExpand(project.contentKind) && pages.length < 6 ? (
           <Button
             size="sm"
             className="min-h-11"
             variant="secondary"
+            data-testid="slide-bar-expand"
             onClick={() => {
               expandCarousel(project.id);
               toast.success("已展開為六頁輪播腳本");
