@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { atLocalTime, defaultScheduleAt, offsetDaysFromEventDate, postingTime, startOfLocalDay, suggestSchedule } from "./schedule.ts";
+import { atLocalTime, defaultScheduleAt, offsetDaysFromEventDate, postingTime, stampTimeOnDay, startOfLocalDay, suggestSchedule } from "./schedule.ts";
 import type { Brief, Campaign, CampaignWave, CopyDeck, Project } from "./types.ts";
 
 const NOW = Date.parse("2026-09-16T10:00:00+08:00");
@@ -166,6 +166,25 @@ test("offsetDaysFromEventDate is relative to the campaign day", () => {
   assert.equal(offsetDaysFromEventDate("2026-09-24", Date.parse("2026-09-24T08:00:00")), 0);
   assert.equal(offsetDaysFromEventDate("2026-09-24", Date.parse("2026-09-26T08:00:00")), 2);
   assert.equal(offsetDaysFromEventDate("", Date.now()), null);
+});
+
+function ymd(ms: number): string {
+  const d = new Date(ms);
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
+test("stampTimeOnDay keeps the original posting clock on a new date", () => {
+  const evening = Date.parse("2026-09-16T19:30:00");
+  const next = stampTimeOnDay(evening, Date.parse("2026-09-18T00:00:00"));
+  assert.equal(ymd(next), "2026-09-18");
+  assert.equal(new Date(next).getHours(), 19);
+  assert.equal(new Date(next).getMinutes(), 30);
+  const fallback = stampTimeOnDay(null, Date.parse("2026-09-20T08:00:00"));
+  assert.equal(ymd(fallback), "2026-09-20");
+  assert.equal(new Date(fallback).getHours(), 19);
+  assert.equal(new Date(fallback).getMinutes(), 0);
 });
 
 test("defaultScheduleAt uses tonight if it is still morning", () => {

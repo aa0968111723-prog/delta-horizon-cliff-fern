@@ -45,6 +45,47 @@ async function tap(locator) {
   });
 }
 
+/** Chromium 的滑鼠 dragTo 不會觸發 HTML5 DataTransfer，改派 DragEvent。 */
+async function html5DragPackToAnotherDay() {
+  return page.evaluate(() => {
+    const chip = document.querySelector("[data-testid=calendar-chip-pack]");
+    if (!(chip instanceof HTMLElement)) return { ok: false, detail: "沒有全套晶片" };
+    const sourceDay = chip.closest("[data-testid=calendar-day]");
+    const sourceDate = sourceDay?.getAttribute("data-date") ?? "";
+    const days = [...document.querySelectorAll("[data-testid=calendar-day]")];
+    const later = days.find((el) => {
+      const date = el.getAttribute("data-date") ?? "";
+      return date > sourceDate && el.getAttribute("data-in-month") === "1";
+    });
+    const dest =
+      later ??
+      days.find((el) => {
+        const date = el.getAttribute("data-date") ?? "";
+        return date && date !== sourceDate && el.getAttribute("data-in-month") === "1";
+      });
+    if (!(dest instanceof HTMLElement)) {
+      return { ok: false, detail: "沒有可以放下的日期", sourceDate };
+    }
+    const destDate = dest.getAttribute("data-date") ?? "";
+    const dt = new DataTransfer();
+    const fire = (el, type) =>
+      el.dispatchEvent(
+        new DragEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          dataTransfer: dt,
+        }),
+      );
+    fire(chip, "dragstart");
+    fire(dest, "dragenter");
+    fire(dest, "dragover");
+    fire(dest, "drop");
+    fire(chip, "dragend");
+    return { ok: true, detail: `${sourceDate} → ${destDate}`, sourceDate, destDate };
+  });
+}
+
 try {
   // 1. 首頁
   await page.goto(`${base}/`, { waitUntil: "networkidle" });
@@ -310,6 +351,29 @@ try {
   await expectText("日曆型態晶片", "IG 貼文");
   await expectText("日曆全套晶片", "全套 ·");
   await page.screenshot({ path: `${prefix}-calendar.png` });
+  const packChipReady = await page
+    .waitForSelector("[data-testid=calendar-chip-pack]", { timeout: 8000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!packChipReady) {
+    await tap(page.getByRole("button", { name: "週" }));
+    await page.waitForSelector("[data-testid=calendar-week]", { timeout: 8000 });
+    await page.waitForSelector("[data-testid=calendar-chip-pack]", { timeout: 8000 });
+  }
+  const dragPlan = await html5DragPackToAnotherDay();
+  record("日曆拖曳全套", Boolean(dragPlan.ok), dragPlan.detail || "");
+  await page.waitForTimeout(700);
+  const afterDrag = await text();
+  record("日曆拖曳全套改期提示", afterDrag.includes("全套改到"), "沒有「全套改到」提示");
+  if (dragPlan.destDate) {
+    const destText = await page.locator(`[data-testid=calendar-day][data-date="${dragPlan.destDate}"]`).innerText();
+    record(
+      "日曆拖曳全套落到那天",
+      destText.includes("全套"),
+      `目的日 ${dragPlan.destDate} 沒有全套晶片`,
+    );
+  }
+  await page.screenshot({ path: `${prefix}-calendar-drag.png` });
   await tap(page.getByRole("button", { name: "週" }));
   await page.waitForSelector("[data-testid=calendar-week]", { timeout: 8000 });
   await expectText("日曆週視圖", "那週");

@@ -13,7 +13,7 @@ import {
 } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, Sparkles, Tent } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PostPackBar } from "@/components/create/post-pack";
 import { DownloadPackButton } from "@/components/export/download-pack";
@@ -21,9 +21,14 @@ import { PackFlowBar } from "@/components/shared/pack-flow";
 import { PageHeader, SectionHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
+import {
+  parseCalendarDrag,
+  writeCalendarDrag,
+  type CalendarMoveTarget,
+} from "@/lib/studio/calendar-dnd";
 import { groupSameNightPacks } from "@/lib/studio/calendar-groups";
 import { campaignDateMs, waveDateMs } from "@/lib/studio/campaign";
-import { suggestSchedule, offsetDaysFromEventDate } from "@/lib/studio/schedule";
+import { suggestSchedule, offsetDaysFromEventDate, stampTimeOnDay } from "@/lib/studio/schedule";
 import { CONTENT_KIND_ORDER, contentKindLabel } from "@/lib/studio/status";
 import { unscheduledDonePacks } from "@/lib/studio/today-post";
 import type { Campaign, ContentKind, Project } from "@/lib/studio/types";
@@ -40,10 +45,7 @@ type DayItem =
 type PackDayItem = { type: "pack"; rootId: string; members: Project[]; at: number };
 type CellItem = DayItem | PackDayItem;
 
-type MoveTarget =
-  | { kind: "content"; id: string }
-  | { kind: "pack"; ids: string[] }
-  | { kind: "wave"; campaignId: string; waveId: string };
+type MoveTarget = CalendarMoveTarget;
 
 function packChipLabel(members: Array<Pick<Project, "contentKind">>): string {
   const kinds = [...new Set(members.map((item) => item.contentKind))].sort(
@@ -79,6 +81,7 @@ export function CalendarPage() {
   const [drag, setDrag] = useState<MoveTarget | null>(null);
   const [pick, setPick] = useState<MoveTarget | null>(null);
   const [tapMove] = useState(prefersTapMove);
+  const dragRef = useRef<MoveTarget | null>(null);
 
   const items = useMemo<DayItem[]>(() => {
     const rows: DayItem[] = [];
@@ -139,10 +142,24 @@ export function CalendarPage() {
   }
 
   function stampOnDay(project: Project, day: Date): number {
-    const prev = project.scheduledAt ? new Date(project.scheduledAt) : project.publishedAt ? new Date(project.publishedAt) : null;
-    const next = new Date(day);
-    next.setHours(prev?.getHours() ?? 19, prev?.getMinutes() ?? 0, 0, 0);
-    return next.getTime();
+    return stampTimeOnDay(project.scheduledAt ?? project.publishedAt, day.getTime());
+  }
+
+  function clearMove() {
+    dragRef.current = null;
+    setDrag(null);
+    setPick(null);
+  }
+
+  function beginDrag(target: MoveTarget, transfer: DataTransfer | null) {
+    dragRef.current = target;
+    setDrag(target);
+    writeCalendarDrag(transfer, target);
+  }
+
+  function endDrag() {
+    dragRef.current = null;
+    setDrag(null);
   }
 
   function moveProject(projectId: string, day: Date) {
@@ -150,8 +167,7 @@ export function CalendarPage() {
     if (!project) return;
     const at = stampOnDay(project, day);
     setSchedule(project.id, at);
-    setDrag(null);
-    setPick(null);
+    clearMove();
     toast.success(`已改到 ${format(at, "M/d HH:mm")}`);
   }
 
@@ -166,8 +182,7 @@ export function CalendarPage() {
       return;
     }
     applySchedule(entries);
-    setDrag(null);
-    setPick(null);
+    clearMove();
     toast.success(`全套改到 ${format(day, "M/d")}，同一晚一起發。`);
   }
 
@@ -180,13 +195,12 @@ export function CalendarPage() {
       return;
     }
     updateWave(campaignId, waveId, { offsetDays: offset });
-    setDrag(null);
-    setPick(null);
+    clearMove();
     toast.success(`節奏改到 ${format(day, "M/d")}`);
   }
 
-  function dropOn(day: Date) {
-    const target = drag ?? pick;
+  function dropOn(day: Date, transfer?: DataTransfer | null) {
+    const target = parseCalendarDrag(transfer) ?? dragRef.current ?? drag ?? pick;
     if (!target) return;
     if (target.kind === "content") moveProject(target.id, day);
     else if (target.kind === "pack") movePack(target.ids, day);
@@ -316,10 +330,18 @@ export function CalendarPage() {
               return (
                 <div
                   key={day.toISOString()}
+                  data-testid="calendar-day"
+                  data-date={format(day, "yyyy-MM-dd")}
+                  data-in-month={dim ? "0" : "1"}
+                  onDragEnter={(e) => e.preventDefault()}
                   onDragOver={(e) => {
-                    if (drag) e.preventDefault();
+                    e.preventDefault();
+                    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
                   }}
-                  onDrop={() => dropOn(day)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    dropOn(day, e.dataTransfer);
+                  }}
                   onClick={(e) => {
                     if (!pick) return;
                     if ((e.target as HTMLElement).closest("a")) return;
@@ -343,7 +365,8 @@ export function CalendarPage() {
                           item={item}
                           selected={isCellSelected(item, pick)}
                           tapMove={tapMove}
-                          onDragStart={setDrag}
+                          onBeginDrag={beginDrag}
+                          onEndDrag={endDrag}
                           onPick={setPick}
                         />
                       </li>
@@ -453,13 +476,15 @@ function CalendarChip({
   item,
   selected,
   tapMove,
-  onDragStart,
+  onBeginDrag,
+  onEndDrag,
   onPick,
 }: {
   item: CellItem;
   selected?: boolean;
   tapMove?: boolean;
-  onDragStart: (target: MoveTarget | null) => void;
+  onBeginDrag: (target: MoveTarget, transfer: DataTransfer | null) => void;
+  onEndDrag: () => void;
   onPick: (target: MoveTarget) => void;
 }) {
   if (item.type === "event") {
@@ -479,9 +504,10 @@ function CalendarChip({
       <Link
         to="/campaigns/$campaignId"
         params={{ campaignId: item.campaign.id }}
+        data-testid="calendar-chip-wave"
         draggable={!tapMove}
-        onDragStart={() => onDragStart(target)}
-        onDragEnd={() => onDragStart(null)}
+        onDragStart={(e) => onBeginDrag(target, e.dataTransfer)}
+        onDragEnd={onEndDrag}
         onClick={(e) => {
           e.stopPropagation();
           if (!tapMove && !e.metaKey && !e.ctrlKey) return;
@@ -507,9 +533,10 @@ function CalendarChip({
       <Link
         to="/studio/$projectId"
         params={{ projectId: primary.id }}
+        data-testid="calendar-chip-pack"
         draggable={!tapMove}
-        onDragStart={() => onDragStart(target)}
-        onDragEnd={() => onDragStart(null)}
+        onDragStart={(e) => onBeginDrag(target, e.dataTransfer)}
+        onDragEnd={onEndDrag}
         onClick={(e) => {
           e.stopPropagation();
           if (!tapMove && !e.metaKey && !e.ctrlKey) return;
@@ -534,9 +561,10 @@ function CalendarChip({
     <Link
       to="/studio/$projectId"
       params={{ projectId: item.project.id }}
+      data-testid="calendar-chip-content"
       draggable={!tapMove}
-      onDragStart={() => onDragStart(target)}
-      onDragEnd={() => onDragStart(null)}
+      onDragStart={(e) => onBeginDrag(target, e.dataTransfer)}
+      onDragEnd={onEndDrag}
       onClick={(e) => {
         e.stopPropagation();
         if (!tapMove && !e.metaKey && !e.ctrlKey) return;

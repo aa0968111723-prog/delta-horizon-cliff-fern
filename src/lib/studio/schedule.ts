@@ -28,6 +28,19 @@ export function defaultScheduleAt(now: number = Date.now(), hour = DEFAULT_HOUR,
   return today > now ? today : today + DAY;
 }
 
+/** 拖到別天時，保留原本的發文鐘點。 */
+export function stampTimeOnDay(
+  prevMs: number | null | undefined,
+  dayMs: number,
+  fallbackHour = DEFAULT_HOUR,
+  fallbackMinute = 0,
+): number {
+  const prev = prevMs != null ? new Date(prevMs) : null;
+  const next = new Date(dayMs);
+  next.setHours(prev?.getHours() ?? fallbackHour, prev?.getMinutes() ?? fallbackMinute, 0, 0);
+  return next.getTime();
+}
+
 /** 把節奏拖到某天時，算出相對活動日的 offsetDays。 */
 export function offsetDaysFromEventDate(eventDate: string, dayMs: number): number | null {
   if (!eventDate) return null;
