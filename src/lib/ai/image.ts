@@ -30,12 +30,15 @@ export const generateStudioImage = createServerFn({ method: "POST" })
         /* mock below */
       }
       const dir = mockDirections(data.topic || "禪學社")[0];
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350">
-        <rect width="1080" height="1350" fill="#161410"/>
-        <circle cx="380" cy="560" r="240" fill="#D9A15A" fill-opacity="0.7"/>
-        <circle cx="720" cy="520" r="220" fill="#3D8B84" fill-opacity="0.68"/>
-        <circle cx="540" cy="820" r="210" fill="#C46B6B" fill-opacity="0.55"/>
-        <text x="80" y="1180" fill="#F3EEE4" font-size="56" font-family="serif">${escapeXml(dir.headline.split("\n")[0] ?? "先坐下來")}</text>
+      const aspect = data.aspect ?? "4:5";
+      const height = aspect === "9:16" ? 1920 : aspect === "1:1" ? 1080 : 1350;
+      const mark = aspect === "9:16" ? "限動封面" : (dir.headline.split("\n")[0] ?? "先坐下來");
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 ${height}">
+        <rect width="1080" height="${height}" fill="#161410"/>
+        <circle cx="380" cy="${aspect === "9:16" ? 720 : 560}" r="240" fill="#D9A15A" fill-opacity="0.7"/>
+        <circle cx="720" cy="${aspect === "9:16" ? 680 : 520}" r="220" fill="#3D8B84" fill-opacity="0.68"/>
+        <circle cx="540" cy="${aspect === "9:16" ? 1100 : 820}" r="210" fill="#C46B6B" fill-opacity="0.55"/>
+        <text x="80" y="${height - 160}" fill="#F3EEE4" font-size="56" font-family="serif">${escapeXml(mark)}</text>
       </svg>`;
       return {
         ok: true,
