@@ -20,6 +20,27 @@ function match(q: string, text: string) {
   return parts.every((p) => text.includes(p));
 }
 
+export function expandCreativeQuery(query: string) {
+  const q = query.trim();
+  const extra: string[] = [];
+  if (/晚上|夜/.test(q)) extra.push("晚上", "night", "evening");
+  if (/茶會|茶/.test(q)) extra.push("茶會", "tea gathering");
+  if (/龜龜/.test(q)) extra.push("龜龜", "turtle", "mascot");
+  if (/浮游禪光|禪光|三色光/.test(q)) extra.push("浮游禪光", "三色光", "lights");
+  if (/主視覺|IG|海報/.test(q)) extra.push("主視覺", "poster", "Instagram");
+  if (/同學|互動/.test(q)) extra.push("同學", "互動", "students");
+  if (/淡水|校園/.test(q)) extra.push("淡水", "淡江", "campus");
+  const merged = [q, ...extra].join(" ");
+  return { original: q, expanded: merged };
+}
+
+export function groupSearchHits(hits: SearchHit[]) {
+  const order = ["drive", "canva", "instagram", "generated", "campaign", "brand", "asset"] as const;
+  return order
+    .map((source) => ({ source, items: hits.filter((hit) => hit.source === source) }))
+    .filter((group) => group.items.length > 0);
+}
+
 export function creativeSearch(query: string, input: {
   assets: AssetMeta[];
   campaigns: ClubCampaign[];

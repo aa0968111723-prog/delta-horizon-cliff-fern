@@ -21,17 +21,20 @@ export const generateCreativePack = createServerFn({ method: "POST" })
     | { ok: true; pack: CreativePack; adapter: "live" | "mock" }
     | { ok: false; error: string; adapter: "live" | "mock" }
   > => {
+    const { collectLiveSources } = await import("./sources.server");
+    const liveHits = await collectLiveSources(data.eventName);
     const result = await generateCampaignPlan({ data });
     if (!result.ok) return result;
     const plan = result.plan.visualDirections?.length ? result.plan : { ...result.plan, ...enrich(data.eventName) };
-    const sources: CitedSource[] = plan.citedSources?.length
-      ? plan.citedSources
-      : defaultSources(data.memoryNotes);
+    const sources: CitedSource[] = [
+      ...(plan.citedSources?.length ? plan.citedSources : defaultSources(data.memoryNotes)),
+      ...liveHits,
+    ].slice(0, 10);
     const pack: CreativePack = {
       campaignName: plan.campaignName,
       insight: plan.insight,
       studentContext: data.audience,
-      foundCount: sources.length,
+      foundCount: Math.max(sources.length, liveHits.length),
       citedSources: sources,
       directions: plan.visualDirections,
       plan,

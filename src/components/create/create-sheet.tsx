@@ -26,7 +26,9 @@ const ACTIONS = [
   { id: "campaign", label: "建立活動", hint: "茶會、禪光、社課", to: "/campaigns" },
   { id: "idea", label: "從一句想法開始", hint: "先寫感覺再變內容", to: "/create" },
   { id: "drive", label: "從 Google Drive 開始", hint: "找歷屆照片與企劃", to: "/connect" },
+  { id: "canva", label: "從 Canva 設計開始", hint: "風格參考或繼續編輯", to: "/connect" },
   { id: "ig", label: "從以前 IG 開始", hint: "用自己的帳號記憶", to: "/instagram" },
+  { id: "inspire", label: "靈感研究", hint: "抽象別人，做成自己的", to: "/inspire" },
 ] as const;
 
 const ICONS = {
@@ -38,7 +40,9 @@ const ICONS = {
   campaign: CalendarPlus,
   idea: Lightbulb,
   drive: Lightbulb,
+  canva: Layers,
   ig: Instagram,
+  inspire: Lightbulb,
 };
 
 export function CreateLaunchSheet({
@@ -76,6 +80,14 @@ export function CreateLaunchSheet({
                     }
                     if (action.id === "ig") {
                       void navigate({ to: "/instagram" });
+                      return;
+                    }
+                    if (action.id === "inspire") {
+                      void navigate({ to: "/inspire" });
+                      return;
+                    }
+                    if (action.id === "canva") {
+                      void navigate({ to: "/connect" });
                       return;
                     }
                     void navigate({ to: action.to });

@@ -144,6 +144,56 @@ export function AssetDetailSheet({
           <Button onClick={place} disabled={!lastProjectId}>
             放到目前畫布
           </Button>
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              if (!url) {
+                toast.error("還沒有預覽可以分析。");
+                return;
+              }
+              try {
+                const dataUrl = url.startsWith("data:") ? url : await blobToDataUrl(url);
+                const { analyzeStudioImage } = await import("@/lib/ai/image");
+                const result = await analyzeStudioImage({
+                  data: { imageDataUrl: dataUrl, question: "幫這張素材打標，看適不適合淡江學生 IG。" },
+                });
+                if (!result.ok) {
+                  toast.error(result.error);
+                  return;
+                }
+                const tags = Array.from(
+                  new Set([
+                    ...current.tags,
+                    ...[result.analysis.color, result.analysis.brand, result.analysis.student]
+                      .join(" ")
+                      .split(/[、，,\s]+/)
+                      .map((t) => t.trim())
+                      .filter((t) => t.length >= 2 && t.length <= 12)
+                      .slice(0, 6),
+                  ]),
+                );
+                updateAsset(current.id, {
+                  tags,
+                  licenseNotes: [current.licenseNotes, result.analysis.content, `太宗教？${result.analysis.tooReligious}`, `太 AI？${result.analysis.tooAi}`]
+                    .filter(Boolean)
+                    .join("\n"),
+                });
+                toast.success("已寫入 AI 標籤");
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "分析失敗");
+              }
+            }}
+          >
+            AI 分析／打標
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              void navigate({ to: "/create/image" });
+            }}
+          >
+            延伸生成
+          </Button>
           <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}
           </Button>
@@ -154,4 +204,15 @@ export function AssetDetailSheet({
       </SheetContent>
     </Sheet>
   );
+}
+
+async function blobToDataUrl(url: string) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("讀取失敗"));
+    reader.readAsDataURL(blob);
+  });
 }

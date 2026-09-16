@@ -1,12 +1,20 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { systemPrompt } from "@/lib/zen/voice";
+import { proposeVisualDirections, type ImageAspect } from "./image-directions";
+import type { VisualDirection } from "@/lib/studio/types";
 
 const ImageInput = z.object({
   prompt: z.string().min(1).max(800),
   aspect: z.enum(["4:5", "1:1", "9:16"]).default("4:5"),
   mood: z.string().max(120).optional(),
 });
+
+function unwrap(input: unknown) {
+  return input && typeof input === "object" && "data" in input && (input as { data: unknown }).data
+    ? (input as { data: unknown }).data
+    : input;
+}
 
 export type ImageGenResult =
   | { ok: true; b64: string; prompt: string; mime: "image/png" }
@@ -18,14 +26,57 @@ const ASPECT: Record<"4:5" | "1:1" | "9:16", string> = {
   "9:16": "vertical 9:16 story",
 };
 
+const DirectionsInput = z.object({
+  prompt: z.string().min(1).max(800),
+  aspect: z.enum(["4:5", "1:1", "9:16"]).default("4:5"),
+});
+
+export const proposeStudioDirections = createServerFn({ method: "POST" })
+  .validator((input: unknown) => DirectionsInput.parse(unwrap(input)))
+  .handler(async ({ data }): Promise<{ ok: true; directions: VisualDirection[]; adapter: "live" | "mock" }> => {
+    const local = proposeVisualDirections(data.prompt, data.aspect as ImageAspect);
+    const apiKey = process.env.XAI_API_KEY;
+    if (!apiKey) return { ok: true, directions: local, adapter: "mock" };
+    const res = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "grok-4.5",
+        temperature: 0.6,
+        max_tokens: 1400,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt("image") },
+          {
+            role: "user",
+            content: `為「${data.prompt}」提出 3 個 IG 視覺方向（aspect ${data.aspect}）。先想活動、淡水生活、夜晚、朋友感、品牌色、龜龜、三色光、停留感，不要只說禪風海報。
+輸出 JSON：directions[{id,title,concept,palette,composition,typeDirection,imagePrompt,headline,subhead}] 必須 3 個。imagePrompt 用英文攝影描述。headline 可含 \\n。`,
+          },
+        ],
+      }),
+    });
+    if (!res.ok) return { ok: true, directions: local, adapter: "mock" };
+    try {
+      const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      const parsed = JSON.parse(body.choices?.[0]?.message?.content ?? "{}") as { directions?: VisualDirection[] };
+      if (parsed.directions?.length === 3) {
+        return {
+          ok: true,
+          adapter: "live",
+          directions: parsed.directions.map((d, i) => ({ ...d, id: d.id || `dir_${i + 1}` })),
+        };
+      }
+    } catch {
+      /* keep local */
+    }
+    return { ok: true, directions: local, adapter: "mock" };
+  });
+
 export const generateStudioImage = createServerFn({ method: "POST" })
-  .validator((input: unknown) => {
-    const inner =
-      input && typeof input === "object" && "data" in input && (input as { data: unknown }).data
-        ? (input as { data: unknown }).data
-        : input;
-    return ImageInput.parse(inner);
-  })
+  .validator((input: unknown) => ImageInput.parse(unwrap(input)))
   .handler(async ({ data }): Promise<ImageGenResult> => {
     const apiKey = process.env.XAI_API_KEY;
     if (!apiKey) {
@@ -82,13 +133,7 @@ export type VisionResult =
   | { ok: false; error: string };
 
 export const analyzeStudioImage = createServerFn({ method: "POST" })
-  .validator((input: unknown) => {
-    const inner =
-      input && typeof input === "object" && "data" in input && (input as { data: unknown }).data
-        ? (input as { data: unknown }).data
-        : input;
-    return VisionInput.parse(inner);
-  })
+  .validator((input: unknown) => VisionInput.parse(unwrap(input)))
   .handler(async ({ data }): Promise<VisionResult> => {
     const apiKey = process.env.XAI_API_KEY;
     if (!apiKey) {

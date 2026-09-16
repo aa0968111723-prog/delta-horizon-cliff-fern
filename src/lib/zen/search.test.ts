@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { creativeSearch } from "./search.ts";
+import { creativeSearch, expandCreativeQuery, groupSearchHits } from "./search.ts";
 import { suggestWaves } from "./schedule.ts";
 import { convertFromPlan } from "./convert.ts";
 import { migrateStatus } from "../studio/status.ts";
@@ -137,4 +137,15 @@ test("convertFromPlan always returns carousel story reels threads line", () => {
   assert.equal(out.reels.length, 5);
   assert.ok(out.threads.includes("坐好"));
   assert.ok(out.line.includes("茶會"));
+});
+
+test("expandCreativeQuery adds tea night terms", () => {
+  const { expanded } = expandCreativeQuery("找以前晚上的茶會照片");
+  assert.ok(expanded.includes("茶會"));
+  assert.ok(expanded.includes("night"));
+  const grouped = groupSearchHits([
+    { id: "1", source: "drive", title: "a", subtitle: "", tags: [] },
+    { id: "2", source: "canva", title: "b", subtitle: "", tags: [] },
+  ]);
+  assert.equal(grouped[0]?.source, "drive");
 });

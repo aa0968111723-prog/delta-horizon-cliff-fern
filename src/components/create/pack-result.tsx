@@ -1,7 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { createCanvaDraft } from "@/lib/ai/oauth";
 import type { CreativePack } from "@/lib/zen/types";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function PackResult({
   pack,
@@ -41,12 +43,29 @@ export function PackResult({
         ))}
       </div>
       {!compact ? (
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <Block title="IG Caption" body={pack.copy.body} />
-          <Block title="學生視角" body={reviewText(pack)} />
-          <Block title="Threads" body={pack.plan.threadsPost || ""} />
-          <Block title="LINE" body={pack.plan.lineCopy || ""} />
-        </div>
+        <>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <Block title="IG Caption" body={pack.copy.body} />
+            <Block title="學生視角" body={reviewText(pack)} />
+            <Block title="Threads" body={pack.plan.threadsPost || ""} />
+            <Block title="LINE" body={pack.plan.lineCopy || ""} />
+          </div>
+          <Button
+            className="mt-4"
+            variant="secondary"
+            onClick={async () => {
+              const result = await createCanvaDraft({ data: { title: pack.campaignName || pack.copy.hook } });
+              if (!result.ok) {
+                toast.message(result.error);
+                return;
+              }
+              window.open(result.editUrl, "_blank", "noopener,noreferrer");
+              toast.success("已在 Canva 開一張 IG 稿，可繼續微調");
+            }}
+          >
+            送到 Canva 繼續編
+          </Button>
+        </>
       ) : null}
     </div>
   );

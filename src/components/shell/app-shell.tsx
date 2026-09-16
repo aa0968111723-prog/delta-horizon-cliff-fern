@@ -3,6 +3,7 @@ import {
   CalendarDays,
   Images,
   Instagram,
+  Lightbulb,
   Plus,
   Sparkles,
   SwatchBook,
@@ -17,15 +18,16 @@ import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 import { useState } from "react";
 
-type NavId = "home" | "create" | "calendar" | "assets" | "ig" | "campaigns" | "brand" | "connect";
+type NavId = "home" | "create" | "calendar" | "assets" | "ig" | "campaigns" | "brand" | "connect" | "inspire";
 
-const DESKTOP_NAV: { to: "/" | "/create" | "/campaigns" | "/calendar" | "/assets" | "/instagram" | "/brand" | "/connect"; label: string; icon: LucideIcon; id: NavId }[] = [
+const DESKTOP_NAV: { to: "/" | "/create" | "/campaigns" | "/calendar" | "/assets" | "/instagram" | "/brand" | "/connect" | "/inspire"; label: string; icon: LucideIcon; id: NavId }[] = [
   { to: "/", label: "首頁", icon: Sparkles, id: "home" },
   { to: "/create", label: "創作", icon: Sparkles, id: "create" },
   { to: "/campaigns", label: "活動", icon: Sparkles, id: "campaigns" },
   { to: "/calendar", label: "排程", icon: CalendarDays, id: "calendar" },
   { to: "/assets", label: "素材", icon: Images, id: "assets" },
   { to: "/instagram", label: "IG", icon: Instagram, id: "ig" },
+  { to: "/inspire", label: "靈感", icon: Lightbulb, id: "inspire" },
   { to: "/brand", label: "品牌", icon: SwatchBook, id: "brand" },
   { to: "/connect", label: "連接", icon: Sparkles, id: "connect" },
 ];
@@ -37,6 +39,7 @@ function activeKey(pathname: string): NavId {
   if (pathname.startsWith("/instagram")) return "ig";
   if (pathname.startsWith("/campaigns")) return "campaigns";
   if (pathname.startsWith("/brand")) return "brand";
+  if (pathname.startsWith("/inspire")) return "inspire";
   if (pathname.startsWith("/connect")) return "connect";
   if (pathname.startsWith("/export")) return "create";
   return "home";
@@ -56,7 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Link to="/" className="flex h-14 items-center justify-center font-display text-lg tracking-tight" aria-label={`${APP_NAME}首頁`}>
           光
         </Link>
-        <nav className="flex flex-1 flex-col gap-1 p-2">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
           {DESKTOP_NAV.map((item) => {
             const active = current === item.id;
             return (

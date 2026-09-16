@@ -5,6 +5,7 @@ import { SEED_CAMPUS_ID, SEED_CUP_ID, SEED_DRAFT_ID, SEED_LIGHT_ID, SEED_PROJECT
 import { SEED_CAMPAIGN_ID, SEED_CONNECTIONS, SEED_IG_POSTS, SEED_MEMORY, SEED_TEA_ID } from "@/lib/zen/memory";
 import { emptyCampaign, suggestWaves } from "@/lib/zen/schedule";
 import type {
+  CampaignWave,
   ClubCampaign,
   ConnectionId,
   ConnectionState,
@@ -105,6 +106,7 @@ type CreativeState = {
   setConnection: (id: ConnectionId, patch: Partial<ConnectionState>) => void;
   addMemory: (item: MemoryItem) => void;
   addIgPost: (post: IgMemoryPost) => void;
+  patchWave: (campaignId: string, waveId: string, patch: Partial<CampaignWave>) => void;
 };
 
 const initialCampaigns = seedCampaigns();
@@ -188,6 +190,18 @@ export const useCreative = create<CreativeState>()(
         })),
       addMemory: (item) => set((s) => ({ memory: [item, ...s.memory.filter((m) => m.id !== item.id)] })),
       addIgPost: (post) => set((s) => ({ igPosts: [post, ...s.igPosts.filter((p) => p.id !== post.id)] })),
+      patchWave: (campaignId, waveId, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) =>
+            c.id === campaignId
+              ? {
+                  ...c,
+                  updatedAt: Date.now(),
+                  waves: c.waves.map((w) => (w.id === waveId ? { ...w, ...patch } : w)),
+                }
+              : c,
+          ),
+        })),
     }),
     {
       name: STORAGE_KEY,

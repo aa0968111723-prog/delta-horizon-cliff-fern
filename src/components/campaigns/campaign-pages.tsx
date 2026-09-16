@@ -126,6 +126,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   const createProject = useStudio((s) => s.createProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const attach = useCreative((s) => s.attachProject);
+  const patchWave = useCreative((s) => s.patchWave);
   const [busy, setBusy] = useState(false);
 
   if (!campaign) {
@@ -192,6 +193,44 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
           <li key={wave.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
             <p className="text-xs text-muted">{new Date(wave.scheduledAt).toLocaleString("zh-TW")}</p>
             <p className="text-sm font-medium">{wave.title}</p>
+            {wave.copyPreview ? <p className="mt-2 text-sm leading-relaxed">{wave.copyPreview}</p> : null}
+            <Button
+              className="mt-2"
+              size="sm"
+              variant="secondary"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const { generateCopyPack } = await import("@/lib/ai/copy");
+                  const kind =
+                    wave.kind === "emotion"
+                      ? "emotion"
+                      : wave.kind === "countdown"
+                        ? "countdown"
+                        : wave.kind === "day-of"
+                          ? "story"
+                          : wave.kind === "recap"
+                            ? "recap"
+                            : "event";
+                  const result = await generateCopyPack({
+                    data: {
+                      idea: `${campaign.name} ${wave.title} ${campaign.tagline}`,
+                      kind,
+                      eventName: campaign.name,
+                      schedule: `${campaign.date} ${campaign.time}`,
+                      location: campaign.location,
+                    },
+                  });
+                  if (!result.ok) return;
+                  patchWave(campaign.id, wave.id, { copyPreview: result.pack.hook, status: "creating" });
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              重新生成這波
+            </Button>
           </li>
         ))}
       </ol>

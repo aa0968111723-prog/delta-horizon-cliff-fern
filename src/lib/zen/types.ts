@@ -28,6 +28,7 @@ export type CampaignWave = {
   projectId: string | null;
   status: ProjectStatus;
   notes: string;
+  copyPreview?: string;
 };
 
 export type ClubCampaign = {

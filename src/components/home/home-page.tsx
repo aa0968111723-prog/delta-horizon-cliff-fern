@@ -2,7 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { format as formatDate } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { ArrowRight, Images, Plus, Search, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreateLaunchSheet } from "@/components/create/create-sheet";
 import { PackResult } from "@/components/create/pack-result";
@@ -13,11 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAssetUrls, resolveAssetSrc } from "@/hooks/use-asset-urls";
 import { generateCreativePack } from "@/lib/ai/pack";
+import { searchCreativeWorld } from "@/lib/ai/oauth";
 import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
 import { APP_NAME, APP_TAGLINE, CLUB_SHORT } from "@/lib/zen/club";
+import { INSPIRATION_SEEDS } from "@/lib/zen/inspiration";
 import { daysUntil, formatMd, seasonContext } from "@/lib/zen/season";
-import { creativeSearch } from "@/lib/zen/search";
+import { creativeSearch, groupSearchHits, type SearchHit } from "@/lib/zen/search";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -39,16 +41,45 @@ export function HomePage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
+  const [remoteHits, setRemoteHits] = useState<SearchHit[]>([]);
   const season = seasonContext();
   const featured = campaigns.find((c) => c.id === "camp_floating_light") ?? campaigns[0];
   const remain = featured ? daysUntil(featured.date) : null;
   const brand = brands[0];
 
   const urls = useAssetUrls(useMemo(() => assets.map((a) => a.id), [assets]));
-  const hits = useMemo(
+  const localHits = useMemo(
     () => (q.trim() ? creativeSearch(q, { assets, campaigns, igPosts, memory }) : []),
     [q, assets, campaigns, igPosts, memory],
   );
+  const hits = useMemo(() => {
+    const seen = new Set(localHits.map((h) => `${h.source}:${h.id}`));
+    const merged = [...localHits];
+    for (const hit of remoteHits) {
+      const key = `${hit.source}:${hit.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(hit);
+    }
+    return merged;
+  }, [localHits, remoteHits]);
+  const grouped = groupSearchHits(hits);
+
+  useEffect(() => {
+    const query = q.trim();
+    if (!query) {
+      setRemoteHits([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void searchCreativeWorld({ data: { query } })
+        .then((result) => {
+          if (result.ok) setRemoteHits(result.hits);
+        })
+        .catch(() => setRemoteHits([]));
+    }, 320);
+    return () => window.clearTimeout(timer);
+  }, [q]);
   const upcoming = [...schedule].sort((a, b) => a.scheduledAt - b.scheduledAt).slice(0, 4);
   const recentGen = [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
   const strongIg = [...igPosts].sort((a, b) => b.saves - a.saves).slice(0, 3);
@@ -151,16 +182,40 @@ export function HomePage() {
         />
       </div>
       {hits.length > 0 ? (
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {hits.slice(0, 6).map((hit) => (
-            <li key={`${hit.source}-${hit.id}`} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
-              <p className="text-[11px] tracking-wide text-muted uppercase">{sourceLabel(hit.source)}</p>
-              <p className="mt-1 text-sm font-medium">{hit.title}</p>
-              <p className="text-xs text-muted">{hit.subtitle}</p>
+        <div className="mt-3 space-y-4">
+          {grouped.map((group) => (
+            <div key={group.source}>
+              <p className="text-[11px] tracking-wide text-muted uppercase">{sourceLabel(group.source)}</p>
+              <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+                {group.items.slice(0, 4).map((hit) => (
+                  <li key={`${hit.source}-${hit.id}`} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+                    <p className="mt-1 text-sm font-medium">{hit.title}</p>
+                    <p className="text-xs text-muted">{hit.subtitle}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <section className="mt-8">
+        <div className="mb-3 flex items-end justify-between">
+          <h2 className="text-sm font-medium">今日靈感</h2>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/inspire">全部</Link>
+          </Button>
+        </div>
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {INSPIRATION_SEEDS.slice(0, 2).map((seed) => (
+            <li key={seed.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <p className="text-xs text-muted">{seed.watch}</p>
+              <p className="mt-2 text-sm font-medium">{seed.zenClub.hook}</p>
+              <p className="mt-1 text-xs text-muted">{seed.zenClub.why}</p>
             </li>
           ))}
         </ul>
-      ) : null}
+      </section>
 
       {lastPack ? (
         <section className="mt-8">
@@ -187,6 +242,7 @@ export function HomePage() {
               ["建立活動", "/campaigns"],
               ["從 Drive 素材", "/connect"],
               ["從以前 IG", "/instagram"],
+              ["靈感研究", "/inspire"],
             ] as const
           ).map(([label, to]) => (
             <Link key={label} to={to} className="rounded-2xl bg-surface px-4 py-4 text-sm shadow-[var(--shadow-border)]">
