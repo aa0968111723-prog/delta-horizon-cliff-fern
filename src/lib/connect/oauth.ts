@@ -81,8 +81,8 @@ async function syncProvider(
       const items = await listCanva(tokens.access, query);
       return { ok: true, items, account: tokens.account };
     }
-    const { items, posts } = await listInstagram(tokens.access);
-    return { ok: true, items, posts, account: tokens.account };
+    const ig = await listInstagram(tokens.access);
+    return { ok: true, items: ig.items, posts: ig.posts, account: ig.account || tokens.account };
   } catch {
     return { ok: false, message: "同步暫時失敗，先用社團記憶繼續創作。" };
   }
@@ -173,7 +173,7 @@ async function listDrive(access: string, query?: string, folderId?: string): Pro
   const res = await fetch(url, { headers: { Authorization: `Bearer ${access}` } });
   if (!res.ok) return [];
   const body = (await res.json()) as {
-    files?: { id: string; name: string; mimeType: string; modifiedTime?: string }[];
+    files?: { id: string; name: string; mimeType: string; modifiedTime?: string; thumbnailLink?: string }[];
   };
   return (body.files ?? []).map((file) => ({
     id: `drive_${file.id}`,
@@ -183,6 +183,7 @@ async function listDrive(access: string, query?: string, folderId?: string): Pro
     kind: driveKind(file.mimeType),
     tags: [file.mimeType.split("/").pop() ?? "file"],
     summary: folderId ? "來自指定的禪學社資料夾。" : "來自 Google Drive。",
+    thumbUrl: file.thumbnailLink,
     createdAt: file.modifiedTime ? Date.parse(file.modifiedTime) : Date.now(),
   }));
 }
@@ -194,7 +195,7 @@ async function listCanva(access: string, query?: string): Promise<MemoryItem[]> 
   const res = await fetch(url, { headers: { Authorization: `Bearer ${access}` } });
   if (!res.ok) return [];
   const body = (await res.json()) as {
-    items?: { id: string; title?: string; updated_at?: number }[];
+    items?: { id: string; title?: string; updated_at?: number; thumbnail?: { url?: string }; urls?: { edit_url?: string } }[];
   };
   return (body.items ?? []).map((item) => ({
     id: `canva_${item.id}`,
@@ -204,29 +205,35 @@ async function listCanva(access: string, query?: string): Promise<MemoryItem[]> 
     kind: "design" as const,
     tags: ["canva"],
     summary: "作為風格參考，不要直接複製。",
+    thumbUrl: item.thumbnail?.url,
     createdAt: item.updated_at ?? Date.now(),
   }));
 }
 
-async function listInstagram(access: string): Promise<{ items: MemoryItem[]; posts: IgMemoryPost[] }> {
-  const url = new URL("https://graph.instagram.com/me/media");
-  url.searchParams.set("fields", "id,caption,media_type,timestamp,permalink,like_count,comments_count");
-  url.searchParams.set("limit", "18");
-  url.searchParams.set("access_token", access);
-  const res = await fetch(url);
-  if (!res.ok) return { items: [], posts: [] };
-  const body = (await res.json()) as {
-    data?: {
-      id: string;
-      caption?: string;
-      media_type?: string;
-      timestamp?: string;
-      permalink?: string;
-      like_count?: number;
-      comments_count?: number;
-    }[];
-  };
-  const posts: IgMemoryPost[] = (body.data ?? []).map((post) => {
+async function fetchJson(url: string): Promise<Record<string, unknown> | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return (await res.json()) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function mapIgMedia(
+  rows: Array<{
+    id: string;
+    caption?: string;
+    media_type?: string;
+    timestamp?: string;
+    permalink?: string;
+    like_count?: number;
+    comments_count?: number;
+    thumbnail_url?: string;
+    media_url?: string;
+  }>,
+): { items: MemoryItem[]; posts: IgMemoryPost[] } {
+  const posts: IgMemoryPost[] = rows.map((post) => {
     const caption = post.caption ?? "IG 貼文";
     const mediaType = post.media_type === "VIDEO" ? "reels" : post.media_type === "CAROUSEL_ALBUM" ? "carousel" : "image";
     return {
@@ -239,6 +246,7 @@ async function listInstagram(access: string): Promise<{ items: MemoryItem[]; pos
       assetIds: [],
       likes: post.like_count,
       comments: post.comments_count,
+      mediaUrl: post.thumbnail_url || post.media_url,
     };
   });
   const items: MemoryItem[] = posts.map((post) => ({
@@ -249,7 +257,69 @@ async function listInstagram(access: string): Promise<{ items: MemoryItem[]; pos
     kind: "post" as const,
     tags: [post.mediaType],
     summary: post.caption.slice(0, 80),
+    thumbUrl: post.mediaUrl,
     createdAt: post.takenAt,
   }));
   return { items, posts };
+}
+
+async function fetchIgMedia(base: string, token: string) {
+  const url = new URL(base);
+  url.searchParams.set("fields", "id,caption,media_type,timestamp,permalink,like_count,comments_count,thumbnail_url,media_url");
+  url.searchParams.set("limit", "18");
+  url.searchParams.set("access_token", token);
+  const body = await fetchJson(url.toString());
+  const data = (body?.data as Parameters<typeof mapIgMedia>[0] | undefined) ?? [];
+  return mapIgMedia(data);
+}
+
+async function enrichIgInsights(posts: IgMemoryPost[], token: string, host: string) {
+  await Promise.all(
+    posts.slice(0, 8).map(async (post) => {
+      const mediaId = post.id.replace(/^ig_/, "");
+      const metric = post.mediaType === "reels" ? "plays,reach,saved,shares,total_interactions" : "impressions,reach,saved,shares,total_interactions";
+      const url = new URL(`${host.replace(/\/$/, "")}/${mediaId}/insights`);
+      url.searchParams.set("metric", metric);
+      url.searchParams.set("access_token", token);
+      const body = await fetchJson(url.toString());
+      const rows = (body?.data as Array<{ name?: string; values?: Array<{ value?: number }> }> | undefined) ?? [];
+      for (const row of rows) {
+        const value = row.values?.[0]?.value;
+        if (typeof value !== "number" || !row.name) continue;
+        if (row.name === "saved") post.saves = value;
+        if (row.name === "shares") post.shares = value;
+        if (row.name === "reach" || row.name === "impressions" || row.name === "plays" || row.name === "total_interactions") {
+          post.reach = Math.max(post.reach ?? 0, value);
+        }
+      }
+    }),
+  );
+}
+
+async function listInstagram(access: string): Promise<{ items: MemoryItem[]; posts: IgMemoryPost[]; account?: string }> {
+  const direct = await fetchIgMedia("https://graph.instagram.com/me/media", access);
+  if (direct.posts.length) {
+    await enrichIgInsights(direct.posts, access, "https://graph.instagram.com");
+    const profile = await fetchJson(`https://graph.instagram.com/me?fields=username,biography&access_token=${encodeURIComponent(access)}`);
+    const username = typeof profile?.username === "string" ? profile.username : "";
+    return { ...direct, account: username ? `@${username}` : "Instagram" };
+  }
+
+  const pages = await fetchJson(
+    `https://graph.facebook.com/v21.0/me/accounts?fields=name,access_token,instagram_business_account{id,username,biography}&access_token=${encodeURIComponent(access)}`,
+  );
+  const page = (
+    pages?.data as Array<{
+      access_token?: string;
+      instagram_business_account?: { id: string; username?: string };
+    }>
+  )?.find((item) => item.instagram_business_account?.id);
+  if (!page?.instagram_business_account?.id) {
+    return { items: [], posts: [] };
+  }
+  const pageToken = page.access_token || access;
+  const viaPage = await fetchIgMedia(`https://graph.facebook.com/v21.0/${page.instagram_business_account.id}/media`, pageToken);
+  await enrichIgInsights(viaPage.posts, pageToken, "https://graph.facebook.com/v21.0");
+  const username = page.instagram_business_account.username;
+  return { ...viaPage, account: username ? `@${username}` : "Instagram" };
 }

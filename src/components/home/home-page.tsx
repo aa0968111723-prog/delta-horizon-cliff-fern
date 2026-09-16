@@ -8,6 +8,7 @@ import { CreativeHits } from "@/components/search/creative-hits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { daysUntil, academicMoment } from "@/lib/club/season";
+import { clubDnaFromMemory } from "@/lib/club/dna";
 import { searchCreative } from "@/lib/creative/search";
 import { calendarFrom, useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -52,6 +53,8 @@ export function HomePage() {
   const scheduled = calendarFrom(campaigns, projects).filter((item) => item.date >= format(new Date(), "yyyy-MM-dd"));
   const recent = [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6);
   const strong = [...igPosts].sort((a, b) => (b.saves ?? 0) - (a.saves ?? 0)).slice(0, 3);
+  const dna = clubDnaFromMemory({ igPosts, memory });
+  const featuredHook = dna.winningHooks[0] || "最近是不是很久沒有好好坐下來？";
 
   const featuredProject = projects.find((p) => p.id === featured?.projectIds[0]);
   const featuredBoard = featuredProject?.artboards[featuredProject.activeFormatId];
@@ -112,7 +115,7 @@ export function HomePage() {
               </h2>
               <p className="mt-1 text-sm text-muted">{remain > 0 ? `還有 ${remain} 天` : remain === 0 ? "就是今天" : "已過活動日"}</p>
               <p className="mt-5 text-sm text-muted">AI 建議做一篇</p>
-              <p className="mt-1 font-display text-xl leading-snug">「最近是不是很久沒有好好坐下來？」</p>
+              <p className="mt-1 font-display text-xl leading-snug">「{featuredHook}」</p>
               <p className="mt-2 text-xs tracking-[0.14em] text-subtle uppercase">IG Carousel</p>
               <div className="mt-6 flex flex-wrap gap-2">
                 <Button onClick={runFeatured} className="min-h-11 rounded-full px-5">
@@ -155,12 +158,20 @@ export function HomePage() {
           <Button variant="secondary" className="h-11 shrink-0 rounded-full" onClick={() => void navigate({ to: "/ig" })}>
             從以前 IG 貼文開始
           </Button>
+          <Button variant="secondary" className="h-11 shrink-0 rounded-full" onClick={() => void navigate({ to: "/inspire" })}>
+            靈感研究
+          </Button>
         </div>
       </section>
 
       <section className="mt-10 grid gap-3 md:grid-cols-2">
         <div className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
-          <h2 className="text-sm font-medium">今日靈感</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium">今日靈感</h2>
+            <Link to="/inspire" className="text-xs text-muted">
+              研究
+            </Link>
+          </div>
           <p className="mt-3 font-display text-lg">{season.studentNow}</p>
           <p className="mt-2 text-sm text-muted">{season.contentHint}</p>
           {inspirations[0] ? (

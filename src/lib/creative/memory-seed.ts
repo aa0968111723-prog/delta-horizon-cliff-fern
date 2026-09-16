@@ -347,4 +347,14 @@ export const SEED_INSPIRATION: Inspiration[] = [
     form: "0–3 秒先對到生活",
     clubTurn: "封面寫「很久沒坐好」，不要寫活動全名。",
   },
+  {
+    id: "insp_mix_rhythm",
+    title: "帳號節奏不要連發招生",
+    pattern: "宣傳中間穿生活與互動",
+    composition: "一則活動、一則生活、一則提問",
+    color: "活動用夜間光，生活用霧亞麻",
+    hookShape: "生活句與活動句輪替",
+    form: "週曆：情緒 → 主視覺 → 知識／故事 → 倒數",
+    clubTurn: "浮游禪光週不要連發三則報名。星期二生活，星期四主視覺，星期六倒數。",
+  },
 ];

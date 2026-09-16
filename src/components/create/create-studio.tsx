@@ -11,6 +11,7 @@ import { applyStudentRevisions } from "@/lib/ai/pack-mock";
 import { generateCreativePack, type CreativePack } from "@/lib/ai/pack";
 import { analyzeImage, type VisionReport } from "@/lib/ai/vision";
 import { clubDnaFromMemory, dnaPromptBlock } from "@/lib/club/dna";
+import { clubInsightsFromPosts } from "@/lib/club/insights";
 import { gatherCreativeMemory, createCanvaDesign } from "@/lib/connect/oauth";
 import { inferCampaignType, inferEventDate } from "@/lib/creative/schedule";
 import { searchCreative } from "@/lib/creative/search";
@@ -61,6 +62,7 @@ export function CreateStudio({
   const campaigns = useCreative((s) => s.campaigns);
   const memory = useCreative((s) => s.memory);
   const igPosts = useCreative((s) => s.igPosts);
+  const inspirations = useCreative((s) => s.inspirations);
   const generateWaves = useCreative((s) => s.generateWaves);
   const updateCampaign = useCreative((s) => s.updateCampaign);
   const addCampaign = useCreative((s) => s.addCampaign);
@@ -126,7 +128,12 @@ export function CreateStudio({
           location: campaign?.location,
           oneLiner: campaign?.oneLiner,
           sources,
-          dnaNotes: dnaPromptBlock(dna),
+          dnaNotes: dnaPromptBlock(dna).slice(0, 2400),
+          inspirationNotes: useCreative
+            .getState()
+            .inspirations.slice(0, 4)
+            .map((item) => `${item.pattern} → ${item.clubTurn}`)
+            .join("\n"),
         },
       });
       if (!result.ok) {
@@ -163,6 +170,12 @@ export function CreateStudio({
           kind: mode,
           when: campaign ? `${campaign.date} ${campaign.time}` : undefined,
           where: campaign?.location,
+          insightNotes: dnaPromptBlock(
+            clubDnaFromMemory({
+              igPosts: useCreative.getState().igPosts,
+              memory: useCreative.getState().memory,
+            }),
+          ).slice(0, 1500),
         },
       });
       if (result.ok) setCopies(result.copies);
@@ -299,6 +312,11 @@ export function CreateStudio({
     toast.success("已在 Canva 開一個新設計");
   }
 
+  const activeDir = pack?.directions.find((d) => d.id === dirId) ?? directions.find((d) => d.id === dirId);
+  const copy = copies.find((c) => c.tone === tone) ?? copies[0];
+  const sim = pack?.plan.studentSim;
+  const insights = clubInsightsFromPosts(igPosts);
+
   function applySimFixes() {
     if (!copy || !sim) return;
     setCopies((prev) =>
@@ -311,9 +329,16 @@ export function CreateStudio({
     toast.success("已依淡江學生視角改過這一版");
   }
 
-  const activeDir = pack?.directions.find((d) => d.id === dirId) ?? directions.find((d) => d.id === dirId);
-  const copy = copies.find((c) => c.tone === tone) ?? copies[0];
-  const sim = pack?.plan.studentSim;
+  async function copyCaption() {
+    if (!copy) return;
+    const text = `${copy.body}\n\n${copy.cta}\n${copy.hashtags.join(" ")}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Caption 已複製。主視覺若還在本機，貼到 IG 再配圖。");
+    } catch {
+      toast.message("複製失敗，請手動選取文案");
+    }
+  }
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
@@ -377,6 +402,10 @@ export function CreateStudio({
                 </span>
               ))}
             </div>
+            <p className="mt-3 text-xs text-muted">{insights.mixLesson}</p>
+            {inspirations[0] ? (
+              <p className="mt-1 text-xs text-muted">靈感抽象：{inspirations[0].pattern} → {inspirations[0].clubTurn}</p>
+            ) : null}
           </div>
 
           <div>
@@ -515,6 +544,12 @@ export function CreateStudio({
             </Button>
             <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => void navigate({ to: "/ig" })}>
               IG Preview
+            </Button>
+            <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => void copyCaption()}>
+              複製 Caption
+            </Button>
+            <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => void navigate({ to: "/inspire" })}>
+              靈感研究
             </Button>
           </div>
         </section>

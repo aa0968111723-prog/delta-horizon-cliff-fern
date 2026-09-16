@@ -43,6 +43,7 @@ type CreativeState = {
   addMemory: (item: MemoryItem) => void;
   ingestIgPosts: (posts: IgMemoryPost[]) => void;
   analyzeIg: (id: string, analysis: IgMemoryPost["analysis"]) => void;
+  addInspiration: (item: Inspiration) => void;
 };
 
 function emptyCampaign(name: string): ClubCampaign {
@@ -197,6 +198,10 @@ export const useCreative = create<CreativeState>()(
       analyzeIg: (id, analysis) =>
         set((s) => ({
           igPosts: s.igPosts.map((p) => (p.id === id ? { ...p, analysis } : p)),
+        })),
+      addInspiration: (item) =>
+        set((s) => ({
+          inspirations: [item, ...s.inspirations.filter((row) => row.id !== item.id)].slice(0, 24),
         })),
     }),
     {

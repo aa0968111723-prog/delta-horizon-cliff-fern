@@ -42,11 +42,16 @@ export function CreativeHits({
 
 function HitBody({ hit }: { hit: SearchHit }) {
   return (
-    <>
-      <p className="text-sm font-medium">{hit.title}</p>
-      <p className="text-xs text-muted">
-        {hit.sourceLabel} · {hit.summary}
-      </p>
-    </>
+    <span className="flex gap-3">
+      {hit.thumbUrl ? (
+        <img src={hit.thumbUrl} alt="" className="size-12 shrink-0 rounded-lg object-cover" />
+      ) : null}
+      <span className="min-w-0">
+        <p className="text-sm font-medium">{hit.title}</p>
+        <p className="text-xs text-muted">
+          {hit.sourceLabel} · {hit.summary}
+        </p>
+      </span>
+    </span>
   );
 }

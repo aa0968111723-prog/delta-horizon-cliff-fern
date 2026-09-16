@@ -39,3 +39,15 @@ test("spoken tea query finds night tea photos", () => {
   });
   assert.ok(hits.some((h) => h.source === "drive" && /茶/.test(h.title + h.summary)));
 });
+
+test("spoken IG-hero query finds posters without needing the filename", () => {
+  const hits = searchCreative({
+    query: "找適合 IG 主視覺的照片",
+    memory: SEED_MEMORY,
+    assets: [],
+    campaigns: SEED_CAMPAIGNS,
+    igPosts: SEED_IG_POSTS,
+    projects: [],
+  });
+  assert.ok(hits.some((h) => /海報|三色光|茶會|夜間/.test(`${h.title}${h.summary}${h.sourceLabel}`)));
+});

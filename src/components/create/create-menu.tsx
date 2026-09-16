@@ -22,6 +22,7 @@ const ACTIONS = [
   { to: "/create", search: { mode: "drive" }, label: "從 Drive 素材開始", icon: Layers },
   { to: "/create", search: { mode: "canva" }, label: "從 Canva 開始", icon: Layers },
   { to: "/ig", search: undefined, label: "從以前 IG 開始", icon: Instagram },
+  { to: "/inspire", search: undefined, label: "靈感研究", icon: Sparkles },
 ] as const;
 
 export function CreateMenu({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {

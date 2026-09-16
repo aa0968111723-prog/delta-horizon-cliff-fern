@@ -25,7 +25,7 @@ const NAV: { to: string; label: string; icon: LucideIcon; match: string }[] = [
 ];
 
 function activeKey(pathname: string) {
-  if (pathname.startsWith("/create") || pathname.startsWith("/assistant")) return "create";
+  if (pathname.startsWith("/create") || pathname.startsWith("/assistant") || pathname.startsWith("/inspire")) return "create";
   if (pathname.startsWith("/calendar")) return "calendar";
   if (pathname.startsWith("/assets") || pathname.startsWith("/brand")) return "assets";
   if (pathname.startsWith("/ig") || pathname.startsWith("/studio") || pathname.startsWith("/export")) return "ig";

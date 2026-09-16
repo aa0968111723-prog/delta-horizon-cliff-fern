@@ -171,6 +171,30 @@ export function AssetDetailSheet({
           <Button
             variant="secondary"
             onClick={() => {
+              void navigate({
+                to: "/create",
+                search: { q: `用「${asset.name}」寫一篇 IG 文案`, mode: "post", auto: "1" },
+              });
+              onOpenChange(false);
+            }}
+          >
+            生成文案
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              void navigate({
+                to: "/create",
+                search: { q: `分析「${asset.name}」並做成限動與 Carousel`, mode: "vision" },
+              });
+              onOpenChange(false);
+            }}
+          >
+            AI 分析
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
               const tags = Array.from(new Set([...asset.tags, asset.category, asset.name.slice(0, 6)].filter(Boolean)));
               patch("tags", tags);
               toast.success("已補上 AI 標籤草稿，可再改");

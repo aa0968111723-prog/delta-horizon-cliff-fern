@@ -1,5 +1,6 @@
 import { BRAND_MOTIFS, CTA_BANK, HASHTAG_BANK } from "./identity.ts";
 import type { IgMemoryPost, MemoryItem } from "../creative/types.ts";
+import { clubInsightsFromPosts } from "./insights.ts";
 
 export type ClubDna = {
   palette: string;
@@ -11,19 +12,14 @@ export type ClubDna = {
   winningHooks: string[];
   avoid: string[];
   notes: string;
+  lessons: string[];
 };
 
 export function clubDnaFromMemory(input: {
-  igPosts: Pick<IgMemoryPost, "caption" | "saves" | "analysis">[];
+  igPosts: Pick<IgMemoryPost, "caption" | "saves" | "comments" | "reach" | "likes" | "shares" | "mediaType" | "analysis">[];
   memory: Pick<MemoryItem, "title" | "summary" | "sourceLabel" | "tags">[];
 }): ClubDna {
-  const ranked = [...input.igPosts].sort((a, b) => (b.saves ?? 0) - (a.saves ?? 0));
-  const winningHooks = ranked
-    .slice(0, 4)
-    .map((post) => post.analysis?.hook || post.caption.split("\n")[0] || "")
-    .filter(Boolean);
-  const lengths = ranked.map((post) => post.caption.length).filter((n) => n > 0);
-  const avg = lengths.length ? Math.round(lengths.reduce((a, b) => a + b, 0) / lengths.length) : 80;
+  const insights = clubInsightsFromPosts(input.igPosts);
   const memoryBits = input.memory
     .slice(0, 6)
     .map((item) => `${item.sourceLabel}：${item.title}`)
@@ -34,10 +30,11 @@ export function clubDnaFromMemory(input: {
     voice: "口語、短、先生活再活動。像社員在發文，不像海報。",
     ctas: [...CTA_BANK],
     hashtags: [...HASHTAG_BANK],
-    captionHint: `自己 IG 平均大約 ${avg} 字。問句 Hook 比社團介紹更容易停。`,
-    winningHooks,
+    captionHint: `自己 IG 平均大約 ${insights.avgCaption} 字。${insights.hookLesson}`,
+    winningHooks: insights.winningHooks,
     avoid: ["誠摯邀請", "寺廟金", "僧袍", "一開始就講經", "連續招生廣告"],
     notes: memoryBits,
+    lessons: insights.answers.concat(insights.mixLesson),
   };
 }
 
@@ -50,5 +47,7 @@ export function dnaPromptBlock(dna: ClubDna) {
 ${dna.captionHint}
 常用 CTA ${dna.ctas.slice(0, 3).join("、")}
 不要：${dna.avoid.join("、")}
-過去素材：${dna.notes || "品牌記憶"}`;
+過去素材：${dna.notes || "品牌記憶"}
+成效學習：
+${dna.lessons.join("\n")}`;
 }

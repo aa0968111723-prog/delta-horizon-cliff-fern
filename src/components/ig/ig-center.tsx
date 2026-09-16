@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { mockStudentSim } from "@/lib/ai/pack-mock";
+import { clubDnaFromMemory } from "@/lib/club/dna";
+import { clubInsightsFromPosts } from "@/lib/club/insights";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { ArtboardView } from "@/components/studio/artboard-view";
@@ -23,6 +25,9 @@ export function IgCenter() {
   const [activeId, setActiveId] = useState<string | null>(igPosts[0]?.id ?? null);
   const active = igPosts.find((p) => p.id === activeId);
   const gridProjects = useMemo(() => projects.filter((p) => p.status !== "idea").slice(0, 5), [projects]);
+  const memory = useCreative((s) => s.memory);
+  const dna = clubDnaFromMemory({ igPosts, memory });
+  const insights = clubInsightsFromPosts(igPosts);
 
   function analyze() {
     if (!active) return;
@@ -55,7 +60,7 @@ export function IgCenter() {
       <h2 className="mt-8 text-sm font-medium">Feed Preview</h2>
       <div className="mt-3 grid grid-cols-3 gap-1 overflow-hidden rounded-2xl">
         {igPosts.map((post) => {
-          const src = post.assetIds[0] ? urls[post.assetIds[0]] : "";
+          const src = post.assetIds[0] ? urls[post.assetIds[0]] : post.mediaUrl ?? "";
           return (
             <button
               key={post.id}
@@ -86,6 +91,7 @@ export function IgCenter() {
           <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed">{active.caption}</pre>
           <p className="mt-3 text-xs text-muted">
             收藏 {active.saves ?? "—"} · 留言 {active.comments ?? "—"} · 觸及 {active.reach ?? "—"}
+            {active.shares != null ? ` · 分享 ${active.shares}` : ""}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button className="min-h-11" onClick={analyze}>
@@ -113,9 +119,12 @@ export function IgCenter() {
               <p>方向：{active.analysis.direction}</p>
               <p>可改善：{active.analysis.improve.join("、")}</p>
               <div className="mt-3 rounded-2xl bg-bg p-3 text-xs text-muted">
-                <p>哪種 Hook 比較有效？問句比社團介紹更容易停。</p>
-                <p className="mt-1">哪種圖片學生比較停留？茶會圍坐、龜龜、河岸光，比寺廟海報高。</p>
-                <p className="mt-1">Carousel 哪種結構比較好？第一頁生活，第三頁才出現活動。</p>
+                {insights.answers.map((line) => (
+                  <p key={line} className="mt-1 first:mt-0">
+                    {line}
+                  </p>
+                ))}
+                <p className="mt-2">{insights.mixLesson}</p>
               </div>
             </div>
           ) : null}
@@ -125,11 +134,12 @@ export function IgCenter() {
       <section className="mt-8 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
         <h2 className="text-sm font-medium">Zen Club IG DNA</h2>
         <ul className="mt-3 space-y-1 text-sm text-muted">
-          <li>配色：霧亞麻、淡水綠、夜間三色光</li>
-          <li>語氣：口語、短、先生活再活動</li>
-          <li>常見 CTA：晚上來坐一下、帶一個朋友</li>
-          <li>圖片：茶會圍坐、龜龜、河岸、光，不是寺廟</li>
-          <li>學生比較會停的是問句 Hook，不是社團介紹</li>
+          <li>配色：{dna.palette}</li>
+          <li>語氣：{dna.voice}</li>
+          <li>常見 CTA：{dna.ctas.slice(0, 2).join("、")}</li>
+          <li>有效 Hook：{dna.winningHooks.slice(0, 2).join(" ／ ") || "生活問句"}</li>
+          <li>{dna.captionHint}</li>
+          <li>{insights.mixLesson}</li>
         </ul>
       </section>
     </main>

@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { clubSystemPrompt } from "@/lib/club/identity";
+import { academicMoment } from "@/lib/club/season";
+import type { CreativeDirection } from "@/lib/studio/types";
 import { mockDirections } from "./pack-mock";
-import { hasXai, xaiImage } from "./xai";
+import { extractJson, hasXai, xaiChat, xaiImage } from "./xai";
 import { parseFnInput } from "./parse";
 
 const ImageInput = z.object({
@@ -49,5 +52,26 @@ function escapeXml(value: string) {
 export const listVisualDirections = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseFnInput(z.object({ topic: z.string().min(1).max(200) }), input))
   .handler(async ({ data }) => {
-    return { ok: true as const, directions: mockDirections(data.topic) };
+    const mocked = mockDirections(data.topic);
+    try {
+      if (!hasXai()) return { ok: true as const, directions: mocked };
+      const season = academicMoment();
+      const text = await xaiChat(
+        [
+          { role: "system", content: clubSystemPrompt(season.label, season.weather) },
+          {
+            role: "user",
+            content: `為「${data.topic}」提出 3 個視覺方向。先想活動、淡江學生情境、淡水、夜晚、校園、壓力、朋友感、品牌色、龜龜、三色光、IG 停留。不要只生禪風海報。
+輸出 JSON {directions:[{id,name,concept,palette,composition,typeDirection,imagePrompt,headline,subhead}]} 必須 3 個。`,
+          },
+        ],
+        { json: true, maxTokens: 1600 },
+      );
+      if (!text) return { ok: true as const, directions: mocked };
+      const raw = extractJson(text) as { directions?: CreativeDirection[] };
+      if (raw.directions?.length === 3) return { ok: true as const, directions: raw.directions };
+    } catch {
+      /* mock */
+    }
+    return { ok: true as const, directions: mocked };
   });

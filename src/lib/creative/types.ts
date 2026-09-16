@@ -77,6 +77,7 @@ export type MemoryItem = {
   tags: string[];
   assetId?: string;
   summary: string;
+  thumbUrl?: string;
   createdAt: number;
 };
 
@@ -92,6 +93,8 @@ export type IgMemoryPost = {
   comments?: number;
   saves?: number;
   reach?: number;
+  shares?: number;
+  mediaUrl?: string;
   analysis?: {
     hook: string;
     visual: string;
@@ -124,6 +127,7 @@ export type SearchHit = {
   kind: string;
   assetId?: string;
   href?: string;
+  thumbUrl?: string;
 };
 
 export type CalendarItem = {

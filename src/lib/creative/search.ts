@@ -12,7 +12,7 @@ export function expandQuery(query: string) {
   if (/晚上|夜間/.test(query)) extras.push("夜間", "茶會", "三色光");
   if (/龜/.test(query)) extras.push("龜龜", "吉祥物");
   if (/浮游|禪光/.test(query)) extras.push("浮游禪光", "三色光");
-  if (/主視覺|海報/.test(query)) extras.push("海報", "三色光", "文宣");
+  if (/主視覺|適合 ig|停留/.test(query)) extras.push("海報", "三色光", "夜間", "茶會");
   if (/同學|互動/.test(query)) extras.push("互動", "茶會", "社員");
   if (/淡水|河岸|通勤/.test(query)) extras.push("淡水", "黃昏", "捷運");
   if (/校園|圖書館/.test(query)) extras.push("淡江校園", "圖書館");
@@ -58,13 +58,14 @@ export function searchCreative(input: {
       sourceLabel: item.sourceLabel,
       kind: item.kind,
       assetId: item.assetId,
+      thumbUrl: item.thumbUrl,
       rank: s,
     });
   }
 
   for (const post of input.igPosts) {
     const text = blobOf([post.caption, post.mediaType, post.analysis?.theme, post.analysis?.hook]);
-    const s = score(text, q);
+    const s = score(text, q) + (post.saves && post.saves > 30 ? 4 : 0);
     if (s <= 0) continue;
     hits.push({
       id: post.id,
@@ -75,6 +76,7 @@ export function searchCreative(input: {
       kind: post.mediaType,
       assetId: post.assetIds[0],
       href: "/ig",
+      thumbUrl: post.mediaUrl,
       rank: s,
     });
   }

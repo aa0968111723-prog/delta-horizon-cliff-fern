@@ -12,6 +12,7 @@ const CopyInput = z.object({
   tone: z.enum(["short", "normal", "emotional", "student", "life", "humor"]).optional(),
   when: z.string().max(80).optional(),
   where: z.string().max(80).optional(),
+  insightNotes: z.string().max(1600).optional(),
   forceMock: z.boolean().optional(),
 });
 
@@ -59,8 +60,9 @@ export const generateCopy = createServerFn({ method: "POST" })
           {
             role: "user",
             content: `為「${data.topic}」寫 IG 文案，類型 ${data.kind || "活動"}，時間 ${data.when || "未定"}，地點 ${data.where || "淡江"}。
+${data.insightNotes ? `自己 IG 學到的：\n${data.insightNotes}` : ""}
 輸出 JSON {copies:[{tone,hook,body,cta,hashtags}]} tones=${tones.join(",")}。
-hook 必須是生活問句。禁止誠摯邀請。`,
+hook 必須是生活問句。禁止誠摯邀請。用成效學習改下一篇，不要寫數據報表。`,
           },
         ],
         { json: true, maxTokens: 1800 },
