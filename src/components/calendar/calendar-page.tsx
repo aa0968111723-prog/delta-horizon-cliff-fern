@@ -579,21 +579,42 @@ export function CalendarPage() {
               >
                 <p className="text-xs">{format(day, "d")}</p>
                 <ul className="mt-1 space-y-1">
-                  {items.map((item) => (
+                  {items.map((item) => {
+                    const due = isDueScheduleItem(item);
+                    return (
                     <li
                       key={item.id}
                       draggable
-                      data-testid={isWaveScheduleItem(item) ? "schedule-wave" : "schedule-suite"}
+                      data-testid={due ? "cal-due" : isWaveScheduleItem(item) ? "schedule-wave" : "schedule-suite"}
                       onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", item.id)}
-                      onClick={() => setEditingId(item.id)}
                       className={cn(
-                        "truncate rounded-md px-1 py-0.5 text-[10px]",
+                        "rounded-md px-1 py-0.5 text-[10px]",
                         isWaveScheduleItem(item) ? "bg-bg/70 text-muted" : "bg-bg",
+                        due && "ring-1 ring-accent/50",
                       )}
                     >
-                      {item.title}
+                      <button
+                        type="button"
+                        data-testid="cal-slot-preview"
+                        onClick={() => {
+                          openScheduledPreview(item);
+                          void navigate({ to: "/instagram" });
+                        }}
+                        className="block w-full truncate text-left"
+                      >
+                        {due ? <span className="text-accent">發 </span> : null}
+                        {item.title}
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[9px] text-muted"
+                        onClick={() => setEditingId(item.id)}
+                      >
+                        改
+                      </button>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               </div>
             );

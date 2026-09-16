@@ -1,7 +1,11 @@
+import { buildMockPlan } from "../ai/mock.ts";
+import type { VisualDirection } from "../studio/types.ts";
 import { CONVERT_TARGETS, captionForTarget, convertFromPlan } from "./convert.ts";
+import { applyStudentRewrite } from "./review.ts";
 import { todayIso } from "./season.ts";
 import { applyPackToWaves, emptyCampaign, suggestWaves } from "./schedule.ts";
 import type { CampaignType, ClubCampaign, CreativePack } from "./types.ts";
+import { completeCopyVariants } from "./voice.ts";
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -78,6 +82,86 @@ export function isCreateQuery(query: string) {
   if (!q) return false;
   if (/^找/.test(q) && !/幫我做|生成|宣傳/.test(q)) return false;
   return /幫我做|生成完整|宣傳|有一場|下週有|下周有|我要|做成新的|新的茶會|新的活動/.test(q);
+}
+
+export function packFromVisualDirections(input: {
+  idea: string;
+  directions: VisualDirection[];
+  pickedId?: string;
+  now?: Date;
+}): CreativePack {
+  const parsed = parseEventIdea(input.idea, input.now);
+  const dir = input.directions.find((row) => row.id === input.pickedId) ?? input.directions[0];
+  const hook = (dir?.headline || "").replace(/\n/g, " ").trim() || "最近是不是很久沒有好好坐下來？";
+  const plan = buildMockPlan({
+    eventName: parsed.name,
+    schedule: `${parsed.date} ${parsed.time}`,
+    location: parsed.location,
+    product: input.idea,
+    offer: "",
+    audience: "淡江大學學生",
+    goal: "awareness",
+    features: dir?.concept ?? parsed.idea,
+    style: "生活、空氣、淡水夜晚",
+    notes: input.idea.slice(0, 400),
+    wantPost: true,
+    wantStory: true,
+    wantCarousel: true,
+    wantReels: true,
+    wantThreads: true,
+    wantLine: true,
+    brandName: "淡江大學禪學社",
+    handle: "@tkuzen",
+    voice: "像社團的人在發 IG",
+    doSay: "淡江學生、淡水晚上、坐好",
+    dontSay: "誠摯邀請",
+    forbiddenWords: ["誠摯邀請"],
+    slogans: dir?.headline.replace(/\n/g, " "),
+    preferredCtas: "晚上見",
+    imageStyle: dir?.palette,
+    forceMock: true,
+  });
+  const body = dir?.concept || plan.insight;
+  const copy = applyStudentRewrite({
+    hook,
+    body,
+    cta: plan.cta || "晚上見",
+    hashtags: plan.hashtags.length ? plan.hashtags : ["#淡江禪學社", "#淡江", "#淡水"],
+    variants: completeCopyVariants({ hook, body, cta: plan.cta || "晚上見" }),
+    studentReview: {
+      wouldStop: plan.studentReview?.wouldStop ?? "第一句會停。",
+      understandable: plan.studentReview?.understandable ?? "看得懂。",
+      tooReligious: plan.studentReview?.tooReligious ?? "沒有。",
+      tooSerious: plan.studentReview?.tooSerious ?? "還好。",
+      tooLiterary: plan.studentReview?.tooLiterary ?? "還好。",
+      tooAi: plan.studentReview?.tooAi ?? "沒有金句連發。",
+      tooLong: plan.studentReview?.tooLong ?? "剛好。",
+      knowsWhat: plan.studentReview?.knowsWhat ?? `知道是${parsed.name}。`,
+      knowsWhenWhere: plan.studentReview?.knowsWhenWhere ?? `${parsed.date}、${parsed.location}有寫。`,
+      wouldBringFriend: plan.studentReview?.wouldBringFriend ?? "可以。",
+      knowsSignup: plan.studentReview?.knowsSignup ?? "CTA 有了。",
+      notes: plan.studentReview?.notes ?? [],
+      rewriteHook: "",
+    },
+  });
+  return {
+    campaignName: plan.campaignName || parsed.name,
+    insight: dir?.concept || plan.insight,
+    studentContext: "淡江大學學生",
+    foundCount: 0,
+    citedSources: plan.citedSources ?? [],
+    directions: input.directions,
+    plan: {
+      ...plan,
+      hook: copy.hook,
+      headline: dir?.headline || plan.headline,
+      subhead: dir?.subhead || plan.subhead,
+      visualDirection: dir?.composition || plan.visualDirection,
+      visualTheme: dir?.palette || plan.visualTheme,
+      visualDirections: input.directions,
+    },
+    copy,
+  };
 }
 
 export function materializeCampaignFromPack(input: {

@@ -1,9 +1,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildMockPlan } from "../ai/mock.ts";
-import { convertStaggerDays, formatSuitePlan, isCreateQuery, materializeCampaignFromPack, parseEventIdea } from "./from-idea.ts";
+import { convertStaggerDays, formatSuitePlan, isCreateQuery, materializeCampaignFromPack, packFromVisualDirections, parseEventIdea } from "./from-idea.ts";
 
 const now = new Date("2026-09-16T12:00:00+08:00");
+
+test("packFromVisualDirections keeps the picked direction hook", () => {
+  const dirs = [
+    {
+      id: "dir_b",
+      title: "同學側臉",
+      concept: "先看到人，再看到活動。",
+      palette: "苔綠、暖光",
+      composition: "人在左側",
+      typeDirection: "短句",
+      imagePrompt: "candid tea gathering",
+      headline: "來坐一下\n不用先懂禪",
+      subhead: "開學茶會",
+    },
+  ];
+  const pack = packFromVisualDirections({ idea: "我要宣傳茶會", directions: dirs, pickedId: "dir_b" });
+  assert.match(pack.copy.hook, /來坐一下/);
+  assert.doesNotMatch(pack.copy.hook, /誠摯邀請/);
+  assert.equal(pack.directions[0]?.id, "dir_b");
+  assert.equal(pack.plan.visualDirections?.[0]?.id, "dir_b");
+});
 
 test("parseEventIdea understands next-week tea night", () => {
   const parsed = parseEventIdea("下週有一場茶會", now);
