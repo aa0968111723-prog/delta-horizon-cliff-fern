@@ -27,7 +27,7 @@ export async function saveDataUrlAsAsset(input: {
 }): Promise<AssetMeta> {
   const res = await fetch(input.dataUrl);
   const blob = await res.blob();
-  const size = await measure(input.dataUrl);
+  const size = await measureBlob(blob);
   const id = uid("asset");
   await getAssetStorage().put(id, blob);
   const now = Date.now();
@@ -76,11 +76,16 @@ export async function saveGeneratedImage(input: {
   });
 }
 
-function measure(src: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve({ width: img.naturalWidth || 1080, height: img.naturalHeight || 1350 });
-    img.onerror = () => resolve({ width: 1080, height: 1350 });
-    img.src = src;
-  });
+function measureBlob(blob: Blob): Promise<{ width: number; height: number }> {
+  const fallback = { width: 1080, height: 1350 };
+  return Promise.race([
+    createImageBitmap(blob).then((bitmap) => {
+      const size = { width: bitmap.width || fallback.width, height: bitmap.height || fallback.height };
+      bitmap.close();
+      return size;
+    }),
+    new Promise<{ width: number; height: number }>((resolve) => {
+      setTimeout(() => resolve(fallback), 1500);
+    }),
+  ]).catch(() => fallback);
 }

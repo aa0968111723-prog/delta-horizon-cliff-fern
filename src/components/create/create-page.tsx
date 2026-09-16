@@ -284,61 +284,65 @@ export function CreatePage({ search }: { search: CreateSearch }) {
 
   async function makeFromImage(payload: ImageMakePayload) {
     if (!brand) return;
-    const summary = payload.summary || payload.caption || "從一張圖片開始";
-    let assetId = payload.assetId;
-    if (!assetId) {
-      const meta = await saveDataUrlAsAsset({
-        dataUrl: payload.preview,
-        name: (payload.caption || summary).slice(0, 18) || "圖片理解",
-        tags: ["圖片理解"],
-        source: "upload",
-        notes: summary,
-      });
-      addAsset(meta);
-      assetId = meta.id;
-    }
-    const asset = useStudio.getState().assets.find((item) => item.id === assetId);
-    const meta = CONTENT_KIND_META[payload.kind];
-    const name = (payload.caption || summary).slice(0, 18) || "從圖片開始";
-    const project = createProject({
-      name,
-      brandId: brand.id,
-      formatId: meta.formatId,
-      contentKind: payload.kind,
-      campaignId: campaign?.id ?? null,
-      status: "making",
-      brief: {
-        product: eventName || name,
-        eventName: eventName || name,
-        schedule: schedule.trim(),
-        location: location.trim(),
-        offer: campaign?.oneLiner ?? "",
-        audience: audienceIds.join("、"),
-        goal: "awareness",
-        features: summary,
-        style: payload.stylePrompt,
-        notes: summary,
-        deliverables: {
-          post: false,
-          story: payload.kind === "story",
-          carousel: payload.kind === "carousel",
-          reels: payload.kind === "reels",
+    try {
+      const summary = payload.summary || payload.caption || "從一張圖片開始";
+      let assetId = payload.assetId;
+      if (!assetId) {
+        const meta = await saveDataUrlAsAsset({
+          dataUrl: payload.preview,
+          name: (payload.caption || summary).slice(0, 18) || "圖片理解",
+          tags: ["圖片理解"],
+          source: "upload",
+          notes: summary,
+        });
+        addAsset(meta);
+        assetId = meta.id;
+      }
+      const asset = useStudio.getState().assets.find((item) => item.id === assetId);
+      const meta = CONTENT_KIND_META[payload.kind];
+      const name = (payload.caption || summary).slice(0, 18) || "從圖片開始";
+      const project = createProject({
+        name,
+        brandId: brand.id,
+        formatId: meta.formatId,
+        contentKind: payload.kind,
+        campaignId: campaign?.id ?? null,
+        status: "making",
+        brief: {
+          product: eventName || name,
+          eventName: eventName || name,
+          schedule: schedule.trim(),
+          location: location.trim(),
+          offer: campaign?.oneLiner ?? "",
+          audience: audienceIds.join("、"),
+          goal: "awareness",
+          features: summary,
+          style: payload.stylePrompt,
+          notes: summary,
+          deliverables: {
+            post: false,
+            story: payload.kind === "story",
+            carousel: payload.kind === "carousel",
+            reels: payload.kind === "reels",
+          },
         },
-      },
-      sources: [
-        ...(campaign ? [{ kind: "local" as const, label: `活動 / ${campaign.name}`, detail: "活動資訊" }] : []),
-        asset
-          ? sourceFromAsset(asset, "圖片理解")
-          : { kind: "local" as const, label: "圖片理解", detail: summary },
-      ],
-    });
-    if (payload.kind === "reels") applyCoverAsset(project.id, assetId);
-    else applyVisualAsset(project.id, assetId);
-    if (payload.caption) {
-      setCopy(project.id, { headline: payload.caption.slice(0, 24), caption: payload.caption });
+        sources: [
+          ...(campaign ? [{ kind: "local" as const, label: `活動 / ${campaign.name}`, detail: "活動資訊" }] : []),
+          asset
+            ? sourceFromAsset(asset, "圖片理解")
+            : { kind: "local" as const, label: "圖片理解", detail: summary },
+        ],
+      });
+      if (payload.kind === "reels") applyCoverAsset(project.id, assetId);
+      else applyVisualAsset(project.id, assetId);
+      if (payload.caption) {
+        setCopy(project.id, { headline: payload.caption.slice(0, 24), caption: payload.caption });
+      }
+      toast.success(`已做成${contentKindLabel(payload.kind)}`);
+      void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+    } catch {
+      toast.error("做成內容時出錯了，再試一次。");
     }
-    toast.success(`已做成${contentKindLabel(payload.kind)}`);
-    void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
   }
 
   async function runReels(draft?: CopyDraft) {

@@ -142,7 +142,11 @@ try {
   await expectText("做成限動入口", "做成限動");
   await expectText("改這張圖", "改這張圖");
   await expectText("改版預設", "更像淡江生活");
-  await page.getByRole("button", { name: "做成限動" }).click();
+  await page
+    .locator("section")
+    .filter({ hasText: "圖片理解" })
+    .getByRole("button", { name: "做成限動" })
+    .evaluate((el) => (el instanceof HTMLElement ? el.click() : undefined));
   await page.waitForURL(/\/studio\//, { timeout: 15000 });
   await page.waitForLoadState("networkidle");
   await page.getByRole("tab", { name: "文字" }).click();
