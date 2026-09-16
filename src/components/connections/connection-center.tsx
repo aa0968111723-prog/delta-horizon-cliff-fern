@@ -147,7 +147,11 @@ export function ConnectionCenter() {
               <ul className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {live.canva.slice(0, 8).map((item) => (
                   <li key={item.id} className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
-                    <img src={item.thumb} alt="" className="aspect-square w-full object-cover" />
+                    {item.thumb ? (
+                      <img src={item.thumb} alt="" className="aspect-square w-full object-cover" />
+                    ) : (
+                      <div className="aspect-square w-full bg-surface" />
+                    )}
                     <p className="truncate px-2 py-1 text-[10px]">{item.title}</p>
                   </li>
                 ))}
@@ -160,7 +164,11 @@ export function ConnectionCenter() {
               <ul className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {live.instagram.slice(0, 8).map((item) => (
                   <li key={item.id} className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
-                    <img src={item.thumb} alt="" className="aspect-square w-full object-cover" />
+                    {item.thumb ? (
+                      <img src={item.thumb} alt="" className="aspect-square w-full object-cover" />
+                    ) : (
+                      <div className="aspect-square w-full bg-surface" />
+                    )}
                     <p className="truncate px-2 py-1 text-[10px]">{item.title}</p>
                   </li>
                 ))}

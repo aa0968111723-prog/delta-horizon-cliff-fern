@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { clipLines, composePosterSvg, moodFromVariation, xmlText } from "./poster.ts";
+import { clipLines, composePosterSvg, moodFromVariation, variationForFormat, xmlText } from "./poster.ts";
 
 test("poster svg is valid xml with student hook text", () => {
   const svg = composePosterSvg({
@@ -24,7 +24,27 @@ test("xmlText escapes markup and clipLines keep short IG lines", () => {
 test("variations map to poster moods without inventing religious art", () => {
   assert.equal(moodFromVariation("mood"), "night");
   assert.equal(moodFromVariation("style"), "lights");
+  assert.equal(moodFromVariation("compose"), "split");
+  assert.equal(moodFromVariation("background"), "tamsui");
   assert.equal(moodFromVariation(undefined), "sit");
+});
+
+test("compose and background posters are visually distinct from regen", () => {
+  const sit = composePosterSvg({ hook: "最近是不是很久沒有好好坐下來？", mood: "sit" });
+  const split = composePosterSvg({ hook: "最近是不是很久沒有好好坐下來？", mood: "split" });
+  const tamsui = composePosterSvg({ hook: "最近是不是很久沒有好好坐下來？", mood: "tamsui" });
+  assert.match(sit, /data-mood="sit"/);
+  assert.match(split, /data-mood="split"/);
+  assert.match(tamsui, /data-mood="tamsui"/);
+  assert.notEqual(sit, split);
+  assert.notEqual(sit, tamsui);
+});
+
+test("story extend uses a night-safe variation, not the same regen poster", () => {
+  assert.equal(variationForFormat("story"), "mood");
+  assert.equal(moodFromVariation(variationForFormat("story")), "night");
+  assert.equal(variationForFormat("reels-cover"), "style");
+  assert.equal(variationForFormat("feed-portrait"), "regen");
 });
 
 test("story posters center copy on 9:16", () => {

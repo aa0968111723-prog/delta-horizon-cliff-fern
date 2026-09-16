@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { writeHandoff } from "@/lib/create/handoff";
 import { CONTENT_KIND_META, CONTENT_STATUS_META } from "@/lib/studio/status";
+import { extendScheduleIdea } from "@/lib/club/insights";
 import { publishableScheduleRows, scheduleChipLabel } from "@/lib/club/schedule";
 import { publishScheduleRow } from "@/lib/club/run-schedule-publish";
 import { packAssetIds, withPackKind } from "@/lib/club/last-pack";
@@ -122,7 +123,7 @@ function ScheduleActions({
           search={{ tab: "campaign" }}
           onClick={() =>
             writeHandoff({
-              idea: row.title,
+              idea: extendScheduleIdea(row.title, lastPack, CONTENT_KIND_META[row.contentKind].label),
               tab: "campaign",
               convertKind: extendKind(row.contentKind),
               autoRun: true,

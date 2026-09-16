@@ -25,3 +25,11 @@ test("copy pack can learn a hook from IG lessons when the idea has no question",
   });
   assert.equal(pack.hook, "最近是不是連休息都覺得有罪惡感？");
 });
+
+test("copy pack can learn a hook from remembered style when lessons are empty", () => {
+  const pack = buildCopyPack("下週茶會", "學生版", {
+    eventName: "茶會",
+    styleMemory: "剛發布 · ig-post · 茶會。Hook：「大學生活很自由，但你最近真的有比較快樂嗎？」",
+  });
+  assert.equal(pack.hook, "大學生活很自由，但你最近真的有比較快樂嗎？");
+});

@@ -32,9 +32,12 @@ export type CopyPack = {
 export function buildCopyPack(
   idea: string,
   tone: CopyTone,
-  extra?: { eventName?: string; schedule?: string; location?: string; igLessons?: string },
+  extra?: { eventName?: string; schedule?: string; location?: string; igLessons?: string; styleMemory?: string },
 ): CopyPack {
-  const learned = extra?.igLessons?.match(/「([^」]{6,40})」/)?.[1]?.trim() ?? "";
+  const learned =
+    extra?.igLessons?.match(/「([^」]{6,40})」/)?.[1]?.trim() ??
+    extra?.styleMemory?.match(/「([^」]{6,40})」/)?.[1]?.trim() ??
+    "";
   const hook = idea.includes("？")
     ? idea.split("\n")[0]
     : learned.includes("？")

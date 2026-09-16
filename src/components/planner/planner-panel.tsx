@@ -17,6 +17,7 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
   const updateProject = useStudio((s) => s.updateProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const igPosts = useCreative((s) => s.igPosts);
+  const styleMemory = useCreative((s) => s.styleMemory);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<AiStatus | null>(null);
@@ -54,6 +55,7 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
         data: toBriefInput(brief, brand, {
           forceMock: forceMock || !connected,
           igLessons: lessonPrompt(igPosts),
+          styleMemory: (styleMemory ?? []).slice(0, 2).join("／").slice(0, 400),
         }),
       });
       if (!result.ok) {

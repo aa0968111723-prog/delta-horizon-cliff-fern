@@ -183,6 +183,7 @@ export const BriefInputSchema = z.object({
   preferredCtas: z.string().max(160).optional(),
   imageStyle: z.string().max(400).optional(),
   igLessons: z.string().max(800).optional(),
+  styleMemory: z.string().max(400).optional(),
   forceMock: z.boolean().optional(),
 });
 

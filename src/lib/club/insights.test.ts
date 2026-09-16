@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lessonsFromIg, formatLessons, quotedHookFromLessons, lessonPrompt, nextCreateIdeaFromLessons, analysisFromLive, preferPublishedAnalysis, rhythmMemoryFromIg, rhythmMemoryFromLessonText } from "./insights.ts";
+import { lessonsFromIg, formatLessons, quotedHookFromLessons, lessonPrompt, nextCreateIdeaFromLessons, extendScheduleIdea, analysisFromLive, preferPublishedAnalysis, rhythmMemoryFromIg, rhythmMemoryFromLessonText } from "./insights.ts";
 
 test("empty metrics become honest next-step advice, not a dashboard", () => {
   const lessons = lessonsFromIg([]);
@@ -107,4 +107,17 @@ test("rhythm memory turns a winning carousel recap into the next schedule hook",
   assert.match(memory.learnedHook, /我不會禪也可以嗎/);
   assert.match(memory.note, /Carousel|Hook|龜龜/);
   assert.equal(rhythmMemoryFromLessonText("").learnedHook, "");
+});
+
+test("calendar AI extend keeps the learned hook and the tea event", () => {
+  const idea = extendScheduleIdea(
+    "倒數 · 茶會",
+    { hook: "我不會禪也可以嗎？", eventName: "茶會" },
+    "Story",
+  );
+  assert.match(idea, /我不會禪也可以嗎/);
+  assert.match(idea, /倒數/);
+  assert.match(idea, /茶會/);
+  assert.match(idea, /Story/);
+  assert.equal(extendScheduleIdea("預熱 · 茶會"), "預熱 · 茶會");
 });

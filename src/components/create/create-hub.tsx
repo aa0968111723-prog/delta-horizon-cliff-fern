@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { AssistantForm } from "@/components/assistant/assistant-form";
@@ -11,13 +11,14 @@ import { CONVERT_TARGETS, convertPlan } from "@/lib/convert/pack";
 import { COPY_INTENTS, COPY_TONES, generateCopyPack, type CopyPack } from "@/lib/copy/generate";
 import { applyStudentReviewToPack } from "@/lib/copy/review";
 import { consumeHandoff, takeAutoRun, type CreateHandoff, type CreateTab } from "@/lib/create/handoff";
-import { generateImageDirections, generateStudioImage, IMAGE_ASPECTS } from "@/lib/image/studio";
+import { generateImageDirections, generateStudioImage, IMAGE_ASPECTS, variationForFormat } from "@/lib/image/studio";
+import { relatedAssetsForIdea, relatedNotesFromAssets } from "@/lib/image/related";
 import { analyzeImage, type VisionReport } from "@/lib/vision/analyze";
-import { compactDataUrl, loadAssetDataUrl } from "@/lib/vision/media";
+import { compactDataUrl, editUrlFromSrc, loadAssetDataUrl, rasterEditUrl } from "@/lib/vision/media";
 import { convertKindFromAction, formatFromVisionAction, ideaFromVision, isImageVisionAction } from "@/lib/vision/tags";
 import { styleBriefFromReport } from "@/lib/vision/from-hit";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
-import { createGeneratedAsset } from "@/lib/studio/assets";
+import { createGeneratedAsset, sourceLabel as assetSourceLabel } from "@/lib/studio/assets";
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { useStudio } from "@/stores/studio-store";
@@ -27,7 +28,7 @@ import { lessonPrompt } from "@/lib/club/insights";
 import { applyCanvaPush, canvaPushMessage, pushHeroToCanva } from "@/lib/club/canva-push";
 import { kindFromFormat, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, withPackKind, httpsRasterUrl } from "@/lib/club/last-pack";
 import { convertedScheduleInput, mergeConvertedOntoRhythm } from "@/lib/club/schedule";
-import type { ContentKind, CreativeDirection, FormatId } from "@/lib/studio/types";
+import type { AssetMeta, ContentKind, CreativeDirection, FormatId } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { beginOAuth } from "@/lib/connections/begin";
 
@@ -148,6 +149,7 @@ function CopyStudio({ seedIdea }: { seedIdea?: string }) {
   const setCopy = useStudio((s) => s.setCopy);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const igPosts = useCreative((s) => s.igPosts);
+  const styleMemory = useCreative((s) => s.styleMemory);
   const setLastPack = useCreative((s) => s.setLastPack);
   const campaigns = useCreative((s) => s.campaigns);
   const [idea, setIdea] = useState(seedIdea || "最近是不是很久沒有好好坐下來？");
@@ -163,7 +165,15 @@ function CopyStudio({ seedIdea }: { seedIdea?: string }) {
   async function run() {
     setBusy(true);
     try {
-      const result = await generateCopyPack({ data: { idea, intent, tone, igLessons: lessonPrompt(igPosts) } });
+      const result = await generateCopyPack({
+        data: {
+          idea,
+          intent,
+          tone,
+          igLessons: lessonPrompt(igPosts),
+          styleMemory: (styleMemory ?? []).slice(0, 2).join("／").slice(0, 400),
+        },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -268,11 +278,14 @@ function ImageStudio({
   seedAutoRun?: boolean;
 }) {
   const addAsset = useStudio((s) => s.addAsset);
+  const assets = useStudio((s) => s.assets);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const setLastPack = useCreative((s) => s.setLastPack);
   const lastPack = useCreative((s) => s.lastPack);
   const campaigns = useCreative((s) => s.campaigns);
   const igPosts = useCreative((s) => s.igPosts);
+  const styleMemory = useCreative((s) => s.styleMemory);
+  const rememberStyle = useCreative((s) => s.rememberStyle);
   const [idea, setIdea] = useState(seedIdea || "我要宣傳茶會");
   const [formatId, setFormatId] = useState<(typeof IMAGE_ASPECTS)[number]["id"]>(
     seedFormat && IMAGE_ASPECTS.some((item) => item.id === seedFormat) ? seedFormat : "feed-portrait",
@@ -281,11 +294,22 @@ function ImageStudio({
   const [picked, setPicked] = useState<CreativeDirection | null>(null);
   const [urls, setUrls] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [refImage, setRefImage] = useState<string | null>(referenceImage || null);
+  const [refLabel, setRefLabel] = useState(sourceLabel || "");
+  const [pickedAssetId, setPickedAssetId] = useState<string | null>(null);
+
+  const related = useMemo(() => relatedAssetsForIdea(assets, idea), [assets, idea]);
+  const relatedUrls = useAssetUrls(related.map((asset) => asset.id));
+  const relatedNotes = relatedNotesFromAssets(related).slice(0, 400);
+  const activeRef = refImage || referenceImage || null;
+  const activeRefLabel = refLabel || sourceLabel || "";
 
   useEffect(() => {
     if (seedIdea) setIdea(seedIdea);
     if (seedFormat && IMAGE_ASPECTS.some((item) => item.id === seedFormat)) setFormatId(seedFormat);
-  }, [seedIdea, seedFormat]);
+    if (referenceImage) setRefImage(referenceImage);
+    if (sourceLabel) setRefLabel(sourceLabel);
+  }, [seedIdea, seedFormat, referenceImage, sourceLabel]);
 
   useEffect(() => {
     if (!takeAutoRun(seedAutoRun)) return;
@@ -294,11 +318,30 @@ function ImageStudio({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seedAutoRun, seedIdea]);
 
+  async function pickRelated(asset: AssetMeta) {
+    setPickedAssetId(asset.id);
+    const label = `${assetSourceLabel(asset.source)} / ${asset.name}`;
+    setRefLabel(label);
+    rememberStyle(label);
+    const data = await loadAssetDataUrl({
+      id: asset.id,
+      seedSrc: asset.seedSrc,
+      previewUrl: relatedUrls[asset.id] || asset.seedSrc,
+    });
+    if (data) setRefImage(data);
+  }
+
   async function directions(autoPaint = false) {
     setBusy(true);
     try {
       const result = await generateImageDirections({
-        data: { idea, formatId, igLessons: lessonPrompt(igPosts) },
+        data: {
+          idea,
+          formatId,
+          igLessons: lessonPrompt(igPosts),
+          styleMemory: (styleMemory ?? []).slice(0, 2).join("／").slice(0, 400),
+          relatedNotes,
+        },
       });
       setDirs(result.directions);
       if (autoPaint && result.directions[0]) {
@@ -318,7 +361,22 @@ function ImageStudio({
     setPicked(direction);
     setFormatId(nextFormat);
     try {
-      const editUrl = referenceImage ? compactDataUrl(referenceImage) : null;
+      const sourceAsset = pickedAssetId
+        ? related.find((item) => item.id === pickedAssetId)
+        : activeRef
+          ? undefined
+          : related[0];
+      const fromAsset = sourceAsset
+        ? await editUrlFromSrc(
+            (await loadAssetDataUrl({
+              id: sourceAsset.id,
+              seedSrc: sourceAsset.seedSrc,
+              previewUrl: relatedUrls[sourceAsset.id] || sourceAsset.seedSrc,
+            })) || sourceAsset.seedSrc,
+          )
+        : null;
+      const editUrl = rasterEditUrl(activeRef) || fromAsset;
+      const usedLabel = activeRefLabel || (sourceAsset ? `${assetSourceLabel(sourceAsset.source)} / ${sourceAsset.name}` : "");
       const result = await generateStudioImage({
         data: {
           prompt: `${direction.imagePrompt}. ${idea}`.slice(0, 1200),
@@ -326,6 +384,7 @@ function ImageStudio({
           headline: direction.headline,
           eventName: idea.slice(0, 40),
           formatId: nextFormat,
+          relatedNotes,
           editUrls: editUrl ? [editUrl] : undefined,
         },
       });
@@ -351,7 +410,7 @@ function ImageStudio({
           tags: ["AI生成", direction.name, seedAction || "圖片Studio"].filter(Boolean),
         }),
       );
-      toast.success(sourceLabel ? `已存進素材庫 · 來源：AI Generated（參考 ${sourceLabel}）` : "已存進素材庫 · 來源：AI Generated");
+      toast.success(usedLabel ? `已存進素材庫 · 來源：AI Generated（參考 ${usedLabel}）` : "已存進素材庫 · 來源：AI Generated");
       const current = useCreative.getState().lastPack;
       const kind = kindFromFormat(nextFormat);
       setLastPack(
@@ -389,16 +448,47 @@ function ImageStudio({
 
   return (
     <div className="space-y-4">
-      {referenceImage ? (
+      {activeRef ? (
         <div className="rounded-2xl bg-bg p-3">
-          <p className="text-xs text-muted">參考畫面{sourceLabel ? ` · ${sourceLabel}` : ""}</p>
-          <img src={referenceImage} alt="風格參考" className="mt-2 max-h-40 rounded-xl object-contain" />
+          <p className="text-xs text-muted">參考畫面{activeRefLabel ? ` · ${activeRefLabel}` : ""}</p>
+          <img src={activeRef} alt="風格參考" className="mt-2 max-h-40 rounded-xl object-contain" />
         </div>
       ) : null}
       <label className="block text-sm">
         我想做
         <Input data-testid="image-studio-input" value={idea} onChange={(e) => setIdea(e.target.value)} />
       </label>
+      {related.length ? (
+        <div className="space-y-2">
+          <p className="text-xs text-muted">相關素材會當成風格參考，不會直接複製。</p>
+          <ul className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            {related.map((asset) => (
+              <li key={asset.id} className="shrink-0">
+                <button
+                  type="button"
+                  data-testid="image-related-asset"
+                  className={cn(
+                    "flex min-h-11 min-w-[5.5rem] flex-col rounded-2xl bg-bg p-2 text-left",
+                    pickedAssetId === asset.id && "ring-2 ring-ring/30",
+                  )}
+                  onClick={() => void pickRelated(asset)}
+                >
+                  {relatedUrls[asset.id] || asset.seedSrc ? (
+                    <img
+                      src={relatedUrls[asset.id] || asset.seedSrc}
+                      alt=""
+                      className="h-16 w-16 rounded-xl object-cover"
+                    />
+                  ) : (
+                    <div className="h-16 w-16 rounded-xl bg-surface-2" aria-hidden />
+                  )}
+                  <p className="mt-1 max-w-16 truncate text-xs text-muted">{assetSourceLabel(asset.source)}</p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {IMAGE_ASPECTS.map((item) => (
           <Button key={item.id} size="sm" variant={formatId === item.id ? "default" : "secondary"} onClick={() => setFormatId(item.id)}>
@@ -447,7 +537,7 @@ function ImageStudio({
                 variant="secondary"
                 data-testid={`image-extend-${item.id}`}
                 disabled={busy}
-                onClick={() => void render(picked, "regen", item.id)}
+                onClick={() => void render(picked, variationForFormat(item.id), item.id)}
               >
                 延伸 {item.label}
               </Button>

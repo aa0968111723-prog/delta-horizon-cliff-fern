@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseIdea } from "./idea.ts";
 import { featuredCampaignIdea, searchMemory } from "./memory.ts";
-import { nextCreateIdeaFromLessons } from "./insights.ts";
+import { nextCreateIdeaFromLessons, extendScheduleIdea } from "./insights.ts";
 
 const FROM = new Date("2026-09-16T12:00:00+08:00");
 
@@ -54,4 +54,21 @@ test("tea idea search query finds Drive, Canva, and IG memory", () => {
   assert.ok(hits.some((item) => item.source === "drive" && item.title.includes("茶會")));
   assert.ok(hits.some((item) => item.source === "canva"));
   assert.ok(hits.some((item) => item.source === "instagram"));
+});
+
+test("next-create and calendar-extend ideas still parse as 茶會", () => {
+  const next = nextCreateIdeaFromLessons(
+    [
+      {
+        mediaType: "image",
+        caption: "我不會禪也可以嗎？\n下週茶會。",
+        analysis: "剛發布 · ig-post · 茶會。Hook：「我不會禪也可以嗎？」",
+      },
+    ],
+    "茶會",
+  );
+  assert.equal(parseIdea(next, FROM).eventName, "茶會");
+  assert.equal(parseIdea(next, FROM).searchQuery, "茶會");
+  const extended = extendScheduleIdea("倒數 · 茶會", { hook: "我不會禪也可以嗎？", eventName: "茶會" }, "Story");
+  assert.equal(parseIdea(extended, FROM).eventName, "茶會");
 });

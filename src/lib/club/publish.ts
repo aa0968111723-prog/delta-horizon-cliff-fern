@@ -59,12 +59,12 @@ export function memoryPostFromPublish(input: {
     thumb: memoryThumb(input.thumb, pack.heroThumb || "/seed/tea.svg"),
     permalink: input.permalink,
     metricsSource: input.live ? ("live" as const) : ("memory" as const),
-    analysis: `剛發布 · ${pack.kind} · ${pack.eventName}。Hook：${pack.hook}`,
+    analysis: `剛發布 · ${pack.kind} · ${pack.eventName}。Hook：「${pack.hook}」`,
   };
 }
 
 export function styleBriefFromPublish(pack: Pick<LastPack, "hook" | "eventName" | "kind">) {
-  return `剛發布 · ${pack.kind} · ${pack.eventName}。Hook：${pack.hook}`.slice(0, 180);
+  return `剛發布 · ${pack.kind} · ${pack.eventName}。Hook：「${pack.hook}」`.slice(0, 180);
 }
 
 export function publishNeedsVideo(kind: ContentKind, videoUrl?: string) {

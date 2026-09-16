@@ -91,28 +91,33 @@ export async function editImage(input: {
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) return { ok: false, error: "圖片改版目前無法使用", missingKey: true };
 
-  const res = await fetch("https://api.x.ai/v1/images/edits", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "grok-imagine-image-quality",
-      prompt: input.prompt,
-      image_urls: input.imageUrls.slice(0, 3),
-      n: 1,
-      response_format: "url",
-    }),
-  });
+  try {
+    const res = await fetch("https://api.x.ai/v1/images/edits", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      signal: AbortSignal.timeout(20_000),
+      body: JSON.stringify({
+        model: "grok-imagine-image-quality",
+        prompt: input.prompt,
+        image_urls: input.imageUrls.slice(0, 3),
+        n: 1,
+        response_format: "url",
+      }),
+    });
 
-  if (!res.ok) {
-    return { ok: false, error: `圖片改版暫時無法使用（${res.status}）` };
+    if (!res.ok) {
+      return { ok: false, error: `圖片改版暫時無法使用（${res.status}）` };
+    }
+    const body = (await res.json()) as { data?: { url?: string }[] };
+    const urls = (body.data ?? []).map((row) => row.url).filter((url): url is string => Boolean(url));
+    if (!urls.length) return { ok: false, error: "沒有產生改版圖片" };
+    return { ok: true, urls };
+  } catch {
+    return { ok: false, error: "圖片改版超時" };
   }
-  const body = (await res.json()) as { data?: { url?: string }[] };
-  const urls = (body.data ?? []).map((row) => row.url).filter((url): url is string => Boolean(url));
-  if (!urls.length) return { ok: false, error: "沒有產生改版圖片" };
-  return { ok: true, urls };
 }
 
 export async function startImagineVideo(input: { prompt: string; imageUrl: string; duration?: number }) {

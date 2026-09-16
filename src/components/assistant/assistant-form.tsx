@@ -40,6 +40,7 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
   const setLastProjectId = useStudio((s) => s.setLastProjectId);
   const setAssistantOpen = useUi((s) => s.setAssistantOpen);
   const igPosts = useCreative((s) => s.igPosts);
+  const styleMemory = useCreative((s) => s.styleMemory);
 
   const existing = projectId ? projects.find((p) => p.id === projectId) : undefined;
   const [targetId, setTargetId] = useState<string>(existing?.id ?? "new");
@@ -110,6 +111,7 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
       const payload = toBriefInput(brief, brand, {
         forceMock: forceMock || !connected,
         igLessons: lessonPrompt(igPosts),
+        styleMemory: (styleMemory ?? []).slice(0, 2).join("／").slice(0, 400),
       });
       const result = await generateCampaignPlan({ data: payload });
       if (!result.ok) {
