@@ -358,13 +358,13 @@ export function ImageUnderstanding({
           <div>
             <p className="text-xs text-muted">用這張圖直接開始</p>
             <p className="mt-1 text-xs text-subtle">
-              限動與 Reels 封面會排成 Story 9:16，輪播排成 IG 4:5。只改構圖比例與留白，不是 AI 生成的畫面。
+              限動與 Reels 封面會排成 Story 9:16，輪播排成 IG 4:5。只改構圖比例與留白，不是 AI 生成的畫面。用這張寫文案會依畫面寫 Hook，並自動用淡江學生視角檢查。
             </p>
             <div className="mt-1.5 flex flex-wrap gap-2">
               {onGenerateCopy ? (
                 <Button
                   size="sm"
-                  aria-label="用這張寫文案"
+                  data-testid="copy-from-image"
                   disabled={making !== null}
                   onClick={() =>
                     void onGenerateCopy({

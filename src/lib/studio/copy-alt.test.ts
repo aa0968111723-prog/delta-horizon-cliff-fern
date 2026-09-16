@@ -18,6 +18,16 @@ test("localAltText describes the frame, not a pitch", () => {
   assert.doesNotMatch(text, /誠摯邀請|踴躍參加|療癒靈魂/);
 });
 
+test("localAltText can name the photo without turning into a pitch", () => {
+  const text = localAltText({
+    hook: "走上坡的時候，你通常在想什麼？",
+    scene: "走上坡的時候，你通常在想什麼？",
+  });
+  assert.match(text, /淡江大學禪學社/);
+  assert.match(text, /走上坡/);
+  assert.doesNotMatch(text, /誠摯邀請/);
+});
+
 test("copyFromDraft carries caption, hashtags and alt", () => {
   const current: CopyDeck = {
     eyebrow: "",

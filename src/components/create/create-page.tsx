@@ -29,6 +29,7 @@ import { COPY_TONES, COPY_TOPICS, type CopyTopic } from "@/lib/ai/copy-local";
 import { generateIgCopy, getZenAiStatus, reviewAsStudent, generateReelsScript } from "@/lib/ai/copy-ai";
 import { generateVisualDirections, type VisualDirection } from "@/lib/ai/image-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
+import { previewUrlForAsset } from "@/lib/studio/assets";
 import { saveDataUrlAsAsset } from "@/lib/studio/generated-image";
 import { alreadyFramedForRatio } from "@/lib/studio/image-revise-local";
 import { localVisualRatioLine, visualRatioLabel } from "@/lib/studio/local-visual";
@@ -161,6 +162,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const [directionAdapter, setDirectionAdapter] = useState<"live" | "local">("local");
   const [reelsBusy, setReelsBusy] = useState(false);
   const [imageSourceAssetId, setImageSourceAssetId] = useState<string | null>(search.asset ?? null);
+  const [imageCopyCue, setImageCopyCue] = useState("");
   const resultsRef = useRef<HTMLDivElement>(null);
   const reviewSeq = useRef(0);
   const autofillRan = useRef(false);
@@ -245,6 +247,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           detail: [ideaText, campaign?.intro ?? ""].filter(Boolean).join("\n"),
           cta: campaign?.cta ?? briefPayload.cta,
           tones,
+          imageCue: imageCopyCue.trim() || undefined,
         },
       });
       setDrafts(uniqueById(res.drafts));
@@ -429,6 +432,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     if (imageSourceAssetId) {
       const asset = useStudio.getState().assets.find((item) => item.id === imageSourceAssetId);
       if (asset) addSources(target.id, [sourceFromAsset(asset, "圖片寫文案")]);
+      void paintImageSource(target.id, imageSourceAssetId);
     }
     if (kindUsesPagedLayout(kind) && (created || !linkedProject?.copy.caption?.trim())) {
       layoutFromKind(target.id, kind);
@@ -454,6 +458,41 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       );
     }
     return target.id;
+  }
+
+  async function paintImageSource(projectId: string, assetId: string) {
+    const asset = useStudio.getState().assets.find((item) => item.id === assetId);
+    if (!asset) return;
+    const ratio = defaultImageRatio(kind);
+    const ratioLabel = visualRatioLabel(ratio);
+    const sourceUrl = urls[assetId] || previewUrlForAsset(asset);
+    if (!sourceUrl) {
+      applyVisualToPack(projectId, assetId);
+      return;
+    }
+    try {
+      if (alreadyFramedForRatio(asset, ratio)) {
+        applyVisualToPack(projectId, assetId);
+        addSources(projectId, [
+          { kind: "local", label: localVisualRatioLine(ratioLabel), detail: "圖片寫文案" },
+        ]);
+        return;
+      }
+      const framed = await frameAndSaveLocalVisual({
+        sourceUrl,
+        name: `${asset.name} · ${ratio}`,
+        tags: ["圖片理解", "圖片寫文案"],
+        ratio,
+      });
+      addAsset(framed.meta);
+      applyVisualToPack(projectId, framed.meta.id);
+      addSources(projectId, [
+        sourceFromAsset(framed.meta, "圖片寫文案"),
+        { kind: "local", label: localVisualRatioLine(ratioLabel), detail: "本機改版，不是 AI 生成的畫面" },
+      ]);
+    } catch {
+      applyVisualToPack(projectId, assetId);
+    }
   }
 
   function attachGeneratedImage(assetId: string, direction: VisualDirection, ratio = defaultImageRatio(kind)) {
@@ -626,10 +665,11 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     caption: string;
     assetId: string | null;
   }) {
+    const cue = (payload.caption || payload.summary.split(/[。\n]/)[0] || "從這張圖開始").trim().slice(0, 40);
     if (payload.caption) setIdea(payload.caption);
     else if (payload.summary) setIdea(payload.summary);
     else setIdea("從這張圖開始");
-    setFrom("idea");
+    setImageCopyCue(cue);
     setCopyBusy(true);
     try {
       let assetId = payload.assetId;
@@ -655,12 +695,15 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           ...briefPayload,
           detail: [payload.summary, payload.caption, briefPayload.detail].filter(Boolean).join("\n"),
           imageUrl,
+          imageCue: cue,
           tones,
         },
       });
       setDrafts(uniqueById(res.drafts));
       if (!res.ok) toast.warning(res.error);
-      else if (res.adapter === "local") toast.info("目前是本機草稿，可以直接編輯。");
+      else if (res.adapter === "local") toast.info("目前是本機草稿，依這張圖寫，可以直接編輯。");
+      const first = res.drafts[0];
+      if (first) void runReview(first);
       resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch {
       toast.error("從圖片寫文案時出錯了，再試一次。");
@@ -826,7 +869,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
             initialAssetId={search.asset}
             onUseCaption={(caption) => {
               setIdea(caption);
-              setFrom("idea");
+              setImageCopyCue(caption.slice(0, 40));
             }}
             onGenerateCopy={(payload) => void copyFromImage(payload)}
             onUseStylePrompt={(prompt) =>

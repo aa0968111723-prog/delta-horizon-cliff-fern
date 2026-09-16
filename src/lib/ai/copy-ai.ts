@@ -37,6 +37,7 @@ const CopyBriefSchema = z.object({
   igDnaText: z.string().max(1500).optional(),
   insightsText: z.string().max(1200).optional(),
   imageUrl: z.string().min(8).max(3_000_000).optional(),
+  imageCue: z.string().max(80).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -58,6 +59,7 @@ function toLocalBrief(data: CopyBriefInput): CopyBriefLocal {
     cta: data.cta,
     audienceIds: data.audienceIds,
     signupUrl: data.signupUrl,
+    imageCue: data.imageCue,
   };
 }
 
@@ -126,6 +128,7 @@ export const generateIgCopy = createServerFn({ method: "POST" })
       "cta 4-10 個字，用社團自己的口氣。",
       "hashtags 6-8 個，要含 #淡江大學 與社團標籤，不要塞滿。",
       "altText 是給視障同學聽的畫面說明，一句話，講畫面裡有什麼、標題寫什麼、時間地點。不要寫成行銷文案。",
+      data.imageCue ? `圖裡抽出的第一句／畫面線索：${data.imageCue}` : "",
       data.imageUrl ? "有附一張圖：先看畫面裡的人、光、地方，再寫文案。不要描述成「一張海報」。" : "",
     ]
       .filter(Boolean)
@@ -158,6 +161,7 @@ export const generateIgCopy = createServerFn({ method: "POST" })
               eventName: data.eventName,
               schedule: data.schedule,
               location: data.location,
+              scene: data.imageCue,
             }),
           createdAt: Date.now(),
           source: "live" as const,

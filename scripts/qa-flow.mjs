@@ -359,6 +359,14 @@ try {
   await expectText("圖片不會太宗教", "不會太宗教");
   await expectText("圖片沒看像素", "沒有真的看像素");
   await page.screenshot({ path: `${prefix}-image-analysis.png` });
+  await tap(page.getByTestId("copy-from-image"));
+  await page.waitForSelector("text=文案版本", { timeout: 30000 });
+  await expectText("從圖寫文案版本", "文案版本");
+  await expectText("從圖寫文案仍見圖片", "圖片理解");
+  await expectText("從圖寫文案 hook", "走上坡");
+  await page.waitForSelector("text=淡江學生視角", { timeout: 20000 });
+  await expectText("從圖寫文案學生視角", "會停下來的可能");
+  await page.screenshot({ path: `${prefix}-from-image-copy.png` });
   await tap(
     page
       .locator("section")

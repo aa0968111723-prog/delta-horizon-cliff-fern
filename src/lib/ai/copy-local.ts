@@ -1,10 +1,10 @@
-import { localAltText } from "@/lib/studio/copy-alt";
-import { uid } from "@/lib/studio/ids";
-import type { CopyDraft, CopyTone, ReelsScript, StudentReview } from "@/lib/studio/types";
-import { AUDIENCE_SEGMENTS } from "@/lib/zen/audience";
-import { CLUB_CTAS, CLUB_HASHTAGS, CLUB_INTRO_SHORT, CLUB_NAME } from "@/lib/zen/club";
-import { semesterPhaseAt } from "@/lib/zen/semester";
-import { HOOK_PATTERNS, scanCopyIssues, STUDENT_REVIEW_QUESTIONS } from "@/lib/zen/voice";
+import { localAltText } from "../studio/copy-alt.ts";
+import { uid } from "../studio/ids.ts";
+import type { CopyDraft, CopyTone, ReelsScript, StudentReview } from "../studio/types.ts";
+import { AUDIENCE_SEGMENTS } from "../zen/audience.ts";
+import { CLUB_CTAS, CLUB_HASHTAGS, CLUB_INTRO_SHORT, CLUB_NAME } from "../zen/club.ts";
+import { semesterPhaseAt } from "../zen/semester.ts";
+import { HOOK_PATTERNS, scanCopyIssues, STUDENT_REVIEW_QUESTIONS } from "../zen/voice.ts";
 
 export type CopyTopic =
   | "event"
@@ -57,6 +57,8 @@ export type CopyBriefLocal = {
   cta: string;
   audienceIds: string[];
   signupUrl: string;
+  /** 從一張圖寫文案時，用圖片理解抽出的第一句，不要寫成與圖無關的套話。 */
+  imageCue?: string;
 };
 
 /** 每個語氣要有自己的第一句，不然三個版本看起來一樣。 */
@@ -79,7 +81,19 @@ function baseTrigger(brief: CopyBriefLocal): string {
   return HOOK_PATTERNS[index].example;
 }
 
+/** 從圖寫文案：第一句要接畫面，不要變成與圖無關的痛點套話。 */
+const TONE_IMAGE_HOOK: Record<CopyTone, (cue: string) => string> = {
+  short: (cue) => (cue.endsWith("？") || cue.endsWith("?") ? cue : `${cue.replace(/[。]$/, "")}。`),
+  normal: (cue) => cue,
+  emotional: (cue) => (cue.includes("？") ? cue : `${cue.replace(/[。]$/, "")}，那一下其實挺安靜的。`),
+  student: (cue) => cue,
+  life: (cue) => cue,
+  humor: (cue) => (cue.includes("龜龜") ? cue : "龜龜看到這畫面也不說話。"),
+};
+
 function pickHook(brief: CopyBriefLocal, tone: CopyTone = brief.tone): string {
+  const cue = brief.imageCue?.replace(/\s+/g, " ").trim();
+  if (cue) return TONE_IMAGE_HOOK[tone](cue).slice(0, 36);
   const pain = brief.painPoint.trim().replace(/[？?。]$/, "");
   const trigger = baseTrigger(brief);
   if (brief.topic === "countdown") {
@@ -151,6 +165,7 @@ export function buildLocalCopyDraft(brief: CopyBriefLocal, tone: CopyTone): Copy
       eventName: brief.eventName,
       schedule: brief.schedule,
       location: brief.location,
+      scene: brief.imageCue,
     }),
     createdAt: Date.now(),
     source: "mock",
