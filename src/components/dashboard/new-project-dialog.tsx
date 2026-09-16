@@ -71,7 +71,7 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>新建網宣專案</DialogTitle>
-          <DialogDescription>先寫清楚活動與受眾，再進工作區編輯畫面與文案。</DialogDescription>
+          <DialogDescription>先寫清楚活動與受眾，再開 Studio 編輯畫面與文案。</DialogDescription>
         </DialogHeader>
         <form className="space-y-3" onSubmit={submit}>
           <div className="space-y-1.5">
@@ -203,7 +203,7 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
             <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
               取消
             </Button>
-            <Button type="submit">進入工作區</Button>
+            <Button type="submit">打開 Studio</Button>
           </div>
         </form>
       </DialogContent>

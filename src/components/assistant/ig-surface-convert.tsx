@@ -1,9 +1,9 @@
 import { toast } from "sonner";
 import { CaptionMeter } from "@/components/assistant/caption-meter";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   convertCopyForSurface,
+  copyPatchForSurface,
   IG_SURFACES,
   reviewIgSurface,
   type IgSurface,
@@ -22,7 +22,7 @@ export function IgSurfaceConvert({
   const project = useStudio((state) => state.projects.find((item) => item.id === projectId));
   const patchPlan = useStudio((state) => state.patchPlan);
   const setCopy = useStudio((state) => state.setCopy);
-  const setActiveFormat = useStudio((state) => state.setActiveFormat);
+  const adaptToFormat = useStudio((state) => state.adaptToFormat);
   const pack = project?.plan?.copyPack;
 
   if (!project) return null;
@@ -37,11 +37,8 @@ export function IgSurfaceConvert({
       registrationUrl: project.brief.notes.match(/https?:\/\/\S+/)?.[0],
       pageCount,
     });
-    setActiveFormat(project.id, converted.formatId);
-    setCopy(project.id, {
-      caption: converted.caption,
-      hashtags: converted.hashtags,
-    });
+    adaptToFormat(project.id, converted.formatId);
+    setCopy(project.id, copyPatchForSurface(converted, project.copy));
     if (project.plan) {
       patchPlan(project.id, {
         captions: [
@@ -54,7 +51,7 @@ export function IgSurfaceConvert({
     const failed = review.filter((item) => !item.pass);
     toast.success(
       failed.length
-        ? `已轉成${IG_SURFACES.find((item) => item.id === surface)?.label}，還有 ${failed.length} 項學生視角要修`
+        ? `已轉成${IG_SURFACES.find((item) => item.id === surface)?.label}，畫布已重排，還有 ${failed.length} 項學生視角要修`
         : `已轉成${IG_SURFACES.find((item) => item.id === surface)?.label}，文案與畫布尺寸已對上`,
     );
     onConverted?.(surface);
@@ -65,7 +62,7 @@ export function IgSurfaceConvert({
       <div>
         <p className="text-sm font-medium">轉成 Feed／Story／Reels／Carousel</p>
         <p className="mt-1 text-xs leading-5 text-muted">
-          會換成對應尺寸，並帶上該格式的文案。沒有輪播頁時不會假裝已經有 6 頁。
+          會換成對應尺寸並重排畫布，文案也換成該格式。沒有輪播頁時不會假裝已經有 6 頁。
         </p>
       </div>
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">

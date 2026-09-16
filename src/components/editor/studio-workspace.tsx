@@ -34,7 +34,6 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { FORMATS } from "@/lib/studio/formats";
 import { pagesOf } from "@/lib/studio/layers";
 import { inspectProject } from "@/lib/studio/quality";
-import type { FormatId } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { activeArtboard, useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
@@ -128,7 +127,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
 
   if (!project || !brand) {
     return (
-      <div className="flex h-app items-center justify-center px-4">
+      <div className="flex h-app min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-4">
         <EmptyState
           icon={Layers}
           title="找不到這個專案"
@@ -145,7 +144,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
 
   if (!artboard) {
     return (
-      <div className="flex h-app flex-col items-center justify-center gap-3 text-sm text-muted">
+      <div className="flex h-app min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-hidden text-sm text-muted">
         <span className="size-6 animate-spin rounded-full border-2 border-border-strong border-t-accent" />
         正在建立畫布…
       </div>
@@ -155,7 +154,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
   const qa = inspectProject(pagesOf(project), brand, project.copy);
 
   return (
-    <div className="flex h-app flex-col">
+    <div className="flex h-app min-h-0 flex-1 flex-col overflow-hidden">
       <header className="flex h-14 shrink-0 items-center gap-1 border-b border-border bg-surface px-2 md:gap-2 md:px-3">
         <Button asChild size="icon-sm" variant="ghost" aria-label="返回首頁">
           <Link to="/">
@@ -264,20 +263,14 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
         </div>
 
         <div className="flex h-0 min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:hidden">
-          <div className="border-b border-border bg-surface">
+          <div className="shrink-0 border-b border-border bg-surface">
             <EditorToolbar />
           </div>
           <ArtboardCanvas projectId={project.id} artboard={artboard} brand={brand} urls={urls} />
-          <div className="border-t border-border bg-surface">
-            <SlideBar project={project} />
+          <div className="shrink-0 border-t border-border bg-surface">
+            <SlideBar project={project} compact />
           </div>
-          <div className="flex border-t border-border bg-surface md:hidden">
-            <FormatScroller
-              value={project.activeFormatId}
-              onChange={(id) => setActiveFormat(project.id, id)}
-            />
-          </div>
-          <div className="flex h-12 min-w-0 overflow-x-auto border-t border-border bg-surface">
+          <div className="flex h-12 min-w-0 shrink-0 overflow-x-auto border-t border-border bg-surface">
             <MobileTab icon={<Layers className="size-4" />} label="圖層" onClick={() => setPanel("layers")} active={panel === "layers"} />
             <MobileTab icon={<Images className="size-4" />} label="素材" onClick={() => setPanel("assets")} active={panel === "assets"} />
             <MobileTab icon={<Type className="size-4" />} label="文字" onClick={() => setPanel("copy")} active={panel === "copy"} />
@@ -362,28 +355,5 @@ function MobileTab({
       {icon}
       {label}
     </button>
-  );
-}
-
-function FormatScroller({
-  value,
-  onChange,
-}: {
-  value: FormatId;
-  onChange: (id: FormatId) => void;
-}) {
-  return (
-    <div className="flex w-full gap-1 overflow-x-auto px-2 py-2">
-      {FORMATS.map((f) => (
-        <Button
-          key={f.id}
-          size="sm"
-          variant={value === f.id ? "default" : "secondary"}
-          onClick={() => onChange(f.id)}
-        >
-          {f.short}
-        </Button>
-      ))}
-    </div>
   );
 }

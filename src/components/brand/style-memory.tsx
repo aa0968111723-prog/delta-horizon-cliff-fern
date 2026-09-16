@@ -41,7 +41,7 @@ export function StyleMemoryPanel() {
             Canva 風格參考
           </p>
           <p className="mt-1 text-xs leading-5 text-muted">
-            從連接頁分析過的真實 Canva 設計。寫入規律後，下次文案與畫面生成會帶進 Creative Memory。沒有連接時這裡會是空的，不會放模擬稿。
+            從連接頁分析過的真實 Canva 設計。寫入規律後，下次文案與畫面生成會帶進跨來源記憶。沒有連接時這裡會是空的，不會放模擬稿。
           </p>
         </div>
         <Badge variant="default">{references.length}</Badge>

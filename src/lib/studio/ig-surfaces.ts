@@ -1,6 +1,7 @@
 import type { ContentItem } from "../creative/types.ts";
 import type {
   CampaignPlan,
+  CopyDeck,
   CopyPack,
   CopyVariant,
   FormatId,
@@ -148,6 +149,39 @@ export function convertCopyForSurface(
     hashtags,
     imageNote: "Feed 主視覺放校園或社員，標題最多兩行，CTA 不壓臉。",
   };
+}
+
+export function copyPatchForSurface(
+  converted: SurfaceCopy,
+  current: Pick<CopyDeck, "headline" | "subhead" | "body" | "cta">,
+): Partial<CopyDeck> {
+  const patch: Partial<CopyDeck> = {
+    caption: converted.caption,
+    hashtags: converted.hashtags,
+  };
+  if (converted.surface === "story") {
+    if (converted.overlay[0]) patch.headline = converted.overlay[0];
+    if (converted.overlay.length > 1) {
+      patch.body = converted.overlay.slice(1, -1).join("\n") || converted.overlay[1];
+    }
+    const last = converted.overlay.at(-1);
+    if (last) patch.cta = last;
+  }
+  if (converted.surface === "reels") {
+    if (converted.overlay[0]) patch.headline = converted.overlay[0];
+    if (converted.overlay[1]) patch.subhead = converted.overlay[1];
+    const last = converted.overlay.at(-1);
+    if (last) patch.cta = last;
+  }
+  if (converted.surface === "carousel") {
+    if (converted.overlay[0]) patch.headline = converted.overlay[0];
+    const last = converted.overlay.at(-1);
+    if (last) patch.cta = last;
+  }
+  if (converted.surface === "feed" && !patch.headline) {
+    patch.headline = current.headline;
+  }
+  return patch;
 }
 
 function item(

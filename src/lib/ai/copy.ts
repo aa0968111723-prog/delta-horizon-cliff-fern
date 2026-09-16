@@ -185,7 +185,7 @@ async function generateLive(data: CopyRequest): Promise<CopyPack> {
         },
         {
           role: "user",
-          content: `請為以下活動產生完整 IG Copy Pack：${JSON.stringify(data)}。
+          content: `請為以下活動產生完整 IG 文案包：${JSON.stringify(data)}。
 variants 必須各有短版、一般版、感性版、學生版、生活版、幽默版，欄位 tone,hook,body,cta,hashtags。
 studentReview 必須逐題回答：會停下來嗎、看得懂嗎、是否太宗教／太嚴肅／太文青／太 AI／太長、時間地點是否清楚、會想找朋友嗎、知道怎麼報名嗎；欄位 question,pass,feedback。
 另外輸出 revisedCaption, threads, line, storyFrames(3–5), carouselPages(5–6), reelsScript(5 段，每段 timing,visual,subtitle,voiceover,transition,assetSuggestion)。

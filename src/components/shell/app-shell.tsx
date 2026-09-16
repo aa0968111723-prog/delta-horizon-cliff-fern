@@ -100,7 +100,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 pb-nav">{children}</div>
+        <div
+          className={cn(
+            "min-h-0 flex-1 pb-nav",
+            pathname.startsWith("/studio/") && "flex flex-col overflow-hidden",
+          )}
+        >
+          {children}
+        </div>
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
           <div className="relative grid grid-cols-5">
             {MOBILE_NAV.map((item) => {

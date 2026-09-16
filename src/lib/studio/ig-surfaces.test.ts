@@ -7,6 +7,7 @@ import {
   formatIdForSurface,
   reviewIgSurface,
   reviewStudentCaption,
+  copyPatchForSurface,
   scheduleReminder,
 } from "./ig-surfaces.ts";
 
@@ -76,6 +77,19 @@ test("Carousel reverse-check does not pretend a single page is a carousel", () =
     imageNote: "",
   }, { pageCount: 1 });
   assert.equal(review.some((item) => !item.pass && /不會假裝已有 6 頁/.test(item.feedback)), true);
+});
+
+test("surface conversion writes Story overlay onto the canvas headline and CTA", () => {
+  const story = convertCopyForSurface(pack, "story");
+  const patch = copyPatchForSurface(story, {
+    headline: "舊標題",
+    subhead: "",
+    body: "",
+    cta: "了解更多",
+  });
+  assert.equal(patch.headline, story.overlay[0]);
+  assert.equal(patch.cta, story.overlay.at(-1));
+  assert.equal(patch.hashtags?.[0], "#淡江禪學社");
 });
 
 test("student caption review catches missing registration and literary tone", () => {

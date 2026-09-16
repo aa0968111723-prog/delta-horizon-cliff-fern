@@ -108,4 +108,5 @@ test("export copy pack prefers Copy Pack 學生版 when present", () => {
   assert.match(text, /Reels/);
   assert.match(text, /畫面備註/);
   assert.match(text, /排程提醒/);
+  assert.match(text, /學生視角/);
 });

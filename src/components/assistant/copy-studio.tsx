@@ -8,6 +8,7 @@ import { generateCopyPack, describeCopyAdapter, getCopyAiStatus } from "@/lib/ai
 import type { AiStatus } from "@/lib/ai/campaign";
 import { CaptionMeter } from "@/components/assistant/caption-meter";
 import { IgSurfaceConvert } from "@/components/assistant/ig-surface-convert";
+import { reviewStudentCaption } from "@/lib/studio/ig-surfaces";
 import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
 import { hashtagsFromOutcomes, lessonsFromLocalWork, mergeHashtagMemory } from "@/lib/creative/learning";
 import { buildCreativeMemoryContext, memoryInjectionHints } from "@/lib/creative/memory";
@@ -23,6 +24,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
   const project = useStudio((state) => state.projects.find((item) => item.id === projectId));
   const brand = useStudio((state) => state.brands.find((item) => item.id === project?.brandId));
   const patchPlan = useStudio((state) => state.patchPlan);
+  const setCopy = useStudio((state) => state.setCopy);
   const updateBrand = useStudio((state) => state.updateBrand);
   const campaigns = useCreative((state) => state.campaigns);
   const contentItems = useCreative((state) => state.contentItems);
@@ -132,6 +134,20 @@ export function CopyStudio({ projectId }: { projectId: string }) {
   }
 
   const variant = pack?.variants.find((item) => item.tone === activeTone) ?? pack?.variants[0];
+  const liveCaption = variant
+    ? `${variant.body}\n\n${variant.cta}\n\n${variant.hashtags.join(" ")}`
+    : project.copy.caption;
+  const liveReview = variant
+    ? reviewStudentCaption({
+        caption: liveCaption,
+        hook: variant.hook,
+        cta: variant.cta,
+        schedule: project.brief.schedule,
+        location: project.brief.location,
+        registrationUrl: project.brief.notes.match(/https?:\/\/\S+/)?.[0] ?? "",
+        hashtags: variant.hashtags,
+      })
+    : pack?.studentReview ?? [];
   const formats = pack
     ? [
         { label: "Threads", text: pack.threads },
@@ -154,7 +170,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
             {status
               ? banner.detail
               : "先確認有沒有連到 AI 文案，不會假裝 Grok 已寫好。"}
-            {memoryHints.length ? ` 本次會帶入 Creative Memory：${memoryHints.join("、")}。` : " Brand Memory 尚未寫入校園情境時，會用預設的淡江生活場景。"}
+            {memoryHints.length ? ` 本次會帶入跨來源記憶：${memoryHints.join("、")}。` : " Brand Memory 尚未寫入校園情境時，會用預設的淡江生活場景。"}
             {memoryHashtags.length ? ` 已帶入現場／IG hashtag：${memoryHashtags.slice(0, 5).join(" ")}` : ""}
           </p>
         </div>
@@ -218,7 +234,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
           <div>
             <p className="text-xs font-medium">淡江學生視角</p>
             <ul className="mt-2 space-y-2">
-              {pack.studentReview.map((item) => (
+              {liveReview.map((item) => (
                 <li key={item.question} className="flex gap-2 rounded-lg bg-surface px-3 py-3">
                   {item.pass ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" /> : <AlertCircle className="mt-0.5 size-4 shrink-0 text-warn" />}
                   <div>
@@ -267,8 +283,21 @@ export function CopyStudio({ projectId }: { projectId: string }) {
                     className="min-h-11 rounded-full bg-surface px-3 text-xs shadow-[var(--shadow-border)]"
                     onClick={() => {
                       const next = [...new Set([...(project.plan?.hashtags ?? []), tag])];
-                      patchPlan(projectId, { hashtags: next });
-                      toast.success(`已加入 ${tag}`);
+                      patchPlan(projectId, {
+                        hashtags: next,
+                        copyPack: pack
+                          ? {
+                              ...pack,
+                              variants: pack.variants.map((item) =>
+                                item.tone === activeTone
+                                  ? { ...item, hashtags: [...new Set([...item.hashtags, tag])] }
+                                  : item,
+                              ),
+                            }
+                          : pack,
+                      });
+                      setCopy(projectId, { hashtags: next });
+                      toast.success(`已加入 ${tag}，下次文案會優先用現場有用的 tag`);
                     }}
                   >
                     {tag}

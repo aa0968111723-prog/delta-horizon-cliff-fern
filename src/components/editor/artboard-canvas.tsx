@@ -68,6 +68,7 @@ export function ArtboardCanvas({
     if (!el) return;
     const obs = new ResizeObserver(() => {
       const r = el.getBoundingClientRect();
+      if (r.width < 8 || r.height < 8) return;
       setBox({ w: r.width, h: r.height });
     });
     obs.observe(el);
@@ -75,9 +76,9 @@ export function ArtboardCanvas({
   }, []);
 
   const format = formatById(artboard.formatId);
-  const pad = 48;
+  const pad = box.h < 280 ? 16 : 48;
   const fit = Math.min((box.w - pad) / format.width, (box.h - pad) / format.height);
-  const zoom = zoomPref > 0 ? zoomPref : Math.max(0.12, fit);
+  const zoom = zoomPref > 0 ? zoomPref : Math.max(0.2, Number.isFinite(fit) ? fit : 0.2);
   const width = format.width * zoom;
 
   function clientToNative(clientX: number, clientY: number) {
@@ -311,7 +312,8 @@ export function ArtboardCanvas({
   return (
     <div
       ref={wrapRef}
-      className="relative flex h-0 min-h-0 w-full min-w-0 flex-1 items-center justify-center overflow-auto bg-bg touch-none"
+      data-testid="studio-artboard"
+      className="relative flex h-0 min-h-[240px] w-full min-w-0 flex-1 items-center justify-center overflow-auto bg-bg touch-none"
       style={{ cursor }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

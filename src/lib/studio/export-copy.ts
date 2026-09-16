@@ -1,5 +1,12 @@
 import type { Campaign, ContentItem } from "../creative/types.ts";
-import { captionMeter, convertCopyForSurface, projectImageNote, scheduleReminder, surfaceFromFormat } from "./ig-surfaces.ts";
+import {
+  captionMeter,
+  convertCopyForSurface,
+  projectImageNote,
+  reviewIgSurface,
+  scheduleReminder,
+  surfaceFromFormat,
+} from "./ig-surfaces.ts";
 import type { Project } from "./types.ts";
 
 function pageCountOf(project: Project) {
@@ -28,12 +35,19 @@ export function buildExportCopyPack(
     ?? extras?.contentItems?.find((item) => item.title === project.name)
     ?? null;
   const campaign = extras?.campaigns?.find((item) => item.id === linked?.campaignId);
-  const imageNote = projectImageNote(project);
+  const imageNote = projectImageNote(project) || converted.imageNote;
   const reminder = scheduleReminder({
     schedule: project.brief.schedule || campaign?.eventTime,
     location: project.brief.location || campaign?.location,
     content: linked,
   });
+  const review = reviewIgSurface(surface, converted, {
+    schedule: project.brief.schedule || campaign?.eventTime,
+    location: project.brief.location || campaign?.location,
+    registrationUrl: project.brief.notes.match(/https?:\/\/\S+/)?.[0],
+    pageCount: pageCountOf(project),
+  });
+  const failed = review.filter((item) => !item.pass);
 
   return [
     `禪作所一人發佈包｜${project.name}`,
@@ -50,6 +64,9 @@ export function buildExportCopyPack(
     "",
     "【排程提醒】",
     reminder,
+    failed.length
+      ? `\n【學生視角還要修】\n${failed.map((item) => `- ${item.question}：${item.feedback}`).join("\n")}`
+      : "\n【學生視角】目前這則通過第一句、字數與時間地點檢查。",
     pack?.threads ? `\n【Threads】\n${pack.threads}` : "",
     pack?.line ? `\n【LINE】\n${pack.line}` : "",
     converted.overlay.length && surface === "story"
@@ -57,6 +74,9 @@ export function buildExportCopyPack(
       : pack?.storyFrames?.length
         ? `\n【限動逐則】\n${pack.storyFrames.map((item, index) => `${index + 1}. ${item}`).join("\n")}`
         : "",
+    converted.overlay.length && surface === "carousel"
+      ? `\n【輪播各頁】\n${converted.overlay.map((item, index) => `${index + 1}. ${item}`).join("\n")}`
+      : "",
     pack?.reelsScript?.length ? `\n【Reels 腳本】\n${pack.reelsScript.map((item) => `${item.timing} ${item.subtitle}`).join("\n")}` : "",
   ]
     .join("\n")

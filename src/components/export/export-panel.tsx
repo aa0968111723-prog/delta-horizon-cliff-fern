@@ -176,6 +176,17 @@ export function ExportPanel({
       <Button
         variant="secondary"
         className="w-full min-h-11"
+        onClick={async () => {
+          const text = buildExportCopyPack(project, { contentItems, campaigns });
+          await navigator.clipboard.writeText(text);
+          toast.success("已複製一人發佈包：文案、畫面備註、排程提醒。這不是發文。");
+        }}
+      >
+        複製一人發佈包
+      </Button>
+      <Button
+        variant="secondary"
+        className="w-full min-h-11"
         onClick={() => {
           const text = buildExportCopyPack(project, { contentItems, campaigns });
           downloadBlob(new Blob([text], { type: "text/plain;charset=utf-8" }), `${project.name.replace(/[\\/:*?"<>|]/g, "").slice(0, 40) || "export"}-publish.txt`);
