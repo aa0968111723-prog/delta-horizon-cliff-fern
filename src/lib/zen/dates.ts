@@ -59,10 +59,32 @@ export function campaignMatchingIdea<T extends { id: string; name: string; oneLi
   const guessed = guessEventName(idea);
   const matches = campaigns.filter(
     (row) =>
-      (idea && (row.name === idea || row.oneLiner === idea)) ||
+      (idea && row.name === idea) ||
       (guessed && (row.name === guessed || row.name.includes(guessed))),
   );
   return matches.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+}
+
+/** 「用這個 Hook 再寫一篇」is a new piece, not a reopen of last week's 茶會. */
+export function shouldReopenCampaign(mode?: string | null, campaignId?: string | null): boolean {
+  if (campaignId) return true;
+  return mode !== "from-ig" && mode !== "from-image" && mode !== "from-drive" && mode !== "from-canva";
+}
+
+/** Extend modes keep the spoken Hook as the name — never guess 茶會 from a plan. */
+export function campaignNameForIdea(opts: {
+  mode?: string | null;
+  campaignId?: string | null;
+  eventName?: string;
+  idea: string;
+  planName?: string;
+}): string {
+  const typed = opts.eventName?.trim() ?? "";
+  if (typed) return typed;
+  if (shouldReopenCampaign(opts.mode, opts.campaignId)) {
+    return guessEventName(opts.idea) || opts.planName?.trim() || opts.idea.slice(0, 20) || "未命名活動";
+  }
+  return opts.idea.slice(0, 20) || "未命名活動";
 }
 
 export function parseEventTime(text: string, fallback = "19:00"): string {

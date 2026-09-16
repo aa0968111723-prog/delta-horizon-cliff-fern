@@ -18,6 +18,7 @@ import { scheduleForCampaign } from "@/lib/studio/calendar-search";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { igNextReels, igStoryStrip, soonestScheduled } from "@/lib/zen/schedule";
 import { igHookAnalysis } from "@/lib/zen/review";
+import { hookLine } from "@/lib/zen/insights";
 import { useStudio } from "@/stores/studio-store";
 import type { ScheduleItem } from "@/lib/studio/types";
 import { previewMediaId } from "@/lib/ai/reels-asset";
@@ -260,7 +261,13 @@ export function InstagramCenter() {
               <Button size="sm" variant="secondary" onClick={() => setAnalysis(igHookAnalysis(post.caption))}>
                 AI 分析
               </Button>
-              <Button size="sm" onClick={() => void navigate({ to: "/create", search: { mode: "from-ig", idea: post.caption } })}>
+              <Button
+                size="sm"
+                data-testid="ig-extend"
+                onClick={() =>
+                  void navigate({ to: "/create", search: { mode: "from-ig", idea: hookLine(post.caption) } })
+                }
+              >
                 從這篇延伸
               </Button>
             </div>

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { campaignMatchingIdea, guessEventName } from "./dates.ts";
+import { campaignMatchingIdea, campaignNameForIdea, guessEventName, shouldReopenCampaign } from "./dates.ts";
 
 test("下週有一場茶會 maps to 茶會, not an abstract youth label", () => {
   assert.equal(guessEventName("下週有一場茶會"), "茶會");
@@ -27,4 +27,34 @@ test("campaignMatchingIdea prefers the campaign id when opening from Calendar", 
     "a",
   );
   assert.equal(hit?.id, "a");
+});
+
+test("a learned Hook does not reopen last week's 茶會", () => {
+  const hit = campaignMatchingIdea(
+    [
+      { id: "seed", name: "浮游禪光", oneLiner: "最近是不是很久沒有好好坐下來？", updatedAt: 1 },
+      { id: "tea", name: "茶會", oneLiner: "可以自己來？", updatedAt: 9 },
+    ],
+    "可以自己來？",
+  );
+  assert.equal(hit, undefined);
+});
+
+test("from-ig / from-image do not reopen a campaign unless the URL names it", () => {
+  assert.equal(shouldReopenCampaign("from-ig"), false);
+  assert.equal(shouldReopenCampaign("from-image"), false);
+  assert.equal(shouldReopenCampaign("idea"), true);
+  assert.equal(shouldReopenCampaign("from-ig", "camp_tea"), true);
+});
+
+test("from-ig keeps the learned Hook as the name, not last week's 茶會", () => {
+  assert.equal(
+    campaignNameForIdea({ mode: "from-ig", idea: "可以自己來？", planName: "茶會" }),
+    "可以自己來？",
+  );
+  assert.equal(campaignNameForIdea({ mode: "idea", idea: "下週有一場茶會" }), "茶會");
+  assert.equal(
+    campaignNameForIdea({ mode: "from-ig", campaignId: "camp_tea", idea: "可以自己來？", eventName: "茶會" }),
+    "茶會",
+  );
 });

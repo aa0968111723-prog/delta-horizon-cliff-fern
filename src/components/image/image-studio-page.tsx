@@ -28,6 +28,7 @@ import { uid } from "@/lib/studio/ids";
 import { guessEventName } from "@/lib/zen/dates";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
+import { ideaStudioHook } from "@/lib/zen/studio-hook";
 import { composeMemoryHint } from "@/lib/zen/memory-hook";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import type { CopyPack, FormatId, StudentReview, VisualDirection } from "@/lib/studio/types";
@@ -65,6 +66,10 @@ export function ImageStudioPage() {
   );
   const learning = useMemo(() => learnFromIg(igMemory), [igMemory]);
   const [idea, setIdea] = useState("我要宣傳茶會");
+  const studioHook = useMemo(
+    () => ideaStudioHook(igMemory, idea, guessEventName(idea)),
+    [igMemory, idea],
+  );
   const [format, setFormat] = useState<FormatId>("feed-portrait");
   const [directions, setDirections] = useState<VisualDirection[]>([]);
   const [busy, setBusy] = useState(false);
@@ -94,7 +99,11 @@ export function ImageStudioPage() {
         data: {
           idea: nextIdea,
           format: toImageFormat(formatOverride ?? format),
-          memoryHint: composeMemoryHint([learning.promptBlock, dna.promptBlock]),
+          memoryHint: composeMemoryHint([
+            `過去表現較好的 Hook：「${ideaStudioHook(igMemory, nextIdea, guessEventName(nextIdea))}」`,
+            learning.promptBlock,
+            dna.promptBlock,
+          ]),
         },
       });
       if (!result.ok) {
@@ -115,7 +124,11 @@ export function ImageStudioPage() {
         data: {
           idea: nextIdea,
           eventName: guessEventName(nextIdea) || "",
-          memoryHint: composeMemoryHint([learning.promptBlock, dna.promptBlock]),
+          memoryHint: composeMemoryHint([
+            `過去表現較好的 Hook：「${ideaStudioHook(igMemory, nextIdea, guessEventName(nextIdea))}」`,
+            learning.promptBlock,
+            dna.promptBlock,
+          ]),
         },
       });
       if (!result.ok) {
@@ -301,8 +314,8 @@ export function ImageStudioPage() {
         title="不要只生禪風海報"
         description="先想學生情境、淡水夜晚、三色光、龜龜，再給三個方向。"
       />
-      <p className="mt-3 text-xs text-muted">
-        這次會參考過去 IG：「{learning.bestHookShape}」。{learning.avoid}
+      <p className="mt-3 text-xs text-muted" data-testid="studio-learn-banner">
+        這次會參考過去 IG：「{studioHook}」。{learning.avoid}
       </p>
       <Textarea className="mt-6" value={idea} onChange={(e) => setIdea(e.target.value)} />
       <div className="mt-3 flex flex-wrap gap-2">

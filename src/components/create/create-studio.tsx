@@ -26,10 +26,11 @@ import { persistGeneratedImage } from "@/lib/studio/raster";
 import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById, FORMATS } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
-import { parseEventDate, parseEventTime, guessEventName, defaultScheduleText, campaignMatchingIdea } from "@/lib/zen/dates";
+import { parseEventDate, parseEventTime, guessEventName, defaultScheduleText, campaignMatchingIdea, campaignNameForIdea, shouldReopenCampaign } from "@/lib/zen/dates";
 import { DEFAULT_AUDIENCE, academicBeat } from "@/lib/zen/context";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
+import { ideaStudioHook } from "@/lib/zen/studio-hook";
 import { composeMemoryHint } from "@/lib/zen/memory-hook";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction";
@@ -121,7 +122,12 @@ export function CreateStudio() {
   const urls = useAssetUrls(assets.map((a) => a.id));
 
   const [idea, setIdea] = useState(search.idea || "下週有一場茶會");
-  const [eventName, setEventName] = useState(guessEventName(search.idea || "下週有一場茶會"));
+  const [eventName, setEventName] = useState(() =>
+    shouldReopenCampaign(search.mode, search.campaign)
+      ? guessEventName(search.idea || "下週有一場茶會")
+      : "",
+  );
+  const studioHook = useMemo(() => ideaStudioHook(igMemory, idea, eventName), [igMemory, idea, eventName]);
   const [schedule, setSchedule] = useState(() => defaultScheduleText(search.idea || "下週有一場茶會"));
   const [location, setLocation] = useState("淡江大學淡水校園 · 禪學社");
   const [signupUrl, setSignupUrl] = useState("");
@@ -131,6 +137,7 @@ export function CreateStudio() {
   const [theme, setTheme] = useState("");
   const [busy, setBusy] = useState(false);
   const sendingCanva = useRef(false);
+  const eventNameTouched = useRef(false);
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [plan, setPlan] = useState<CampaignPlan | null>(null);
   const [packs, setPacks] = useState<CopyPack[]>([]);
@@ -173,6 +180,11 @@ export function CreateStudio() {
   const autoRan = useRef(false);
   const foundGroups = useMemo(() => groupCreativeHits(found), [found]);
 
+  function typedEventName() {
+    if (shouldReopenCampaign(search.mode, search.campaign) || eventNameTouched.current) return eventName;
+    return "";
+  }
+
   useEffect(() => {
     if (plan?.hook) setEditHook(plan.hook);
   }, [plan?.hook]);
@@ -186,6 +198,20 @@ export function CreateStudio() {
   useEffect(() => {
     if (!hydrated) return;
     if (search.idea) setIdea(search.idea);
+    if (!shouldReopenCampaign(search.mode, search.campaign)) {
+      eventNameTouched.current = false;
+      setCampaign(null);
+      setEventName("");
+      setOneLiner("");
+      setPlan(null);
+      setDirections([]);
+      setPacks([]);
+      setPickedDirection(null);
+      setLastImage(null);
+      setReview(null);
+      if (search.idea) setSchedule(defaultScheduleText(search.idea));
+      return;
+    }
     const guessed = guessEventName(search.idea || "");
     if (guessed) setEventName(guessed);
     const existing = campaignMatchingIdea(useStudio.getState().campaigns, search.idea || "", search.campaign);
@@ -204,7 +230,7 @@ export function CreateStudio() {
     } else if (search.idea) {
       setSchedule(defaultScheduleText(search.idea));
     }
-  }, [search.idea, search.campaign, hydrated]);
+  }, [search.idea, search.campaign, search.mode, hydrated]);
 
   const activePack = packs.find((p) => p.tone === tone) ?? packs[0];
   const mode = search.mode || "idea";
@@ -216,6 +242,11 @@ export function CreateStudio() {
   }, [mode]);
 
   useEffect(() => {
+    autoRan.current = false;
+    if (!shouldReopenCampaign(search.mode, search.campaign)) eventNameTouched.current = false;
+  }, [search.idea, search.mode, search.campaign, search.asset]);
+
+  useEffect(() => {
     if (!status || !brand || !hydrated || autoRan.current) return;
     if (mode === "from-image" && search.asset) {
       autoRan.current = true;
@@ -224,8 +255,8 @@ export function CreateStudio() {
     }
     if (mode === "from-image" && !search.idea) return;
     autoRan.current = true;
-    void runKit(undefined, true);
-  }, [status, brand, hydrated, mode, search.asset]);
+    void runKit(search.idea || undefined, true);
+  }, [status, brand, hydrated, mode, search.asset, search.idea, search.campaign]);
 
   useEffect(() => {
     if (!lastImage) return;
@@ -285,6 +316,7 @@ export function CreateStudio() {
       sources: (pinned.length ? pinned : hits).map((hit) => ({ source: hit.source, title: hit.title })),
     });
     return composeMemoryHint([
+      `過去表現較好的 Hook：「${ideaStudioHook(s.igMemory, idea, eventName)}」`,
       matchingBlock,
       learningNow.promptBlock,
       dna.promptBlock,
@@ -498,15 +530,21 @@ export function CreateStudio() {
   async function runKit(ideaOverride?: string, silent = false) {
     if (!brand) return;
     const workingIdea = ideaOverride ?? idea;
-    const hits = await gatherHits(`${workingIdea} ${eventName}`);
+    const hits = await gatherHits(`${workingIdea} ${typedEventName()}`.trim());
     const refs = pinned.length ? pinned : pickSourceRefs(mode, hits);
     if (!pinned.length && refs.length) setPinned(refs);
     setBusy(true);
     try {
+      const kitName = campaignNameForIdea({
+        mode,
+        campaignId: search.campaign,
+        eventName: typedEventName(),
+        idea: workingIdea,
+      });
       const brief = migrateBrief({
         ...emptyBrief(),
-        eventName: eventName || guessEventName(workingIdea) || workingIdea.slice(0, 20),
-        product: eventName || guessEventName(workingIdea) || workingIdea.slice(0, 20),
+        eventName: kitName,
+        product: kitName,
         schedule,
         location,
         audience: DEFAULT_AUDIENCE,
@@ -796,7 +834,13 @@ export function CreateStudio() {
     projectId: string | null = null,
     opts?: { silent?: boolean },
   ) {
-    const name = eventName.trim() || guessEventName(`${idea} ${nextPlan?.campaignName ?? ""}`) || nextPlan?.campaignName || "未命名活動";
+    const name = campaignNameForIdea({
+      mode: search.mode,
+      campaignId: search.campaign,
+      eventName: typedEventName(),
+      idea,
+      planName: nextPlan?.campaignName,
+    });
     const date = parseEventDate(`${schedule} ${idea}`);
     const type = eventKindFromText(`${name} ${idea}`);
     const existing =
@@ -1205,8 +1249,8 @@ export function CreateStudio() {
         <p className="text-xs text-muted">
           {status?.label ?? "確認創作服務中"} · {MODE_HINT[mode] ?? MODE_HINT.idea}
         </p>
-        <p className="mt-2 text-xs text-muted">
-          這次會參考過去 IG：「{learning.bestHookShape}」。{learning.avoid}
+        <p className="mt-2 text-xs text-muted" data-testid="studio-learn-banner">
+          這次會參考過去 IG：「{studioHook}」。{learning.avoid}
         </p>
         <Label className="mt-4">你想做什麼</Label>
         <Textarea className="mt-2" value={idea} onChange={(e) => setIdea(e.target.value)} rows={3} />
@@ -1231,7 +1275,15 @@ export function CreateStudio() {
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <Field label="活動名">
-            <Input value={eventName} onChange={(e) => setEventName(e.target.value)} placeholder="浮游禪光、茶會…" />
+            <Input
+              value={eventName}
+              onChange={(e) => {
+                eventNameTouched.current = true;
+                setEventName(e.target.value);
+              }}
+              placeholder="浮游禪光、茶會…"
+              data-testid="event-name"
+            />
           </Field>
           <Field label="時間">
             <Input value={schedule} onChange={(e) => setSchedule(e.target.value)} />
@@ -1534,7 +1586,7 @@ export function CreateStudio() {
               >
                 改這句，月曆用這版
               </Button>
-              <p className="mt-3 text-xs text-muted">
+              <p className="mt-3 text-xs text-muted" data-testid="kit-campaign-name">
                 已建立 {campaign.name}，節奏含 {campaign.waves.map((w) => waveLabel(w.kind)).join("、") || "預熱到回顧"}。
               </p>
               {lastCanva || campaign.canvaEditUrl ? (

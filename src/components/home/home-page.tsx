@@ -311,6 +311,7 @@ export function HomePage() {
             size="sm"
             variant="secondary"
             onClick={() => void navigate({ to: "/create", search: { mode: "from-ig", idea: strongHook } })}
+            data-testid="home-extend-hook"
           >
             用這個 Hook 再寫一篇
           </Button>

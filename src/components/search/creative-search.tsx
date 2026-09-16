@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { searchDriveLive } from "@/lib/connect/sync";
 import { searchCreative, groupCreativeHits, type CreativeHit } from "@/lib/zen/search";
+import { hookLine } from "@/lib/zen/insights";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
@@ -73,7 +74,7 @@ export function CreativeSearch() {
       return;
     }
     if (hit.source === "instagram") {
-      void navigate({ to: "/create", search: { mode: "from-ig", idea } });
+      void navigate({ to: "/create", search: { mode: "from-ig", idea: hookLine(idea) } });
       return;
     }
     if (hit.assetId) {
