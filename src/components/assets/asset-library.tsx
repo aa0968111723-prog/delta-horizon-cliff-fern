@@ -1,13 +1,13 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Images, Star, Upload } from "lucide-react";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AssetCard } from "@/components/assets/asset-card";
 import { AssetDetailSheet } from "@/components/assets/asset-detail";
 import { CreativeBrainPanel } from "@/components/assets/creative-brain-panel";
 import { ImageStudio } from "@/components/assets/image-studio";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
-import { EmptyState, ErrorState } from "@/components/shared/empty-state";
+import { EmptyState, ErrorState, LoadingState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { StorageNotice } from "@/components/shared/storage-notice";
 import { ArtboardView } from "@/components/studio/artboard-view";
@@ -44,20 +44,25 @@ import {
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { previewTemplate, TEMPLATE_STARTERS } from "@/lib/studio/templates";
-import type { AssetCategory, AssetMeta, AssetSourceKind } from "@/lib/studio/types";
+import type { AssetCategory, AssetMeta, AssetSourceKind, RemoteFile } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
+import { createSearchFromHit } from "@/lib/studio/create-search";
+import { gatherCreativeHits } from "@/lib/zen/gather-hits";
+import { remoteMatchesQuery, hitFromRemote } from "@/lib/zen/search";
 import { useStudio } from "@/stores/studio-store";
 
 type FilterId = "all" | AssetCategory | "favorite";
 
 export function AssetLibrary({ initialAssetId, initialCategory }: { initialAssetId?: string; initialCategory?: string } = {}) {
   const navigate = useNavigate();
+  const hydrated = useStudio((s) => s.hydrated);
   const assets = useStudio((s) => s.assets);
   const brands = useStudio((s) => s.brands);
   const projects = useStudio((s) => s.projects);
   const campaigns = useStudio((s) => s.campaigns);
   const contents = useStudio((s) => s.contents);
   const lastProjectId = useStudio((s) => s.lastProjectId);
+  const remoteFiles = useStudio((s) => s.remoteFiles);
   const addAsset = useStudio((s) => s.addAsset);
   const removeAsset = useStudio((s) => s.removeAsset);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
@@ -76,12 +81,20 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
   const [activeId, setActiveId] = useState<string | null>(initialAssetId ?? null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [dropOver, setDropOver] = useState(false);
+  const [liveNote, setLiveNote] = useState("");
 
   const usedIds = useMemo(
     () => collectUsedAssetIds(projects, brands, [...campaigns, ...contents]),
     [projects, brands, campaigns, contents],
   );
   const brand = brands[0];
+  const remotes = useMemo(() => {
+    return remoteFiles.filter((file) => {
+      if (q.trim() && !remoteMatchesQuery(file, q)) return false;
+      if (source !== "all" && file.provider !== source) return false;
+      return true;
+    });
+  }, [remoteFiles, q, source]);
 
   const filtered = useMemo(() => {
     return assets.filter((asset) => {
@@ -98,6 +111,19 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
   }, [assets, q, filter, source, usageFilter, usedIds]);
 
   const urls = useAssetUrls(assets.map((a) => a.id));
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const query = q.trim();
+    if (query.length < 2) {
+      setLiveNote("");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void gatherCreativeHits(query).then(({ note }) => setLiveNote(note));
+    }, 420);
+    return () => window.clearTimeout(timer);
+  }, [q, hydrated]);
   const counts = useMemo(() => {
     const map: Record<string, number> = { all: assets.length, favorite: assets.filter((a) => a.favorite).length };
     for (const cat of ASSET_CATEGORIES) {
@@ -180,12 +206,16 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
   const active = assets.find((a) => a.id === activeId) ?? null;
   const showTemplates = filter === "all" || filter === "template";
 
+  if (!hydrated) {
+    return <LoadingState label="讀取素材庫…" />;
+  }
+
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-nav md:px-8 md:py-10" data-testid="assets-ready">
       <PageHeader
         kicker="創作素材"
-        title="素材庫"
-        description="標籤、出處、分析與生成相似。檔案存在這個瀏覽器，可拖到畫布。"
+        title="AI Creative Library"
+        description="Logo、龜龜、活動與校園照片、AI 生成。分析、標籤、加入創作。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="assets" />
@@ -261,7 +291,13 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
       ) : null}
 
       <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜尋名稱、標籤、授權、來源" className="max-w-sm" />
+        <Input
+          data-testid="assets-search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="找以前晚上的茶會照片、龜龜、浮游禪光…"
+          className="max-w-sm"
+        />
         <Select value={source} onValueChange={(v) => setSource(v as typeof source)}>
           <SelectTrigger className="md:w-40">
             <SelectValue placeholder="來源" />
@@ -288,6 +324,12 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
         </Select>
         <p className="text-xs text-subtle tabular-nums">{filter === "template" ? TEMPLATE_STARTERS.length : filtered.length} 件</p>
       </div>
+      {liveNote || q.trim().length >= 2 ? (
+        <p className="mt-2 text-xs text-muted" data-testid="assets-found-note">
+          {q.trim().length >= 2 ? `找到 ${remotes.length + filtered.length} 個相關素材。` : ""}
+          {liveNote ? ` ${liveNote.replace(/[。.]+\s*$/, "")}。` : ""}
+        </p>
+      ) : null}
 
       <div className="-mx-4 mt-4 flex gap-1 overflow-x-auto px-4 pb-1" data-testid="asset-source-chips">
         <FilterChip active={source === "all"} onClick={() => setSource("all")} count={assets.length}>
@@ -364,6 +406,29 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
           </ul>
         </section>
       ) : null}
+
+      {filter === "all" || source === "drive" || source === "canva" || source === "instagram"
+        ? remotes.length
+          ? (
+        <section className="mt-8" data-testid="assets-remotes">
+          <h2 className="mb-3 text-sm font-medium">連接中的素材</h2>
+          <p className="mb-3 text-xs text-muted">Google Drive、Canva、Instagram。點一下就能拿去創作。</p>
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {remotes.map((file) => (
+              <li key={file.id}>
+                <RemoteAssetRow
+                  file={file}
+                  onCreate={() => {
+                    void navigate({ to: "/create", search: createSearchFromHit(hitFromRemote(file)) });
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+            )
+          : null
+        : null}
 
       {filter === "template" ? null : filtered.length === 0 ? (
         <EmptyState
@@ -470,5 +535,31 @@ function FilterChip({
       {children}
       <span className="tabular-nums opacity-70">{count}</span>
     </button>
+  );
+}
+
+function RemoteAssetRow({ file, onCreate }: { file: RemoteFile; onCreate: () => void }) {
+  const label = file.provider === "canva" ? "Canva" : file.provider === "instagram" ? "Instagram" : "Google Drive";
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-surface px-3 py-3 shadow-[var(--shadow-border)]">
+      {file.thumbnail ? (
+        <img src={file.thumbnail} alt="" className="size-12 shrink-0 rounded-lg object-cover" />
+      ) : (
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-bg text-[10px] text-muted">
+          {label}
+        </span>
+      )}
+      <button type="button" data-testid="asset-remote-into-create" onClick={onCreate} className="min-w-0 flex-1 text-left">
+        <p className="truncate text-sm">{file.name}</p>
+        <p className="truncate text-xs text-muted">
+          {label} · {file.summary}
+        </p>
+      </button>
+      {file.url ? (
+        <a href={file.url} target="_blank" rel="noreferrer" className="shrink-0 text-xs text-muted">
+          開原檔
+        </a>
+      ) : null}
+    </div>
   );
 }

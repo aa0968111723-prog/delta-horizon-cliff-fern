@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { buildCampaignBoards, copyForCarouselPage } from "@/lib/ai/apply";
 import { adaptArtboard, adaptPages, copyFromArtboard } from "@/lib/studio/adapt";
-import { migrateAsset, fitPlacedAsset } from "@/lib/studio/assets";
+import { migrateAsset, fitPlacedAsset, isVideoAsset } from "@/lib/studio/assets";
 import { createEmptyBrand, migrateBrand } from "@/lib/studio/brand";
 import { MAX_PLAN_VERSIONS, migrateBrief, migratePlan, migratePlanVersions } from "@/lib/studio/brief";
 import {
@@ -39,7 +39,24 @@ import {
   normalizeArtboard,
   pagesOf,
 } from "@/lib/studio/layers";
-import { SEED_ASSETS, SEED_BRAND, SEED_BRAND_ID, SEED_PROJECT_ID, createSeedDraft, createSeedProject } from "@/lib/studio/seed";
+import { inferContentKind, kindFromFormat, legacyFromContent, statusFromLegacy } from "@/lib/studio/content";
+import { igMemoryFromSchedule } from "@/lib/zen/memory";
+import { metricsFromFeel } from "@/lib/zen/feel";
+import { shiftHostEveningToTaipei } from "@/lib/zen/dates";
+import { retuneCadence } from "@/lib/zen/schedule";
+import {
+  DEFAULT_CONNECTIONS,
+  SEED_ASSETS,
+  SEED_BRAND,
+  SEED_CAMPAIGNS,
+  SEED_IG_MEMORY,
+  SEED_PROJECT_ID,
+  SEED_REMOTE_FILES,
+  SEED_SCHEDULE,
+  createSeedDraft,
+  createSeedProject,
+  migrateRemoteFile,
+} from "@/lib/studio/seed";
 import { templateById } from "@/lib/studio/templates";
 import type {
   AlignMode,
@@ -49,7 +66,9 @@ import type {
   Brief,
   Campaign,
   CampaignPlan,
+  ClubCampaign,
   CampaignWave,
+  ConnectionMeta,
   ContentKind,
   ContentStatus,
   CopyDeck,
@@ -58,16 +77,18 @@ import type {
   EditorTool,
   ExportVersion,
   FormatId,
+  IgMemoryPost,
   Layer,
   Project,
   QaIssue,
-  ReelsScript,
+  RemoteFile,
+  ScheduleItem,
   Snapshot,
   StudentReview,
   TemplateId,
 } from "@/lib/studio/types";
 
-const STORAGE_KEY = "tku-zen-studio-v1";
+const STORAGE_KEY = "tamkang-zen-studio-v1";
 const AUTO_SNAP_MS = 20000;
 
 type EditorState = {
@@ -89,7 +110,11 @@ type StudioState = {
   brands: BrandKit[];
   assets: AssetMeta[];
   projects: Project[];
-  campaigns: Campaign[];
+  campaigns: ClubCampaign[];
+  schedule: ScheduleItem[];
+  connections: ConnectionMeta[];
+  igMemory: IgMemoryPost[];
+  remoteFiles: RemoteFile[];
   lastProjectId: string | null;
   editor: EditorState;
   history: Record<string, HistoryEntry[]>;
@@ -125,31 +150,37 @@ type StudioState = {
     formatId: FormatId;
     brief: Brief;
     templateId?: TemplateId;
-    contentKind?: ContentKind;
     campaignId?: string | null;
-    status?: ContentStatus;
-    sources?: CreativeSourceRef[];
+    contentKind?: ContentKind;
+    imageAssetId?: string | null;
   }) => Project;
   createFromTemplate: (input: { templateId: TemplateId; brandId: string }) => Project;
-  createCampaign: (patch?: Partial<Campaign>) => Campaign;
-  updateCampaign: (id: string, patch: Partial<Campaign>) => void;
+  createCampaign: (input: Partial<ClubCampaign> & { name: string }) => ClubCampaign;
+  updateCampaign: (id: string, patch: Partial<ClubCampaign> | ((c: ClubCampaign) => ClubCampaign)) => void;
   deleteCampaign: (id: string) => void;
-  setCampaignWaves: (id: string, waves: CampaignWave[]) => void;
-  updateWave: (campaignId: string, waveId: string, patch: Partial<CampaignWave>) => void;
-  fillDefaultWaves: (id: string) => void;
-  convertProject: (id: string, kind: ContentKind) => Project | null;
-  layoutFromKind: (id: string, kind: ContentKind) => boolean;
-  setContentKind: (projectId: string, kind: ContentKind) => void;
-  setSchedule: (projectId: string, at: number | null) => void;
-  applySchedule: (entries: { projectId: string; at: number }[]) => number;
-  markPublished: (projectId: string, at?: number) => void;
-  addCopyDraft: (projectId: string, draft: CopyDraft) => void;
-  useCopyDraft: (projectId: string, draftId: string) => void;
-  applyCopyDeckToPack: (projectId: string, deck: CopyDeck) => number;
-  applyCopyToPack: (projectId: string) => number;
-  setStudentReview: (projectId: string, review: StudentReview | null) => void;
-  setReels: (projectId: string, reels: ReelsScript | null) => void;
-  addSources: (projectId: string, sources: CreativeSourceRef[]) => void;
+  upsertSchedule: (item: ScheduleItem) => void;
+  publishSchedule: (
+    id: string,
+    extra?: {
+      permalink?: string;
+      mediaUrl?: string;
+      igMediaId?: string;
+      saves?: number;
+      reach?: number;
+      impressions?: number;
+      shares?: number;
+      plays?: number;
+    },
+  ) => void;
+  moveSchedule: (id: string, scheduledAt: number) => void;
+  removeSchedule: (id: string) => void;
+  setContentStatus: (projectId: string, status: ContentStatus, scheduledAt?: number | null) => void;
+  setConnection: (provider: ConnectionMeta["provider"], patch: Partial<ConnectionMeta>) => void;
+  setRemoteFiles: (files: RemoteFile[]) => void;
+  upsertRemoteFiles: (files: RemoteFile[]) => void;
+  addIgMemory: (post: IgMemoryPost) => void;
+  upsertIgMemory: (posts: IgMemoryPost[]) => void;
+  rateIgMemory: (id: string, feel: "strong" | "ok" | "weak") => void;
   applyCampaignPlan: (projectId: string, plan: CampaignPlan, brief: Brief) => void;
   restorePlanVersion: (projectId: string, versionId: string) => void;
   patchPlan: (projectId: string, patch: Partial<CampaignPlan> | ((plan: CampaignPlan) => CampaignPlan)) => void;
@@ -204,15 +235,13 @@ function historyKey(projectId: string, formatId: FormatId) {
 
 function migrateBrandRecord(raw: BrandKit): BrandKit {
   const next = migrateBrand(raw);
-  if (next.id !== SEED_BRAND_ID) return next;
   return {
     ...next,
-    slogans: next.slogans.length ? next.slogans : SEED_BRAND.slogans,
-    ctas: next.ctas.length ? next.ctas : SEED_BRAND.ctas,
-    logos: next.logos.length ? next.logos : SEED_BRAND.logos,
-    imageStyle: next.imageStyle.mood ? next.imageStyle : SEED_BRAND.imageStyle,
-    rules: next.rules.notes ? next.rules : { ...SEED_BRAND.rules, ...next.rules },
-    memory: next.memory.mission ? next.memory : SEED_BRAND.memory,
+    mascot: next.mascot || "",
+    motifs: next.motifs ?? [],
+    likes: next.likes ?? [],
+    dislikes: next.dislikes ?? [],
+    audienceNotes: next.audienceNotes ?? "",
   };
 }
 
@@ -252,15 +281,23 @@ function migrateProject(raw: Project): Project {
   const slideIndex = Math.min(Math.max(0, raw.slideIndex ?? 0), Math.max(0, pages.length - 1));
   if (pages[slideIndex]) artboards[formatId] = pages[slideIndex];
   const plan = migratePlan(raw.plan);
+  const brief = migrateBrief(raw.brief);
+  const status = raw.status ?? (plan ? "ready" : "draft");
+  const scheduledAt = raw.scheduledAt ?? null;
   return {
     ...raw,
-    status: raw.status ?? (plan ? "ready" : "draft"),
+    status,
+    contentKind: raw.contentKind ?? inferContentKind({ ...raw, brief, activeFormatId: formatId, slides }),
+    contentStatus: raw.contentStatus ?? statusFromLegacy(status, scheduledAt),
+    scheduledAt,
+    publishedAt: raw.publishedAt ?? null,
+    campaignId: raw.campaignId ?? null,
+    sourceRefs: raw.sourceRefs ?? [],
     exports: raw.exports ?? [],
     artboards,
     slides,
     slideIndex,
-    copy: { ...raw.copy, altText: raw.copy?.altText ?? "" },
-    brief: migrateBrief(raw.brief),
+    brief,
     plan,
     planVersions: migratePlanVersions(raw.planVersions, plan),
     snapshots: (raw.snapshots ?? []).map((snap) => ({
@@ -281,6 +318,36 @@ function withPages(project: Project, formatId: FormatId, pages: Artboard[], slid
     slides: { ...project.slides, [formatId]: stamped },
     slideIndex: idx,
     updatedAt: Date.now(),
+  };
+}
+
+function migrateScheduleItem(raw: ScheduleItem): ScheduleItem {
+  const seed = SEED_SCHEDULE.find((item) => item.id === raw.id);
+  return {
+    ...raw,
+    caption: raw.caption ?? seed?.caption ?? "",
+    hashtags: raw.hashtags ?? seed?.hashtags ?? [],
+    imageAssetId: raw.imageAssetId ?? seed?.imageAssetId,
+    slideAssetIds: Array.isArray(raw.slideAssetIds) ? raw.slideAssetIds.filter(Boolean) : undefined,
+    videoAssetId: raw.videoAssetId,
+    scheduledAt: shiftHostEveningToTaipei(raw.scheduledAt),
+  };
+}
+
+function migrateWave(raw: CampaignWave): CampaignWave {
+  return {
+    ...raw,
+    imageAssetId: raw.imageAssetId ?? null,
+    caption: raw.caption ?? "",
+    scheduledAt: raw.scheduledAt == null ? raw.scheduledAt : shiftHostEveningToTaipei(raw.scheduledAt),
+  };
+}
+
+function migrateCampaign(raw: ClubCampaign): ClubCampaign {
+  return {
+    ...raw,
+    waves: (raw.waves ?? []).map(migrateWave),
+    videoAssetId: raw.videoAssetId,
   };
 }
 
@@ -327,6 +394,10 @@ export const useStudio = create<StudioState>()(
       assets: SEED_ASSETS,
       projects: [createSeedProject(), createSeedDraft()],
       campaigns: SEED_CAMPAIGNS,
+      schedule: SEED_SCHEDULE,
+      connections: DEFAULT_CONNECTIONS,
+      igMemory: SEED_IG_MEMORY,
+      remoteFiles: SEED_REMOTE_FILES,
       lastProjectId: SEED_PROJECT_ID,
       editor: {
         selectedId: null,
@@ -493,7 +564,7 @@ export const useStudio = create<StudioState>()(
         const project = s.projects.find((p) => p.id === projectId);
         const asset = s.assets.find((a) => a.id === assetId);
         if (!project || !asset) return false;
-        if (!hasPlaceablePixels(asset)) return false;
+        if (isVideoAsset(asset)) return false;
         const brand = brandById(s.brands, project.brandId);
         const format = formatById(project.activeFormatId);
         const size = fitPlacedAsset(asset, format.width * 0.72, format.height * 0.55);
@@ -519,62 +590,29 @@ export const useStudio = create<StudioState>()(
         get().addSources(projectId, [sourceFromAsset(asset)]);
         return true;
       },
-      applyVisualAsset: (projectId, assetId) => {
-        const s = get();
-        const project = s.projects.find((p) => p.id === projectId);
-        const asset = s.assets.find((a) => a.id === assetId);
-        if (!project || !asset) return false;
-        get().patchArtboard(projectId, (board) => applyAssetToArtboard(board, assetId));
-        get().markAssetUsed(assetId);
-        get().addSources(projectId, [sourceFromAsset(asset)]);
-        return true;
-      },
-      applyCoverAsset: (projectId, assetId) => {
-        const s = get();
-        const project = s.projects.find((p) => p.id === projectId);
-        const asset = s.assets.find((a) => a.id === assetId);
-        if (!project || !asset) return false;
-        get().ensureArtboard(projectId, "reels-cover");
-        get().setActiveFormat(projectId, "reels-cover");
-        get().patchArtboard(projectId, (board) => applyAssetToArtboard(board, assetId));
-        get().markAssetUsed(assetId);
-        if (project.reels) {
-          get().setReels(projectId, { ...project.reels, coverAssetId: assetId });
-        }
-        get().addSources(projectId, [{ kind: "generated", label: "Reels 封面", detail: asset.name, assetId }]);
-        return true;
-      },
-      applyVisualToPack: (projectId, assetId) => {
-        const s = get();
-        const project = s.projects.find((item) => item.id === projectId);
-        if (!project) return 0;
-        const nextAssetId = assetId ?? visualAssetOf(project);
-        if (!nextAssetId) return 0;
-        const asset = s.assets.find((item) => item.id === nextAssetId);
-        const targets = spreadVisualAcrossPack(s.projects, projectId);
-        for (const target of targets) {
-          get().updateProject(target.projectId, (item) => paintAssetOnProject(item, nextAssetId));
-          if (asset) get().addSources(target.projectId, [sourceFromAsset(asset)]);
-        }
-        if (targets.length) get().markAssetUsed(nextAssetId);
-        return targets.length;
-      },
-      createProject: ({ name, brandId, formatId, brief, templateId, contentKind, campaignId, status, sources }) => {
+      createProject: ({ name, brandId, formatId, brief, templateId, campaignId, contentKind, imageAssetId }) => {
         const brand = brandById(get().brands, brandId);
         const tpl = templateId ?? "editorial";
         const copy = withBoilerplate(emptyCopy(brand.handle, brand.boilerplate), brand.boilerplate);
         copy.headline = name;
-        const artboard = buildLayout(formatId, copy, brand, tpl);
+        const artboard = buildLayout(formatId, copy, brand, tpl, { imageAssetId: imageAssetId ?? null });
+        const nextBrief = migrateBrief(brief);
         const project: Project = {
           id: uid("proj"),
-          name: name.trim() || "未命名內容",
+          name: name.trim() || "未命名創作",
           createdAt: Date.now(),
           updatedAt: Date.now(),
           brandId,
           templateId: tpl,
           activeFormatId: formatId,
           status: "draft",
-          brief: migrateBrief(brief),
+          contentKind: contentKind ?? kindFromFormat(formatId, nextBrief.deliverables.carousel),
+          contentStatus: "creating",
+          scheduledAt: null,
+          publishedAt: null,
+          campaignId: campaignId ?? null,
+          sourceRefs: [],
+          brief: nextBrief,
           copy,
           plan: null,
           copyDrafts: [],
@@ -722,6 +760,12 @@ export const useStudio = create<StudioState>()(
           templateId,
           activeFormatId: starter.formatId,
           status: "draft",
+          contentKind: kindFromFormat(starter.formatId, Boolean(starter.brief.deliverables.carousel)),
+          contentStatus: "creating",
+          scheduledAt: null,
+          publishedAt: null,
+          campaignId: null,
+          sourceRefs: [],
           brief: migrateBrief(starter.brief),
           copy,
           plan: null,
@@ -739,6 +783,134 @@ export const useStudio = create<StudioState>()(
         set((s) => ({ projects: [project, ...s.projects], lastProjectId: project.id }));
         return project;
       },
+      createCampaign: (input) => {
+        const campaign: ClubCampaign = {
+          id: uid("camp"),
+          name: input.name.trim() || "未命名活動",
+          type: input.type ?? "other",
+          date: input.date ?? new Date().toISOString().slice(0, 10),
+          time: input.time ?? "",
+          location: input.location ?? "",
+          oneLiner: input.oneLiner ?? "",
+          description: input.description ?? "",
+          theme: input.theme ?? "",
+          studentPain: input.studentPain ?? "",
+          cta: input.cta ?? "來坐一下",
+          signupUrl: input.signupUrl ?? "",
+          imageAssetId: input.imageAssetId ?? null,
+          videoAssetId: input.videoAssetId,
+          assetIds: input.assetIds ?? [],
+          waves: input.waves ?? [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        set((s) => ({ campaigns: [campaign, ...s.campaigns] }));
+        return campaign;
+      },
+      updateCampaign: (id, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) => {
+            if (c.id !== id) return c;
+            const next = typeof patch === "function" ? patch(c) : { ...c, ...patch };
+            return { ...next, updatedAt: Date.now() };
+          }),
+        })),
+      deleteCampaign: (id) =>
+        set((s) => ({
+          campaigns: s.campaigns.filter((c) => c.id !== id),
+          projects: s.projects.map((p) => (p.campaignId === id ? { ...p, campaignId: null } : p)),
+          schedule: s.schedule.filter((item) => item.campaignId !== id),
+        })),
+      upsertSchedule: (item) =>
+        set((s) => {
+          const exists = s.schedule.some((row) => row.id === item.id);
+          return {
+            schedule: exists ? s.schedule.map((row) => (row.id === item.id ? item : row)) : [item, ...s.schedule],
+          };
+        }),
+      publishSchedule: (id, extra) =>
+        set((s) => {
+          const item = s.schedule.find((row) => row.id === id);
+          if (!item) return {};
+          const published: ScheduleItem = {
+            ...item,
+            status: "published",
+            publishedAt: item.publishedAt ?? Date.now(),
+            permalink: extra?.permalink ?? item.permalink,
+            mediaUrl: extra?.mediaUrl ?? item.mediaUrl,
+            igMediaId: extra?.igMediaId ?? item.igMediaId,
+          };
+          const memory = igMemoryFromSchedule(published);
+          const prev = s.igMemory.find((row) => row.id === memory.id || row.id === `local:${id}`);
+          return {
+            schedule: s.schedule.map((row) => (row.id === id ? published : row)),
+            igMemory: [
+              {
+                ...memory,
+                feel: prev?.feel,
+                saves: extra?.saves ?? prev?.saves ?? memory.saves,
+                likes: prev?.likes ?? memory.likes,
+                comments: prev?.comments ?? memory.comments,
+                impressions: extra?.impressions ?? prev?.impressions ?? memory.impressions,
+                reach: extra?.reach ?? prev?.reach ?? memory.reach,
+                shares: extra?.shares ?? prev?.shares ?? memory.shares,
+                plays: extra?.plays ?? prev?.plays ?? memory.plays,
+                analysis: prev?.analysis ?? memory.analysis,
+              },
+              ...s.igMemory.filter((row) => row.id !== memory.id && row.id !== `local:${id}`),
+            ],
+            projects: s.projects.map((p) =>
+              published.projectId && p.id === published.projectId
+                ? { ...p, contentStatus: "published" as const, status: "exported" as const, publishedAt: published.publishedAt }
+                : p,
+            ),
+          };
+        }),
+      moveSchedule: (id, scheduledAt) =>
+        set((s) => ({
+          schedule: s.schedule.map((item) => (item.id === id ? { ...item, scheduledAt } : item)),
+          projects: s.projects.map((p) => {
+            const hit = s.schedule.find((row) => row.id === id);
+            if (!hit?.projectId || p.id !== hit.projectId) return p;
+            return { ...p, scheduledAt, contentStatus: "scheduled" as const, status: "ready" as const };
+          }),
+        })),
+      removeSchedule: (id) => set((s) => ({ schedule: s.schedule.filter((item) => item.id !== id) })),
+      setContentStatus: (projectId, status, scheduledAt) =>
+        get().updateProject(projectId, (p) => ({
+          ...p,
+          contentStatus: status,
+          status: legacyFromContent(status),
+          scheduledAt: scheduledAt === undefined ? p.scheduledAt : scheduledAt,
+          publishedAt: status === "published" ? Date.now() : p.publishedAt,
+        })),
+      setConnection: (provider, patch) =>
+        set((s) => ({
+          connections: s.connections.map((c) => (c.provider === provider ? { ...c, ...patch } : c)),
+        })),
+      setRemoteFiles: (files) => set({ remoteFiles: files }),
+      upsertRemoteFiles: (files) =>
+        set((s) => {
+          const map = new Map(s.remoteFiles.map((row) => [row.id, row]));
+          for (const file of files) map.set(file.id, file);
+          return { remoteFiles: [...map.values()] };
+        }),
+      addIgMemory: (post) => set((s) => ({ igMemory: [post, ...s.igMemory.filter((item) => item.id !== post.id)] })),
+      upsertIgMemory: (posts) =>
+        set((s) => {
+          const map = new Map(s.igMemory.map((row) => [row.id, row]));
+          for (const post of posts) map.set(post.id, { ...map.get(post.id), ...post });
+          return { igMemory: [...map.values()] };
+        }),
+      rateIgMemory: (id, feel) =>
+        set((s) => {
+          const metrics = metricsFromFeel(feel);
+          return {
+            igMemory: s.igMemory.map((post) =>
+              post.id === id ? { ...post, feel, ...metrics } : post,
+            ),
+          };
+        }),
       applyCampaignPlan: (projectId, plan, brief) => {
         const s = get();
         const project = s.projects.find((p) => p.id === projectId);
@@ -769,7 +941,8 @@ export const useStudio = create<StudioState>()(
           artboards: boards.artboards,
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
-          status: "done" as const,
+          status: "ready" as const,
+          contentStatus: "done" as const,
           planVersions: [version, ...(p.planVersions ?? [])].slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, nextPlan.source === "mock" ? "本機草案" : "AI 企劃", "manual");
@@ -793,7 +966,8 @@ export const useStudio = create<StudioState>()(
           artboards: boards.artboards,
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
-          status: "done" as const,
+          status: "ready" as const,
+          contentStatus: "done" as const,
           planVersions: [version, p.planVersions.filter((v) => v.id !== versionId)].flat().slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, `還原 ${version.name}`, "manual");
@@ -865,6 +1039,9 @@ export const useStudio = create<StudioState>()(
           createdAt: Date.now(),
           updatedAt: Date.now(),
           status: "draft",
+          contentStatus: "creating",
+          scheduledAt: null,
+          publishedAt: null,
           exports: [],
         };
         set((s) => ({ projects: [copy, ...s.projects], lastProjectId: copy.id }));
@@ -893,7 +1070,9 @@ export const useStudio = create<StudioState>()(
       recordExport: (id, version) =>
         get().updateProject(id, (p) => ({
           ...p,
-          status: p.status === "idea" || p.status === "making" ? "done" : p.status,
+          status: "exported",
+          contentStatus: "published",
+          publishedAt: Date.now(),
           exports: [version, ...p.exports].slice(0, 20),
         })),
       ensureArtboard: (projectId, formatId) => {
@@ -1400,6 +1579,10 @@ export const useStudio = create<StudioState>()(
         assets: s.assets,
         projects: s.projects,
         campaigns: s.campaigns,
+        schedule: s.schedule,
+        connections: s.connections,
+        igMemory: s.igMemory,
+        remoteFiles: s.remoteFiles,
         lastProjectId: s.lastProjectId,
       }),
       merge: (persisted, current) => {
@@ -1407,7 +1590,11 @@ export const useStudio = create<StudioState>()(
           brands: BrandKit[];
           assets: AssetMeta[];
           projects: Project[];
-          campaigns: Campaign[];
+          campaigns: ClubCampaign[];
+          schedule: ScheduleItem[];
+          connections: ConnectionMeta[];
+          igMemory: IgMemoryPost[];
+          remoteFiles: RemoteFile[];
           lastProjectId: string | null;
         }>;
         const legacySeed = p.brands?.some(
@@ -1423,26 +1610,45 @@ export const useStudio = create<StudioState>()(
           brands,
           assets,
           projects,
-          campaigns,
+          campaigns: (p.campaigns ?? current.campaigns).map(migrateCampaign),
+          schedule: (p.schedule ?? current.schedule).map(migrateScheduleItem),
+          connections: p.connections?.length ? p.connections : current.connections,
+          igMemory: p.igMemory ?? current.igMemory,
+          remoteFiles: (p.remoteFiles?.length ? p.remoteFiles : current.remoteFiles).map(migrateRemoteFile),
           lastProjectId: p.lastProjectId ?? projects[0]?.id ?? current.lastProjectId,
         };
       },
-      migrate: (persisted) => {
+      migrate: (persisted, fromVersion) => {
         const state = persisted as {
           brands?: BrandKit[];
           assets?: AssetMeta[];
           projects?: Project[];
-          campaigns?: Campaign[];
+          campaigns?: ClubCampaign[];
+          schedule?: ScheduleItem[];
+          connections?: ConnectionMeta[];
+          igMemory?: IgMemoryPost[];
+          remoteFiles?: RemoteFile[];
           lastProjectId?: string | null;
         };
         const brands = (state.brands ?? []).map(migrateBrandRecord);
         const assets = (state.assets ?? []).map(migrateAssetRecord);
         const projects = (state.projects ?? []).map(migrateProject);
-        const campaigns = (state.campaigns ?? []).map(migrateCampaign);
+        let campaigns = (state.campaigns ?? SEED_CAMPAIGNS).map(migrateCampaign);
+        let schedule = (state.schedule ?? SEED_SCHEDULE).map(migrateScheduleItem);
+        if ((fromVersion ?? 0) < 6) {
+          const next = retuneCadence(campaigns, schedule);
+          campaigns = next.campaigns;
+          schedule = next.schedule;
+        }
         return {
           brands,
           assets,
           projects,
+          campaigns,
+          schedule,
+          connections: state.connections?.length ? state.connections : DEFAULT_CONNECTIONS,
+          igMemory: state.igMemory ?? SEED_IG_MEMORY,
+          remoteFiles: (state.remoteFiles?.length ? state.remoteFiles : SEED_REMOTE_FILES).map(migrateRemoteFile),
           lastProjectId: state.lastProjectId ?? projects[0]?.id ?? null,
         };
       },

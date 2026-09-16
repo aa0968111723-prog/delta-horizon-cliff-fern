@@ -70,8 +70,8 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>新建網宣專案</DialogTitle>
-          <DialogDescription>先寫清楚活動與受眾，再開 Studio 編輯畫面與文案。</DialogDescription>
+          <DialogTitle>新的創作</DialogTitle>
+          <DialogDescription>寫活動與淡江學生情境，再進畫布。</DialogDescription>
         </DialogHeader>
         <form className="space-y-3" onSubmit={submit}>
           <div className="space-y-1.5">

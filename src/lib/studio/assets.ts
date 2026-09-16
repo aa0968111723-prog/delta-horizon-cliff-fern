@@ -1,3 +1,4 @@
+import { searchTokens } from "../zen/search.ts";
 import type {
   Artboard,
   AssetCategory,
@@ -9,7 +10,8 @@ import type {
   Project,
 } from "./types.ts";
 
-export const ASSET_DRAG_MIME = "application/x-zenlight-asset";
+export const ASSET_DRAG_MIME = "application/x-zen-asset";
+export const ASSET_DRAG_MIME_LEGACY = "application/x-kouzhen-asset";
 
 export const ASSET_CATEGORIES: {
   id: AssetCategory;
@@ -17,20 +19,32 @@ export const ASSET_CATEGORIES: {
   hint: string;
   virtual?: boolean;
 }[] = [
-  { id: "photo", label: "活動照片", hint: "商品、場景、活動紀實" },
-  { id: "people", label: "人物", hint: "人像、手部、服務瞬間" },
-  { id: "background", label: "背景", hint: "桌面、材質、留白場景" },
-  { id: "illustration", label: "插圖", hint: "手繪、裝飾、編輯素材" },
-  { id: "icon", label: "圖示", hint: "小圖、符號、徽章" },
-  { id: "logo", label: "Logo", hint: "標誌與變體" },
+  { id: "logo", label: "Logo", hint: "社團標誌" },
+  { id: "mascot", label: "龜龜", hint: "角色與吉祥物" },
+  { id: "photo", label: "活動照片", hint: "茶會、社課、現場" },
+  { id: "people", label: "社員照片", hint: "人、互動、手" },
+  { id: "campus", label: "淡江校園", hint: "教室、走廊、角落" },
+  { id: "tamsui", label: "淡水", hint: "河岸、捷運、天氣" },
+  { id: "poster", label: "海報", hint: "歷屆文宣" },
+  { id: "background", label: "背景", hint: "材質、留白、光" },
+  { id: "ai", label: "AI 生成", hint: "剛生出來的圖" },
+  { id: "ig", label: "IG", hint: "曾發或預覽" },
+  { id: "story-asset", label: "Story", hint: "限動畫面" },
+  { id: "reels", label: "Reels", hint: "封面與短影音" },
+  { id: "archive", label: "歷屆活動", hint: "舊檔可延伸" },
+  { id: "illustration", label: "插圖", hint: "手繪與裝飾" },
+  { id: "icon", label: "圖示", hint: "小標、符號" },
   { id: "template", label: "模板", hint: "可套用的版型起點", virtual: true },
   { id: "history", label: "歷史素材", hint: "曾放到畫布的檔案", virtual: true },
 ];
 
 export const ASSET_SOURCES: { id: AssetSourceKind; label: string }[] = [
   { id: "upload", label: "本機上傳" },
-  { id: "seed", label: "示範素材" },
-  { id: "generated", label: "生成" },
+  { id: "seed", label: "社團素材" },
+  { id: "generated", label: "AI 生成" },
+  { id: "drive", label: "Google Drive" },
+  { id: "canva", label: "Canva" },
+  { id: "instagram", label: "Instagram" },
 ];
 
 const ASSET_SOURCE_IDS = new Set<AssetSourceKind>(ASSET_SOURCES.map((item) => item.id));
@@ -123,10 +137,19 @@ export function usageLabel(status: AssetUsageStatus) {
   return "未使用";
 }
 
+export function isVideoAsset(asset: { kind?: string; mime?: string }) {
+  return asset.kind === "video" || (asset.mime ?? "").startsWith("video/");
+}
+
 export function kindFromCategory(category: AssetCategory): AssetKind {
   if (category === "logo" || category === "mascot") return "logo";
   if (category === "background") return "pattern";
   return "image";
+}
+
+export function kindFromMime(mime: string | undefined, category: AssetCategory, kind?: AssetKind): AssetKind {
+  if (kind === "video" || (mime ?? "").startsWith("video/")) return "video";
+  return kind ?? kindFromCategory(category);
 }
 
 export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
@@ -135,15 +158,21 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
   }
   if (raw.kind === "logo") return "logo";
   if (raw.kind === "pattern") return "background";
+  if ((raw.mime ?? "").startsWith("video/") || raw.kind === "video") return "reels";
   const tags = (raw.tags ?? []).join(" ").toLowerCase();
   const name = (raw.name ?? "").toLowerCase();
   const blob = `${tags} ${name}`;
-  if (/人物|人像|portrait|people/.test(blob)) return "people";
+  if (/龜|mascot|turtle/.test(blob)) return "mascot";
+  if (/淡水|tamsui|河岸/.test(blob)) return "tamsui";
+  if (/校園|campus|教室/.test(blob)) return "campus";
+  if (/海報|poster/.test(blob)) return "poster";
+  if (/人物|人像|portrait|people|社員/.test(blob)) return "people";
   if (/背景|場景|材質|background|texture/.test(blob)) return "background";
   if (/插圖|illustration|handdrawn/.test(blob)) return "illustration";
   if (/圖示|icon|badge/.test(blob)) return "icon";
   if (/logo|標誌/.test(blob)) return "logo";
-  if (raw.source === "generated") return "illustration";
+  if (/reels|短影音/.test(blob)) return "reels";
+  if (/生成|ai generated/.test(blob)) return "ai";
   return "photo";
 }
 
@@ -153,7 +182,7 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
   return {
     id: raw.id,
     name: raw.name,
-    kind: raw.kind ?? kindFromCategory(category),
+    kind: kindFromMime(raw.mime, category, raw.kind),
     category,
     mime: raw.mime ?? "image/jpeg",
     width: raw.width ?? 0,
@@ -191,7 +220,7 @@ export function createGeneratedAsset(input: {
   return migrateAsset({
     id: input.id,
     name: input.name,
-    kind: kindFromCategory(input.category ?? "icon"),
+    kind: kindFromMime(input.mime, input.category ?? "icon"),
     category: input.category ?? "icon",
     mime: input.mime,
     width: input.width,
@@ -200,7 +229,7 @@ export function createGeneratedAsset(input: {
     createdAt: now,
     updatedAt: now,
     source: "generated",
-    licenseNotes: "由構幀依報名網址在本機產生，僅供畫面使用。",
+    licenseNotes: "由禪光依報名網址在本機產生，僅供畫面使用。",
     licenseOwner: "本機產生",
   });
 }
@@ -208,10 +237,12 @@ export function createGeneratedAsset(input: {
 export function matchesAssetQuery(asset: AssetMeta, query: string) {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  const blob = [asset.name, asset.category, categoryLabel(asset.category), asset.licenseNotes, asset.licenseOwner, asset.attribution, ...(asset.tags ?? [])]
+  const blob = [asset.name, asset.category, categoryLabel(asset.category), asset.licenseNotes, ...(asset.tags ?? [])]
     .join(" ")
     .toLowerCase();
-  return q.split(/\s+/).every((part) => blob.includes(part));
+  const tokens = searchTokens(q);
+  if (!tokens.length) return blob.includes(q.toLowerCase());
+  return tokens.some((part) => blob.includes(part.toLowerCase()));
 }
 
 function collectFromBoard(board: Artboard | undefined, ids: Set<string>) {

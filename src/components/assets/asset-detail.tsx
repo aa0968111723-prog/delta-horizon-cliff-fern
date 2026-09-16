@@ -15,13 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { analyzeCreativeAsset, generateZenCreativeWave } from "@/lib/ai/zen-creative";
-import { applyCreativeToStudio } from "@/lib/studio/apply-creative";
-import { ASSET_CATEGORIES, sourceLabel, usageLabel } from "@/lib/studio/assets";
-import { kindFromCategory } from "@/lib/studio/assets";
-import { useCampaignStore } from "@/lib/studio/campaign-store";
+import { ASSET_CATEGORIES, isVideoAsset, kindFromMime, sourceLabel, usageLabel } from "@/lib/studio/assets";
+import { getAssetStorage } from "@/lib/studio/asset-storage";
+import { bytesToBase64 } from "@/lib/studio/bytes";
+import { analyzeStudioImage, type VisionAnalysis } from "@/lib/ai/image-studio";
+import { VisionCard } from "@/components/create/vision-card";
+import { tagsFromVision } from "@/lib/zen/vision-tags";
 import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
-import { buildLocalCreativeWave } from "@/lib/studio/zen-prompt-engine";
+import { AssetMedia } from "@/components/shared/asset-media";
 import { useStudio } from "@/stores/studio-store";
 
 export function AssetDetailSheet({
@@ -46,9 +47,9 @@ export function AssetDetailSheet({
   const placeAsset = useStudio((s) => s.placeAsset);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
-  const addCreativeSource = useCampaignStore((s) => s.addCreativeSource);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [similarBusy, setSimilarBusy] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [notes, setNotes] = useState<string[] | null>(null);
+  const [vision, setVision] = useState<VisionAnalysis | null>(null);
 
   if (!asset) return null;
   const current = asset;
@@ -101,6 +102,57 @@ export function AssetDetailSheet({
     updateAsset(current.id, { [key]: value });
   }
 
+  function goCreate(idea: string) {
+    onOpenChange(false);
+    void navigate({
+      to: "/create",
+      search: { mode: "from-image", idea, asset: current.id },
+    });
+  }
+
+  async function analyze() {
+    setBusy(true);
+    try {
+      if (isVideoAsset(current)) {
+        toast.error("短影音請用「加入創作」延伸，不必拆成單張分析。");
+        return;
+      }
+      let blob = await getAssetStorage().get(current.id);
+      if (!blob && current.seedSrc) {
+        const res = await fetch(current.seedSrc);
+        if (res.ok) blob = await res.blob();
+      }
+      if (!blob) {
+        toast.error("這張圖還沒有檔案可分析。");
+        return;
+      }
+      const buf = await blob.arrayBuffer();
+      const b64 = bytesToBase64(new Uint8Array(buf));
+      if (b64.length > 1_800_000) {
+        toast.error("圖檔太大，請用較小的照片分析。");
+        return;
+      }
+      const result = await analyzeStudioImage({
+        data: {
+          imageBase64: b64,
+          mime: blob.type || current.mime,
+          sourceNote: `${sourceLabel(current.source)} / ${current.name}`.slice(0, 200),
+        },
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      const tags = tagsFromVision(result.analysis, current.tags);
+      updateAsset(current.id, { tags, licenseNotes: result.analysis.content.slice(0, 180) });
+      setNotes(result.analysis.suggestions);
+      setVision(result.analysis);
+      toast.success("已寫入 AI 標籤");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function place() {
     if (!lastProjectId) {
       toast.error("還沒有開啟的專案，請先到編輯器。");
@@ -116,89 +168,14 @@ export function AssetDetailSheet({
     void navigate({ to: "/studio/$projectId", params: { projectId: lastProjectId } });
   }
 
-  async function analyze() {
-    setAnalyzing(true);
-    try {
-      const result = await analyzeCreativeAsset({
-        data: { name: current.name, category: current.category, tags: current.tags },
-      });
-      if (!res.ok) {
-        toast.warning(res.error);
-      }
-      const extraTags = result.analysis.detectedElements.slice(0, 6);
-      updateAsset(current.id, {
-        analysisNotes: result.analysis.contentSummary,
-        tags: [...new Set([...current.tags, ...extraTags])],
-        attribution: current.attribution || current.licenseOwner || "素材庫",
-      });
-      toast.success(result.adapter === "live" ? "已用 Grok 看過這張圖" : "已完成本機視覺分析");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "分析失敗");
-    } finally {
-      setAnalyzing(false);
-    }
-  }
-
-  async function generateSimilar() {
-    const topic = `延續「${current.name}」的光線與留白`;
-    const details = current.analysisNotes || current.tags.join("、");
-    setSimilarBusy(true);
-    try {
-      const result = await generateZenCreativeWave({ data: { topic, details } });
-      const wave = result.ok
-        ? result.wave
-        : buildLocalCreativeWave({ topic, details });
-      if (!result.ok) toast.message("改用本機草案繼續");
-      addCreativeSource({
-        source: "ai-generated",
-        title: `相似視覺 · ${current.name}`,
-        subtitle: current.attribution || current.licenseOwner || "素材庫延伸",
-        thumbnailUrl: current.seedSrc || "/seed/cup.jpg",
-        category: "AI 生成",
-        tags: ["相似", ...current.tags.slice(0, 4)],
-        date: new Date().toISOString().slice(0, 10),
-        meta: { fromAssetId: current.id, imagePrompt: wave.directions[0].imagePrompt },
-      });
-      const { projectId } = applyCreativeToStudio({
-        topic: `延續素材「${current.name}」`,
-        direction: wave.directions[0],
-        conversion: wave.conversion,
-        source: result.ok ? result.adapter : "mock",
-        schedule: false,
-      });
-      onOpenChange(false);
-      toast.success(result.ok && result.adapter === "live" ? "已用 Grok 生成同風格並套上畫布" : "已生成同風格方向並套上畫布");
-      void navigate({ to: "/studio/$projectId", params: { projectId } });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "生成失敗");
-    } finally {
-      setSimilarBusy(false);
-    }
-  }
-
-  async function useCaption() {
-    const idea = current.insight?.captionIdea;
-    if (!idea) {
-      toast.error("先讀這張圖，才有文案可以帶走。");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(idea);
-      toast.success("已複製文案想法");
-    } catch {
-      toast.error("複製失敗");
-    }
-    void navigate({ to: "/create", search: { from: "image", seed: idea } });
-  }
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="flex max-h-[88dvh] flex-col gap-4 overflow-y-auto">
         <SheetTitle>{asset.name}</SheetTitle>
         <div className="flex gap-3">
           <div className="size-24 overflow-hidden rounded-xl bg-bg">
-            {preview ? (
-              <img src={preview} alt="" className={cn("size-full", assetPreviewFitClass(current, preview))} />
+            {url ? (
+              <AssetMedia src={url} video={isVideoAsset(asset)} alt="" className="size-full object-cover" />
             ) : (
               <div className="flex size-full items-center justify-center text-xs text-muted">無預覽</div>
             )}
@@ -226,91 +203,52 @@ export function AssetDetailSheet({
             ) : null}
           </div>
         </div>
-
-        <div className="rounded-2xl bg-surface-2/70 p-3">
-          <p className="text-sm font-medium">AI 怎麼用這張</p>
-          {asset.insight ? (
-            <div className="mt-2 space-y-1.5 text-xs text-muted">
-              <p>
-                {asset.insight.source === "live" ? "AI 看圖" : "本機規則"}
-                {asset.insight.source === "local" ? "（依名稱、分類與標籤，不是線上模型看圖）" : ""}
-              </p>
-              <p>{asset.insight.summary}</p>
-              {asset.insight.captionIdea ? <p>文案想法：{asset.insight.captionIdea}</p> : null}
-              <p>
-                {asset.insight.fitsTku ? "看起來像淡江學生的生活。" : "不太像淡江學生會停下來的畫面。"}
-                {asset.insight.tooReligious ? " 偏宗教。" : ""}
-                {asset.insight.tooAi ? " 有 AI 感。" : ""}
-              </p>
-            </div>
-          ) : (
-            <p className="mt-1 text-xs text-muted">還沒讀過。讀完之後可以延續風格、寫文案，或找相近的素材。</p>
-          )}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => void analyze()} disabled={busy !== null}>
-              {busy === "analyze" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-              讀這張圖
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => void extendStyle()} disabled={busy !== null}>
-              {busy === "extend" ? <Loader2 className="size-4 animate-spin" /> : null}
-              延續這個風格
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                onOpenChange(false);
-                void navigate({ to: "/create", search: { from: "image", asset: current.id } });
-              }}
-            >
-              用這張創作
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => void useCaption()}>
-              用這張寫文案
-            </Button>
-            {brand ? (
-              <Button
-                size="sm"
-                variant={brand.memory.legacyAssetIds.includes(current.id) ? "default" : "secondary"}
-                onClick={() => {
-                  updateBrand(brand.id, {
-                    memory: {
-                      ...brand.memory,
-                      legacyAssetIds: toggleLegacyAssetId(brand.memory.legacyAssetIds, current.id),
-                    },
-                  });
-                  toast.success(
-                    brand.memory.legacyAssetIds.includes(current.id)
-                      ? "已從歷屆文宣拿掉"
-                      : "已標成歷屆文宣，生成時會讀這張",
-                  );
-                }}
-              >
-                {brand.memory.legacyAssetIds.includes(current.id) ? "已是歷屆文宣" : "標成歷屆文宣"}
-              </Button>
-            ) : null}
-          </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            data-testid="asset-into-create"
+            onClick={() =>
+              goCreate(`延續「${current.name}」的風格，做新的活動，不要複製舊作品。`)
+            }
+          >
+            加入創作
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              goCreate(`根據「${current.name}」生成相似視覺，延續風格不要複製。`)
+            }
+          >
+            生成相似視覺
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              goCreate(`根據「${current.name}」寫 IG 文案。先讓淡江學生覺得這在講自己。`)
+            }
+          >
+            生成文案
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => goCreate(`延伸「${current.name}」做成 Story、Carousel、Reels Cover。`)}
+          >
+            延伸生成
+          </Button>
+          <Button variant="secondary" disabled={busy} data-testid="asset-analyze" onClick={() => void analyze()}>
+            {busy ? "分析中…" : "AI 分析／標籤"}
+          </Button>
+          <Button onClick={place} disabled={!lastProjectId || isVideoAsset(current)} variant="secondary">
+            放到目前畫布
+          </Button>
         </div>
-
-        {preview ? (
-          <div className="rounded-2xl bg-surface-2/70 p-3">
-            <ImageRevisionBar imageUrl={preview} sourceLabel={asset.name} />
-          </div>
+        {vision ? <VisionCard vision={vision} /> : null}
+        {notes?.length && !vision ? (
+          <ul className="list-disc pl-4 text-sm text-muted">
+            {notes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
         ) : null}
-
-        {similar.length ? (
-          <div>
-            <p className="mb-2 text-sm font-medium">相近素材</p>
-            <ul className="flex flex-wrap gap-1.5">
-              {similar.map((item) => (
-                <li key={item.id} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">
-                  {item.name}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
         <div>
           <Label className="mb-1.5 block">名稱</Label>
           <Input value={asset.name} onChange={(e) => patch("name", e.target.value)} />
@@ -321,7 +259,7 @@ export function AssetDetailSheet({
             value={asset.category}
             onValueChange={(v) => {
               const category = v as AssetCategory;
-              updateAsset(asset.id, { category, kind: kindFromCategory(category) });
+              updateAsset(asset.id, { category, kind: kindFromMime(asset.mime, category, asset.kind) });
             }}
           >
             <SelectTrigger>
@@ -436,35 +374,15 @@ export function AssetDetailSheet({
           <Input
             value={asset.licenseOwner}
             onChange={(e) => patch("licenseOwner", e.target.value)}
-            placeholder="例如：淡江禪學社、茶會紀錄"
+            placeholder="例如：淡江禪學社、社員"
           />
         </div>
-        <div>
-          <Label className="mb-1.5 block">出處標註</Label>
-          <Input
-            value={asset.attribution ?? ""}
-            onChange={(e) => patch("attribution", e.target.value)}
-            placeholder="Google Drive／2025 茶會、Canva 母模板、實拍"
-          />
-        </div>
-        {asset.analysisNotes ? (
-          <p className="rounded-lg bg-surface-2 p-2.5 text-xs text-muted">{asset.analysisNotes}</p>
-        ) : null}
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
         <div className="flex flex-wrap gap-2 pb-4">
-          <Button onClick={place} disabled={!lastProjectId}>
-            放到目前畫布
-          </Button>
-          <Button variant="secondary" data-testid="analyze-asset" disabled={analyzing} onClick={() => void analyze()}>
-            {analyzing ? "分析中…" : "分析圖片"}
-          </Button>
-          <Button variant="outline" data-testid="generate-similar" disabled={similarBusy} onClick={() => void generateSimilar()}>
-            {similarBusy ? "生成中…" : "生成相似並套用"}
-          </Button>
           <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}
           </Button>
-          <Button variant="outline" disabled={busy !== null} onClick={onDelete}>
+          <Button variant="secondary" onClick={onDelete}>
             刪除
           </Button>
         </div>

@@ -1,0 +1,120 @@
+import { regenerateCampaignWave, type WaveDraft } from "@/lib/ai/wave";
+import { waveLabel } from "@/lib/zen/schedule";
+import type { CampaignWave, CampaignWaveKind } from "@/lib/studio/types";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { toast } from "sonner";
+
+export function WaveList({
+  waves,
+  name,
+  schedule,
+  location,
+  idea,
+  memoryHint,
+  looks,
+  onApplyDraft,
+  onSwapVisual,
+}: {
+  waves: CampaignWave[];
+  name: string;
+  schedule: string;
+  location: string;
+  idea: string;
+  memoryHint?: string;
+  looks?: Partial<Record<CampaignWaveKind, string>>;
+  onApplyDraft?: (draft: WaveDraft) => void;
+  onSwapVisual?: (kind: CampaignWaveKind) => Promise<void>;
+}) {
+  const [drafts, setDrafts] = useState<Partial<Record<CampaignWaveKind, WaveDraft>>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function regen(kind: CampaignWaveKind, twist?: "rewrite" | "visual" | "angle") {
+    setBusy(`${kind}:${twist || "rewrite"}`);
+    try {
+      const result = await regenerateCampaignWave({
+        data: { kind, name, schedule, location, idea, twist, memoryHint },
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setDrafts((prev) => ({ ...prev, [kind]: result.draft }));
+      if (twist === "visual" && onSwapVisual) {
+        await onSwapVisual(kind);
+        toast.success(`${waveLabel(kind)}已換視覺`);
+      } else {
+        toast.success(`${waveLabel(kind)}已重寫`);
+      }
+    } catch {
+      toast.error("這波暫時無法重寫，可再試一次。");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <section className="mt-8" data-testid="wave-list">
+      <h2 className="text-sm font-medium">宣傳節奏</h2>
+      <p className="mt-1 text-xs text-muted">每一波可單獨重寫、換視覺、換角度。沒有審核人。</p>
+      <ul className="mt-3 space-y-2">
+        {waves.map((wave) => {
+          const draft = drafts[wave.kind];
+          const look = looks?.[wave.kind];
+          return (
+            <li key={wave.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <div className="flex gap-3">
+                {look ? (
+                  <img
+                    src={look}
+                    alt=""
+                    data-testid="wave-visual"
+                    data-wave-kind={wave.kind}
+                    className="size-16 shrink-0 rounded-xl object-cover"
+                  />
+                ) : null}
+                <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">{wave.title}</p>
+              <p className="mt-1 text-xs text-muted">{wave.notes}</p>
+              {draft ? (
+                <div className="mt-2 text-sm">
+                  <p className="font-display text-lg">{draft.hook}</p>
+                  <p className="mt-1 whitespace-pre-wrap text-muted">{draft.body}</p>
+                  <p className="mt-1 text-xs text-subtle">{draft.visualNote}</p>
+                </div>
+              ) : wave.caption ? (
+                <p className="mt-2 line-clamp-3 text-sm text-muted" data-testid="wave-caption" data-wave-kind={wave.kind}>
+                  {wave.caption}
+                </p>
+              ) : null}
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {draft && onApplyDraft ? (
+                  <Button size="sm" data-testid="wave-apply-draft" onClick={() => onApplyDraft(draft)}>
+                    套用這則文案
+                  </Button>
+                ) : null}
+                <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => void regen(wave.kind, "rewrite")}>
+                  重新生成
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy !== null}
+                  data-testid={wave.kind === "hero" ? "wave-swap-visual" : undefined}
+                  onClick={() => void regen(wave.kind, "visual")}
+                >
+                  換視覺
+                </Button>
+                <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => void regen(wave.kind, "angle")}>
+                  換角度
+                </Button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}

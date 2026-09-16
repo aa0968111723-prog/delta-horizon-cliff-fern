@@ -1,12 +1,12 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
-  Compass,
+  House,
+  Images,
   Instagram,
-  PenTool,
+  Plus,
+  Search,
   Sparkles,
-  SwatchBook,
-  Tent,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -18,18 +18,20 @@ import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 import { useState } from "react";
 
-const NAV: { to: string; label: string; icon: LucideIcon; match: "home" | "calendar" | "studio" | "instagram" | "brand" }[] = [
-  { to: "/", label: "首頁", icon: Compass, match: "home" },
-  { to: "/calendar", label: "日曆", icon: CalendarDays, match: "calendar" },
-  { to: "/studio", label: "畫布", icon: PenTool, match: "studio" },
-  { to: "/instagram", label: "IG", icon: Instagram, match: "instagram" },
+const SIDE: { to: string; label: string; icon: LucideIcon; match: string }[] = [
+  { to: "/", label: "首頁", icon: House, match: "home" },
+  { to: "/create", label: "AI 創作", icon: Sparkles, match: "create" },
+  { to: "/calendar", label: "排程", icon: CalendarDays, match: "calendar" },
+  { to: "/assets", label: "素材", icon: Images, match: "assets" },
+  { to: "/ig", label: "IG", icon: Instagram, match: "ig" },
 ];
 
 function activeKey(pathname: string) {
-  if (pathname.startsWith("/studio")) return "studio";
-  if (pathname.startsWith("/calendar") || pathname.startsWith("/export")) return "calendar";
-  if (pathname.startsWith("/instagram")) return "instagram";
-  if (pathname.startsWith("/brand") || pathname.startsWith("/assets")) return "brand";
+  if (pathname.startsWith("/studio") || pathname.startsWith("/assistant")) return "create";
+  if (pathname.startsWith("/create") || pathname.startsWith("/image") || pathname.startsWith("/inspire")) return "create";
+  if (pathname.startsWith("/calendar")) return "calendar";
+  if (pathname.startsWith("/assets") || pathname.startsWith("/brand") || pathname.startsWith("/connect")) return "assets";
+  if (pathname.startsWith("/ig") || pathname.startsWith("/export")) return "ig";
   return "home";
 }
 
@@ -57,17 +59,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-dvh bg-bg text-fg">
-      <aside className="sticky top-0 hidden h-dvh w-[4.5rem] shrink-0 flex-col border-r border-border bg-surface lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-[4.75rem] shrink-0 flex-col border-r border-border bg-surface/90 backdrop-blur-md lg:flex">
         <Link
           to="/"
-          className="flex h-14 items-center justify-center font-display text-base font-bold tracking-tight text-accent"
-          aria-label="淡江禪學社首頁"
+          className="flex h-14 items-center justify-center font-display text-lg tracking-tight"
+          aria-label="禪光首頁"
         >
-          <span className="three-lights size-6 rounded-full" aria-hidden />
-          <span className="font-display text-[0.7rem] tracking-tight text-muted">{CLUB_SHORT}</span>
+          光
         </Link>
         <nav className="flex flex-1 flex-col gap-1 p-2">
-          {NAV.map((item) => {
+          {SIDE.map((item) => {
             const active = current === item.match;
             const dest = hrefFor(item);
             return (
@@ -89,38 +90,36 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex flex-col items-center gap-2 px-2 pb-4">
           <button
             type="button"
-            onClick={() => setAssistantOpen(true)}
+            onClick={() => setSearchOpen(true)}
             className="flex size-11 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-fg"
             aria-label="開啟 AI 助手"
           >
-            <Sparkles className="size-4" />
+            <Search className="size-4" />
           </button>
           <SaveIndicator />
         </div>
       </aside>
 
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 pb-nav">{children}</div>
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <div className="min-h-0 flex-1 pb-32 lg:pb-0">{children}</div>
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
           <div className="relative grid grid-cols-5">
-            {NAV.map((item) => {
-              const active = current === item.match;
-              const dest = hrefFor(item);
-              return (
-                <Link
-                  key={item.match}
-                  to={dest.to}
-                  params={"params" in dest ? dest.params : undefined}
-                  className={cn(
-                    "flex h-14 min-h-11 flex-col items-center justify-center gap-1 text-xs",
-                    active ? "text-fg" : "text-muted",
-                  )}
-                >
-                  <item.icon className="size-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
+            <MobileLink to="/" label="首頁" icon={House} active={current === "home"} />
+            <MobileLink to="/calendar" label="排程" icon={CalendarDays} match={current === "calendar"} />
+            <div className="relative flex h-14 flex-col items-center justify-end pb-1">
+              <button
+                type="button"
+                data-testid="mobile-create-fab"
+                onClick={() => setCreateOpen(true)}
+                className="absolute -top-5 flex size-14 items-center justify-center rounded-full bg-accent text-accent-fg shadow-[var(--shadow-lift)]"
+                aria-label="AI 創作"
+              >
+                <Plus className="size-6" />
+              </button>
+              <span className="text-[10px] text-muted">AI 創作</span>
+            </div>
+            <MobileLink to="/assets" label="素材" icon={Images} active={current === "assets"} />
+            <MobileLink to="/ig" label="IG" icon={Instagram} active={current === "ig"} />
           </div>
         </nav>
       </div>
@@ -137,5 +136,27 @@ export function AppShell({ children }: { children: ReactNode }) {
       ) : null}
       <AssistantSheet />
     </div>
+  );
+}
+
+function MobileLink({
+  to,
+  label,
+  icon: Icon,
+  active,
+  match,
+}: {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  active?: boolean;
+  match?: boolean;
+}) {
+  const on = active ?? match ?? false;
+  return (
+    <Link to={to} className={cn("flex h-14 min-h-11 flex-col items-center justify-center gap-1 text-xs", on ? "text-fg" : "text-muted")}>
+      <Icon className="size-4" />
+      {label}
+    </Link>
   );
 }

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { composeMemoryHint } from "../zen/memory-hook.ts";
+import { igSearchHookBlock } from "../zen/search.ts";
 import { buildMockPlan } from "./mock.ts";
 import type { BriefInput } from "./schema.ts";
 
@@ -47,6 +49,79 @@ test("buildMockPlan is structured Traditional Chinese and marked mock", () => {
   assert.ok(plan.checklist.length >= 4);
   assert.equal(plan.storyBeats.length, 3);
   assert.equal(plan.templateId, "product");
+});
+
+test("buildMockPlan uses a live tea-party IG caption over older seed metrics", () => {
+  const block = igSearchHookBlock(
+    [
+      {
+        id: "ig_tea",
+        caption: "可以自己來？\n下週茶會。",
+        date: "2025-11-02",
+        kind: "carousel",
+        source: "instagram",
+      },
+    ],
+    "下週有一場茶會",
+  );
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "茶會",
+    product: "茶會",
+    audience: "淡江大一新生",
+    brandName: "淡江大學禪學社",
+    memoryHint: composeMemoryHint([
+      block,
+      "過去表現較好的 Hook：「課表排滿的時候，你還記得自己喜歡什麼嗎？」收藏 22",
+    ]),
+  });
+  assert.match(plan.hook, /可以自己來/);
+});
+
+test("zen mock caption is a student post, not a brief dump", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "茶會",
+    product: "茶會",
+    audience: "淡江大一新生",
+    brandName: "淡江大學禪學社",
+    slogans: "",
+    preferredCtas: "來坐一下",
+    features: "下週有一場茶會\n一句介紹：\n學生痛點：開學後行程變滿\n主題：",
+  });
+  const blob = plan.captions.map((row) => row.text).join("\n");
+  assert.doesNotMatch(blob, /一句介紹|學生痛點|這次看點/);
+  assert.match(plan.hook, /[？?]/);
+  assert.match(blob, /想找人一起/);
+});
+
+test("buildMockPlan uses the learned IG hook for 禪學社", () => {
+  const plan = buildMockPlan({
+    eventName: "茶會",
+    schedule: "下週三 19:00",
+    location: "淡江大學淡水校園",
+    product: "茶會",
+    offer: "",
+    audience: "淡江大一新生",
+    goal: "traffic",
+    features: "坐下、茶",
+    style: "生活感",
+    notes: "",
+    wantPost: true,
+    wantStory: true,
+    wantCarousel: true,
+    wantReels: true,
+    brandName: "淡江大學禪學社",
+    handle: "@tamkang.zen",
+    voice: "自然",
+    doSay: "坐下來",
+    dontSay: "誠摯邀請",
+    forbiddenWords: ["誠摯邀請"],
+    memoryHint: "品牌記憶：霧園。過去表現較好的 Hook：「課表排滿的時候，你還記得自己喜歡什麼嗎？」收藏 22",
+  });
+  assert.match(plan.hook, /課表排滿/);
+  assert.match(plan.copyPacks?.[0]?.hook ?? "", /課表排滿/);
+  assert.match(plan.directions?.[0]?.headline ?? "", /課表排滿/);
 });
 
 test("buildMockPlan strips forbidden words", () => {

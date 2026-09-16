@@ -1,7 +1,8 @@
 import { completeCarouselPages } from "@/lib/studio/carousel";
+import { zenSystemPrompt } from "@/lib/zen/context";
+import { labelDirections } from "@/lib/zen/direction";
 import { createServerFn } from "@tanstack/react-start";
 import type { CampaignPlan, TemplateId } from "@/lib/studio/types";
-import { extractJsonObject, grokAvailable, grokChat } from "./grok";
 import { buildMockPlan } from "./mock";
 import { BriefInputSchema, PlanJsonSchema, type BriefInput } from "./schema";
 import { buildZenContext, ZEN_SYSTEM_PROMPT } from "./zen-context";
@@ -22,7 +23,13 @@ export type AiStatus = {
 };
 
 function extractJson(text: string): unknown {
-  return extractJsonObject(text);
+  const trimmed = text.trim();
+  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = fence ? fence[1] : trimmed;
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start === -1 || end === -1) throw new Error("模型未回傳 JSON");
+  return JSON.parse(raw.slice(start, end + 1));
 }
 
 function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: CampaignPlan["source"]): CampaignPlan {
@@ -54,6 +61,13 @@ function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: Campaig
     qaNotes: parsed.qaNotes,
     generatedAt: Date.now(),
     source,
+    directions: parsed.directions?.length ? labelDirections(parsed.directions) : undefined,
+    copyPacks: parsed.copyPacks?.length ? parsed.copyPacks : undefined,
+    threadsPost: parsed.threadsPost || undefined,
+    lineCopy: parsed.lineCopy || undefined,
+    reelsScript: parsed.reelsScript,
+    studentReview: parsed.studentReview,
+    storyFrames: parsed.storyFrames?.length ? parsed.storyFrames : undefined,
   };
 }
 
@@ -73,15 +87,15 @@ export function describeAdapter(available: boolean): AiStatus {
     return {
       available: true,
       adapter: "live",
-      label: "已連線 AI 企劃",
-      detail: "會依品牌規範與活動需求生成結構化企劃，再套進專案與畫布。",
+      label: "已連線創作 AI",
+      detail: "會依淡江禪學社品牌記憶與學生情境生成文案、視覺方向與排程草案。",
     };
   }
   return {
     available: false,
     adapter: "mock",
-    label: "本機企劃草案",
-    detail: "目前沒有連到 AI 服務。按下生成會用本機規則寫一版可編輯、可套用的草案，不是線上模型回覆。",
+    label: "本機創作草案",
+    detail: "目前沒有連到 AI 服務。按下生成會用本機規則寫一版可編輯草案，不是線上模型回覆。",
   };
 }
 
@@ -104,16 +118,16 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
     .filter(Boolean)
     .join("、");
 
-  const prompt = `你是資深 Instagram 網宣企劃，服務台灣品牌。請只輸出 JSON，不要 markdown。
+  const prompt = `請只輸出 JSON，不要 markdown。
 
 品牌：${data.brandName} ${data.handle}
-語氣：${data.voice || "專業、克制"}
-可說：${data.doSay || "具體、真實"}
-不可說：${data.dontSay || "誇大、叫賣"}
+語氣：${data.voice || "像社團的人在傳訊息"}
+可說：${data.doSay || "坐下來、淡水晚上、找朋友"}
+不可說：${data.dontSay || "誠摯邀請、宗教說教"}
 禁用詞：${forbidden}
 固定標語：${data.slogans || "無"}
-常用 CTA：${data.preferredCtas || "無"}
-圖片風格：${data.imageStyle || "無"}
+常用 CTA：${data.preferredCtas || "來坐一下"}
+圖片風格：${data.imageStyle || "夜晚、空氣感、三色光"}
 
 活動名稱：${data.eventName}
 時間：${data.schedule || "未填"}
@@ -126,45 +140,63 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
 希望風格：${data.style || "無"}
 需要產出：${deliverables || "單張貼文"}
 補充：${data.notes || "無"}
+過去 IG 表現：${data.memoryHint || "問句 Hook 與生活向收藏較高"}
+
+靈感只抽象構圖、配色、排版、Hook、形式，禁止抄其他社團貼文。視覺方向要轉成淡江禪學社自己的晚上、座位、三色光。
+
+Hook 必須先讓淡江學生覺得「這好像在講我」，禁止「誠摯邀請您」。
+文案自然、偶爾口語，不要每句金句、不要過度詩意。
 
 JSON 欄位：
 campaignName, concept, insight, hook, visualTheme, visualDirection,
 templateId(editorial|product|offer|quote), colorMood,
 eyebrow, headline, subhead, body, cta,
-captions[{style,text}] 2-3 則（繁中，適合 IG，不要 emoji 堆砌，最多一個表情），
-hashtags 8-12 個（含品牌名與精準詞），
-storyBeats 3 則限動分鏡（若不需要限動可給空陣列），
-carouselPages[{role:cover|problem|detail|proof|cta|close,headline,subhead,body,cta,visualNote,templateId}] ${data.wantCarousel ? "必須 6 頁，角色依序 cover, problem, detail, proof, cta, close" : "1 頁封面"},
+captions[{style,text}] 至少含 學生版、短版、感性版，
+hashtags 8-12 個（含淡江、社團、精準活動詞），
+storyBeats 3-5 則限動分鏡（若不需要限動可給空陣列），
+carouselPages[{role:cover|problem|detail|proof|cta|close,headline,subhead,body,cta,visualNote,templateId}] ${data.wantCarousel ? "必須 6 頁，角色依序 cover, problem, detail, proof, cta, close。cover.headline 必須是學生 Hook 問句，禁止活動名；第2頁情境、第3頁痛點、第4頁活動內容、第5頁 CTA（時間地點）" : "1 頁封面"},
 assetNeeds[{kind:photo|people|background|logo|illustration,title,detail,required}],
 checklist 5-8 則發布前檢查,
-altText, qaNotes 2-4 則設計注意。
+altText, qaNotes 2-4 則設計注意,
+threadsPost, lineCopy,
+storyFrames 3-5 則,
+directions[{id,name,concept,palette,composition,typeDirection,prompt,headline,subhead}] 3 個視覺方向，name 必須是「方向 A · …」「方向 B · …」「方向 C · …」,
+copyPacks[{tone:short|normal|emotional|student|life|humor,hook,body,cta,hashtags}],
+reelsScript:{hook,beats:[{start,end,onScreen,caption,voice,transition,assetHint}]},
+studentReview:{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,tooLong,knowsWhat,knowsWhenWhere,wouldBringFriend,knowsHowToSignup,rewriteHook,notes[]}
 
 headline 可含換行 \\n，最多兩行，每行不超過 10 個中文。
-eyebrow 用英文或短中文，不超過 22 字。
-cta 2-6 字。
-文案避免禁用詞，不要「限時瘋搶／錯過就沒有」。
-concept 是宣傳核心概念（2-3 句）。visualTheme 是視覺主題。
-若品牌是淡江禪學社：語氣像學長姐聊天，禁止宗教說教、佛學專有名詞與 AI 罐頭金句。`;
+eyebrow 短中文或日期，不超過 22 字。
+cta 2-6 字，像「來坐一下」。`;
 
-  const chat = await grokChat({
-    system:
-      "You are a senior Instagram campaign planner for Taiwan student clubs. Reply with a single JSON object only. Traditional Chinese. No religious preaching.",
-    user: prompt,
-    maxTokens: 3200,
-    temperature: 0.6,
+  const res = await fetch("https://api.x.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "grok-4.5",
+      temperature: 0.6,
+      max_tokens: 4096,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: zenSystemPrompt(),
+        },
+        { role: "user", content: prompt },
+      ],
+    }),
   });
 
-  if (!chat.ok) {
-    return {
-      ok: false,
-      error: chat.capped ? chat.error : `企劃服務暫時無法使用。可改用本機草案。`,
-      adapter: "live",
-    };
+  if (!res.ok) {
+    return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
 
   const plan = planFromModel(chat.text);
   if (!plan) {
-    return { ok: false, error: "AI 回傳無法解析。可再試一次，或改用本機草案。", adapter: "live" };
+    return { ok: true, plan: buildMockPlan(data), adapter: "mock" };
   }
   if (data.wantCarousel) {
     plan.carouselPages = completeCarouselPages(plan.carouselPages, plan);

@@ -16,13 +16,14 @@ export function AssistantSheet() {
         <div className="border-b border-border px-4 py-3 pr-12">
           <SheetTitle>寫這則網宣</SheetTitle>
           <p className="mt-1 text-sm text-muted">
-            企劃、文案、畫面同一人做完。{" "}
+            對目前畫面下指令。完整網宣請走 AI 創作。{" "}
             <Link
-              to="/assistant"
+              to="/create"
+              search={{ mode: "idea", idea: "下週有一場茶會" }}
               className="text-fg underline-offset-2 hover:underline"
               onClick={() => setOpen(false)}
             >
-              開啟完整頁面
+              開啟 AI 創作
             </Link>
           </p>
         </div>

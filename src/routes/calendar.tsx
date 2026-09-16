@@ -1,26 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { CalendarPage } from "@/components/calendar/calendar-page";
-import { AiCreativeModal } from "@/components/studio/ai-creative-modal";
-import type { Campaign } from "@/lib/studio/campaign-types";
+import { calendarSearchParams, type CalendarSearch } from "@/lib/studio/calendar-search";
 
-export const Route = createFileRoute("/calendar")({ component: CalendarRoute });
+export type { CalendarSearch };
 
-function CalendarRoute() {
-  const [aiOpen, setAiOpen] = useState(false);
-  const [topic, setTopic] = useState("09/24 浮游禪光 迎新茶會");
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-
-  return (
-    <>
-      <CalendarPage
-        onOpenAi={(nextTopic, nextCampaign) => {
-          setTopic(nextTopic);
-          setCampaign(nextCampaign ?? null);
-          setAiOpen(true);
-        }}
-      />
-      <AiCreativeModal open={aiOpen} onOpenChange={setAiOpen} initialTopic={topic} campaign={campaign} />
-    </>
-  );
-}
+export const Route = createFileRoute("/calendar")({
+  validateSearch: (search: Record<string, unknown>): CalendarSearch => {
+    return calendarSearchParams({
+      campaign: typeof search.campaign === "string" ? search.campaign : undefined,
+    });
+  },
+  component: CalendarPage,
+});

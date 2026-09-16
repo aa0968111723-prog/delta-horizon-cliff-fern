@@ -1,4 +1,4 @@
-import { Check, Plus, Star, Trash2, Upload } from "lucide-react";
+import { Star, Trash2, Upload } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
@@ -84,9 +84,9 @@ export function BrandEditor() {
       <main className="mx-auto w-full max-w-3xl px-4 py-16">
         <EmptyState
           icon={SwatchBook}
-          title="尚無 Brand Memory"
-          description="建立淡江大學禪學社的識別後，AI 創作與畫布都會跟著走。這裡不是多品牌後台。"
-          action={<Button onClick={() => setActiveId(createBrand("淡江大學禪學社").id)}>建立禪學社品牌</Button>}
+          title="尚無品牌記憶"
+          description="淡江禪學社的 Logo、龜龜、三色光與語氣，每次生成都會先讀。"
+          action={<Button onClick={() => setActiveId(createBrand("淡江大學禪學社").id)}>建立禪學社品牌記憶</Button>}
         />
       </main>
     );
@@ -151,30 +151,13 @@ export function BrandEditor() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="淡江大學禪學社 Brand Brain"
-        title="社團品牌記憶與規範"
-        description="社團定位、三色光識別、生活感色盤、字體層級、學生生活語調與避開宗教說教規則。所有 AI 創作與品質檢查將直接讀取此品牌大腦。"
-        actions={
-          <BrandSubnav current="brand" />
-        }
+        kicker="品牌記憶"
+        title="淡江禪學社"
+        description="Logo、龜龜、三色光、語氣、喜歡與不喜歡的風格，每次生成都會先讀。"
+        actions={<BrandSubnav current="brand" />}
       />
 
       <StorageNotice />
-
-      {brands.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          {brands.map((b) => (
-            <Button
-              key={b.id}
-              size="sm"
-              variant={b.id === brand.id ? "default" : "secondary"}
-              onClick={() => setActiveId(b.id)}
-            >
-              {b.name}
-            </Button>
-          ))}
-        </div>
-      )}
 
       <div
         className="overflow-hidden rounded-2xl p-5 shadow-[var(--shadow-border)]"
@@ -608,21 +591,52 @@ export function BrandEditor() {
         <h2 className="text-sm font-medium">固定標語與常用 CTA</h2>
         <ChipList
           label="固定標語"
-          hint="主標語會出現在品牌預覽，AI 企劃會參考。"
+          hint="主標語會出現在品牌預覽，AI 會參考。"
           values={brand.slogans}
-          placeholder="例如：在忙亂裡，留一點空間給自己。"
+          placeholder="例如：先坐下來。"
           onChange={(slogans) => patch("slogans", slogans)}
         />
         <ChipList
           label="常用 CTA"
-          hint="第一則會作為新專案預設按鈕文案。"
+          hint="第一則會作為新創作預設按鈕。"
           values={brand.ctas}
-          placeholder="例如：看看活動"
+          placeholder="例如：來坐一下"
           onChange={(ctas) => {
             patch("ctas", ctas);
             patch("boilerplate", { ...brand.boilerplate, cta: ctas[0] || brand.boilerplate.cta });
           }}
         />
+        <Field label="龜龜／角色">
+          <Input value={brand.mascot} onChange={(e) => patch("mascot", e.target.value)} placeholder="龜龜" />
+        </Field>
+        <ChipList
+          label="品牌母題"
+          hint="三色光、淡水夜晚、茶…"
+          values={brand.motifs}
+          placeholder="例如：三色光"
+          onChange={(motifs) => patch("motifs", motifs)}
+        />
+        <ChipList
+          label="喜歡的風格"
+          hint="生活感、留白、學生語氣"
+          values={brand.likes}
+          placeholder="例如：生活感"
+          onChange={(likes) => patch("likes", likes)}
+        />
+        <ChipList
+          label="不喜歡的風格"
+          hint="說教、華麗佛學詞、過度詩意"
+          values={brand.dislikes}
+          placeholder="例如：說教"
+          onChange={(dislikes) => patch("dislikes", dislikes)}
+        />
+        <Field label="學生情境備註">
+          <Textarea
+            value={brand.audienceNotes}
+            onChange={(e) => patch("audienceNotes", e.target.value)}
+            placeholder="只寫淡江學生，不要寫年輕人。"
+          />
+        </Field>
         <Field label="貼文結尾句">
           <Textarea
             value={brand.boilerplate.captionClose}

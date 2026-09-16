@@ -2,8 +2,9 @@ import { Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ASSET_DRAG_MIME, assetPreviewFitClass, categoryLabel, sourceLabel, usageLabel } from "@/lib/studio/assets";
+import { ASSET_DRAG_MIME, categoryLabel, isVideoAsset, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import type { AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
+import { AssetMedia } from "@/components/shared/asset-media";
 import { cn } from "@/lib/utils";
 
 export function AssetCard({
@@ -41,21 +42,22 @@ export function AssetCard({
   return (
     <article
       className="group overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-border)]"
+      data-testid={`asset-card-${asset.id}`}
       draggable={draggable}
       onDragStart={(e) => {
         e.dataTransfer.setData(ASSET_DRAG_MIME, asset.id);
         e.dataTransfer.effectAllowed = "copy";
       }}
     >
-      <button type="button" onClick={onOpen} className="block w-full text-left">
+      <button type="button" onClick={onOpen} className="block w-full text-left" data-testid={`asset-open-${asset.id}`}>
         <div className="relative aspect-square bg-bg">
-          {src ? (
-            <img
-              src={src}
+          {url && !broken ? (
+            <AssetMedia
+              src={url}
+              video={isVideoAsset(asset)}
               alt={asset.name}
-              className={cn("size-full", assetPreviewFitClass(asset, url))}
-              draggable={false}
-              onError={() => setFailed(src)}
+              className="size-full object-cover"
+              onError={() => setBroken(true)}
             />
           ) : (
             <div className="flex size-full items-center justify-center px-3 text-center text-xs text-muted">
@@ -76,25 +78,14 @@ export function AssetCard({
             </span>
           ) : null}
         </div>
-      </button>
-      <div className="space-y-1.5 px-3 py-2.5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{asset.name}</p>
-            <p className="truncate text-xs text-muted">
-              {categoryLabel(asset.category)} · {sourceLabel(asset.source)}
-              {asset.attribution ? ` · ${asset.attribution}` : ""}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={asset.favorite ? "取消收藏" : "收藏"}
-            onClick={onFavorite}
-          >
-            <Star className={cn("size-4", asset.favorite && "fill-warn text-warn")} />
-          </Button>
+        <div className="space-y-1.5 px-3 pt-2.5">
+          <p className="truncate text-sm font-medium">{asset.name}</p>
+          <p className="truncate text-xs text-muted">
+            {categoryLabel(asset.category)} · {sourceLabel(asset.source)}
+          </p>
         </div>
+      </button>
+      <div className="space-y-1.5 px-3 pt-1 pb-2.5">
         <p className="truncate text-xs text-subtle tabular-nums">
           {asset.width}×{asset.height}
           {asset.licenseOwner ? ` · ${asset.licenseOwner}` : ""}
@@ -103,11 +94,14 @@ export function AssetCard({
           <p className="truncate text-xs text-subtle">{asset.tags.slice(0, 3).join(" · ")}</p>
         ) : null}
         <div className="flex items-center gap-1 pt-1">
-          {onCreate ? (
-            <Button size="sm" className="flex-1" onClick={onCreate}>
-              用這張創作
-            </Button>
-          ) : null}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={asset.favorite ? "取消收藏" : "收藏"}
+            onClick={onFavorite}
+          >
+            <Star className={cn("size-4", asset.favorite && "fill-warn text-warn")} />
+          </Button>
           {onPlace ? (
             <Button size="sm" variant="secondary" className="flex-1" onClick={onPlace}>
               放到畫布

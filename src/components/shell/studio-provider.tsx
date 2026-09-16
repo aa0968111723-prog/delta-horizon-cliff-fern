@@ -31,7 +31,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let timer = 0;
-    function ping() {
+    const unsub = useStudio.subscribe((state, prev) => {
+      if (!state.hydrated) return;
+      if (
+        state.campaigns === prev.campaigns &&
+        state.schedule === prev.schedule &&
+        state.projects === prev.projects &&
+        state.brands === prev.brands &&
+        state.assets === prev.assets
+      ) {
+        return;
+      }
       useUi.getState().setSaveStatus("saving");
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {

@@ -2,7 +2,7 @@ import { isDisplayableImageBlob, mimeForAssetSrc } from "./assets.ts";
 
 export { readFileAsImage } from "./asset-upload";
 
-const DB_NAME = "kouzhen-assets";
+const DB_NAME = "tamkang-zen-assets";
 const STORE = "blobs";
 const VERSION = 1;
 
@@ -74,14 +74,20 @@ export async function hydrateSeedAsset(id: string, src: string): Promise<void> {
 
 const urlCache = new Map<string, string>();
 
-export async function objectUrlForAsset(id: string): Promise<string | null> {
+export async function objectUrlForAsset(id: string, seedSrc?: string): Promise<string | null> {
   const cached = urlCache.get(id);
   if (cached) return cached;
-  const blob = await getAssetBlob(id);
-  if (!blob || !isDisplayableImageBlob(blob)) return null;
-  const mime = blob.type || "image/svg+xml";
-  const typed = blob.type ? blob : new Blob([blob], { type: mime });
-  const url = URL.createObjectURL(typed);
+  let blob = await getAssetBlob(id);
+  if (!blob && seedSrc) {
+    try {
+      await hydrateSeedAsset(id, seedSrc);
+      blob = await getAssetBlob(id);
+    } catch {
+      return seedSrc;
+    }
+  }
+  if (!blob) return seedSrc ?? null;
+  const url = URL.createObjectURL(blob);
   urlCache.set(id, url);
   return url;
 }

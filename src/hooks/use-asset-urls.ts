@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { objectUrlForAsset } from "@/lib/studio/assets-idb";
-import { previewUrlForAsset } from "@/lib/studio/assets";
+import { resolveAssetSrc, seedSrcById } from "@/lib/studio/asset-src";
 import { useStudio } from "@/stores/studio-store";
 
 /**
@@ -9,23 +9,10 @@ import { useStudio } from "@/stores/studio-store";
  */
 export function useAssetUrls(ids: string[]): Record<string, string> {
   const assets = useStudio((s) => s.assets);
-  const list = useMemo(() => [...new Set(ids.filter(Boolean))].sort(), [ids]);
-  const key = list.join("|");
-  const seeds = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const asset of assets) {
-      const url = previewUrlForAsset(asset);
-      if (url) map[asset.id] = url;
-    }
-    return map;
-  }, [assets]);
-  const seedFallback = useMemo(() => {
-    const next: Record<string, string> = {};
-    for (const id of list) {
-      if (seeds[id]) next[id] = seeds[id];
-    }
-    return next;
-  }, [key, list, seeds]);
+  const key = [...new Set(ids.filter(Boolean))].sort().join("|");
+  const list = useMemo(() => (key ? key.split("|") : []), [key]);
+  const seeds = useMemo(() => seedSrcById(assets), [assets]);
+
   const [blobUrls, setBlobUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -36,7 +23,7 @@ export function useAssetUrls(ids: string[]): Record<string, string> {
       await Promise.all(
         list.map(async (id) => {
           try {
-            const url = await objectUrlForAsset(id);
+            const url = await objectUrlForAsset(id, seeds[id]);
             if (url) next[id] = url;
           } catch {
             /* ignore missing blobs */
@@ -60,16 +47,11 @@ export function useAssetUrls(ids: string[]): Record<string, string> {
   }, [key, list, seeds]);
 
   return useMemo(() => {
-    const merged: Record<string, string> = { ...blobUrls };
-    for (const [id, url] of Object.entries(seedFallback)) {
-      merged[id] = url;
+    const merged: Record<string, string> = {};
+    for (const id of list) {
+      const url = resolveAssetSrc(id, blobUrls, seeds);
+      if (url) merged[id] = url;
     }
     return merged;
-  }, [blobUrls, seedFallback]);
-}
-
-export function resolveAssetSrc(id: string | null | undefined, urls: Record<string, string>, seedSrc?: string) {
-  if (seedSrc) return seedSrc;
-  if (!id) return "";
-  return urls[id] || "";
+  }, [list, blobUrls, seeds]);
 }

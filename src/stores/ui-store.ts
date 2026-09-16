@@ -12,10 +12,26 @@ export type StylePrompt = {
   provider: string;
 };
 
+export type CreateMode =
+  | "post"
+  | "image"
+  | "story"
+  | "carousel"
+  | "reels"
+  | "campaign"
+  | "idea"
+  | "from-image"
+  | "from-drive"
+  | "from-canva"
+  | "from-ig"
+  | null;
+
 type UiState = {
   assistantOpen: boolean;
-  /** 底部中央的「＋ AI 創作」面板 */
   createOpen: boolean;
+  createMode: CreateMode;
+  createPrefill: string;
+  searchOpen: boolean;
   saveStatus: SaveStatus;
   editorPanel: EditorPanel | null;
   carouselPreview: boolean;
@@ -27,7 +43,8 @@ type UiState = {
   clearCreativePreset: () => void;
   clearContentLink: () => void;
   toggleAssistant: () => void;
-  setCreateOpen: (open: boolean) => void;
+  setCreateOpen: (open: boolean, mode?: CreateMode, prefill?: string) => void;
+  setSearchOpen: (open: boolean) => void;
   setSaveStatus: (status: SaveStatus) => void;
   setEditorPanel: (panel: EditorPanel | null) => void;
   setCarouselPreview: (open: boolean) => void;
@@ -36,6 +53,9 @@ type UiState = {
 export const useUi = create<UiState>((set) => ({
   assistantOpen: false,
   createOpen: false,
+  createMode: null,
+  createPrefill: "",
+  searchOpen: false,
   saveStatus: "idle",
   editorPanel: null,
   carouselPreview: false,
@@ -49,7 +69,8 @@ export const useUi = create<UiState>((set) => ({
   clearCreativePreset: () => set({ creativePreset: null }),
   clearContentLink: () => set({ contentLinkId: null }),
   toggleAssistant: () => set((s) => ({ assistantOpen: !s.assistantOpen })),
-  setCreateOpen: (createOpen) => set({ createOpen }),
+  setCreateOpen: (open, mode = null, prefill = "") => set({ createOpen: open, createMode: mode, createPrefill: prefill }),
+  setSearchOpen: (open) => set({ searchOpen: open }),
   setSaveStatus: (saveStatus) => set({ saveStatus }),
   setEditorPanel: (editorPanel) => set({ editorPanel }),
   setCarouselPreview: (carouselPreview) => set({ carouselPreview }),

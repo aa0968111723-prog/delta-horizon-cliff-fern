@@ -69,7 +69,7 @@ export function ProjectCard({
             </p>
           ) : null}
         </div>
-        <ContentFlowBar project={project} variant="badge" />
+        <StatusBadge status={project.status} contentStatus={project.contentStatus} />
       </div>
       {footer ?? (
         <div className="mt-1 flex justify-end">
