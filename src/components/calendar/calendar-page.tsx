@@ -15,7 +15,7 @@ import { uid } from "@/lib/studio/ids";
 import type { ContentKind } from "@/lib/studio/types";
 import { copyKindForContent } from "@/lib/zen/convert";
 import { igDnaBlock } from "@/lib/zen/insights";
-import { CONTENT_KIND_LABEL, type ScheduleItem } from "@/lib/zen/types";
+import { CONTENT_KIND_LABEL, type ClubCampaign, type ScheduleItem } from "@/lib/zen/types";
 import { isWaveScheduleItem, placeScheduleItems, pickFocusDay, rhythmHint, schedulePreviewAssetId, isDueScheduleItem, shiftScheduleDay } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
@@ -53,15 +53,23 @@ function PhoneDayList({
   schedule,
   testId,
   cursor,
+  urls,
+  campaigns,
+  assets,
   onMove,
   onEdit,
+  onPreview,
 }: {
   days: Date[];
   schedule: ScheduleItem[];
   testId: string;
   cursor: Date;
+  urls: Record<string, string>;
+  campaigns: ClubCampaign[];
+  assets: { id: string; seedSrc?: string }[];
   onMove: (id: string, scheduledAt: number) => void;
   onEdit: (id: string) => void;
+  onPreview: (item: ScheduleItem) => void;
 }) {
   const focusTs = pickFocusDay({ days: days.map((day) => day.getTime()), cursor: cursor.getTime() });
   const focusRef = useRef<HTMLLIElement | null>(null);
@@ -93,22 +101,57 @@ function PhoneDayList({
               {focused && isSameDay(day, new Date()) ? " · 今天" : ""}
             </p>
             {items.length ? (
-              <ul className="mt-2 space-y-1">
-                {items.map((item) => (
-                  <li
-                    key={item.id}
-                    draggable
-                    data-testid={isWaveScheduleItem(item) ? "schedule-wave" : "schedule-suite"}
-                    onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", item.id)}
-                    onClick={() => onEdit(item.id)}
-                    className={cn(
-                      "min-h-11 rounded-md px-2 py-2 text-sm",
-                      isWaveScheduleItem(item) ? "bg-bg/70 text-muted" : "bg-bg",
-                    )}
-                  >
-                    {item.title}
-                  </li>
-                ))}
+              <ul className="mt-2 space-y-2">
+                {items.map((item) => {
+                  const due = isDueScheduleItem(item);
+                  const assetId = schedulePreviewAssetId(item, campaigns);
+                  const imageSrc = resolveAssetSrc(
+                    assetId,
+                    urls,
+                    assets.find((asset) => asset.id === assetId)?.seedSrc,
+                  );
+                  return (
+                    <li
+                      key={item.id}
+                      draggable
+                      data-testid={due ? "cal-due" : isWaveScheduleItem(item) ? "schedule-wave" : "schedule-suite"}
+                      onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", item.id)}
+                      className={cn(
+                        "rounded-xl px-2 py-2",
+                        isWaveScheduleItem(item) ? "bg-bg/70" : "bg-bg",
+                      )}
+                    >
+                      <div className="flex min-w-0 gap-2">
+                        {imageSrc ? (
+                          <img src={imageSrc} alt="" className="h-14 w-11 shrink-0 rounded-lg object-cover" />
+                        ) : null}
+                        <div className="min-w-0 flex-1">
+                          {due ? <p className="text-xs text-accent">現在可以發</p> : null}
+                          <p className="text-sm font-medium">{item.title}</p>
+                          {item.captionPreview ? (
+                            <p className="mt-1 line-clamp-2 text-xs text-muted">{item.captionPreview}</p>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="mt-2 flex min-w-0 flex-col gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          data-testid="cal-slot-preview"
+                          onClick={() => onPreview(item)}
+                        >
+                          看畫面
+                        </Button>
+                        {due && item.status !== "published" ? (
+                          <DueSlotActions item={item} imageSrc={imageSrc} showPreview={false} />
+                        ) : null}
+                        <Button size="sm" variant="ghost" onClick={() => onEdit(item.id)}>
+                          改這則
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="mt-2 text-xs text-muted">這天還沒有內容</p>
@@ -358,8 +401,15 @@ export function CalendarPage() {
           schedule={schedule}
           testId="cal-week"
           cursor={cursor}
+          urls={urls}
+          campaigns={campaigns}
+          assets={assets}
           onMove={moveToDay}
           onEdit={setEditingId}
+          onPreview={(item) => {
+            openScheduledPreview(item);
+            void navigate({ to: "/instagram" });
+          }}
         />
       ) : null}
 
@@ -369,8 +419,15 @@ export function CalendarPage() {
           schedule={schedule}
           testId="cal-month"
           cursor={cursor}
+          urls={urls}
+          campaigns={campaigns}
+          assets={assets}
           onMove={moveToDay}
           onEdit={setEditingId}
+          onPreview={(item) => {
+            openScheduledPreview(item);
+            void navigate({ to: "/instagram" });
+          }}
         />
       ) : null}
 
