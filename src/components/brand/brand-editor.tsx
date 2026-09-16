@@ -25,7 +25,6 @@ import { STUDIO_FONTS } from "@/lib/studio/fonts";
 import { uid } from "@/lib/studio/ids";
 import type { BrandColor, BrandKit, ColorRole, LogoUsage, LogoVariant } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
-import { BRAND_MEMORY } from "@/lib/club/memory";
 import { useStudio } from "@/stores/studio-store";
 import { SwatchBook } from "lucide-react";
 
@@ -39,6 +38,7 @@ const ROLES: { id: ColorRole; label: string }[] = [
 
 const SECTIONS = [
   { id: "identity", label: "識別" },
+  { id: "memory", label: "記憶" },
   { id: "logo", label: "Logo" },
   { id: "colors", label: "色彩" },
   { id: "fonts", label: "字體" },
@@ -131,8 +131,8 @@ export function BrandEditor() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-8 md:py-10">
       <PageHeader
         kicker="品牌中心"
-        title="品牌規範"
-        description="名稱、Logo 版本、色彩、字體、標語、CTA、圖片風格與禁用規則會套進排版、AI 企劃與品質檢查。"
+        title="品牌記憶"
+        description="AI 每次生成前會先讀這裡：龜龜、三色光、社團理念、喜歡 / 不喜歡的風格、自己的 IG DNA。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="brand" />
@@ -151,14 +151,6 @@ export function BrandEditor() {
       />
 
       <StorageNotice />
-
-      <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
-        <p className="text-xs tracking-[0.16em] text-muted">BRAND MEMORY</p>
-        <p className="mt-2 text-sm">{BRAND_MEMORY.idea}</p>
-        <p className="mt-2 text-sm">龜龜 · {BRAND_MEMORY.lights} · {BRAND_MEMORY.logo}</p>
-        <p className="mt-1 text-xs text-muted">喜歡：{BRAND_MEMORY.likes.join("、")}</p>
-        <p className="mt-1 text-xs text-muted">不要：{BRAND_MEMORY.dislikes.join("、")}</p>
-      </article>
 
       {brands.length > 1 && (
         <div className="flex flex-wrap gap-2">
@@ -239,6 +231,88 @@ export function BrandEditor() {
         </div>
         <Field label="品牌聲音">
           <Textarea value={brand.voice} onChange={(e) => patch("voice", e.target.value)} placeholder="語氣、節奏、像誰在說話" />
+        </Field>
+      </section>
+
+      <section id="brand-memory" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+        <h2 className="text-sm font-medium">Brand Memory</h2>
+        <p className="text-xs text-muted">這是 AI 的優先讀取區。改這裡，之後的文案、圖片、活動策略都會跟著變。</p>
+        <Field label="社團理念">
+          <Textarea
+            value={brand.memory.mission}
+            onChange={(e) => patch("memory", { ...brand.memory, mission: e.target.value })}
+            placeholder="在淡江校園裡留一個地方…"
+          />
+        </Field>
+        <Field label="固定介紹（活動文案可引用）">
+          <Textarea
+            value={brand.memory.fixedIntro}
+            onChange={(e) => patch("memory", { ...brand.memory, fixedIntro: e.target.value })}
+          />
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="角色名稱">
+            <Input
+              value={brand.memory.mascotName}
+              onChange={(e) => patch("memory", { ...brand.memory, mascotName: e.target.value })}
+              placeholder="龜龜"
+            />
+          </Field>
+          <Field label="標誌視覺">
+            <Input
+              value={brand.memory.signatureVisual}
+              onChange={(e) => patch("memory", { ...brand.memory, signatureVisual: e.target.value })}
+              placeholder="三色光…"
+            />
+          </Field>
+        </div>
+        <Field label="角色怎麼出現">
+          <Textarea
+            value={brand.memory.mascotDescription}
+            onChange={(e) => patch("memory", { ...brand.memory, mascotDescription: e.target.value })}
+          />
+        </Field>
+        <ChipList
+          label="喜歡的風格"
+          hint="夜晚的一盞燈、淡水河邊、真實學生照…"
+          values={brand.memory.likedStyles}
+          placeholder="例如：雜誌感留白"
+          onChange={(likedStyles) => patch("memory", { ...brand.memory, likedStyles })}
+        />
+        <ChipList
+          label="不喜歡的風格"
+          hint="宗教金色、蓮花、大量文字海報、AI 完美臉…"
+          values={brand.memory.dislikedStyles}
+          placeholder="例如：佛像"
+          onChange={(dislikedStyles) => patch("memory", { ...brand.memory, dislikedStyles })}
+        />
+        <ChipList
+          label="語氣範例（自己寫過的好句子）"
+          hint="AI 會拿來當「像我們」的樣本。"
+          values={brand.memory.toneExamples}
+          placeholder="例如：最近是不是連休息都覺得有罪惡感？"
+          onChange={(toneExamples) => patch("memory", { ...brand.memory, toneExamples })}
+        />
+        <ChipList
+          label="常見活動"
+          hint="週三社課、浮游禪光、迎新茶會…"
+          values={brand.memory.recurringEvents}
+          placeholder="例如：一日禪"
+          onChange={(recurringEvents) => patch("memory", { ...brand.memory, recurringEvents })}
+        />
+        <Field label="受眾筆記">
+          <Textarea
+            value={brand.memory.audienceNotes}
+            onChange={(e) => patch("memory", { ...brand.memory, audienceNotes: e.target.value })}
+            placeholder="大一剛到淡水最需要歸屬感…"
+          />
+        </Field>
+        <Field label="IG DNA（由 Instagram Center 學習，也可手改）">
+          <Textarea
+            value={brand.memory.igDna}
+            onChange={(e) => patch("memory", { ...brand.memory, igDna: e.target.value })}
+            placeholder="連接 IG 並按「記住這個 DNA」會自動填。"
+          />
         </Field>
       </section>
 
@@ -467,7 +541,7 @@ export function BrandEditor() {
           label="常用 CTA"
           hint="第一則會作為新專案預設按鈕文案。"
           values={brand.ctas}
-          placeholder="例如：查看風味"
+          placeholder="例如：直接來就好"
           onChange={(ctas) => {
             patch("ctas", ctas);
             patch("boilerplate", { ...brand.boilerplate, cta: ctas[0] || brand.boilerplate.cta });
@@ -477,7 +551,7 @@ export function BrandEditor() {
           <Textarea
             value={brand.boilerplate.captionClose}
             onChange={(e) => patch("boilerplate", { ...brand.boilerplate, captionClose: e.target.value })}
-            placeholder="例如：歡迎到店，或私訊詢問。"
+            placeholder="例如：直接來就好，或週三晚上見。"
           />
         </Field>
         <Field label="固定標籤（逗號分隔）">
@@ -524,14 +598,14 @@ export function BrandEditor() {
           <Input
             value={brand.imageStyle.paletteHint}
             onChange={(e) => patch("imageStyle", { ...brand.imageStyle, paletteHint: e.target.value })}
-            placeholder="亞麻、深焙、赤陶"
+            placeholder="夜晚一盞燈、淡水河邊、真實學生照"
           />
         </Field>
         <Field label="構圖">
           <Input
             value={brand.imageStyle.composition}
             onChange={(e) => patch("imageStyle", { ...brand.imageStyle, composition: e.target.value })}
-            placeholder="商品置中或上半，下半留白給標題"
+            placeholder="人物很小、上 2/3 場景、下 1/3 留白給標題"
           />
         </Field>
         <Field label="應該拍／用">

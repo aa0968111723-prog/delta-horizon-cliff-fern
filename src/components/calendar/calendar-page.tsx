@@ -1,407 +1,483 @@
-import { addDays, format, startOfMonth, startOfWeek, isSameDay, isSameMonth } from "date-fns";
-import { zhTW } from "date-fns/locale";
-import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import {
+  addDays,
+  addMonths,
+  addWeeks,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format as formatDate,
+  isSameDay,
+  isSameMonth,
+  isToday,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
+import { zhTW } from "date-fns/locale";
+import { CalendarDays, ChevronLeft, ChevronRight, Copy, Plus, Sparkles, Tent, Wand2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { ContentStatusBadge } from "@/components/content/content-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
-import { writeHandoff } from "@/lib/create/handoff";
-import { CONTENT_KIND_META, CONTENT_STATUS_META } from "@/lib/studio/status";
-import { extendScheduleIdea } from "@/lib/club/insights";
-import { publishableScheduleRows, scheduleChipLabel } from "@/lib/club/schedule";
-import { publishScheduleRow } from "@/lib/club/run-schedule-publish";
-import { packAssetIds, withPackKind } from "@/lib/club/last-pack";
-import { styleBriefFromPublish } from "@/lib/club/publish";
-import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { toast } from "sonner";
-import type { ContentKind } from "@/lib/studio/types";
+import { rhythmOf, RHYTHM_LABEL, rhythmWarnings, suggestScheduleForCampaign } from "@/lib/studio/schedule";
+import type { Campaign, ContentItem } from "@/lib/studio/types";
+import { todayIso } from "@/lib/zen/context";
+import { contentTypeShort, WAVE_ROLES } from "@/lib/zen/labels";
 import { cn } from "@/lib/utils";
-import { useCreative, type ScheduleItem } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
-import { beginOAuth } from "@/lib/connections/begin";
 
-const DAY_MS = 86_400_000;
-
-function extendKind(kind: ContentKind) {
-  return kind === "story" || kind === "carousel" || kind === "reels" || kind === "ig-post" ? kind : undefined;
-}
-
-function ScheduleActions({
-  row,
-  compact,
-  urls,
-}: {
-  row: ScheduleItem;
-  compact?: boolean;
-  urls: Record<string, string>;
-}) {
-  const duplicateSchedule = useCreative((s) => s.duplicateSchedule);
-  const setScheduleStatus = useCreative((s) => s.setScheduleStatus);
-  const ingestIg = useCreative((s) => s.ingestIg);
-  const lastPack = useCreative((s) => s.lastPack);
-  const setLastPack = useCreative((s) => s.setLastPack);
-  const rememberStyle = useCreative((s) => s.rememberStyle);
-  const setFocusIgId = useCreative((s) => s.setFocusIgId);
-  const updateProject = useStudio((s) => s.updateProject);
-  const navigate = useNavigate();
-  const size = compact ? "sm" : "sm";
-
-  function markPublished() {
-    const next = row.status === "published" ? "scheduled" : "published";
-    setScheduleStatus(row.id, next);
-    if (row.projectId) {
-      updateProject(row.projectId, {
-        contentStatus: next,
-        publishedAt: next === "published" ? Date.now() : null,
-      });
-    }
-  }
-
-  async function publishToIg() {
-    try {
-      const result = await publishScheduleRow({ row, lastPack, assetUrls: urls });
-      if (result.pack) setLastPack(result.pack);
-      if (result.videoPending) {
-        toast.message(result.message);
-        return;
-      }
-      if (result.needsConnect) {
-        const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
-        if (started.ok) {
-          toast.message("正在連接 Instagram，回來後會接著發布。");
-          return;
-        }
-        ingestIg([result.post]);
-        rememberStyle(styleBriefFromPublish(result.pack));
-        toast.message(started.error);
-        void navigate({ to: "/connections" });
-        return;
-      }
-      ingestIg([result.post]);
-      rememberStyle(styleBriefFromPublish(result.pack));
-      setFocusIgId(result.post.id);
-      setScheduleStatus(row.id, "published");
-      if (row.projectId) {
-        updateProject(row.projectId, { contentStatus: "published", publishedAt: Date.now() });
-      }
-      toast.success(result.message);
-      void navigate({ to: "/instagram" });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "發布失敗");
-    }
-  }
-
-  return (
-    <div className="flex flex-wrap gap-2" data-testid="calendar-item-actions">
-      <Button size={size} data-testid="calendar-publish" onClick={() => void publishToIg()}>
-        發布到 IG
-      </Button>
-      <Button
-        size={size}
-        variant="secondary"
-        data-testid="calendar-ig-preview"
-        onClick={() => {
-          if (lastPack) {
-            setLastPack(withPackKind(lastPack, row.contentKind));
-            setFocusIgId(`draft_${lastPack.projectId}`);
-          }
-          void navigate({ to: "/instagram" });
-        }}
-      >
-        看 IG Preview
-      </Button>
-      <Button size={size} variant="secondary" onClick={() => duplicateSchedule(row.id)}>
-        複製
-      </Button>
-      <Button size={size} variant="ghost" onClick={markPublished}>
-        {row.status === "published" ? "改回已排程" : "只標記已發布"}
-      </Button>
-      <Button size={size} variant="ghost" asChild>
-        <Link
-          to="/create"
-          search={{ tab: "campaign" }}
-          onClick={() =>
-            writeHandoff({
-              idea: extendScheduleIdea(row.title, lastPack, CONTENT_KIND_META[row.contentKind].label),
-              tab: "campaign",
-              convertKind: extendKind(row.contentKind),
-              autoRun: true,
-              sourceLabel: `排程 / ${row.title}`,
-            })
-          }
-        >
-          AI 延伸
-        </Link>
-      </Button>
-      {row.projectId ? (
-        <Button size={size} variant="ghost" asChild>
-          <Link to="/studio/$projectId" params={{ projectId: row.projectId }}>
-            直接編輯
-          </Link>
-        </Button>
-      ) : null}
-    </div>
-  );
-}
+type View = "month" | "week" | "agenda";
+const DRAG_MIME = "application/x-zen-content";
 
 export function CalendarPage() {
-  const schedule = useCreative((s) => s.schedule);
-  const lastPack = useCreative((s) => s.lastPack);
-  const moveSchedule = useCreative((s) => s.moveSchedule);
-  const upsertSchedule = useCreative((s) => s.upsertSchedule);
-  const urls = useAssetUrls(packAssetIds(lastPack));
-  const due = useMemo(() => publishableScheduleRows(schedule), [schedule]);
-  const [cursor, setCursor] = useState(() => new Date(2026, 8, 16));
-  const [view, setView] = useState<"month" | "week" | "agenda">("month");
-  const [narrow, setNarrow] = useState(false);
-  const [title, setTitle] = useState("");
-  const [kind, setKind] = useState<ContentKind>("ig-post");
-  const [selected, setSelected] = useState<ScheduleItem | null>(null);
+  const navigate = useNavigate();
+  const hydrated = useStudio((s) => s.hydrated);
+  const contents = useStudio((s) => s.contents);
+  const campaigns = useStudio((s) => s.campaigns);
+  const scheduleContent = useStudio((s) => s.scheduleContent);
+  const createContent = useStudio((s) => s.createContent);
+  const duplicateContent = useStudio((s) => s.duplicateContent);
+  const updateCampaign = useStudio((s) => s.updateCampaign);
 
-  useEffect(() => {
-    if (!selected) return;
-    const next = schedule.find((row) => row.id === selected.id);
-    if (next && next !== selected) setSelected(next);
-  }, [schedule, selected]);
+  const [view, setView] = useState<View>(() => (typeof window !== "undefined" && window.innerWidth < 768 ? "agenda" : "month"));
+  const [cursor, setCursor] = useState(() => new Date());
+  const [selected, setSelected] = useState<Date>(() => new Date());
+  const [dragOver, setDragOver] = useState<string | null>(null);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 640px)");
-    const apply = () => {
-      setNarrow(mq.matches);
-      if (mq.matches) setView((current) => (current === "month" ? "agenda" : current));
-    };
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, []);
+  const scheduled = useMemo(() => contents.filter((c) => c.scheduledAt || c.publishedAt), [contents]);
+  const warnings = useMemo(() => rhythmWarnings(contents, campaigns), [contents, campaigns]);
 
   const days = useMemo(() => {
+    if (view === "week") {
+      const start = startOfWeek(cursor, { weekStartsOn: 1 });
+      return eachDayOfInterval({ start, end: addDays(start, 6) });
+    }
     const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 });
-    return Array.from({ length: 42 }, (_, i) => addDays(start, i));
-  }, [cursor]);
+    const end = endOfWeek(endOfMonth(cursor), { weekStartsOn: 1 });
+    return eachDayOfInterval({ start, end });
+  }, [cursor, view]);
 
-  const week = useMemo(() => {
-    const start = startOfWeek(cursor, { weekStartsOn: 1 });
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-  }, [cursor]);
-
-  const agenda = [...schedule].sort((a, b) => a.plannedAt - b.plannedAt);
-  const gridDays = view === "month" ? days : week;
-  const stackDays =
-    view === "week"
-      ? week
-      : days.filter((day) => isSameDay(day, cursor) || schedule.some((row) => isSameDay(row.plannedAt, day)));
-
-  function shiftRow(row: ScheduleItem, daysDelta: number) {
-    moveSchedule(row.id, row.plannedAt + daysDelta * DAY_MS);
+  function itemsOn(day: Date) {
+    return scheduled
+      .filter((c) => isSameDay(new Date(c.publishedAt ?? c.scheduledAt!), day))
+      .sort((a, b) => (a.publishedAt ?? a.scheduledAt!) - (b.publishedAt ?? b.scheduledAt!));
   }
+  function campaignsOn(day: Date) {
+    const iso = todayIso(day);
+    return campaigns.filter((c) => c.date === iso);
+  }
+
+  function moveTo(contentId: string, day: Date) {
+    const c = contents.find((x) => x.id === contentId);
+    if (!c) return;
+    const prev = c.scheduledAt ? new Date(c.scheduledAt) : new Date();
+    const next = new Date(day);
+    next.setHours(prev.getHours() || 20, prev.getMinutes(), 0, 0);
+    scheduleContent(contentId, next.getTime());
+    toast.success(`已移到 ${formatDate(next, "M/d (EEEEE) HH:mm", { locale: zhTW })}`);
+  }
+
+  function quickAdd(day: Date) {
+    const at = new Date(day);
+    at.setHours(20, 0, 0, 0);
+    const created = createContent({
+      type: "ig-post",
+      status: "idea",
+      title: `${formatDate(day, "M/d")} 的內容`,
+      scheduledAt: at.getTime(),
+      campaignId: null,
+    });
+    void navigate({ to: "/create", search: { contentId: created.id, mode: "post" } });
+  }
+
+  function autoSchedule(campaign: Campaign) {
+    const plan = suggestScheduleForCampaign(campaign, contents);
+    if (!plan.length) {
+      toast.message(campaign.strategy ? "這個活動的每一波都已經排好了。" : "先到活動頁按「AI 生成完整宣傳」，才有節奏可以排。");
+      return;
+    }
+    const waves = campaign.strategy!.waves.map((w) => {
+      const hit = plan.find((p) => p.wave.id === w.id);
+      if (!hit) return w;
+      const content = createContent({
+        campaignId: campaign.id,
+        type: w.contentType,
+        status: "idea",
+        title: `${campaign.name} · ${w.title}`,
+        copy: { hook: w.hook, body: "", cta: campaign.cta, hashtags: [], tone: "normal" },
+        visualDirection: w.angle,
+        scheduledAt: hit.at,
+        sources: [{ kind: "ai", label: `AI 自動排程 / ${WAVE_ROLES[w.role].label}` }],
+      });
+      return { ...w, contentId: content.id };
+    });
+    updateCampaign(campaign.id, { strategy: { ...campaign.strategy!, waves } });
+    toast.success(`AI 已排入 ${plan.length} 波，避開了已有內容的日子。`);
+  }
+
+  if (!hydrated) return null;
+
+  const upcomingCampaign = campaigns.filter((c) => c.date >= todayIso()).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const title = view === "week" ? `${formatDate(days[0], "M/d")} – ${formatDate(days[6], "M/d")}` : formatDate(cursor, "yyyy 年 M 月", { locale: zhTW });
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="Calendar"
-        title="排程"
-        description="只服務創作與發布。可以改日期、複製、讓 AI 延伸，沒有審核人。"
+        kicker="排程"
+        title="什麼時候發"
+        description="只服務創作與發布：拖曳改日期、點日子快速新增、AI 依活動節奏自動排。"
         actions={
-          <div className="flex gap-2">
-            <Button data-testid="cal-view-month" variant={view === "month" ? "default" : "secondary"} size="sm" onClick={() => setView("month")}>月</Button>
-            <Button data-testid="cal-view-week" variant={view === "week" ? "default" : "secondary"} size="sm" onClick={() => setView("week")}>週</Button>
-            <Button data-testid="cal-view-agenda" variant={view === "agenda" ? "default" : "secondary"} size="sm" onClick={() => setView("agenda")}>手機清單</Button>
-          </div>
+          upcomingCampaign ? (
+            <Button variant="secondary" className="rounded-full" onClick={() => autoSchedule(upcomingCampaign)}>
+              <Wand2 className="size-4" />
+              AI 排「{upcomingCampaign.name}」
+            </Button>
+          ) : (
+            <Button variant="secondary" className="rounded-full" asChild>
+              <Link to="/campaigns" search={{ new: 1 }}>
+                <Tent className="size-4" /> 先建一個活動
+              </Link>
+            </Button>
+          )
         }
       />
 
-      <form
-        className="mt-6 flex flex-col gap-2 sm:flex-row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!title.trim()) return;
-          upsertSchedule({
-            title: title.trim(),
-            plannedAt: new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 19, 0, 0).getTime(),
-            contentKind: kind,
-            status: "idea",
-            sourceLabel: "快速新增",
-          });
-          setTitle("");
-        }}
-      >
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="快速新增：例如倒數限動" />
-        <select className="h-11 rounded-md border border-border bg-surface px-3 text-sm" value={kind} onChange={(e) => setKind(e.target.value as ContentKind)}>
-          {Object.entries(CONTENT_KIND_META).map(([id, meta]) => (
-            <option key={id} value={id}>{meta.label}</option>
+      {warnings.length ? (
+        <div className="mt-5 space-y-2">
+          {warnings.map((w) => (
+            <div key={w.afterContentId} className="flex flex-wrap items-center gap-2 rounded-2xl bg-glow-card px-4 py-3 text-sm">
+              <Sparkles className="size-4 text-accent" />
+              <span className="flex-1">{w.message}</span>
+              <Button
+                size="sm"
+                className="rounded-full"
+                onClick={() => {
+                  const created = createContent({
+                    type: w.suggestType,
+                    status: "idea",
+                    title: "節奏調整 · 生活 / 互動",
+                    copy: { hook: w.suggestHook, body: "", cta: "", hashtags: [], tone: "life" },
+                    scheduledAt: new Date(`${w.dateIso}T20:00:00`).getTime(),
+                    sources: [{ kind: "ai", label: "AI 節奏建議" }],
+                  });
+                  void navigate({ to: "/create", search: { contentId: created.id } });
+                }}
+              >
+                插一篇 {contentTypeShort(w.suggestType)}
+              </Button>
+            </div>
           ))}
-        </select>
-        <Button type="submit">加到這天</Button>
-      </form>
-
-      {due.length ? (
-        <section className="mt-6 rounded-3xl bg-surface p-4 shadow-[var(--shadow-border)]" data-testid="calendar-due">
-          <p className="text-xs tracking-[0.16em] text-muted">今天可以發布</p>
-          <ul className="mt-3 space-y-3">
-            {due.slice(0, 4).map((row) => (
-              <li key={row.id}>
-                <p className="text-sm font-medium">{row.title}</p>
-                <div className="mt-2">
-                  <ScheduleActions row={row} compact urls={urls} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
+        </div>
       ) : null}
 
-      {view !== "agenda" ? (
-        <div className="mt-6 overflow-x-hidden rounded-3xl bg-surface p-3 shadow-[var(--shadow-border)]">
-          <div className="mb-3 flex items-center justify-between px-2">
-            <Button variant="ghost" onClick={() => setCursor(addDays(cursor, view === "month" ? -30 : -7))}>上一{view === "month" ? "月" : "週"}</Button>
-            <p className="font-display text-xl">{format(cursor, "yyyy年M月", { locale: zhTW })}</p>
-            <Button variant="ghost" onClick={() => setCursor(addDays(cursor, view === "month" ? 30 : 7))}>下一{view === "month" ? "月" : "週"}</Button>
+      {/* Toolbar */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" aria-label="上一個" onClick={() => setCursor((d) => (view === "week" ? addWeeks(d, -1) : addMonths(d, -1)))}>
+            <ChevronLeft className="size-4" />
+          </Button>
+          <p className="min-w-[8rem] text-center font-display text-lg">{title}</p>
+          <Button variant="ghost" size="sm" aria-label="下一個" onClick={() => setCursor((d) => (view === "week" ? addWeeks(d, 1) : addMonths(d, 1)))}>
+            <ChevronRight className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setCursor(new Date());
+              setSelected(new Date());
+            }}
+          >
+            今天
+          </Button>
+        </div>
+        <div className="flex gap-1 rounded-full bg-surface-2 p-1">
+          {(["month", "week", "agenda"] as View[]).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              className={cn("rounded-full px-3 py-1.5 text-xs", view === v ? "bg-surface text-fg shadow-[var(--shadow-border)]" : "text-muted")}
+            >
+              {v === "month" ? "月" : v === "week" ? "週" : "Agenda"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {view === "agenda" ? (
+        <Agenda contents={scheduled} campaigns={campaigns} onMove={moveTo} onDuplicate={(id) => duplicateContent(id)} onQuickAdd={quickAdd} />
+      ) : (
+        <>
+          <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[11px] text-muted">
+            {["一", "二", "三", "四", "五", "六", "日"].map((d) => (
+              <span key={d}>{d}</span>
+            ))}
           </div>
-          {narrow ? (
-            <ul className="space-y-2" data-testid="cal-day-stack">
-              {stackDays.map((day) => {
-                const items = schedule.filter((row) => isSameDay(row.plannedAt, day));
-                return (
-                  <li
-                    key={day.toISOString()}
-                    className="rounded-2xl bg-bg px-3 py-3"
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const id = e.dataTransfer.getData("text/schedule-id");
-                      if (!id) return;
-                      const hour = new Date(schedule.find((row) => row.id === id)?.plannedAt ?? day).getHours();
-                      moveSchedule(id, new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0, 0).getTime());
-                    }}
-                  >
-                    <p className="text-xs text-muted">{format(day, "M/d（EE）", { locale: zhTW })}</p>
-                    {items.length ? (
-                      <ul className="mt-2 space-y-1">
-                        {items.map((row) => (
-                          <li key={row.id}>
-                            <button
-                              type="button"
-                              draggable
-                              data-testid="calendar-chip"
-                              data-chip={scheduleChipLabel(row)}
-                              onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", row.id)}
-                              onClick={() => setSelected(row)}
-                              className="w-full truncate rounded-lg bg-surface px-2 py-2 text-left text-sm"
-                            >
-                              {scheduleChipLabel(row)}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="mt-1 text-sm text-muted">這天還沒有排程</p>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <>
-              <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted">
-                {["一", "二", "三", "四", "五", "六", "日"].map((d) => (
-                  <div key={d} className="py-2">{d}</div>
-                ))}
-              </div>
-              <div className="grid grid-cols-7 gap-1">
-                {gridDays.map((day) => {
-                  const items = schedule.filter((row) => isSameDay(row.plannedAt, day));
-                  return (
-                    <div
-                      key={day.toISOString()}
-                      className={cn(
-                        "rounded-2xl bg-bg p-1 text-left",
-                        view === "week" ? "min-h-32" : "min-h-24",
-                        view === "month" && !isSameMonth(day, cursor) && "opacity-40",
-                      )}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        const id = e.dataTransfer.getData("text/schedule-id");
-                        if (!id) return;
-                        const hour = new Date(schedule.find((row) => row.id === id)?.plannedAt ?? day).getHours();
-                        moveSchedule(id, new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0, 0).getTime());
+          <div className={cn("mt-1 grid grid-cols-7 gap-1", view === "week" ? "auto-rows-[minmax(11rem,auto)]" : "auto-rows-[minmax(5.5rem,auto)] md:auto-rows-[minmax(7rem,auto)]")}>
+            {days.map((day) => {
+              const iso = todayIso(day);
+              const items = itemsOn(day);
+              const camps = campaignsOn(day);
+              const outside = view === "month" && !isSameMonth(day, cursor);
+              return (
+                <div
+                  key={iso}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelected(day)}
+                  onKeyDown={(e) => e.key === "Enter" && setSelected(day)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(iso);
+                  }}
+                  onDragLeave={() => setDragOver(null)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(null);
+                    const id = e.dataTransfer.getData(DRAG_MIME);
+                    if (id) moveTo(id, day);
+                  }}
+                  className={cn(
+                    "group flex flex-col rounded-xl bg-surface p-1.5 text-left shadow-[var(--shadow-border)] transition-shadow md:rounded-2xl md:p-2",
+                    outside && "opacity-45",
+                    isSameDay(day, selected) && "ring-2 ring-accent",
+                    dragOver === iso && "bg-glow-card",
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className={cn("text-xs tabular-nums", isToday(day) && "rounded-full bg-fg px-1.5 text-bg")}>{formatDate(day, "d")}</span>
+                    <button
+                      type="button"
+                      aria-label="快速新增"
+                      className="hidden size-5 items-center justify-center rounded-full text-muted hover:bg-surface-2 group-hover:flex"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        quickAdd(day);
                       }}
                     >
-                      <p className="px-1 text-xs">{format(day, "d")}</p>
-                      <ul className="mt-1 space-y-1">
-                        {items.map((row) => (
-                          <li key={row.id}>
-                            <button
-                              type="button"
-                              draggable
-                              data-testid="calendar-chip"
-                              data-chip={scheduleChipLabel(row)}
-                              onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", row.id)}
-                              onClick={() => setSelected(row)}
-                              className="w-full truncate rounded-lg bg-surface px-1 py-1 text-[10px]"
-                              title="點開可複製、標記發布或讓 AI 延伸"
-                            >
-                              {scheduleChipLabel(row)}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
+                      <Plus className="size-3" />
+                    </button>
+                  </div>
+                  <div className="mt-1 flex flex-1 flex-col gap-1">
+                    {camps.map((c) => (
+                      <Link
+                        key={c.id}
+                        to="/campaigns/$campaignId"
+                        params={{ campaignId: c.id }}
+                        className="truncate rounded-md bg-night px-1.5 py-0.5 text-[10px] text-night-fg md:text-[11px]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        ◆ {c.name}
+                      </Link>
+                    ))}
+                    {items.slice(0, view === "week" ? 8 : 3).map((c) => (
+                      <CalendarChip key={c.id} content={c} campaigns={campaigns} />
+                    ))}
+                    {items.length > 3 && view === "month" ? <span className="text-[10px] text-muted">+{items.length - 3}</span> : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Selected day */}
+          <DayPanel
+            day={selected}
+            items={itemsOn(selected)}
+            campaigns={campaigns}
+            onMove={moveTo}
+            onDuplicate={(id) => {
+              const dup = duplicateContent(id);
+              if (dup) toast.success("已複製一份（未排程）");
+            }}
+            onQuickAdd={() => quickAdd(selected)}
+          />
+        </>
+      )}
+    </main>
+  );
+}
+
+function CalendarChip({ content, campaigns }: { content: ContentItem; campaigns: Campaign[] }) {
+  const kind = rhythmOf(content, campaigns);
+  const tone = {
+    promo: "bg-accent/15 text-accent",
+    life: "bg-glow-amber/30 text-fg",
+    interactive: "bg-glow-lavender/40 text-fg",
+    knowledge: "bg-glow-teal/30 text-fg",
+    story: "bg-surface-2 text-fg",
+    countdown: "bg-danger/10 text-danger",
+    recap: "bg-success/10 text-success",
+  }[kind];
+  return (
+    <Link
+      to="/create"
+      search={{ contentId: content.id }}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData(DRAG_MIME, content.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      onClick={(e) => e.stopPropagation()}
+      className={cn("truncate rounded-md px-1.5 py-0.5 text-[10px] leading-tight md:text-[11px]", tone, content.status === "published" && "opacity-60 line-through")}
+      title={content.copy.hook || content.title}
+    >
+      {contentTypeShort(content.type)} · {content.copy.hook || content.title}
+    </Link>
+  );
+}
+
+function DayPanel({
+  day,
+  items,
+  campaigns,
+  onMove,
+  onDuplicate,
+  onQuickAdd,
+}: {
+  day: Date;
+  items: ContentItem[];
+  campaigns: Campaign[];
+  onMove: (id: string, day: Date) => void;
+  onDuplicate: (id: string) => void;
+  onQuickAdd: () => void;
+}) {
+  return (
+    <section className="mt-6 rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)]">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-lg">{formatDate(day, "M/d EEEE", { locale: zhTW })}</h2>
+        <Button size="sm" className="rounded-full" onClick={onQuickAdd}>
+          <Plus className="size-3.5" /> 這天新增
+        </Button>
+      </div>
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm text-muted">這天還沒有內容。點「這天新增」或把上面的內容拖過來。</p>
       ) : (
-        <ul className="mt-6 space-y-2">
-          {agenda.map((row) => (
-            <li key={row.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
-              <p className="text-xs text-muted">
-                {format(row.plannedAt, "M/d（EE）HH:mm", { locale: zhTW })} · {CONTENT_KIND_META[row.contentKind].label} · {CONTENT_STATUS_META[row.status].label}
-              </p>
-              <p className="mt-1 font-medium">{row.title}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Button size="sm" variant="ghost" data-testid="cal-shift-prev" onClick={() => shiftRow(row, -1)}>
-                  改到前一天
-                </Button>
-                <Button size="sm" variant="ghost" data-testid="cal-shift-next" onClick={() => shiftRow(row, 1)}>
-                  改到後一天
-                </Button>
-              </div>
-              <div className="mt-2">
-                <ScheduleActions row={row} compact urls={urls} />
-              </div>
-            </li>
+        <ul className="mt-3 space-y-2">
+          {items.map((c) => (
+            <AgendaRow key={c.id} content={c} campaigns={campaigns} onMove={onMove} onDuplicate={onDuplicate} />
           ))}
         </ul>
       )}
+    </section>
+  );
+}
 
-      <Sheet open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(null)}>
-        <SheetContent side="bottom" className="rounded-t-3xl pb-[calc(env(safe-area-inset-bottom)+1rem)]">
-          {selected ? (
-            <>
-              <SheetTitle>{selected.title}</SheetTitle>
-              <SheetDescription>
-                {format(selected.plannedAt, "M/d（EE）HH:mm", { locale: zhTW })} · {CONTENT_KIND_META[selected.contentKind].label} · {CONTENT_STATUS_META[selected.status].label}
-              </SheetDescription>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm" variant="ghost" data-testid="cal-shift-prev" onClick={() => shiftRow(selected, -1)}>
-                  改到前一天
-                </Button>
-                <Button size="sm" variant="ghost" data-testid="cal-shift-next" onClick={() => shiftRow(selected, 1)}>
-                  改到後一天
-                </Button>
-              </div>
-              <div className="mt-4">
-                <ScheduleActions row={selected} urls={urls} />
-              </div>
-            </>
-          ) : null}
-        </SheetContent>
-      </Sheet>
-    </main>
+function Agenda({
+  contents,
+  campaigns,
+  onMove,
+  onDuplicate,
+  onQuickAdd,
+}: {
+  contents: ContentItem[];
+  campaigns: Campaign[];
+  onMove: (id: string, day: Date) => void;
+  onDuplicate: (id: string) => void;
+  onQuickAdd: (day: Date) => void;
+}) {
+  const upcoming = [...contents]
+    .filter((c) => c.status !== "published")
+    .sort((a, b) => (a.scheduledAt ?? 0) - (b.scheduledAt ?? 0));
+  const byDay = new Map<string, ContentItem[]>();
+  for (const c of upcoming) {
+    const key = todayIso(new Date(c.scheduledAt!));
+    byDay.set(key, [...(byDay.get(key) ?? []), c]);
+  }
+  const campDays = new Map(campaigns.filter((c) => c.date >= todayIso()).map((c) => [c.date, c]));
+  const keys = [...new Set([...byDay.keys(), ...campDays.keys()])].sort();
+
+  if (!keys.length) {
+    return (
+      <div className="mt-6 rounded-2xl bg-surface px-4 py-10 text-center text-sm text-muted shadow-[var(--shadow-border)]">
+        <CalendarDays className="mx-auto size-6" />
+        <p className="mt-3">還沒有排程。到活動頁按「全部排入 Calendar」，或</p>
+        <Button size="sm" className="mt-3 rounded-full" onClick={() => onQuickAdd(new Date())}>
+          <Plus className="size-3.5" /> 今天新增一篇
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <ol className="mt-6 space-y-4">
+      {keys.map((iso) => {
+        const day = new Date(`${iso}T00:00:00`);
+        const camp = campDays.get(iso);
+        return (
+          <li key={iso}>
+            <div className="flex items-baseline gap-2">
+              <span className={cn("font-display text-lg tabular-nums", isToday(day) && "text-accent")}>{formatDate(day, "M/d")}</span>
+              <span className="text-xs text-muted">{formatDate(day, "EEEE", { locale: zhTW })}</span>
+              <button type="button" className="ml-auto text-xs text-accent" onClick={() => onQuickAdd(day)}>
+                + 新增
+              </button>
+            </div>
+            <ul className="mt-2 space-y-2">
+              {camp ? (
+                <li>
+                  <Link to="/campaigns/$campaignId" params={{ campaignId: camp.id }} className="flex items-center gap-2 rounded-2xl bg-night px-3 py-2 text-sm text-night-fg">
+                    <Tent className="size-4" /> 活動日 · {camp.name} {camp.time}
+                  </Link>
+                </li>
+              ) : null}
+              {(byDay.get(iso) ?? []).map((c) => (
+                <AgendaRow key={c.id} content={c} campaigns={campaigns} onMove={onMove} onDuplicate={onDuplicate} />
+              ))}
+            </ul>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function AgendaRow({
+  content,
+  campaigns,
+  onMove,
+  onDuplicate,
+}: {
+  content: ContentItem;
+  campaigns: Campaign[];
+  onMove: (id: string, day: Date) => void;
+  onDuplicate: (id: string) => void;
+}) {
+  const when = content.publishedAt ?? content.scheduledAt!;
+  const kind = rhythmOf(content, campaigns);
+  return (
+    <li className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
+      <div className="flex items-start gap-3">
+        <span className="w-12 shrink-0 pt-0.5 text-xs text-muted tabular-nums">{formatDate(when, "HH:mm")}</span>
+        <Link to="/create" search={{ contentId: content.id }} className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">{content.copy.hook || content.title}</span>
+          <span className="mt-0.5 block truncate text-xs text-muted">
+            {contentTypeShort(content.type)} · {RHYTHM_LABEL[kind]}
+            {content.title !== content.copy.hook ? ` · ${content.title}` : ""}
+          </span>
+        </Link>
+        <ContentStatusBadge status={content.status} />
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2 sm:pl-12">
+        <Input
+          type="date"
+          aria-label="改日期"
+          className="h-8 w-[9.5rem] rounded-full px-2 text-xs"
+          value={todayIso(new Date(when))}
+          onChange={(e) => e.target.value && onMove(content.id, new Date(`${e.target.value}T00:00:00`))}
+        />
+        <Button size="sm" variant="ghost" aria-label="複製" onClick={() => onDuplicate(content.id)}>
+          <Copy className="size-3.5" />
+        </Button>
+        <Button size="sm" variant="ghost" className="rounded-full" asChild>
+          <Link to="/create" search={{ contentId: content.id }}>
+            <Sparkles className="size-3.5" /> AI 延伸
+          </Link>
+        </Button>
+      </div>
+    </li>
   );
 }

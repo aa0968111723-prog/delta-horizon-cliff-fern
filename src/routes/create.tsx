@@ -1,21 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CreateHub, type CreateTab } from "@/components/create/create-hub";
+import { CreateStudio } from "@/components/create/create-studio";
+import { isCreateMode, type CreateMode } from "@/lib/zen/create-modes";
 
-function parseTab(value: unknown): CreateTab {
-  if (value === "copy" || value === "image" || value === "vision" || value === "convert" || value === "campaign") {
-    return value;
-  }
-  return "campaign";
-}
+export type CreateSearch = {
+  mode?: CreateMode;
+  campaignId?: string;
+  waveId?: string;
+  contentId?: string;
+  idea?: string;
+};
 
 export const Route = createFileRoute("/create")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    tab: parseTab(search.tab),
+  validateSearch: (raw: Record<string, unknown>): CreateSearch => ({
+    mode: isCreateMode(raw.mode) ? raw.mode : undefined,
+    campaignId: typeof raw.campaignId === "string" ? raw.campaignId : undefined,
+    waveId: typeof raw.waveId === "string" ? raw.waveId : undefined,
+    contentId: typeof raw.contentId === "string" ? raw.contentId : undefined,
+    idea: typeof raw.idea === "string" ? raw.idea : undefined,
   }),
   component: CreatePage,
 });
 
 function CreatePage() {
-  const { tab } = Route.useSearch();
-  return <CreateHub initialTab={tab} />;
+  const search = Route.useSearch();
+  return <CreateStudio search={search} />;
 }

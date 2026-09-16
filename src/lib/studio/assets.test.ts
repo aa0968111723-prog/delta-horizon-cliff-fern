@@ -1,45 +1,58 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assetsByIds, matchesAssetQuery, migrateAsset, uniqueAssets, upsertAssetList } from "./assets.ts";
+import { collectUsedAssetIds, migrateAsset } from "./assets.ts";
+import { emptyBrandMemory } from "./brand.ts";
+import type { BrandKit, Project } from "./types.ts";
 
-const tea = migrateAsset({
-  id: "asset_tea",
-  name: "夜間茶會",
-  category: "event",
-  tags: ["茶會", "晚上", "同學互動"],
-  source: "seed",
-  licenseNotes: "歷屆茶會氣氛參考。",
-  seedSrc: "/seed/tea.svg",
-});
-
-test("unspaced Drive questions still find the tea ceremony photo", () => {
-  assert.equal(matchesAssetQuery(tea, "找以前晚上的茶會照片"), true);
-  assert.equal(matchesAssetQuery(tea, "茶會"), true);
-  assert.equal(matchesAssetQuery(tea, "龜龜"), false);
-});
-
-test("addAsset upserts by id instead of duplicating", () => {
-  const once = upsertAssetList([tea], { ...tea, licenseNotes: "Google Drive / 2025 茶會" });
-  const twice = upsertAssetList(once, { ...tea, tags: [...tea.tags, "drive"] });
-  assert.equal(once.filter((item) => item.id === "asset_tea").length, 1);
-  assert.equal(twice.filter((item) => item.id === "asset_tea").length, 1);
-  assert.equal(twice[0]?.id, "asset_tea");
-  assert.ok(twice[0]?.tags.includes("drive"));
-  assert.ok(twice[0]?.tags.includes("茶會"));
-  assert.equal(uniqueAssets([tea, tea]).length, 1);
-});
-
-test("campaign related ids keep Drive hits in order without duplicates", () => {
-  const drive = migrateAsset({
-    id: "asset_drv_tea_2025",
-    name: "2025 夜間茶會照片",
+test("migrateAsset keeps Drive / Canva / IG sources and insight", () => {
+  const next = migrateAsset({
+    id: "a1",
+    name: "茶會現場",
     source: "drive",
-    tags: ["茶會"],
-    seedSrc: "/seed/tea.svg",
+    insight: {
+      summary: "夜間教室",
+      subjects: ["茶杯"],
+      palette: ["#2B2B36"],
+      mood: "靜",
+      studentFit: 80,
+      brandFit: 70,
+      stopPower: 60,
+      warnings: [],
+      suggestions: [],
+      analyzedAt: 1,
+      source: "mock",
+    },
+    externalRef: { provider: "drive", id: "file-1", label: "茶會/" },
   });
-  const related = assetsByIds([tea, drive, tea], ["asset_drv_tea_2025", "asset_tea", "asset_drv_tea_2025"]);
-  assert.deepEqual(
-    related.map((item) => item.id),
-    ["asset_drv_tea_2025", "asset_tea"],
-  );
+  assert.equal(next.source, "drive");
+  assert.equal(next.insight?.summary, "夜間教室");
+  assert.equal(next.externalRef?.provider, "drive");
+});
+
+test("collectUsedAssetIds includes covers, logos, and mascot", () => {
+  const brand = {
+    id: "b",
+    logoAssetId: "logo",
+    logos: [{ id: "l1", name: "mark", assetId: "mark", usage: "mark" }],
+    memory: { ...emptyBrandMemory(), mascotAssetId: "gugu" },
+  } as BrandKit;
+  const project = {
+    artboards: {
+      "feed-portrait": {
+        layers: [{ type: "image", assetId: "on-canvas" }],
+        background: { assetId: null },
+      },
+    },
+    slides: {},
+  } as unknown as Project;
+  const ids = collectUsedAssetIds([project], [brand], [
+    { coverAssetId: "cover-1" },
+    { coverAssetId: null, reels: [{ assetId: "reel-shot" }] },
+  ]);
+  assert.equal(ids.has("logo"), true);
+  assert.equal(ids.has("mark"), true);
+  assert.equal(ids.has("gugu"), true);
+  assert.equal(ids.has("on-canvas"), true);
+  assert.equal(ids.has("cover-1"), true);
+  assert.equal(ids.has("reel-shot"), true);
 });

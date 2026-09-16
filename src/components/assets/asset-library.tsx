@@ -48,11 +48,13 @@ import { useStudio } from "@/stores/studio-store";
 
 type FilterId = "all" | AssetCategory | "favorite";
 
-export function AssetLibrary() {
+export function AssetLibrary({ initialAssetId, initialCategory }: { initialAssetId?: string; initialCategory?: string } = {}) {
   const navigate = useNavigate();
   const assets = useStudio((s) => s.assets);
   const brands = useStudio((s) => s.brands);
   const projects = useStudio((s) => s.projects);
+  const campaigns = useStudio((s) => s.campaigns);
+  const contents = useStudio((s) => s.contents);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const addAsset = useStudio((s) => s.addAsset);
   const removeAsset = useStudio((s) => s.removeAsset);
@@ -61,22 +63,27 @@ export function AssetLibrary() {
   const createFromTemplate = useStudio((s) => s.createFromTemplate);
   const fileRef = useRef<HTMLInputElement>(null);
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<FilterId>("all");
+  const [filter, setFilter] = useState<FilterId>(
+    initialCategory && ASSET_CATEGORIES.some((c) => c.id === initialCategory) ? (initialCategory as FilterId) : "all",
+  );
   const [source, setSource] = useState<"all" | AssetSourceKind>("all");
   const [usageFilter, setUsageFilter] = useState<"all" | "in-use" | "used" | "unused">("all");
   const [uploadCategory, setUploadCategory] = useState<AssetCategory>("photo");
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(initialAssetId ?? null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [dropOver, setDropOver] = useState(false);
 
-  const usedIds = useMemo(() => collectUsedAssetIds(projects, brands), [projects, brands]);
+  const usedIds = useMemo(
+    () => collectUsedAssetIds(projects, brands, [...campaigns, ...contents]),
+    [projects, brands, campaigns, contents],
+  );
   const brand = brands[0];
 
   const filtered = useMemo(() => {
     return assets.filter((asset) => {
-      if (!matchesAssetQuery(asset, q)) return false;
+      if (!matchesAssetQuery(asset, q) && !(asset.insight?.summary ?? "").toLowerCase().includes(q.trim().toLowerCase())) return false;
       if (source !== "all" && asset.source !== source) return false;
       const usage = assetUsageStatus(asset, usedIds);
       if (usageFilter !== "all" && usage !== usageFilter) return false;
@@ -174,9 +181,9 @@ export function AssetLibrary() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="品牌資產"
+        kicker="AI Creative Library"
         title="素材庫"
-        description="依分類管理活動照片、人物、背景、插圖、圖示、Logo 與歷史素材。搜尋、收藏、刪除，或拖到編輯器畫布。"
+        description="Logo、龜龜、活動照片、社員、淡江校園、淡水、海報、AI 生成、IG。每個素材都能請 AI 分析、延伸生成、直接加入創作。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="assets" />
@@ -218,7 +225,7 @@ export function AssetLibrary() {
           if (e.dataTransfer.files.length) void onFiles(e.dataTransfer.files);
         }}
       >
-        <p>把圖片拖到這裡。JPG / PNG / WebP / GIF / SVG，單檔上限 8 MB。</p>
+        <p>把圖片拖到這裡：活動照、歷屆海報、IG 截圖、社員照、校園與淡水照。JPG / PNG / WebP / GIF / SVG，單檔 8 MB。</p>
         <div className="mx-auto mt-3 flex max-w-xs items-center gap-2">
           <span className="text-xs">上傳分類</span>
           <Select value={uploadCategory} onValueChange={(v) => setUploadCategory(v as AssetCategory)}>
@@ -250,13 +257,7 @@ export function AssetLibrary() {
       ) : null}
 
       <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center">
-        <Input
-          data-testid="asset-search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="找以前晚上的茶會照片"
-          className="max-w-sm"
-        />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜尋名稱、標籤、AI 看到的內容" className="max-w-sm" />
         <Select value={source} onValueChange={(v) => setSource(v as typeof source)}>
           <SelectTrigger className="md:w-40">
             <SelectValue placeholder="來源" />
@@ -375,6 +376,12 @@ export function AssetLibrary() {
                 onFavorite={() => toggleFavorite(asset.id)}
                 onDelete={() => setPendingDelete(asset.id)}
                 onPlace={lastProjectId ? () => place(asset) : undefined}
+                onCreate={() =>
+                  void navigate({
+                    to: "/create",
+                    search: { mode: "photo", idea: `用素材「${asset.name}」` },
+                  })
+                }
               />
             </li>
           ))}

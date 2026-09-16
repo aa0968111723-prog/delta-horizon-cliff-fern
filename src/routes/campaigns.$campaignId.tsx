@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CampaignDetailPage } from "@/components/campaigns/campaign-pages";
+import { CampaignDetail } from "@/components/campaigns/campaign-detail";
 
 export const Route = createFileRoute("/campaigns/$campaignId")({
-  component: CampaignDetail,
+  component: CampaignPage,
 });
 
-function CampaignDetail() {
+function CampaignPage() {
   const { campaignId } = Route.useParams();
-  return <CampaignDetailPage campaignId={campaignId} />;
+  return <CampaignDetail campaignId={campaignId} />;
 }

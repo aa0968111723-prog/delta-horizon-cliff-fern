@@ -598,8 +598,8 @@ export const TEMPLATE_META: {
   name: string;
   description: string;
 }[] = [
-  { id: "editorial", name: "編輯封面", description: "大標＋主視覺，適合品牌敘事" },
-  { id: "product", name: "商品主圖", description: "上圖下文，適合單品上市" },
-  { id: "offer", name: "優惠公告", description: "置中大標與 CTA，適合檔期" },
-  { id: "quote", name: "引言卡片", description: "語句為主，適合價值主張" },
+  { id: "editorial", name: "活動主視覺", description: "大標＋主畫面，適合茶會、迎新、講座封面" },
+  { id: "product", name: "現場照片", description: "上圖下文，適合活動紀實與社員日常" },
+  { id: "offer", name: "時間地點", description: "置中大標，適合倒數與報到資訊" },
+  { id: "quote", name: "一句 Hook", description: "語句為主，適合限動、金句、轉發" },
 ];

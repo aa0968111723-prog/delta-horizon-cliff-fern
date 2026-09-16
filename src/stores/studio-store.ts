@@ -2,8 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { buildCampaignBoards, copyForCarouselPage } from "@/lib/ai/apply";
 import { adaptArtboard, adaptPages, copyFromArtboard } from "@/lib/studio/adapt";
-import { migrateAsset, fitPlacedAsset, uniqueAssets, upsertAssetList } from "@/lib/studio/assets";
-import { hydrateSeedAsset } from "@/lib/studio/assets-idb";
+import { migrateAsset, fitPlacedAsset } from "@/lib/studio/assets";
 import { createEmptyBrand, migrateBrand } from "@/lib/studio/brand";
 import { MAX_PLAN_VERSIONS, migrateBrief, migratePlan, migratePlanVersions } from "@/lib/studio/brief";
 import {
@@ -31,7 +30,18 @@ import {
   normalizeArtboard,
   pagesOf,
 } from "@/lib/studio/layers";
-import { SEED_ASSETS, SEED_BRAND, SEED_BRAND_ID, SEED_PROJECT_ID, createSeedDraft, createSeedProject, LEGACY_SEED_BRAND_ID, LEGACY_SEED_DRAFT_ID, LEGACY_SEED_PROJECT_ID } from "@/lib/studio/seed";
+import {
+  SEED_ASSETS,
+  SEED_BRAND,
+  SEED_BRAND_ID,
+  SEED_CAMPAIGN,
+  SEED_CAMPAIGN_ID,
+  SEED_CONTENTS,
+  SEED_PROJECT_ID,
+  createSeedDraft,
+  createSeedProject,
+} from "@/lib/studio/seed";
+import { migrateCampaign, migrateContent } from "@/lib/studio/campaigns";
 import { templateById } from "@/lib/studio/templates";
 import type {
   AlignMode,
@@ -39,7 +49,10 @@ import type {
   AssetMeta,
   BrandKit,
   Brief,
+  Campaign,
   CampaignPlan,
+  ContentItem,
+  ContentStatus,
   CopyDeck,
   EditorTool,
   ExportVersion,
@@ -52,7 +65,7 @@ import type {
   TemplateId,
 } from "@/lib/studio/types";
 
-const STORAGE_KEY = "kouzhen-studio-v1";
+const STORAGE_KEY = "tku-zen-studio-v1";
 const AUTO_SNAP_MS = 20000;
 
 type EditorState = {
@@ -74,6 +87,8 @@ type StudioState = {
   brands: BrandKit[];
   assets: AssetMeta[];
   projects: Project[];
+  campaigns: Campaign[];
+  contents: ContentItem[];
   lastProjectId: string | null;
   editor: EditorState;
   history: Record<string, HistoryEntry[]>;
@@ -81,6 +96,15 @@ type StudioState = {
   historyPaused: boolean;
   setHydrated: (v: boolean) => void;
   setLastProjectId: (id: string | null) => void;
+  createCampaign: (input: Partial<Campaign> & { name: string }) => Campaign;
+  updateCampaign: (id: string, patch: Partial<Campaign> | ((c: Campaign) => Campaign)) => void;
+  deleteCampaign: (id: string) => void;
+  createContent: (input: Partial<ContentItem> & { type: ContentItem["type"] }) => ContentItem;
+  updateContent: (id: string, patch: Partial<ContentItem> | ((c: ContentItem) => ContentItem)) => void;
+  setContentStatus: (id: string, status: ContentStatus) => void;
+  scheduleContent: (id: string, at: number | null) => void;
+  deleteContent: (id: string) => void;
+  duplicateContent: (id: string) => ContentItem | null;
   createBrand: (name: string) => BrandKit;
   updateBrand: (id: string, patch: Partial<BrandKit>) => void;
   deleteBrand: (id: string) => void;
@@ -151,9 +175,6 @@ function historyKey(projectId: string, formatId: FormatId) {
 }
 
 function migrateBrandRecord(raw: BrandKit): BrandKit {
-  if (raw.id === LEGACY_SEED_BRAND_ID || raw.id === SEED_BRAND_ID || /日食/.test(raw.name)) {
-    return { ...SEED_BRAND };
-  }
   const next = migrateBrand(raw);
   if (next.id !== SEED_BRAND_ID) return next;
   return {
@@ -163,6 +184,7 @@ function migrateBrandRecord(raw: BrandKit): BrandKit {
     logos: next.logos.length ? next.logos : SEED_BRAND.logos,
     imageStyle: next.imageStyle.mood ? next.imageStyle : SEED_BRAND.imageStyle,
     rules: next.rules.notes ? next.rules : { ...SEED_BRAND.rules, ...next.rules },
+    memory: next.memory.mission ? next.memory : SEED_BRAND.memory,
   };
 }
 
@@ -199,21 +221,9 @@ function migrateProject(raw: Project): Project {
   const slideIndex = Math.min(Math.max(0, raw.slideIndex ?? 0), Math.max(0, pages.length - 1));
   if (pages[slideIndex]) artboards[formatId] = pages[slideIndex];
   const plan = migratePlan(raw.plan);
-  const brief = migrateBrief(raw.brief);
-  const contentKind =
-    raw.contentKind ??
-    (brief.deliverables.carousel ? "carousel" : brief.deliverables.reels ? "reels" : brief.deliverables.story ? "story" : "ig-post");
-  const contentStatus =
-    raw.contentStatus ??
-    (raw.status === "exported" ? "published" : raw.status === "ready" ? "done" : "creating");
   return {
     ...raw,
     status: raw.status ?? (plan ? "ready" : "draft"),
-    campaignId: raw.campaignId ?? null,
-    contentKind,
-    contentStatus,
-    scheduledAt: raw.scheduledAt ?? null,
-    publishedAt: raw.publishedAt ?? null,
     exports: raw.exports ?? [],
     artboards,
     slides,
@@ -284,6 +294,8 @@ export const useStudio = create<StudioState>()(
       brands: [SEED_BRAND],
       assets: SEED_ASSETS,
       projects: [createSeedProject(), createSeedDraft()],
+      campaigns: [SEED_CAMPAIGN],
+      contents: SEED_CONTENTS,
       lastProjectId: SEED_PROJECT_ID,
       editor: {
         selectedId: null,
@@ -298,6 +310,82 @@ export const useStudio = create<StudioState>()(
       historyPaused: false,
       setHydrated: (v) => set({ hydrated: v }),
       setLastProjectId: (id) => set({ lastProjectId: id }),
+      createCampaign: (input) => {
+        const campaign = migrateCampaign({ ...input, id: input.id ?? uid("camp") });
+        set((s) => ({ campaigns: [campaign, ...s.campaigns] }));
+        return campaign;
+      },
+      updateCampaign: (id, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) => {
+            if (c.id !== id) return c;
+            const next = typeof patch === "function" ? patch(c) : { ...c, ...patch };
+            return { ...next, updatedAt: Date.now() };
+          }),
+        })),
+      deleteCampaign: (id) =>
+        set((s) => ({
+          campaigns: s.campaigns.filter((c) => c.id !== id),
+          contents: s.contents.map((c) => (c.campaignId === id ? { ...c, campaignId: null } : c)),
+        })),
+      createContent: (input) => {
+        const content = migrateContent({ ...input, id: input.id ?? uid("content") });
+        set((s) => ({ contents: [content, ...s.contents] }));
+        return content;
+      },
+      updateContent: (id, patch) =>
+        set((s) => ({
+          contents: s.contents.map((c) => {
+            if (c.id !== id) return c;
+            const next = typeof patch === "function" ? patch(c) : { ...c, ...patch };
+            return { ...next, updatedAt: Date.now() };
+          }),
+        })),
+      setContentStatus: (id, status) =>
+        get().updateContent(id, (c) => ({
+          ...c,
+          status,
+          publishedAt: status === "published" ? (c.publishedAt ?? Date.now()) : c.publishedAt,
+        })),
+      scheduleContent: (id, at) =>
+        get().updateContent(id, (c) => ({
+          ...c,
+          scheduledAt: at,
+          status: at ? (c.status === "published" ? "published" : "scheduled") : c.status === "scheduled" ? "done" : c.status,
+        })),
+      deleteContent: (id) =>
+        set((s) => ({
+          contents: s.contents.filter((c) => c.id !== id),
+          campaigns: s.campaigns.map((camp) =>
+            camp.strategy
+              ? {
+                  ...camp,
+                  strategy: {
+                    ...camp.strategy,
+                    waves: camp.strategy.waves.map((w) => (w.contentId === id ? { ...w, contentId: null } : w)),
+                  },
+                }
+              : camp,
+          ),
+        })),
+      duplicateContent: (id) => {
+        const src = get().contents.find((c) => c.id === id);
+        if (!src) return null;
+        const copy: ContentItem = {
+          ...clone(src),
+          id: uid("content"),
+          title: `${src.title} 副本`,
+          status: "drafting",
+          scheduledAt: null,
+          publishedAt: null,
+          metrics: null,
+          projectId: null,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        set((s) => ({ contents: [copy, ...s.contents] }));
+        return copy;
+      },
       createBrand: (name) => {
         const brand = createEmptyBrand(name);
         set((s) => ({ brands: [...s.brands, brand] }));
@@ -321,13 +409,7 @@ export const useStudio = create<StudioState>()(
             ),
           };
         }),
-      addAsset: (meta) => {
-        const next = migrateAsset(meta);
-        set((s) => ({ assets: upsertAssetList(s.assets, next) }));
-        if (next.seedSrc && typeof indexedDB !== "undefined") {
-          void hydrateSeedAsset(next.id, next.seedSrc).catch(() => undefined);
-        }
-      },
+      addAsset: (meta) => set((s) => ({ assets: [migrateAsset(meta), ...s.assets] })),
       updateAsset: (id, patch) =>
         set((s) => ({
           assets: s.assets.map((a) =>
@@ -392,7 +474,6 @@ export const useStudio = create<StudioState>()(
         const tpl = templateId ?? "editorial";
         const copy = withBoilerplate(emptyCopy(brand.handle, brand.boilerplate), brand.boilerplate);
         copy.headline = name;
-        const nextBrief = migrateBrief(brief);
         const artboard = buildLayout(formatId, copy, brand, tpl);
         const project: Project = {
           id: uid("proj"),
@@ -403,18 +484,7 @@ export const useStudio = create<StudioState>()(
           templateId: tpl,
           activeFormatId: formatId,
           status: "draft",
-          campaignId: null,
-          contentKind: nextBrief.deliverables.carousel
-            ? "carousel"
-            : nextBrief.deliverables.reels
-              ? "reels"
-              : nextBrief.deliverables.story
-                ? "story"
-                : "ig-post",
-          contentStatus: "creating",
-          scheduledAt: null,
-          publishedAt: null,
-          brief: nextBrief,
+          brief: migrateBrief(brief),
           copy,
           plan: null,
           artboards: { [formatId]: artboard },
@@ -444,15 +514,6 @@ export const useStudio = create<StudioState>()(
           templateId,
           activeFormatId: starter.formatId,
           status: "draft",
-          campaignId: null,
-          contentKind: starter.brief.deliverables.carousel
-            ? "carousel"
-            : starter.brief.deliverables.story
-              ? "story"
-              : "ig-post",
-          contentStatus: "idea",
-          scheduledAt: null,
-          publishedAt: null,
           brief: migrateBrief(starter.brief),
           copy,
           plan: null,
@@ -592,8 +653,6 @@ export const useStudio = create<StudioState>()(
           createdAt: Date.now(),
           updatedAt: Date.now(),
           status: "draft",
-          contentStatus: "creating",
-          publishedAt: null,
           exports: [],
         };
         set((s) => ({ projects: [copy, ...s.projects], lastProjectId: copy.id }));
@@ -1103,11 +1162,13 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 7,
+      version: 1,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,
         projects: s.projects,
+        campaigns: s.campaigns,
+        contents: s.contents,
         lastProjectId: s.lastProjectId,
       }),
       merge: (persisted, current) => {
@@ -1115,46 +1176,63 @@ export const useStudio = create<StudioState>()(
           brands: BrandKit[];
           assets: AssetMeta[];
           projects: Project[];
+          campaigns: Campaign[];
+          contents: ContentItem[];
           lastProjectId: string | null;
         }>;
         const brands = (p.brands ?? current.brands).map(migrateBrandRecord);
-        const assets = uniqueAssets((p.assets ?? current.assets).map(migrateAssetRecord));
+        const assets = (p.assets ?? current.assets).map(migrateAssetRecord);
         const projects = (p.projects ?? current.projects).map(migrateProject);
+        const campaigns = (p.campaigns ?? current.campaigns).map((c) => {
+          const next = migrateCampaign(c);
+          if (next.id === SEED_CAMPAIGN_ID && !next.strategy && SEED_CAMPAIGN.strategy) {
+            return { ...next, strategy: SEED_CAMPAIGN.strategy };
+          }
+          return next;
+        });
+        const contents = (p.contents ?? current.contents).map((c) => migrateContent(c));
+        const have = new Set(contents.map((row) => row.id));
+        for (const seed of SEED_CONTENTS) {
+          if (!have.has(seed.id)) contents.push(migrateContent(seed));
+        }
+        for (const row of contents) {
+          if (row.id !== "content_floating_kv") continue;
+          const seed = SEED_CONTENTS.find((s) => s.id === row.id);
+          if (!seed) continue;
+          if (!row.carousel.length && seed.carousel.length) row.carousel = seed.carousel;
+          if (!row.threads && seed.threads) row.threads = seed.threads;
+          if (!row.line && seed.line) row.line = seed.line;
+        }
         return {
           ...current,
           ...p,
           brands,
           assets,
           projects,
+          campaigns,
+          contents,
           lastProjectId: p.lastProjectId ?? projects[0]?.id ?? current.lastProjectId,
         };
       },
-      migrate: (persisted, version) => {
+      migrate: (persisted) => {
         const state = persisted as {
           brands?: BrandKit[];
           assets?: AssetMeta[];
           projects?: Project[];
+          campaigns?: Campaign[];
+          contents?: ContentItem[];
           lastProjectId?: string | null;
         };
-        if (version < 7) {
-          const extras = (state.projects ?? [])
-            .filter((p) => p.id !== LEGACY_SEED_PROJECT_ID && p.id !== LEGACY_SEED_DRAFT_ID && p.id !== SEED_PROJECT_ID)
-            .map((p) => migrateProject({ ...p, brandId: SEED_BRAND_ID }));
-          return {
-            brands: [SEED_BRAND],
-            assets: SEED_ASSETS,
-            projects: [createSeedProject(), createSeedDraft(), ...extras],
-            lastProjectId: SEED_PROJECT_ID,
-          };
-        }
         const brands = (state.brands ?? []).map(migrateBrandRecord);
-        const assets = uniqueAssets((state.assets ?? []).map(migrateAssetRecord));
+        const assets = (state.assets ?? []).map(migrateAssetRecord);
         const projects = (state.projects ?? []).map(migrateProject);
         return {
-          brands: brands.length ? brands : [SEED_BRAND],
-          assets: assets.length ? assets : SEED_ASSETS,
-          projects: projects.length ? projects : [createSeedProject(), createSeedDraft()],
-          lastProjectId: state.lastProjectId ?? SEED_PROJECT_ID,
+          brands,
+          assets,
+          projects,
+          campaigns: (state.campaigns ?? []).map((c) => migrateCampaign(c)),
+          contents: (state.contents ?? []).map((c) => migrateContent(c)),
+          lastProjectId: state.lastProjectId ?? projects[0]?.id ?? null,
         };
       },
     },

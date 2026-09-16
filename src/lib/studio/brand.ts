@@ -2,11 +2,78 @@ import { emptyBoilerplate } from "./boilerplate.ts";
 import { uid } from "./ids.ts";
 import type {
   BrandKit,
+  BrandMemory,
   BrandRules,
   ImageStyle,
   LogoUsage,
   LogoVariant,
 } from "./types.ts";
+
+export function emptyBrandMemory(): BrandMemory {
+  return {
+    mission: "",
+    fixedIntro: "",
+    mascotName: "",
+    mascotDescription: "",
+    mascotAssetId: null,
+    signatureVisual: "",
+    likedStyles: [],
+    dislikedStyles: [],
+    audienceNotes: "",
+    toneExamples: [],
+    recurringEvents: [],
+    igDna: "",
+  };
+}
+
+export function migrateBrandMemory(raw: unknown): BrandMemory {
+  const base = emptyBrandMemory();
+  if (!raw || typeof raw !== "object") return base;
+  const row = raw as Partial<BrandMemory>;
+  const list = (v: unknown) =>
+    Array.isArray(v) ? v.map((item) => String(item).trim()).filter(Boolean) : [];
+  return {
+    mission: row.mission ?? "",
+    fixedIntro: row.fixedIntro ?? "",
+    mascotName: row.mascotName ?? "",
+    mascotDescription: row.mascotDescription ?? "",
+    mascotAssetId: row.mascotAssetId ?? null,
+    signatureVisual: row.signatureVisual ?? "",
+    likedStyles: list(row.likedStyles),
+    dislikedStyles: list(row.dislikedStyles),
+    audienceNotes: row.audienceNotes ?? "",
+    toneExamples: list(row.toneExamples),
+    recurringEvents: list(row.recurringEvents),
+    igDna: row.igDna ?? "",
+  };
+}
+
+/** 給 AI prompt 用的 Brand Memory 摘要（每次生成前先讀）。 */
+export function brandMemoryContext(brand: BrandKit): string {
+  const m = brand.memory ?? emptyBrandMemory();
+  const colors = brand.colors.map((c) => `${c.label} ${c.hex}`).join("、");
+  return [
+    `品牌：${brand.name} ${brand.handle}`,
+    m.mission && `社團理念：${m.mission}`,
+    m.fixedIntro && `固定介紹：${m.fixedIntro}`,
+    m.mascotName && `角色：${m.mascotName}（${m.mascotDescription}）`,
+    m.signatureVisual && `標誌視覺：${m.signatureVisual}`,
+    colors && `品牌色：${colors}`,
+    brand.voice && `語氣：${brand.voice}`,
+    brand.doSay && `可說：${brand.doSay}`,
+    brand.dontSay && `不說：${brand.dontSay}`,
+    brand.forbiddenWords.length && `禁用詞：${brand.forbiddenWords.join("、")}`,
+    m.likedStyles.length && `喜歡的風格：${m.likedStyles.join("、")}`,
+    m.dislikedStyles.length && `不喜歡的風格：${m.dislikedStyles.join("、")}`,
+    m.toneExamples.length && `語氣範例：\n- ${m.toneExamples.join("\n- ")}`,
+    brand.ctas.length && `常用 CTA：${brand.ctas.join("／")}`,
+    m.audienceNotes && `受眾筆記：${m.audienceNotes}`,
+    m.recurringEvents.length && `常見活動：${m.recurringEvents.join("、")}`,
+    m.igDna && `自己 IG 的 DNA：${m.igDna}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
 
 export function emptyImageStyle(): ImageStyle {
   return {
@@ -42,11 +109,11 @@ export function logoUsageLabel(usage: LogoUsage) {
 
 export function defaultBrandColors() {
   return [
-    { id: uid("c"), hex: "#2F5F56", role: "primary" as const, label: "苔綠" },
-    { id: uid("c"), hex: "#7EB8C9", role: "secondary" as const, label: "水光" },
-    { id: uid("c"), hex: "#F6F1E8", role: "background" as const, label: "宣紙" },
-    { id: uid("c"), hex: "#E0B07A", role: "accent" as const, label: "暖光" },
-    { id: uid("c"), hex: "#1C2422", role: "ink" as const, label: "墨" },
+    { id: uid("c"), hex: "#1A1814", role: "primary" as const, label: "主色" },
+    { id: uid("c"), hex: "#6F6A63", role: "secondary" as const, label: "輔助色" },
+    { id: uid("c"), hex: "#F3F0EA", role: "background" as const, label: "背景色" },
+    { id: uid("c"), hex: "#1E4A45", role: "accent" as const, label: "強調" },
+    { id: uid("c"), hex: "#1A1814", role: "ink" as const, label: "文字" },
   ];
 }
 
@@ -70,6 +137,7 @@ export function createEmptyBrand(name: string): BrandKit {
     imageStyle: emptyImageStyle(),
     rules: emptyBrandRules(),
     boilerplate: emptyBoilerplate(),
+    memory: emptyBrandMemory(),
     updatedAt: Date.now(),
   };
 }
@@ -130,6 +198,7 @@ export function migrateBrand(raw: Partial<BrandKit> & { id: string; name: string
     imageStyle: { ...emptyImageStyle(), ...(raw.imageStyle ?? {}) },
     rules: { ...emptyBrandRules(), ...(raw.rules ?? {}) },
     boilerplate: raw.boilerplate ?? emptyBoilerplate(),
+    memory: migrateBrandMemory(raw.memory),
     updatedAt: raw.updatedAt ?? Date.now(),
   };
 }

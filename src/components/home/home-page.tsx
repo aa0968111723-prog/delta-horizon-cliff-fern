@@ -1,392 +1,450 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { format as formatDate } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { Images, Plus, Search, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { NewProjectDialog } from "@/components/dashboard/new-project-dialog";
-import { ProjectCard } from "@/components/shared/project-card";
+import {
+  ArrowRight,
+  CalendarDays,
+  Camera,
+  Clapperboard,
+  Cloud,
+  GalleryHorizontalEnd,
+  Image as ImageIcon,
+  Instagram,
+  Lightbulb,
+  MessageSquareText,
+  Palette,
+  Sparkles,
+  Tent,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { useMemo } from "react";
+import { ContentCard } from "@/components/content/content-card";
 import { SectionHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { IgThumb } from "@/components/create/ig-thumb";
-import { lastPackPreviewSrc, packAssetIds } from "@/lib/club/last-pack";
-import { lessonsFromIg, nextCreateIdeaFromLessons } from "@/lib/club/insights";
-import { FEATURED_EVENT, featuredCampaignIdea, featuredHookFor, pickFeaturedCampaign } from "@/lib/club/memory";
-import { publishScheduleRow } from "@/lib/club/run-schedule-publish";
-import { styleBriefFromPublish } from "@/lib/club/publish";
-import { publishableScheduleRows } from "@/lib/club/schedule";
-import { handoffFromQuickStart, QUICK_STARTS } from "@/lib/club/quick-starts";
-import { formatDaysUntil, studentContext } from "@/lib/club/season";
-import { writeHandoff } from "@/lib/create/handoff";
-import { beginOAuth } from "@/lib/connections/begin";
-import { CONTENT_KIND_META, contentStatusOf } from "@/lib/studio/status";
-import { useCreative } from "@/stores/creative-store";
+import {
+  campaignDaysLeft,
+  nextCampaign,
+  nextWave,
+  recentGenerated,
+  scheduledContents,
+  topPerforming,
+  upcomingCampaigns,
+} from "@/lib/studio/campaigns";
+import type { Campaign, ContentType } from "@/lib/studio/types";
+import { formatDateLabel, studentContext } from "@/lib/zen/context";
+import type { CreateMode } from "@/lib/zen/create-modes";
+import { inspirationForToday } from "@/lib/zen/inspiration";
+import { ASSET_CATEGORY_LABELS, campaignTypeLabel, contentTypeLabel, WAVE_ROLES } from "@/lib/zen/labels";
+import { pickHooks } from "@/lib/zen/voice";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
-function uniqueById<T extends { id: string }>(items: T[]) {
-  return items.filter((item, index, all) => all.findIndex((row) => row.id === item.id) === index);
+const QUICK: { mode: CreateMode | "campaign"; label: string; icon: LucideIcon; tone?: "night" }[] = [
+  { mode: "post", label: "生成 IG 貼文", icon: MessageSquareText },
+  { mode: "image", label: "生成圖片", icon: ImageIcon },
+  { mode: "story", label: "生成 Story", icon: Sparkles },
+  { mode: "carousel", label: "生成 Carousel", icon: GalleryHorizontalEnd },
+  { mode: "reels", label: "生成 Reels", icon: Clapperboard },
+  { mode: "campaign", label: "建立活動", icon: Tent, tone: "night" },
+  { mode: "idea", label: "從一句想法開始", icon: Lightbulb },
+  { mode: "photo", label: "從一張圖片開始", icon: Camera },
+  { mode: "drive", label: "從 Google Drive 素材開始", icon: Cloud },
+  { mode: "canva", label: "從 Canva 設計開始", icon: Palette },
+  { mode: "ig", label: "從以前 IG 貼文開始", icon: Instagram },
+];
+
+function suggestedTypeFor(campaign: Campaign | null): ContentType {
+  if (!campaign) return "ig-post";
+  const wave = nextWave(campaign);
+  if (wave) return wave.contentType;
+  const days = campaignDaysLeft(campaign);
+  if (days == null) return "ig-post";
+  if (days <= 1) return "story";
+  if (days <= 3) return "reels";
+  if (days <= 7) return "carousel";
+  return "ig-post";
 }
 
 export function HomePage() {
   const navigate = useNavigate();
-  const projects = useStudio((s) => s.projects);
-  const brands = useStudio((s) => s.brands);
+  const hydrated = useStudio((s) => s.hydrated);
+  const campaigns = useStudio((s) => s.campaigns);
+  const contents = useStudio((s) => s.contents);
   const assets = useStudio((s) => s.assets);
-  const campaigns = useCreative((s) => s.campaigns);
-  const schedule = useCreative((s) => s.schedule);
-  const igPosts = useCreative((s) => s.igPosts);
-  const lastPack = useCreative((s) => s.lastPack);
-  const setLastPack = useCreative((s) => s.setLastPack);
-  const ingestIg = useCreative((s) => s.ingestIg);
-  const rememberStyle = useCreative((s) => s.rememberStyle);
-  const setScheduleStatus = useCreative((s) => s.setScheduleStatus);
-  const setFocusIgId = useCreative((s) => s.setFocusIgId);
-  const updateProject = useStudio((s) => s.updateProject);
+  const brand = useStudio((s) => s.brands[0]);
   const setCreateOpen = useUi((s) => s.setCreateOpen);
-  const setSearchOpen = useUi((s) => s.setSearchOpen);
-  const setLastSearch = useCreative((s) => s.setLastSearch);
-  const [open, setOpen] = useState(false);
-  const [publishingId, setPublishingId] = useState<string | null>(null);
-  const ctx = studentContext();
-  const featured = pickFeaturedCampaign(campaigns, { lastCampaignId: lastPack?.campaignId });
-  const featuredHook = featuredHookFor(featured, lastPack);
 
-  const urls = useAssetUrls([...assets.map((a) => a.id), ...packAssetIds(lastPack)]);
-  const recent = useMemo(() => uniqueById([...projects].sort((a, b) => b.updatedAt - a.updatedAt)).slice(0, 6), [projects]);
-  const due = useMemo(() => uniqueById(publishableScheduleRows(schedule)), [schedule]);
-  const upcoming = uniqueById([...schedule].sort((a, b) => a.plannedAt - b.plannedAt).filter((row) => row.status !== "published")).slice(0, 4);
-  const strong = [...igPosts].sort((a, b) => (b.metrics?.saves ?? 0) - (a.metrics?.saves ?? 0))[0];
-  const lessons = lessonsFromIg(igPosts);
+  const ctx = useMemo(() => studentContext(), []);
+  const campaign = useMemo(() => nextCampaign(campaigns), [campaigns]);
+  const daysLeft = campaign ? campaignDaysLeft(campaign) : null;
+  const wave = campaign ? nextWave(campaign) : null;
+  const suggestedType = suggestedTypeFor(campaign);
+  const hooks = useMemo(
+    () =>
+      pickHooks({
+        painPoints: campaign?.painPoints.length ? campaign.painPoints : ["belonging", "stress"],
+        type: campaign?.type ?? "other",
+        seed: new Date().getDate(),
+      }),
+    [campaign],
+  );
+  const suggestedHook = wave?.hook || hooks[0];
+  const inspirations = useMemo(() => inspirationForToday().slice(0, 2), []);
 
-  async function publishDue(row: (typeof schedule)[number]) {
-    setPublishingId(row.id);
-    try {
-      const result = await publishScheduleRow({ row, lastPack, assetUrls: urls });
-      setLastPack(result.pack);
-      if (result.videoPending) {
-        toast.message(result.message);
-        return;
-      }
-      if (result.needsConnect) {
-        const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
-        if (started.ok) {
-          toast.message("正在連接 Instagram，回來後會接著發布。");
-          return;
-        }
-        ingestIg([result.post]);
-        rememberStyle(styleBriefFromPublish(result.pack));
-        toast.message(started.error);
-        void navigate({ to: "/connections" });
-        return;
-      }
-      ingestIg([result.post]);
-      rememberStyle(styleBriefFromPublish(result.pack));
-      setFocusIgId(result.post.id);
-      setScheduleStatus(row.id, "published");
-      if (row.projectId) {
-        updateProject(row.projectId, { contentStatus: "published", publishedAt: Date.now() });
-      }
-      toast.success(result.message);
-      void navigate({ to: "/instagram" });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "發布失敗");
-    } finally {
-      setPublishingId(null);
+  const upcoming = useMemo(() => upcomingCampaigns(campaigns).slice(0, 4), [campaigns]);
+  const scheduled = useMemo(() => scheduledContents(contents).slice(0, 4), [contents]);
+  const generated = useMemo(() => recentGenerated(contents, 4), [contents]);
+  const top = useMemo(() => topPerforming(contents, 3), [contents]);
+  const recentAssets = useMemo(() => [...assets].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8), [assets]);
+
+  const assetIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const c of contents) if (c.coverAssetId) ids.add(c.coverAssetId);
+    for (const c of campaigns) if (c.coverAssetId) ids.add(c.coverAssetId);
+    for (const a of recentAssets) ids.add(a.id);
+    return [...ids];
+  }, [contents, campaigns, recentAssets]);
+  const urls = useAssetUrls(assetIds);
+
+  function startCreate(mode: CreateMode | "campaign") {
+    if (mode === "campaign") {
+      void navigate({ to: "/campaigns", search: { new: 1 } });
+      return;
     }
+    void navigate({ to: "/create", search: { mode } });
   }
 
-  function startFeatured() {
-    if (!featured) return;
-    writeHandoff({
-      idea: featuredCampaignIdea({
-        ...FEATURED_EVENT,
-        name: featured.name,
-        date: featured.date,
-        time: featured.time,
-        location: featured.location,
-        oneLiner: featuredHook,
-      }),
-      tab: "campaign",
-      autoRun: true,
-      sourceLabel: `活動 / ${featured.name}`,
+  function createForCampaign() {
+    if (!campaign) {
+      setCreateOpen(true);
+      return;
+    }
+    void navigate({
+      to: "/create",
+      search: {
+        mode: suggestedType === "story" ? "story" : suggestedType === "carousel" ? "carousel" : suggestedType === "reels" ? "reels" : "post",
+        campaignId: campaign.id,
+        waveId: wave?.id,
+      },
     });
-    void navigate({ to: "/create", search: { tab: "campaign" } });
   }
 
   return (
-    <main className="hero-wash min-h-full">
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
-        <div className="flex items-start justify-between gap-3">
+    <main className="bg-glow min-h-full">
+      <div className="mx-auto w-full max-w-6xl px-4 pt-6 pb-10 md:px-8 md:pt-10">
+        <header className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs tracking-[0.2em] text-muted">淡江大學禪學社 · AI CREATIVE STUDIO</p>
-            <h1 className="mt-2 font-display text-3xl tracking-tight md:text-5xl">今天可以創作什麼？</h1>
-            <p className="mt-2 max-w-xl text-sm text-muted">
-              {ctx.phaseLabel}。{ctx.calendarNote}
+            <p className="text-xs tracking-[0.18em] text-muted uppercase">{brand?.name ?? "淡江大學禪學社"}</p>
+            <h1 className="mt-1 font-display text-3xl tracking-tight md:text-4xl">今天可以創作什麼？</h1>
+            <p className="mt-2 text-sm text-muted">
+              {ctx.monthDay} · {ctx.phaseLabel}。{ctx.studentMood.split("。")[0]}。
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" size="icon" aria-label="搜尋" onClick={() => setSearchOpen(true)}>
-              <Search className="size-4" />
-            </Button>
-            <Button className="hidden sm:inline-flex" onClick={() => setCreateOpen(true)}>
-              <Plus className="size-4" />
-              AI 創作
-            </Button>
-          </div>
-        </div>
+          <Button className="hidden rounded-full sm:inline-flex" onClick={() => setCreateOpen(true)}>
+            <Sparkles className="size-4" />
+            AI 創作
+          </Button>
+        </header>
 
-        {featured ? (
-          <section className="glass-card mt-8 rounded-3xl p-5 md:p-8" data-testid="home-featured">
-            <p className="text-xs tracking-[0.16em] text-muted">今天推薦創作</p>
-            <div className="mt-3 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-sm text-muted">
-                  <span data-testid="home-featured-name">
-                    {featured.date.slice(5).replace("-", "/")} {featured.name}
+        {/* 今天推薦創作 */}
+        <section className="mt-6 overflow-hidden rounded-[28px] bg-night text-night-fg shadow-[var(--shadow-float)]">
+          <div className="bg-night px-5 py-6 md:px-8 md:py-8">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-night-fg/70">
+              <span className="rounded-full bg-night-fg/10 px-2.5 py-1">今天推薦創作</span>
+              {campaign ? (
+                <>
+                  <span className="rounded-full bg-night-fg/10 px-2.5 py-1">
+                    {formatDateLabel(campaign.date)} {campaign.name}
                   </span>
-                  <span className="ml-2 text-accent">{formatDaysUntil(featured.date)}</span>
-                </p>
-                <h2 className="mt-2 max-w-xl font-display text-2xl md:text-4xl" data-testid="home-featured-hook">
-                  「{featuredHook}」
-                </h2>
-                <p className="mt-3 text-sm text-muted">AI 建議做成 IG Carousel · {featured.location}</p>
-              </div>
-              <Button size="lg" className="h-12 rounded-full px-6" data-testid="home-featured-create" onClick={startFeatured}>
+                  {daysLeft != null ? (
+                    <span className="rounded-full bg-glow-amber/20 px-2.5 py-1 text-glow-amber">
+                      {daysLeft === 0 ? "就是今天" : daysLeft > 0 ? `還有 ${daysLeft} 天` : `${-daysLeft} 天前`}
+                    </span>
+                  ) : null}
+                </>
+              ) : (
+                <span className="rounded-full bg-night-fg/10 px-2.5 py-1">目前沒有排定的活動</span>
+              )}
+            </div>
+            <p className="mt-5 text-xs tracking-[0.18em] text-night-fg/60 uppercase">AI 建議</p>
+            <p className="mt-2 font-display text-2xl leading-snug md:text-[2rem]">「{suggestedHook}」</p>
+            <p className="mt-3 text-sm text-night-fg/80">
+              做一篇 <span className="font-medium text-night-fg">{contentTypeLabel(suggestedType)}</span>
+              {wave ? `，這一波是「${WAVE_ROLES[wave.role].label}」：${wave.angle}` : campaign ? `，先讓學生覺得「這在講我」，再帶到 ${campaign.name}。` : "，不宣傳活動，只陪伴期中前的同學。"}
+            </p>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Button size="lg" className="rounded-full bg-night-fg text-night hover:bg-night-fg/90" onClick={createForCampaign}>
                 <Sparkles className="size-4" />
                 AI 幫我創作
               </Button>
+              {campaign ? (
+                <Button asChild variant="ghost" className="rounded-full text-night-fg hover:bg-night-fg/10">
+                  <Link to="/campaigns/$campaignId" params={{ campaignId: campaign.id }}>
+                    看活動宣傳策略
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild variant="ghost" className="rounded-full text-night-fg hover:bg-night-fg/10">
+                  <Link to="/campaigns" search={{ new: 1 }}>
+                    建立活動
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+              )}
             </div>
-            <p className="mt-4 text-xs text-subtle">會一次產出 IG 文案、圖片 Prompt、主視覺方向、Carousel、Story、Threads、Reels Script。</p>
-          </section>
-        ) : null}
-
-        <section className="mt-8">
-          <SectionHeader title="快速開始" hint="從一個動作進入創作" />
-          <div className="flex flex-wrap gap-2">
-            {QUICK_STARTS.map((item) => (
-              <Button
-                key={item.id}
-                variant="secondary"
-                className="shrink-0 rounded-full"
-                onClick={() => {
-                  if (item.openSearch) {
-                    setLastSearch(item.id === "canva" ? "找以前茶會 Canva" : "找以前晚上的茶會照片");
-                    setSearchOpen(true);
-                    return;
-                  }
-                  if (item.to === "/create") {
-                    writeHandoff(handoffFromQuickStart(item));
-                    void navigate({ to: "/create", search: { tab: item.tab ?? "campaign" } });
-                    return;
-                  }
-                  void navigate({ to: item.to });
-                }}
-              >
-                {item.label}
-              </Button>
-            ))}
+            <p className="mt-4 text-xs text-night-fg/50">
+              點下去會一次產生：IG 文案 · 圖片 Prompt · 主視覺方向 · Carousel 結構 · Story · Threads · Reels Script
+            </p>
           </div>
         </section>
 
-        <section className="mt-10 grid gap-4 md:grid-cols-2">
-          <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+        {/* 快速開始 */}
+        <section className="mt-8">
+          <SectionHeader title="快速開始" hint="每個入口都先讀 Brand Memory 與淡江學生情境" />
+          <ul className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 no-scrollbar sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 lg:grid-cols-4">
+            {QUICK.map((q) => (
+              <li key={q.mode} className="min-w-[10.5rem] sm:min-w-0">
+                <button
+                  type="button"
+                  onClick={() => startCreate(q.mode)}
+                  className={
+                    q.tone === "night"
+                      ? "flex h-full w-full items-center gap-3 rounded-2xl bg-night px-4 py-3.5 text-left text-night-fg shadow-[var(--shadow-glow)]"
+                      : "flex h-full w-full items-center gap-3 rounded-2xl bg-surface px-4 py-3.5 text-left shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-border-hover)]"
+                  }
+                >
+                  <span
+                    className={
+                      q.tone === "night"
+                        ? "flex size-9 shrink-0 items-center justify-center rounded-xl bg-night-fg/15"
+                        : "flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent"
+                    }
+                  >
+                    <q.icon className="size-4" />
+                  </span>
+                  <span className="text-sm font-medium leading-tight">{q.label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <div className="mt-10 grid gap-8 lg:grid-cols-2">
+          {/* 今日靈感 */}
+          <section>
             <SectionHeader
               title="今日靈感"
-              hint={ctx.weatherNote}
+              hint={`${ctx.phaseLabel} · 淡江學生現在大概在想什麼`}
               action={
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/inspiration">研究趨勢</Link>
-                </Button>
-              }
-            />
-            <ul className="space-y-2 text-sm">
-              {ctx.whoIsListening.map((who, index) => (
-                <li key={`${who}-${index}`} className="rounded-2xl bg-bg px-3 py-2">
-                  {who}
-                </li>
-              ))}
-            </ul>
-          </article>
-          <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
-            <SectionHeader
-              title="近期活動"
-              hint="沒有負責人，只有你"
-              action={
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/campaigns">全部</Link>
+                  <Link to="/instagram" search={{ tab: "inspire" }}>
+                    更多靈感
+                  </Link>
                 </Button>
               }
             />
             <ul className="space-y-2">
-              {uniqueById(campaigns).slice(0, 3).map((campaign, index) => (
-                <li key={`${campaign.id}-${index}`}>
-                  <Link to="/campaigns/$campaignId" params={{ campaignId: campaign.id }} className="block rounded-2xl bg-bg px-3 py-3">
-                    <p className="font-medium">{campaign.name}</p>
-                    <p className="text-xs text-muted">
-                      {campaign.date} · {campaign.time} · {campaign.location}
-                    </p>
-                  </Link>
+              {ctx.suggestedTopics.map((topic, i) => (
+                <li key={topic}>
+                  <button
+                    type="button"
+                    onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: topic } })}
+                    className="flex w-full items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3 text-left shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-border-hover)]"
+                  >
+                    <span>
+                      <span className="block text-sm font-medium">{topic}</span>
+                      <span className="mt-0.5 block text-xs text-muted">{hooks[(i + 1) % hooks.length]}</span>
+                    </span>
+                    <ArrowRight className="size-4 shrink-0 text-subtle" />
+                  </button>
+                </li>
+              ))}
+              {inspirations.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: p.zenUse } })}
+                    className="flex w-full items-center justify-between gap-3 rounded-2xl bg-glow-card px-4 py-3 text-left shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-border-hover)]"
+                  >
+                    <span>
+                      <span className="block text-sm font-medium">{p.zenUse}</span>
+                      <span className="mt-0.5 block text-xs text-muted">抽象手法 · {p.abstract.form}</span>
+                    </span>
+                    <ArrowRight className="size-4 shrink-0 text-subtle" />
+                  </button>
                 </li>
               ))}
             </ul>
-          </article>
-        </section>
+          </section>
 
-        {due.length ? (
-          <section className="mt-10" data-testid="home-due">
-            <SectionHeader title="今天可以發布" hint="到時間就發，沒有審核人" />
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {due.slice(0, 4).map((row, index) => (
-                <li
-                  key={`${row.id}-${index}`}
-                  className="flex items-center justify-between gap-3 rounded-3xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]"
-                >
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted">
-                      {formatDate(row.plannedAt, "M/d HH:mm", { locale: zhTW })} · {CONTENT_KIND_META[row.contentKind].label}
-                    </p>
-                    <p className="mt-1 truncate text-sm font-medium">{row.title}</p>
-                  </div>
-                  <Button
-                    className="shrink-0 rounded-full"
-                    data-testid="home-due-publish"
-                    disabled={publishingId === row.id}
-                    onClick={() => void publishDue(row)}
-                  >
-                    現在發布
-                  </Button>
+          {/* 近期活動 */}
+          <section>
+            <SectionHeader
+              title="近期活動"
+              hint="每個活動都可以一鍵生成完整宣傳"
+              action={
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/campaigns">全部活動</Link>
+                </Button>
+              }
+            />
+            {upcoming.length === 0 ? (
+              <EmptyRow icon={Tent} text="還沒有活動。建立第一個，AI 會幫你排好整段宣傳。" action={<Link to="/campaigns" search={{ new: 1 }}>建立活動</Link>} />
+            ) : (
+              <ul className="space-y-2">
+                {upcoming.map((c) => {
+                  const d = campaignDaysLeft(c);
+                  const cover = c.coverAssetId ? urls[c.coverAssetId] : undefined;
+                  return (
+                    <li key={c.id}>
+                      <Link
+                        to="/campaigns/$campaignId"
+                        params={{ campaignId: c.id }}
+                        className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-border-hover)]"
+                      >
+                        <div className="size-14 shrink-0 overflow-hidden rounded-xl bg-glow-card">
+                          {cover ? <img src={cover} alt="" className="size-full object-cover" /> : null}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{c.name}</p>
+                          <p className="mt-0.5 text-xs text-muted">
+                            {formatDateLabel(c.date)} {c.time} · {campaignTypeLabel(c.type)}
+                            {c.strategy ? ` · ${c.strategy.waves.filter((w) => w.contentId).length}/${c.strategy.waves.length} 波已建` : " · 尚未生成策略"}
+                          </p>
+                        </div>
+                        {d != null ? (
+                          <span className="shrink-0 rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent tabular-nums">
+                            {d === 0 ? "今天" : `${d} 天`}
+                          </span>
+                        ) : null}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          {/* 已排程內容 */}
+          <section>
+            <SectionHeader
+              title="已排程內容"
+              hint="接下來要發的"
+              action={
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/calendar">開啟排程</Link>
+                </Button>
+              }
+            />
+            {scheduled.length === 0 ? (
+              <EmptyRow icon={CalendarDays} text="還沒有排程。完成一篇內容後，在排程頁拖到日期就好。" />
+            ) : (
+              <ul className="space-y-2">
+                {scheduled.map((c) => (
+                  <li key={c.id}>
+                    <ContentCard content={c} urls={urls} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* 最近 AI 生成 */}
+          <section>
+            <SectionHeader title="最近 AI 生成" hint="可以直接接著改" />
+            {generated.length === 0 ? (
+              <EmptyRow icon={Sparkles} text="還沒有生成過內容。從上面任何一個入口開始。" />
+            ) : (
+              <ul className="space-y-2">
+                {generated.map((c) => (
+                  <li key={c.id}>
+                    <ContentCard content={c} urls={urls} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        {/* 表現不錯 */}
+        {top.length ? (
+          <section className="mt-10">
+            <SectionHeader title="過去表現不錯的內容" hint="AI 下次生成會參考這些" />
+            <ul className="grid gap-2 sm:grid-cols-3">
+              {top.map((c) => (
+                <li key={c.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+                  <p className="line-clamp-2 text-sm font-medium">{c.copy.hook}</p>
+                  <p className="mt-1 text-xs text-muted">
+                    {contentTypeLabel(c.type)} · {c.publishedAt ? formatDate(c.publishedAt, "M/d", { locale: zhTW }) : ""}
+                  </p>
+                  {c.metrics ? (
+                    <dl className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+                      <Metric label="觸及" value={c.metrics.reach} />
+                      <Metric label="收藏" value={c.metrics.saves} />
+                      <Metric label="分享" value={c.metrics.shares} />
+                    </dl>
+                  ) : null}
                 </li>
               ))}
             </ul>
           </section>
         ) : null}
 
+        {/* 最近素材 */}
         <section className="mt-10">
           <SectionHeader
-            title="已排程內容"
-            hint="服務創作與發布"
+            title="最近素材"
+            hint="龜龜、三色光、校園、淡水、歷屆活動"
             action={
               <Button asChild variant="ghost" size="sm">
-                <Link to="/calendar">月曆</Link>
+                <Link to="/assets">素材庫</Link>
               </Button>
             }
           />
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {upcoming.map((row, index) => (
-              <li key={`${row.id}-${index}`} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
-                <p className="text-xs text-muted">
-                  {formatDate(row.plannedAt, "M/d HH:mm", { locale: zhTW })} · {CONTENT_KIND_META[row.contentKind].label}
-                </p>
-                <p className="mt-1 text-sm font-medium">{row.title}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="mt-10">
-          <SectionHeader title="最近 AI 生成" hint="依最後編輯" />
-          {lastPack ? (
-            <Link to="/instagram" className="mb-3 block overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-border)]" data-testid="home-last-pack">
-              <div className="grid gap-0 sm:grid-cols-[10rem_minmax(0,1fr)]">
-                <IgThumb src={lastPackPreviewSrc(lastPack, urls)} caption={lastPack.hook} className="aspect-[4/5] sm:aspect-square" />
-                <div className="p-4">
-                  <p className="text-xs text-muted">剛生成 · {lastPack.eventName}</p>
-                  <p className="mt-1 font-medium">{lastPack.hook}</p>
-                  <p className="mt-2 line-clamp-3 text-sm text-muted">{lastPack.caption}</p>
-                </div>
-              </div>
-            </Link>
-          ) : null}
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {recent.map((project, index) => (
-              <li key={`${project.id}-${index}`}>
-                <ProjectCard project={project} brand={brands.find((b) => b.id === project.brandId)} urls={urls} />
-                <p className="mt-1 px-1 text-xs text-subtle">
-                  {CONTENT_KIND_META[project.contentKind].label} · {contentStatusOf(project)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="mt-10 grid gap-4 md:grid-cols-2">
-          <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
-            <SectionHeader
-              title="過去表現不錯"
-              hint="用來改善下一次，不是報表牆"
-              action={
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/instagram">IG 記憶</Link>
-                </Button>
-              }
-            />
-            {strong ? (
-              <div className="flex gap-3">
-                <img src={strong.thumb} alt="" className="size-20 rounded-xl object-cover" />
-                <div>
-                  <p className="text-sm">{strong.caption.split("\n")[0]}</p>
-                  <p className="mt-1 text-xs text-muted">{strong.analysis}</p>
-                </div>
-              </div>
-            ) : null}
-            <Button
-              className="mt-3 min-h-11"
-              data-testid="home-lesson-create"
-              onClick={() => {
-                writeHandoff({
-                  idea: nextCreateIdeaFromLessons(
-                    igPosts,
-                    featured ? `${featured.date.slice(5).replace("-", "/")} ${featured.name}` : undefined,
-                  ),
-                  tab: "campaign",
-                  autoRun: true,
-                  sourceLabel: strong ? `Instagram / ${strong.caption.split("\n")[0]}` : "Instagram / 成效",
-                });
-                void navigate({ to: "/create", search: { tab: "campaign" } });
-              }}
-            >
-              用這個 Hook 創作
-            </Button>
-            <ul className="mt-3 space-y-2 text-sm" data-testid="home-ig-lessons">
-              <li>Hook：{lessons.hook}</li>
-              <li>圖片：{lessons.visual}</li>
-              <li>活動文案：{lessons.activity}</li>
-              <li>Carousel：{lessons.carousel}</li>
-              <li>Story：{lessons.story}</li>
-            </ul>
-          </article>
-          <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
-            <SectionHeader
-              title="最近素材"
-              action={
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/assets">素材庫</Link>
-                </Button>
-              }
-            />
-            <ul className="grid grid-cols-4 gap-2">
-              {uniqueById(assets).slice(0, 8).map((asset, index) => (
-                <li key={`${asset.id}-${index}`} className="overflow-hidden rounded-xl bg-bg">
-                  <Link to="/assets">
-                    {urls[asset.id] ? (
-                      <img src={urls[asset.id]} alt={asset.name} className="aspect-square w-full object-cover" />
-                    ) : (
-                      <div className="flex aspect-square items-center justify-center text-[10px] text-muted">
-                        <Images className="size-4" />
-                      </div>
-                    )}
+          {!hydrated ? null : recentAssets.length === 0 ? (
+            <EmptyRow icon={ImageIcon} text="還沒有素材。上傳照片，或連接 Google Drive。" />
+          ) : (
+            <ul className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
+              {recentAssets.map((asset) => (
+                <li key={asset.id}>
+                  <Link to="/assets" className="block overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
+                    <div className="aspect-square bg-glow-card">
+                      {urls[asset.id] ? <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" /> : null}
+                    </div>
+                    <p className="truncate px-2 py-1.5 text-[11px]">{asset.name}</p>
+                    <p className="truncate px-2 pb-1.5 text-[10px] text-subtle">
+                      {ASSET_CATEGORY_LABELS[asset.category as keyof typeof ASSET_CATEGORY_LABELS] ?? asset.category}
+                    </p>
                   </Link>
                 </li>
               ))}
             </ul>
-          </article>
+          )}
         </section>
-
-        <p className="mt-8 text-center text-xs text-subtle">參考來源來自 Brand / Drive / Canva / Instagram 記憶，不會隱藏 AI 用了什麼。</p>
-        <NewProjectDialog open={open} onOpenChange={setOpen} />
       </div>
     </main>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl bg-surface-2 py-2">
+      <dt className="text-[10px] text-muted">{label}</dt>
+      <dd className="text-sm font-medium tabular-nums">{value.toLocaleString()}</dd>
+    </div>
+  );
+}
+
+function EmptyRow({ icon: Icon, text, action }: { icon: LucideIcon; text: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-surface/70 px-4 py-4 text-sm text-muted shadow-[var(--shadow-border)]">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-subtle">
+        <Icon className="size-4" />
+      </span>
+      <span className="flex-1">{text}</span>
+      {action ? <span className="text-sm font-medium text-accent">{action}</span> : null}
+    </div>
   );
 }

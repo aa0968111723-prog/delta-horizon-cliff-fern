@@ -15,6 +15,7 @@ export function AssetCard({
   onFavorite,
   onDelete,
   onPlace,
+  onCreate,
 }: {
   asset: AssetMeta;
   url?: string;
@@ -24,14 +25,12 @@ export function AssetCard({
   onFavorite: () => void;
   onDelete?: () => void;
   onPlace?: () => void;
+  onCreate?: () => void;
 }) {
   const [broken, setBroken] = useState(false);
 
   return (
     <article
-      data-testid="asset-card"
-      data-asset-name={asset.name}
-      data-asset-source={asset.source}
       className="group overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-border)]"
       draggable={draggable}
       onDragStart={(e) => {
@@ -86,7 +85,11 @@ export function AssetCard({
           <p className="truncate text-xs text-subtle">{asset.tags.slice(0, 3).join(" · ")}</p>
         ) : null}
         <div className="flex items-center gap-1 pt-1">
-          {onPlace ? (
+          {onCreate ? (
+            <Button size="sm" variant="secondary" className="flex-1" onClick={onCreate}>
+              加入創作
+            </Button>
+          ) : onPlace ? (
             <Button size="sm" variant="secondary" className="flex-1" onClick={onPlace}>
               放到畫布
             </Button>

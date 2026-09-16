@@ -1,11 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="淡江禅學社創作室">
-  <rect width="32" height="32" rx="8" fill="#2F5F56"/>
-  <circle cx="16" cy="16" r="10" fill="#F6F1E8"/>
-  <ellipse cx="16" cy="14" rx="5.4" ry="3.8" fill="#2F5F56"/>
-  <circle cx="14.2" cy="13.4" r="0.9" fill="#F6F1E8"/>
-  <circle cx="17.8" cy="13.4" r="0.9" fill="#F6F1E8"/>
-  <path d="M11.2 19.8c3-5.4 7.4-5.4 10.4 0" fill="none" stroke="#2F5F56" stroke-width="1.7" stroke-linecap="round"/>
-  <circle cx="12.4" cy="22.8" r="1.15" fill="#7EB8C9"/>
-  <circle cx="16" cy="22.8" r="1.15" fill="#D4A574"/>
-  <circle cx="19.6" cy="22.8" r="1.15" fill="#D9A3A3"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="?? Studio">
+  <rect width="32" height="32" rx="8" fill="#3E7C6F"/>
+  <circle cx="8" cy="8.2" r="3.1" fill="#F2B56B"/>
+  <circle cx="16" cy="6.4" r="3.1" fill="#FFF6E9"/>
+  <circle cx="24" cy="8.2" r="3.1" fill="#C9B8E8"/>
+  <path d="M5.8 25.2c0-7.4 4.5-12.4 10.2-12.4s10.2 5 10.2 12.4z" fill="#FFF6E9"/>
+  <path d="M16 15l4.8 4.1-1.8 6.4h-6L11.2 19.1z" fill="#7FB7A8"/>
+  <circle cx="24.6" cy="21.8" r="3.4" fill="#FFF6E9"/>
+  <circle cx="25.7" cy="21" r="1.05" fill="#2B2B36"/>
 </svg>

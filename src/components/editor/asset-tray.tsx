@@ -117,7 +117,7 @@ export function AssetTray({ projectId }: { projectId: string }) {
       <p className="px-3 pb-1 text-xs text-subtle">拖到畫布，或點一下放入。檔案只存在此裝置。</p>
       {visible.length === 0 ? (
         <div className="p-3">
-          <EmptyState icon={Images} title="沒有素材" description="上傳商品圖或 Logo，點一下就能放到畫布。" />
+          <EmptyState icon={Images} title="沒有素材" description="上傳活動照或 Logo，點一下就能放到畫布。" />
         </div>
       ) : (
         <ScrollArea className="min-h-0 flex-1">
