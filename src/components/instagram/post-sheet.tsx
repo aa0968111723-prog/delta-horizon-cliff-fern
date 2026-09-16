@@ -39,18 +39,22 @@ export function IgPostSheet({
   const day = new Date(post.postedAt).toISOString().slice(0, 10);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92dvh] overflow-y-auto" data-testid="ig-post-sheet">
+      <DialogContent
+        overlayClassName="bg-fg/55"
+        className="max-h-[calc(100dvh-var(--spacing-nav-safe)-1.5rem)] overflow-y-auto max-md:top-auto max-md:bottom-[calc(var(--spacing-nav-safe)+0.75rem)] max-md:left-4 max-md:right-4 max-md:w-auto max-md:max-w-none max-md:translate-x-0 max-md:translate-y-0"
+        data-testid="ig-post-sheet"
+      >
         <DialogHeader>
           <DialogTitle className="pr-8">{post.hook || MEDIA_LABEL[post.mediaType]}</DialogTitle>
           <DialogDescription>
             {day} · {MEDIA_LABEL[post.mediaType]}
           </DialogDescription>
         </DialogHeader>
-        <div className="overflow-hidden rounded-2xl bg-bg">
+        <div className="overflow-hidden rounded-2xl bg-dusk">
           {src ? (
-            <img src={src} alt="" className="aspect-square w-full object-cover" />
+            <img src={src} alt="" className="h-48 w-full object-cover sm:h-64" />
           ) : (
-            <div className="flex aspect-square items-center justify-center text-sm text-muted">
+            <div className="flex h-48 items-center justify-center text-sm text-bg sm:h-64">
               {MEDIA_LABEL[post.mediaType]}
             </div>
           )}
