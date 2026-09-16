@@ -11,6 +11,7 @@ import { quotedHookFromLessons } from "@/lib/club/insights";
 import type { CreativeDirection, FormatId } from "@/lib/studio/types";
 
 export { directionsOrMock, mockDirections };
+export { variationForFormat } from "@/lib/image/poster";
 
 const DirectionInput = z.object({
   idea: z.string().min(1).max(400),
@@ -108,6 +109,7 @@ export const generateStudioImage = createServerFn({ method: "POST" })
     return { ok: true as const, urls: imagined.urls, adapter: "live" as const };
   });
 
+export type ImageVariation = "regen" | "compose" | "mood" | "background" | "style" | "text";
 export type AspectPreset = { id: FormatId; label: string };
 
 export const IMAGE_ASPECTS: AspectPreset[] = [

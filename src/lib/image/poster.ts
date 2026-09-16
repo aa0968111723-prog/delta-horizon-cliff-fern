@@ -28,6 +28,14 @@ export function moodFromVariation(variation?: string): PosterMood {
   return "sit";
 }
 
+export function variationForFormat(formatId?: string) {
+  if (formatId === "story") return "mood";
+  if (formatId === "reels-cover") return "style";
+  if (formatId === "threads" || formatId === "line-promo") return "text";
+  if (formatId === "feed-square") return "compose";
+  return "regen";
+}
+
 export function composePosterSvg(input: {
   hook: string;
   eventName?: string;

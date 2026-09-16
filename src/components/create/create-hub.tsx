@@ -11,10 +11,10 @@ import { CONVERT_TARGETS, convertPlan } from "@/lib/convert/pack";
 import { COPY_INTENTS, COPY_TONES, generateCopyPack, type CopyPack } from "@/lib/copy/generate";
 import { applyStudentReviewToPack } from "@/lib/copy/review";
 import { consumeHandoff, takeAutoRun, type CreateHandoff, type CreateTab } from "@/lib/create/handoff";
-import { generateImageDirections, generateStudioImage, IMAGE_ASPECTS } from "@/lib/image/studio";
+import { generateImageDirections, generateStudioImage, IMAGE_ASPECTS, variationForFormat } from "@/lib/image/studio";
 import { relatedAssetsForIdea, relatedNotesFromAssets } from "@/lib/image/related";
 import { analyzeImage, type VisionReport } from "@/lib/vision/analyze";
-import { compactDataUrl, editUrlFromSrc, loadAssetDataUrl } from "@/lib/vision/media";
+import { compactDataUrl, editUrlFromSrc, loadAssetDataUrl, rasterEditUrl } from "@/lib/vision/media";
 import { convertKindFromAction, formatFromVisionAction, ideaFromVision, isImageVisionAction } from "@/lib/vision/tags";
 import { styleBriefFromReport } from "@/lib/vision/from-hit";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
@@ -366,7 +366,7 @@ function ImageStudio({
             })) || sourceAsset.seedSrc,
           )
         : null;
-      const editUrl = (activeRef ? compactDataUrl(activeRef) : null) || fromAsset;
+      const editUrl = rasterEditUrl(activeRef) || fromAsset;
       const usedLabel = activeRefLabel || (sourceAsset ? `${assetSourceLabel(sourceAsset.source)} / ${sourceAsset.name}` : "");
       const result = await generateStudioImage({
         data: {
@@ -464,11 +464,15 @@ function ImageStudio({
                   )}
                   onClick={() => void pickRelated(asset)}
                 >
-                  <img
-                    src={relatedUrls[asset.id] || asset.seedSrc || ""}
-                    alt=""
-                    className="h-16 w-16 rounded-xl object-cover"
-                  />
+                  {relatedUrls[asset.id] || asset.seedSrc ? (
+                    <img
+                      src={relatedUrls[asset.id] || asset.seedSrc}
+                      alt=""
+                      className="h-16 w-16 rounded-xl object-cover"
+                    />
+                  ) : (
+                    <div className="h-16 w-16 rounded-xl bg-surface-2" aria-hidden />
+                  )}
                   <p className="mt-1 max-w-16 truncate text-xs text-muted">{assetSourceLabel(asset.source)}</p>
                 </button>
               </li>
@@ -524,7 +528,7 @@ function ImageStudio({
                 variant="secondary"
                 data-testid={`image-extend-${item.id}`}
                 disabled={busy}
-                onClick={() => void render(picked, "regen", item.id)}
+                onClick={() => void render(picked, variationForFormat(item.id), item.id)}
               >
                 延伸 {item.label}
               </Button>

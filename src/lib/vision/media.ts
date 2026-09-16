@@ -49,9 +49,22 @@ export function compactDataUrl(dataUrl: string, max = 400_000) {
   return null;
 }
 
+export function rasterEditUrl(src?: string | null) {
+  if (!src) return null;
+  if (src.startsWith("data:image/svg")) return null;
+  if (/^https:\/\//.test(src) && /\.svg(\?|$)/i.test(src)) return null;
+  if (src.startsWith("data:image/png") || src.startsWith("data:image/jpeg") || src.startsWith("data:image/webp") || src.startsWith("data:image/gif")) {
+    return compactDataUrl(src);
+  }
+  if (/^https:\/\//.test(src)) return src;
+  return null;
+}
+
 export async function editUrlFromSrc(src?: string | null) {
   if (!src) return null;
-  if (src.startsWith("data:")) return compactDataUrl(src);
+  const direct = rasterEditUrl(src);
+  if (direct) return direct;
+  if (src.startsWith("data:") || src.startsWith("/seed/") || src.endsWith(".svg")) return null;
   const data = await urlToDataUrl(src);
-  return data ? compactDataUrl(data) : null;
+  return rasterEditUrl(data);
 }

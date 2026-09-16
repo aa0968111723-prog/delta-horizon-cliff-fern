@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { clipLines, composePosterSvg, moodFromVariation, xmlText } from "./poster.ts";
+import { clipLines, composePosterSvg, moodFromVariation, variationForFormat, xmlText } from "./poster.ts";
 
 test("poster svg is valid xml with student hook text", () => {
   const svg = composePosterSvg({
@@ -38,6 +38,13 @@ test("compose and background posters are visually distinct from regen", () => {
   assert.match(tamsui, /data-mood="tamsui"/);
   assert.notEqual(sit, split);
   assert.notEqual(sit, tamsui);
+});
+
+test("story extend uses a night-safe variation, not the same regen poster", () => {
+  assert.equal(variationForFormat("story"), "mood");
+  assert.equal(moodFromVariation(variationForFormat("story")), "night");
+  assert.equal(variationForFormat("reels-cover"), "style");
+  assert.equal(variationForFormat("feed-portrait"), "regen");
 });
 
 test("story posters center copy on 9:16", () => {
