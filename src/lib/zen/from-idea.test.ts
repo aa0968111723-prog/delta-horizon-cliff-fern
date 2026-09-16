@@ -173,6 +173,8 @@ test("formatSuitePlan sequences carousel, story, and reels instead of reusing th
   assert.equal(suite.filter((step) => step.mode === "generate").length, 2);
   assert.equal(suite.filter((step) => step.mode === "sequence").length, 3);
   assert.ok(suite.every((step) => step.caption.length > 0));
+  assert.ok(suite.find((step) => step.id === "carousel")?.caption.startsWith(plan.hook));
+  assert.ok(suite.find((step) => step.id === "story")?.caption.startsWith(plan.hook));
 });
 
 test("materializeCampaignFromPack reuses floating light date", () => {

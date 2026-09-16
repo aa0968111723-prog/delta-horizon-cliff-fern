@@ -126,7 +126,7 @@ export function CalendarPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full min-w-0 max-w-5xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
       <PageHeader
         kicker="Calendar"
         title="排程"
@@ -260,6 +260,48 @@ export function CalendarPage() {
         </form>
       ) : null}
 
+      {mode === "week" ? (
+        <ul className="mt-4 space-y-2 md:hidden" data-testid="cal-week">
+          {weekDays.map((day) => {
+            const items = schedule.filter((s) => isSameDay(s.scheduledAt, day));
+            return (
+              <li
+                key={day.toISOString()}
+                className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  const id = e.dataTransfer.getData("text/schedule-id");
+                  if (id) moveSchedule(id, new Date(day.getFullYear(), day.getMonth(), day.getDate(), 20).getTime());
+                }}
+              >
+                <p className="text-xs text-muted">{format(day, "M/d（EE）", { locale: zhTW })}</p>
+                {items.length ? (
+                  <ul className="mt-2 space-y-1">
+                    {items.map((item) => (
+                      <li
+                        key={item.id}
+                        draggable
+                        data-testid={isWaveScheduleItem(item) ? "schedule-wave" : "schedule-suite"}
+                        onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", item.id)}
+                        onClick={() => setEditingId(item.id)}
+                        className={cn(
+                          "rounded-md px-2 py-1.5 text-sm",
+                          isWaveScheduleItem(item) ? "bg-bg/70 text-muted" : "bg-bg",
+                        )}
+                      >
+                        {item.title}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-xs text-muted">這天還沒有內容</p>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
       {mode === "agenda" ? (
         <ul className="mt-6 space-y-2">
           {[...schedule]
@@ -366,7 +408,7 @@ export function CalendarPage() {
             ))}
         </ul>
       ) : (
-        <div className="mt-4 grid grid-cols-7 gap-1">
+        <div className={cn("mt-4 grid-cols-7 gap-1", mode === "week" ? "hidden md:grid" : "grid")}>
           {["一", "二", "三", "四", "五", "六", "日"].map((d) => (
             <p key={d} className="py-2 text-center text-xs text-muted">
               {d}
@@ -378,7 +420,7 @@ export function CalendarPage() {
               <div
                 key={day.toISOString()}
                 className={cn(
-                  "min-h-24 rounded-xl bg-surface p-1.5 shadow-[var(--shadow-border)]",
+                  "min-h-16 rounded-xl bg-surface p-1.5 shadow-[var(--shadow-border)] md:min-h-24",
                   !isSameMonth(day, cursor) && mode === "month" && "opacity-40",
                 )}
                 onDragOver={(e) => e.preventDefault()}

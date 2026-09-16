@@ -49,6 +49,17 @@ test("buildMockPlan is structured Traditional Chinese and marked mock", () => {
   assert.equal(plan.templateId, "product");
 });
 
+test("zen mock carousel cover is the student hook", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "浮游禪光",
+    brandName: "淡江大學禪學社",
+    audience: "淡江大學學生",
+  });
+  assert.match(plan.carouselPages[0]!.headline.replace(/\n/g, ""), /坐好|最近/);
+  assert.match(plan.storyBeats[0] ?? "", /坐好|最近/);
+});
+
 test("buildMockPlan cites Creative Memory notes", () => {
   const plan = buildMockPlan({
     ...base,

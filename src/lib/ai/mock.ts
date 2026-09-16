@@ -79,12 +79,12 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
     ? [
         {
           role: "cover",
-          headline,
-          subhead,
+          headline: clipHeadline(hook),
+          subhead: name,
           body: hook,
           cta,
-          visualNote: "封面：主視覺滿版或上半，標題最多兩行。",
-          templateId: "product",
+          visualNote: "封面：Hook 先行，活動名可小。",
+          templateId: "quote",
         },
         {
           role: "problem",
@@ -145,7 +145,9 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
       ];
 
   const storyBeats = data.wantStory
-    ? [`${name}開始`, features.split(/[、，,]/)[0] || "現場特色", `${cta} · ${where}`]
+    ? isZen
+      ? [hook, "不是講座，只是可以坐著。", `${when} · ${where} · ${cta}`]
+      : [`${name}開始`, features.split(/[、，,]/)[0] || "現場特色", `${cta} · ${where}`]
     : [];
 
   const hashtags = [

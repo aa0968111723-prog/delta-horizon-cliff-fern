@@ -50,7 +50,7 @@ export function convertFromPlan(plan: CampaignPlan): ConvertedFormats {
 function defaultCarousel(plan: CampaignPlan): CarouselPagePlan[] {
   const cta = plan.cta;
   return [
-    { role: "cover", headline: plan.headline, subhead: plan.subhead, body: plan.hook, cta, visualNote: "Hook 先行，活動名可小。", templateId: "quote" },
+    { role: "cover", headline: plan.hook, subhead: plan.campaignName || plan.headline, body: plan.insight, cta, visualNote: "Hook 先行，活動名可小。", templateId: "quote" },
     { role: "problem", headline: "最近是不是\n很滿", subhead: "淡江的日常", body: plan.insight, cta, visualNote: "生活場景，不要廟。", templateId: "quote" },
     { role: "detail", headline: plan.campaignName.replace(/(.*)/, "$1").slice(0, 10), subhead: plan.subhead, body: plan.body, cta, visualNote: "活動內容三件事。", templateId: "editorial" },
     { role: "proof", headline: "來過的人\n通常只是坐著", subhead: "不用先懂禪", body: "沒有考試，也沒有要你變成另一個人。", cta, visualNote: "同學互動。", templateId: "product" },
@@ -251,14 +251,18 @@ export function sequenceBeats(
   return [];
 }
 
+function igCaption(converted: ConvertedFormats) {
+  const body = converted.post.body.replace(converted.post.hook, "").trim();
+  return [converted.post.hook, body, converted.post.cta].filter(Boolean).join("\n\n");
+}
+
 export function captionForTarget(converted: ConvertedFormats, id: ConvertTargetId) {
-  if (id === "post") {
-    const body = converted.post.body.replace(converted.post.hook, "").trim();
-    return [converted.post.hook, body, converted.post.cta].filter(Boolean).join("\n\n");
+  if (id === "post" || id === "carousel") return igCaption(converted);
+  if (id === "story") return [converted.post.hook, converted.post.cta].filter(Boolean).join("\n\n");
+  if (id === "reels") {
+    const first = converted.reels[0]?.caption || converted.post.hook;
+    return [first, converted.post.cta].filter(Boolean).join("\n\n");
   }
-  if (id === "carousel") return converted.carousel.map((p) => p.headline.replace(/\n/g, " ")).join(" → ");
-  if (id === "story") return converted.story.map((p) => p.headline).join(" / ");
-  if (id === "reels") return converted.reels.map((b) => b.caption).join(" / ");
   if (id === "threads") return converted.threads;
   return converted.line;
 }

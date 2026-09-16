@@ -80,6 +80,19 @@ test("post caption does not repeat the hook", () => {
   assert.equal(rest.split(hook).length, 1);
 });
 
+test("carousel and story captions start with the student hook, not a page outline", () => {
+  const hook = converted.post.hook;
+  const carousel = captionForTarget(converted, "carousel");
+  const story = captionForTarget(converted, "story");
+  const reels = captionForTarget(converted, "reels");
+  assert.ok(carousel.startsWith(hook));
+  assert.equal(carousel.includes(" → "), false);
+  assert.ok(story.startsWith(hook));
+  assert.equal(story.includes(" / "), false);
+  assert.ok(reels.startsWith(converted.reels[0]?.caption ?? hook));
+  assert.match(converted.carousel[0]?.headline.replace(/\n/g, "") ?? "", /坐好|最近/);
+});
+
 test("previewContentKind uses carousel for 4:5 after a suite, square for the single post", () => {
   assert.equal(previewContentKind("feed-portrait", [{ kind: "carousel" }]), "carousel");
   assert.equal(previewContentKind("feed-square", [{ kind: "carousel" }, { kind: "post" }]), "ig-post");

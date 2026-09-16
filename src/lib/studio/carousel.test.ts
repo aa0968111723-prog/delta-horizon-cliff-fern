@@ -57,6 +57,17 @@ test("completeCarouselPages fills the six-role script", () => {
   assert.ok(pages[1].body.includes("理由"));
 });
 
+test("completeCarouselPages uses the hook as cover when no cover exists", () => {
+  const pages = completeCarouselPages([], {
+    headline: "浮游禪光",
+    subhead: "9/24",
+    body: "燈",
+    cta: "晚上見",
+    hook: "最近是不是很久沒有好好坐下來？",
+  });
+  assert.match(pages[0]!.headline, /坐好|最近/);
+});
+
 test("copyFromArtboard reads text roles", () => {
   const headline: TextLayer = {
     id: "t1",
