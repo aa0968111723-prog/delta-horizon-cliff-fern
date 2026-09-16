@@ -863,7 +863,7 @@ try {
   await page.waitForSelector("[data-testid=ig-peek]", { state: "hidden", timeout: 8000 }).catch(() => null);
 
   await page.screenshot({ path: `${prefix}-ig-profile.png` });
-  await page.getByRole("button", { name: "貼文" }).evaluate((el) =>
+  await page.getByTestId("ig-view-feed").evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );
   await expectText("IG 動態預覽", "動態預覽");
@@ -871,7 +871,7 @@ try {
   record("IG 輪播翻頁", (await nextPage.count()) > 0, "找不到下一頁");
   await nextPage.evaluate((el) => (el instanceof HTMLElement ? el.click() : undefined));
   await page.screenshot({ path: `${prefix}-ig-feed.png` });
-  await page.getByRole("button", { name: "限動" }).evaluate((el) =>
+  await page.getByTestId("ig-view-story").evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );
   await expectText("IG 限動預覽", "限動預覽");

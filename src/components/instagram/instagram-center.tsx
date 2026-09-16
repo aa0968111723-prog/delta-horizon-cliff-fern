@@ -235,6 +235,7 @@ export function InstagramCenter() {
               <div className="flex gap-1 rounded-full bg-surface-2 p-0.5">
                 <button
                   type="button"
+                  data-testid="ig-view-grid"
                   onClick={() => setGridView("grid")}
                   className={cn(
                     "min-h-9 rounded-full px-3 text-xs",
@@ -245,6 +246,7 @@ export function InstagramCenter() {
                 </button>
                 <button
                   type="button"
+                  data-testid="ig-view-feed"
                   onClick={() => setGridView("feed")}
                   className={cn(
                     "min-h-9 rounded-full px-3 text-xs",
@@ -255,6 +257,7 @@ export function InstagramCenter() {
                 </button>
                 <button
                   type="button"
+                  data-testid="ig-view-story"
                   onClick={() => setGridView("story")}
                   className={cn(
                     "min-h-9 rounded-full px-3 text-xs",
@@ -644,6 +647,7 @@ export function InstagramCenter() {
           brand={brand}
           urls={urls}
           initialProjectId={watchStoryId}
+          tone="overlay"
         />
       </IgPeek>
       <IgPeek
@@ -654,7 +658,7 @@ export function InstagramCenter() {
         title="貼文預覽"
         width="feed"
       >
-        {watchPost ? <IgFeedPreview projects={[watchPost]} brand={brand} urls={urls} /> : null}
+        {watchPost ? <IgFeedPreview projects={[watchPost]} brand={brand} urls={urls} tone="overlay" /> : null}
       </IgPeek>
     </main>
   );

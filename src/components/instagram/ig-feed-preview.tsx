@@ -18,10 +18,12 @@ export function IgFeedPreview({
   projects,
   brand,
   urls,
+  tone = "page",
 }: {
   projects: Project[];
   brand?: BrandKit;
   urls: Record<string, string>;
+  tone?: "page" | "overlay";
 }) {
   if (!projects.length) return null;
 
@@ -31,8 +33,10 @@ export function IgFeedPreview({
       data-testid="ig-post-viewer"
       data-post-id={projects.length === 1 ? projects[0]?.id : undefined}
     >
-      <p className="mb-2 pr-12 text-xs text-subtle">動態預覽 · {CLUB_HANDLE}</p>
-      <div className="overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-lift)]">
+      <p className={cn("mb-2 text-xs", tone === "overlay" ? "text-accent-fg" : "pr-12 text-subtle")}>
+        動態預覽 · {CLUB_HANDLE}
+      </p>
+      <div className="isolate overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-lift)]">
         <ul>
           {projects.map((project) => (
             <FeedPost key={project.id} project={project} brand={brand} urls={urls} />
@@ -77,7 +81,7 @@ function FeedPost({
         </Link>
         <span className="text-xs text-subtle">{contentKindLabel(project.contentKind)}</span>
       </div>
-      <div className="relative aspect-[4/5] overflow-hidden bg-surface-2">
+      <div className="relative aspect-[4/5] overflow-hidden bg-surface">
         {page && brand ? (
           <span className="flex size-full items-center justify-center">
             <ArtboardView artboard={page} brand={brand} urls={urls} width={360} />

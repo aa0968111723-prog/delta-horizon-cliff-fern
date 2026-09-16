@@ -19,11 +19,13 @@ export function IgStoryPreview({
   brand,
   urls,
   initialProjectId,
+  tone = "page",
 }: {
   projects: Project[];
   brand?: BrandKit;
   urls: Record<string, string>;
   initialProjectId?: string | null;
+  tone?: "page" | "overlay";
 }) {
   const [storyIdx, setStoryIdx] = useState(() => indexOfId(projects, initialProjectId));
   const [pageIdx, setPageIdx] = useState(0);
@@ -80,10 +82,10 @@ export function IgStoryPreview({
       data-testid="ig-story-viewer"
       data-story-id={story.id}
     >
-      <p className="mb-2 pr-12 text-xs text-subtle">
+      <p className={cn("mb-2 text-xs", tone === "overlay" ? "text-accent-fg" : "pr-12 text-subtle")}>
         限動預覽 · {contentKindLabel(story.contentKind)} · {storyIdx + 1}/{projects.length}
       </p>
-      <div className="relative overflow-hidden rounded-[1.75rem] bg-surface shadow-[var(--shadow-lift)]">
+      <div className="relative isolate overflow-hidden rounded-[1.75rem] bg-surface shadow-[var(--shadow-lift)]">
         <div className="flex gap-1 px-3 pt-3">
           {pages.map((item, i) => (
             <span
@@ -99,7 +101,7 @@ export function IgStoryPreview({
             <p className="truncate text-xs text-subtle">{story.name}</p>
           </div>
         </div>
-        <div className="relative aspect-[9/16] overflow-hidden bg-surface-2">
+        <div className="relative aspect-[9/16] overflow-hidden bg-surface">
           {page && brand ? (
             <span className="flex size-full items-center justify-center">
               <ArtboardView artboard={page} brand={brand} urls={urls} width={280} />

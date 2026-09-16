@@ -23,7 +23,7 @@ export function IgPeek({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogViewport
-        overlayClassName="bg-fg/70"
+        overlayClassName="bg-fg/80"
         data-testid="ig-peek"
         onPointerDown={(event) => {
           if (event.target === event.currentTarget) onOpenChange(false);
@@ -31,10 +31,10 @@ export function IgPeek({
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">點畫面左右切換，或關閉回到個人頁。</DialogDescription>
-        <div className={cn("relative w-full", width === "story" ? "max-w-[18rem]" : "max-w-sm")}>
+        <div className={cn("relative w-full pt-12", width === "story" ? "max-w-[18rem]" : "max-w-sm")}>
           <DialogClose
             data-testid="ig-peek-close"
-            className="absolute top-0 right-0 z-10 flex size-11 items-center justify-center rounded-full bg-surface/85 text-fg shadow-[var(--shadow-border)]"
+            className="absolute top-0 right-0 z-10 flex size-11 items-center justify-center rounded-full bg-surface text-fg shadow-[var(--shadow-border)]"
           >
             <X className="size-4" />
             <span className="sr-only">關閉</span>
