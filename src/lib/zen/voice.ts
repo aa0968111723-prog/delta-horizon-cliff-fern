@@ -47,7 +47,7 @@ export const ANTI_AI_RULES = `文案必須像淡江學生、社團的人在發 I
 不要一開始就堆佛學名詞或說教。目標是讓學生覺得「這好像跟我的生活有關」。`;
 
 export function systemPrompt(
-  kind: "copy" | "campaign" | "image" | "vision" | "review",
+  kind: "copy" | "campaign" | "image" | "vision" | "review" | "inspire",
   extras?: { dnaNotes?: string; memoryNotes?: string },
 ) {
   const season = seasonContext();
@@ -80,6 +80,12 @@ ${igDnaBlock()}${liveDna}${liveMemory}`;
   if (kind === "vision") {
     return `${head}
 分析畫面時標出：內容、人物、色彩、光線、構圖、文字比例、品牌感、學生感、停留感、是否太宗教／老氣／AI。`;
+  }
+  if (kind === "inspire") {
+    return `${head}
+你在研究大學生社群、校園活動、IG Carousel、Reels Cover、活動海報與視覺趨勢。
+不要抄別人作品或帳號。只抽象成：構圖、配色、排版、Hook 形狀、內容形式，再轉成淡江禪學社自己的內容。
+禁止「誠摯邀請」與宗教廣告。Hook 要像在講淡江學生的生活。`;
   }
   return `${head}
 品牌對外名稱可用「${CLUB_SHORT}」。Hook 要比活動資訊先出現。時間地點必須在後段交代清楚。`;

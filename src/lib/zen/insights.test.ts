@@ -21,7 +21,7 @@ test("igDnaBlock tells the model to use club IG not generic brand templates", ()
 });
 
 test("systemPrompt injects IG DNA for copy campaign and image", () => {
-  for (const kind of ["copy", "campaign", "image"] as const) {
+  for (const kind of ["copy", "campaign", "image", "inspire"] as const) {
     const prompt = systemPrompt(kind);
     assert.match(prompt, /Zen Club IG DNA/);
     assert.match(prompt, /連休息都覺得有罪惡感|淡水的晚上/);

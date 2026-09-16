@@ -1,13 +1,16 @@
 import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
+import { Clapperboard, Images } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { applyVisualDirection } from "@/components/create/apply-visual";
 import { applyFormatSequence } from "@/components/create/apply-sequence";
+import { createFromHit } from "@/components/create/from-hit";
 import { openCanvaDraft } from "@/components/create/open-canva";
 import { openScheduledPreview } from "@/components/create/open-preview";
 import { FormatScriptPanel } from "@/components/instagram/format-script";
+import { IgPostSheet } from "@/components/instagram/post-sheet";
 import { PublishIgButton } from "@/components/instagram/publish-button";
 import { PageHeader } from "@/components/shared/page-header";
 import { ArtboardView } from "@/components/studio/artboard-view";
@@ -23,6 +26,7 @@ import { SEED_ASSETS } from "@/lib/studio/seed";
 import { canvaDraftNotes, canvaPresetForFormat } from "@/lib/zen/canva-draft";
 import type { FormatId } from "@/lib/studio/types";
 import { uid } from "@/lib/studio/ids";
+import { hitFromIgPost } from "@/lib/zen/from-hit";
 import { dnaPromptIdea, igDnaBlock, learnFromPosts, recentPostedNotes } from "@/lib/zen/insights";
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
@@ -89,8 +93,10 @@ export function InstagramCenter() {
   }, [assets, igPosts, upcoming, campaigns, lastVisualAssetId, lastSequence, sequences]);
   const urls = useAssetUrls(previewIds);
   const [tab, setTab] = useState<Tab>(igView);
-  const [active, setActive] = useState(igPosts[0]?.id ?? null);
+  const [active, setActive] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [createBusy, setCreateBusy] = useState(false);
   const [dnaBusy, setDnaBusy] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
   const [beatBusy, setBeatBusy] = useState<string | null>(null);
@@ -175,6 +181,20 @@ export function InstagramCenter() {
       toast.success("已寫入 IG 記憶");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function createFromActive() {
+    if (!post) return;
+    setCreateBusy(true);
+    try {
+      const ok = await createFromHit(hitFromIgPost(post));
+      if (ok) {
+        setSheetOpen(false);
+        await navigate({ to: "/create" });
+      }
+    } finally {
+      setCreateBusy(false);
     }
   }
 
@@ -485,14 +505,27 @@ export function InstagramCenter() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setActive(item.id)}
-                    className={cn("aspect-square overflow-hidden bg-surface", active === item.id && "ring-2 ring-accent")}
+                    data-testid="ig-grid-post"
+                    data-media-type={item.mediaType}
+                    onClick={() => {
+                      setActive(item.id);
+                      setSheetOpen(true);
+                    }}
+                    className={cn(
+                      "relative aspect-square min-h-11 overflow-hidden bg-surface",
+                      active === item.id && "ring-2 ring-accent",
+                    )}
                   >
                     {src ? (
                       <img src={src} alt="" className="size-full object-cover" />
                     ) : (
                       <span className="flex size-full items-center justify-center text-xs text-muted">{item.mediaType}</span>
                     )}
+                    {item.mediaType === "carousel" ? (
+                      <Images className="absolute top-1.5 right-1.5 size-4 text-bg drop-shadow" aria-hidden />
+                    ) : item.mediaType === "reels" ? (
+                      <Clapperboard className="absolute top-1.5 right-1.5 size-4 text-bg drop-shadow" aria-hidden />
+                    ) : null}
                   </button>
                 );
               })}
@@ -534,21 +567,26 @@ export function InstagramCenter() {
                 </div>
               </div>
             ) : null}
-            {post ? (
-              <article className="mt-6 rounded-[1.5rem] bg-surface p-5 shadow-[var(--shadow-border)]">
-                <p className="text-xs text-muted">
-                  {new Date(post.postedAt).toISOString().slice(0, 10)} · {post.mediaType}
-                </p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{post.caption}</p>
-                <p className="mt-3 text-xs text-muted">
-                  讚 {post.likes} · 收藏 {post.saves} · 留言 {post.comments} · 觸及 {post.reach}
-                </p>
-                <p className="mt-3 whitespace-pre-wrap text-sm">{post.analysis}</p>
-                <Button className="mt-4" variant="secondary" size="sm" disabled={busy} onClick={() => void analyze()}>
-                  {busy ? "分析中…" : "AI 分析"}
-                </Button>
-              </article>
-            ) : null}
+            <IgPostSheet
+              post={post ?? null}
+              src={
+                post
+                  ? post.mediaUrl ||
+                    resolveAssetSrc(
+                      post.assetId,
+                      urls,
+                      assets.find((a) => a.id === post.assetId)?.seedSrc ??
+                        SEED_ASSETS.find((a) => a.id === post.assetId)?.seedSrc,
+                    )
+                  : undefined
+              }
+              open={sheetOpen && Boolean(post)}
+              onOpenChange={setSheetOpen}
+              analyzeBusy={busy}
+              createBusy={createBusy}
+              onAnalyze={() => void analyze()}
+              onCreate={() => void createFromActive()}
+            />
           </div>
           <aside className="space-y-4">
             <p className="text-sm font-medium">哪種 Hook 比較有效</p>
