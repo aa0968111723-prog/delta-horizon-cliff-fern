@@ -1,0 +1,1 @@
+import{r as e}from"./useRouter-Dpb7RwMI.js";import{j as t}from"./index-BvQyVB4b.js";var n={draft:{label:`草稿`,tone:`warn`},ready:{label:`可輸出`,tone:`accent`},exported:{label:`已輸出`,tone:`success`}},r=e();function i({status:e}){let i=n[e];return(0,r.jsx)(t,{variant:i.tone,children:i.label})}export{i as t};

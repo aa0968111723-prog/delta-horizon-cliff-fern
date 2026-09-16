@@ -327,6 +327,49 @@ var ChevronUp = createLucideIcon("chevron-up", [["path", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var CircleAlert = createLucideIcon("circle-alert", [
+	["circle", {
+		cx: "12",
+		cy: "12",
+		r: "10",
+		key: "1mglay"
+	}],
+	["line", {
+		x1: "12",
+		x2: "12",
+		y1: "8",
+		y2: "12",
+		key: "1pkeuh"
+	}],
+	["line", {
+		x1: "12",
+		x2: "12.01",
+		y1: "16",
+		y2: "16",
+		key: "4dfq90"
+	}]
+]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var CircleCheck = createLucideIcon("circle-check", [["circle", {
+	cx: "12",
+	cy: "12",
+	r: "10",
+	key: "1mglay"
+}], ["path", {
+	d: "m9 12 2 2 4-4",
+	key: "dzmm74"
+}]]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var Circle = createLucideIcon("circle", [["circle", {
 	cx: "12",
 	cy: "12",
@@ -1223,4 +1266,4 @@ var X = createLucideIcon("x", [["path", {
 	key: "d8bk6v"
 }]]);
 //#endregion
-export { AlignCenter as $, Image as A, Copy as B, MapPin as C, LayoutGrid as D, LoaderCircle as E, FolderKanban as F, ChevronLeft as G, Circle as H, Film as I, Camera as J, ChevronDown as K, Eye as L, History as M, HardDrive as N, Layers as O, Frame as P, AlignRight as Q, EyeOff as R, MessageCircleMore as S, LockOpen as T, ChevronUp as U, Clock3 as V, ChevronRight as W, BrainCircuit as X, CalendarDays as Y, AlignLeft as Z, Redo2 as _, Type as a, MousePointer2 as b, SwatchBook as c, Sparkles as d, Scan as f, RefreshCw as g, RotateCcw as h, Undo2 as i, House as j, Images as k, Star as l, Rows3 as m, WandSparkles as n, TriangleAlert as o, Save as p, Check as q, Upload as r, Trash2 as s, X as t, Square as u, Plus as v, Lock as w, Minus as x, PenTool as y, Download as z };
+export { AlignLeft as $, Image as A, Copy as B, MapPin as C, LayoutGrid as D, LoaderCircle as E, FolderKanban as F, ChevronUp as G, Circle as H, Film as I, ChevronDown as J, ChevronRight as K, Eye as L, History as M, HardDrive as N, Layers as O, Frame as P, BrainCircuit as Q, EyeOff as R, MessageCircleMore as S, LockOpen as T, CircleCheck as U, Clock3 as V, CircleAlert as W, Camera as X, Check as Y, CalendarDays as Z, Redo2 as _, Type as a, MousePointer2 as b, SwatchBook as c, Sparkles as d, AlignRight as et, Scan as f, RefreshCw as g, RotateCcw as h, Undo2 as i, House as j, Images as k, Star as l, Rows3 as m, WandSparkles as n, TriangleAlert as o, Save as p, ChevronLeft as q, Upload as r, Trash2 as s, X as t, AlignCenter as tt, Square as u, Plus as v, Lock as w, Minus as x, PenTool as y, Download as z };

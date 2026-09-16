@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/assistant",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "禪作所",
+      "hasCanvas": false,
+      "bodyTextLen": 1033,
+      "bodyTextHash": "62c1a3b9d0ee93399b5160a9edbc2996b26692ba0e44018e73ccf720c1d25f6a",
+      "bodyTextPrefix": "禪 首頁 AI 創作 Studio 素材 品牌 淡江禪學社 CREATIVE BRAIN 今天想創作什麼？ 從活動或一句想法開始",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/copy-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "禪作所",
+      "hasCanvas": false,
+      "bodyTextLen": 1031,
+      "bodyTextHash": "61d0ca0bf8f47d4c500c8c6d2a4049d3948369fdf39519d88856065abac783ad",
+      "bodyTextPrefix": "淡江禪學社 CREATIVE BRAIN 今天想創作什麼？ 從活動或一句想法開始。AI 會先代入淡江學生的生活，再生成 Hook",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/copy-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/copy-preview.json"
+}
