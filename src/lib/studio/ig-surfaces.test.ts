@@ -89,7 +89,8 @@ test("surface conversion writes Story overlay onto the canvas headline and CTA",
   });
   assert.equal(patch.headline, story.overlay[0]);
   assert.equal(patch.cta, story.overlay.at(-1));
-  assert.equal(patch.hashtags?.[0], "#淡江禪學社");
+  assert.deepEqual(patch.hashtags, story.hashtags);
+  assert.match(patch.hashtags?.join(" ") ?? "", /淡江/);
 });
 
 test("student caption review catches missing registration and literary tone", () => {
