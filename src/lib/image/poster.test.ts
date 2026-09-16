@@ -35,6 +35,7 @@ test("story posters center copy on 9:16", () => {
     height: 1920,
   });
   assert.match(svg, /viewBox="0 0 1080 1920"/);
-  assert.match(svg, /x="540"/);
+  assert.match(svg, /width="1080"/);
   assert.match(svg, /height="1920"/);
+  assert.match(svg, /x="540"/);
 });

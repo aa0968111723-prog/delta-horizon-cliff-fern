@@ -48,7 +48,7 @@ export function composePosterSvg(input: {
   const bg = mood === "night" ? "#1C2422" : mood === "lights" ? "#141A18" : "#F6F1E8";
   const fg = mood === "night" || mood === "lights" ? "#F6F1E8" : "#1C2422";
   const paper = mood === "night" || mood === "lights" ? "rgba(246,241,232,.92)" : "#FFFCF8";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${xmlText(lines.join(" "))}">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${xmlText(lines.join(" "))}">
   <rect width="${width}" height="${height}" fill="${bg}"/>
   <circle cx="${mood === "friends" ? width * 0.26 : width * 0.2}" cy="${glowY + 80}" r="${width * 0.22}" fill="#7EB8C9" opacity="${mood === "lights" ? ".7" : ".35"}"/>
   <circle cx="${cx}" cy="${glowY}" r="${width * 0.2}" fill="#E0B07A" opacity="${mood === "lights" ? ".62" : ".32"}"/>

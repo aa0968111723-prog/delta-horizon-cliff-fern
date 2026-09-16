@@ -71,6 +71,7 @@ export function IdeaFlow({
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [packKind, setPackKind] = useState<ContentKind>(seedConvertKind || "ig-post");
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
+  const [kindUrls, setKindUrls] = useState<Partial<Record<ContentKind, string>>>({});
   const [busy, setBusy] = useState(false);
 
   const brand = brands[0];
@@ -98,7 +99,8 @@ export function IdeaFlow({
 
   const converted = plan ? convertPlan(plan, packKind) : null;
   const thumb = heroUrl || hits[0]?.thumb || "/seed/tea.svg";
-  const previewSrc = lastPackState ? lastPackPreviewSrc(lastPackState, urls) : thumb;
+  const previewSrc =
+    kindUrls[packKind] || (lastPackState ? lastPackPreviewSrc(lastPackState, urls, packKind) : thumb);
 
   async function research(raw = idea, autoPack = Boolean(seedAutoRun)) {
     if (!brand) {
@@ -110,6 +112,7 @@ export function IdeaFlow({
     setPhase("research");
     setPicked(null);
     setHeroUrl(null);
+    setKindUrls({});
     setProjectId(null);
     setStatus("正在找歷屆素材與品牌記憶…");
     try {
@@ -184,20 +187,30 @@ export function IdeaFlow({
     setPicked(direction);
     setProjectId(projectNext.id);
     setCampaignId(campaign.id);
-    setPhase("pack");
+    setStatus("正在生成各尺寸主視覺…");
     const packs = allConvertedPacks(nextPlan);
     const formatAssetIds: Partial<Record<ContentKind, string>> = {};
-    const heroAssetId = await paintHero(direction, nextPlan, raw, packKind);
-    if (heroAssetId) formatAssetIds[packKind] = heroAssetId;
+    const nextKindUrls: Partial<Record<ContentKind, string>> = {};
+    const painted = await paintHero(direction, nextPlan, raw, packKind);
+    const heroAssetId = painted?.id ?? null;
+    if (painted) {
+      formatAssetIds[packKind] = painted.id;
+      nextKindUrls[packKind] = painted.url;
+    }
     for (const target of CONVERT_TARGETS) {
       if (target.id === packKind) continue;
-      if (heroAssetId && formatIdFromKind(target.id) === formatIdFromKind(packKind)) {
-        formatAssetIds[target.id] = heroAssetId;
+      if (painted && formatIdFromKind(target.id) === formatIdFromKind(packKind)) {
+        formatAssetIds[target.id] = painted.id;
+        nextKindUrls[target.id] = painted.url;
         continue;
       }
-      const id = await composeKindHero(direction, nextPlan, raw, target.id);
-      if (id) formatAssetIds[target.id] = id;
+      const composed = await composeKindHero(direction, nextPlan, raw, target.id);
+      if (composed) {
+        formatAssetIds[target.id] = composed.id;
+        nextKindUrls[target.id] = composed.url;
+      }
     }
+    setKindUrls(nextKindUrls);
     const scheduled = Boolean(nextPlan.waves?.length);
     updateProject(projectNext.id, {
       campaignId: campaign.id,
@@ -219,6 +232,7 @@ export function IdeaFlow({
         heroThumb: currentHits[0]?.thumb,
       }),
     );
+    setPhase("pack");
     toast.success("已生成主視覺、文案與多模態內容，並依淡江學生視角改過一輪");
   }
 
@@ -322,7 +336,7 @@ export function IdeaFlow({
         tags: ["AI生成", direction.name, parseIdea(raw).eventName, kind],
       }),
     );
-    return id;
+    return { id, url };
   }
 
   async function paintHero(direction: CreativeDirection, currentPlan = plan, raw = idea, kind = packKind) {
@@ -354,20 +368,21 @@ export function IdeaFlow({
         tags: ["AI生成", direction.name, parseIdea(raw).eventName, kind],
       }),
     );
-    return id;
+    return { id, url };
   }
 
   async function renderHero() {
     if (!picked) return;
     setBusy(true);
     try {
-      const heroAssetId = await paintHero(picked);
+      const painted = await paintHero(picked);
       const current = useCreative.getState().lastPack;
-      if (current && heroAssetId) {
+      if (current && painted) {
+        setKindUrls((prev) => ({ ...prev, [packKind]: painted.url }));
         setLastPack({
           ...current,
-          heroAssetId,
-          formatAssetIds: { ...current.formatAssetIds, [packKind]: heroAssetId },
+          heroAssetId: painted.id,
+          formatAssetIds: { ...current.formatAssetIds, [packKind]: painted.id },
           updatedAt: Date.now(),
         });
       }
