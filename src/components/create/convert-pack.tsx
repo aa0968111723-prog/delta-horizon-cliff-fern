@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { PostPackBar } from "@/components/create/post-pack";
 import { PublishPreview } from "@/components/create/publish-preview";
 import { DownloadPackButton } from "@/components/export/download-pack";
+import { PackFlowBar } from "@/components/shared/pack-flow";
 import { SectionHeader } from "@/components/shared/page-header";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
@@ -27,9 +28,10 @@ export function ConvertPack({
     <section id="convert-pack" className="mt-8 space-y-4">
       <SectionHeader
         title="這次做成的全套"
-        hint="同一則內容的貼文、輪播、限動、Threads、LINE、Reels。一次下載圖，文案會複製並存成檔。"
+        hint="同一則內容的貼文、輪播、限動、Threads、LINE、Reels。一次標完成、一次下載，貼完再一次標已發。"
         action={<DownloadPackButton projectId={members[0]!.id} size="sm" />}
       />
+      <PackFlowBar projectId={members[0]!.id} />
       <ul className="grid gap-4 lg:grid-cols-2">
         {members.map((project) => {
           const page = pagesOf(project)[0];

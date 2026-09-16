@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readyPostLabel, readyToPost, unscheduledDone } from "./today-post.ts";
+import { readyPacks, readyPostLabel, readyToPost, unscheduledDone, unscheduledDonePacks } from "./today-post.ts";
 import type { Brief, CopyDeck, Project } from "./types.ts";
 
 function brief(): Brief {
@@ -104,4 +104,50 @@ test("unscheduledDone lists finished work that is not on the calendar yet", () =
     rows.map((row) => row.id),
     ["done", "old"],
   );
+});
+
+test("readyPacks groups convert siblings so one pack does not fill the home", () => {
+  const now = Date.parse("2026-09-16T10:00:00");
+  const origin = project({ id: "origin", status: "done", contentKind: "ig-post", updatedAt: 3 });
+  const line = project({
+    id: "line",
+    status: "done",
+    contentKind: "line",
+    convertedFromId: "origin",
+    updatedAt: 4,
+  });
+  const story = project({
+    id: "story",
+    status: "done",
+    contentKind: "story",
+    convertedFromId: "origin",
+    updatedAt: 5,
+  });
+  const other = project({ id: "other", status: "done", name: "另一則", updatedAt: 2 });
+  const packs = readyPacks([origin, line, story, other], now);
+  assert.equal(packs.length, 2);
+  const grouped = packs.find((item) => item.rootId === "origin");
+  assert.ok(grouped);
+  assert.deepEqual(
+    grouped.pack.map((item) => item.contentKind),
+    ["ig-post", "story", "line"],
+  );
+  assert.equal(packs.some((item) => item.primary.id === "other"), true);
+  assert.equal(grouped.ready.length, 3);
+});
+
+test("unscheduledDonePacks collapses a convert pack into one waiting row", () => {
+  const origin = project({ id: "origin", status: "done", contentKind: "ig-post", updatedAt: 3 });
+  const line = project({
+    id: "line",
+    status: "done",
+    contentKind: "line",
+    convertedFromId: "origin",
+    updatedAt: 4,
+  });
+  const other = project({ id: "other", status: "done", updatedAt: 1 });
+  const packs = unscheduledDonePacks([origin, line, other]);
+  assert.equal(packs.length, 2);
+  assert.equal(packs[0]?.waiting.length, 2);
+  assert.equal(packs[1]?.primary.id, "other");
 });

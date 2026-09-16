@@ -162,7 +162,18 @@ try {
   );
   await page.locator("#convert-pack").evaluate((el) => el instanceof HTMLElement && el.scrollIntoView({ block: "start" }));
   await expectText("全套下載", "下載全套");
+  await expectText("全套完成", "這套完成了");
+  await tap(page.getByRole("button", { name: "這套完成了" }));
+  await page.waitForTimeout(400);
+  await expectText("全套可排程", "排這套到日曆");
+  await expectText("全套可發布", "這套都發出去了");
   await page.screenshot({ path: `${prefix}-pack.png` });
+
+  await page.goto(`${base}/`, { waitUntil: "networkidle" });
+  await page.getByText("今天可以發", { exact: true }).scrollIntoViewIfNeeded();
+  await expectText("首頁全套型態", "種型態");
+  await expectText("首頁全套排程", "排這套到日曆");
+  await page.screenshot({ path: `${prefix}-today-pack.png` });
 
   await page.goto(`${base}/export`, { waitUntil: "networkidle" });
   await page.waitForSelector("text=預覽與下載", { timeout: 15000 });
@@ -221,6 +232,7 @@ try {
   await expectText("日曆可改節奏", "還沒建立");
   await expectText("日曆還沒排", "完成了、還沒排");
   await expectText("日曆帶走文案", "複製並下載");
+  await expectText("日曆全套排程", "排這套到日曆");
   await page.getByRole("button", { name: "依宣傳節奏排程" }).evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );

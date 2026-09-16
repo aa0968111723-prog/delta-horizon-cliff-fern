@@ -9,21 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { defaultScheduleAt, postingTime, suggestSchedule } from "@/lib/studio/schedule";
+import { stampForProject } from "@/lib/studio/schedule";
 import { applyFlowToProject, flowActions, primaryFlowAction, statusLabel, type FlowActionId } from "@/lib/studio/status";
-import type { Campaign, Project } from "@/lib/studio/types";
+import type { Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
-
-function scheduleStamp(project: Project, campaigns: Campaign[]): number {
-  if (project.scheduledAt) return project.scheduledAt;
-  const linked = campaigns.filter((campaign) => campaign.id === project.campaignId);
-  const hit = suggestSchedule([project], linked.length ? linked : campaigns)[0];
-  if (hit) return hit.at;
-  const campaign = linked[0];
-  const { hour, minute } = postingTime(campaign);
-  return defaultScheduleAt(Date.now(), hour, minute);
-}
 
 function formatWhen(ms: number | null | undefined): string {
   if (!ms) return "";
@@ -51,7 +41,7 @@ export function ContentFlowBar({
   const primary = primaryFlowAction(project.status);
 
   function run(action: FlowActionId) {
-    const at = action === "published" ? Date.now() : scheduleStamp(project, campaigns);
+    const at = action === "published" ? Date.now() : stampForProject(project, campaigns);
     const next = applyFlowToProject(project, action, at);
     updateProject(project.id, next);
     if (action === "done") toast.success("這則標成完成了。可以排程或直接發。");

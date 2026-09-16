@@ -16,13 +16,15 @@ import { CalendarDays, ChevronLeft, ChevronRight, Sparkles, Tent } from "lucide-
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PostPackBar } from "@/components/create/post-pack";
+import { DownloadPackButton } from "@/components/export/download-pack";
+import { PackFlowBar } from "@/components/shared/pack-flow";
 import { PageHeader, SectionHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { campaignDateMs, waveDateMs } from "@/lib/studio/campaign";
 import { suggestSchedule, offsetDaysFromEventDate } from "@/lib/studio/schedule";
 import { contentKindLabel } from "@/lib/studio/status";
-import { unscheduledDone } from "@/lib/studio/today-post";
+import { unscheduledDonePacks } from "@/lib/studio/today-post";
 import type { Campaign, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
@@ -54,7 +56,7 @@ export function CalendarPage() {
   const setSchedule = useStudio((s) => s.setSchedule);
   const applySchedule = useStudio((s) => s.applySchedule);
   const updateWave = useStudio((s) => s.updateWave);
-  const waiting = useMemo(() => unscheduledDone(projects), [projects]);
+  const waiting = useMemo(() => unscheduledDonePacks(projects), [projects]);
   const [cursor, setCursor] = useState(() => new Date());
   const [view, setView] = useState<View>(initialView);
   const [drag, setDrag] = useState<MoveTarget | null>(null);
@@ -207,25 +209,35 @@ export function CalendarPage() {
 
       {waiting.length ? (
         <section className="mt-6">
-          <SectionHeader title="完成了、還沒排" hint="複製文案、下載圖就能發；也可以排進日曆" />
+          <SectionHeader title="完成了、還沒排" hint="同一則做成的全套會併成一列。排這套、或複製文案下載圖就能發。" />
           <ul className="grid gap-3 lg:grid-cols-2">
-            {waiting.map((project) => (
-              <li key={project.id} className="min-w-0 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
+            {waiting.map((row) => (
+              <li key={row.rootId} className="min-w-0 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
                 <div className="flex items-start justify-between gap-2">
                   <Link
                     to="/studio/$projectId"
-                    params={{ projectId: project.id }}
+                    params={{ projectId: row.primary.id }}
                     className="min-w-0"
                   >
-                    <span className="block truncate text-sm font-medium">{project.name}</span>
-                    <span className="block truncate text-xs text-muted">{contentKindLabel(project.contentKind)}</span>
+                    <span className="block truncate text-sm font-medium">{row.primary.name}</span>
+                    <span className="block truncate text-xs text-muted">
+                      {row.pack.length > 1
+                        ? row.pack.map((item) => contentKindLabel(item.contentKind)).join("、")
+                        : contentKindLabel(row.primary.contentKind)}
+                    </span>
                   </Link>
-                  <StatusBadge status={project.status} />
+                  <StatusBadge status={row.primary.status} />
                 </div>
+                {row.pack.length > 1 ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <PackFlowBar projectId={row.primary.id} />
+                    <DownloadPackButton projectId={row.primary.id} size="sm" variant="secondary" />
+                  </div>
+                ) : null}
                 <PostPackBar
-                  copy={project.copy}
-                  kind={project.contentKind}
-                  projectId={project.id}
+                  copy={row.primary.copy}
+                  kind={row.primary.contentKind}
+                  projectId={row.primary.id}
                   variant="compact"
                   className="mt-3 pt-2"
                 />

@@ -141,3 +141,14 @@ export function suggestSchedule(
 
   return suggestions;
 }
+
+/** 這則要排去哪天：已有時間就沿用，否則跟宣傳節奏或今晚空檔。 */
+export function stampForProject(project: Project, campaigns: Campaign[], now: number = Date.now()): number {
+  if (project.scheduledAt) return project.scheduledAt;
+  const linked = campaigns.filter((campaign) => campaign.id === project.campaignId);
+  const hit = suggestSchedule([project], linked.length ? linked : campaigns, now)[0];
+  if (hit) return hit.at;
+  const campaign = linked[0];
+  const { hour, minute } = postingTime(campaign);
+  return defaultScheduleAt(now, hour, minute);
+}
