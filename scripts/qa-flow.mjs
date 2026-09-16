@@ -87,7 +87,9 @@ try {
   await page.screenshot({ path: `${prefix}-visual.png` });
 
   // 6. 用這版 → 建立內容
-  await page.getByRole("button", { name: /^用這版$/ }).first().click();
+  await page.getByRole("button", { name: /^用這版$/ }).first().evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
   await page.waitForTimeout(1200);
   await expectText("建立內容後回到創作頁", "進畫面編輯");
   await expectText("來源標示", "這則用到的來源");
