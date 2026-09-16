@@ -14,6 +14,7 @@ import {
 } from "@/lib/studio/carousel";
 import { defaultWavePlan, migrateCampaign } from "@/lib/studio/campaign";
 import { convertContent } from "@/lib/studio/convert";
+import { applyAssetToArtboard } from "@/lib/studio/reels-cover";
 import { emptyCopy, withBoilerplate } from "@/lib/studio/copy";
 import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
@@ -108,6 +109,7 @@ type StudioState = {
   markAssetUsed: (id: string) => void;
   removeAsset: (id: string) => void;
   placeAsset: (projectId: string, assetId: string, at?: { x: number; y: number }) => boolean;
+  applyCoverAsset: (projectId: string, assetId: string) => boolean;
   createProject: (input: {
     name: string;
     brandId: string;
@@ -412,6 +414,21 @@ export const useStudio = create<StudioState>()(
           get().addLayer(projectId, createImageLayer(asset.id, asset.name, { x, y, w, h }));
         }
         get().markAssetUsed(asset.id);
+        return true;
+      },
+      applyCoverAsset: (projectId, assetId) => {
+        const s = get();
+        const project = s.projects.find((p) => p.id === projectId);
+        const asset = s.assets.find((a) => a.id === assetId);
+        if (!project || !asset) return false;
+        get().ensureArtboard(projectId, "reels-cover");
+        get().setActiveFormat(projectId, "reels-cover");
+        get().patchArtboard(projectId, (board) => applyAssetToArtboard(board, assetId));
+        get().markAssetUsed(assetId);
+        if (project.reels) {
+          get().setReels(projectId, { ...project.reels, coverAssetId: assetId });
+        }
+        get().addSources(projectId, [{ kind: "generated", label: "Reels 封面", detail: asset.name, assetId }]);
         return true;
       },
       createProject: ({ name, brandId, formatId, brief, templateId, contentKind, campaignId, status, sources }) => {

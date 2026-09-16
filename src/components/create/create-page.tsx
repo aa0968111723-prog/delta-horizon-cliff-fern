@@ -658,7 +658,11 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       {reels || linkedProject?.reels ? (
         <section className="mt-8">
           <SectionHeader title="Reels 腳本" hint="20 秒、一個人、一支手機就能拍" />
-          <ReelsTimeline reels={reels ?? linkedProject!.reels!} adapter={reelsAdapter ?? linkedProject?.reels?.source} />
+          <ReelsTimeline
+            reels={reels ?? linkedProject!.reels!}
+            adapter={reelsAdapter ?? linkedProject?.reels?.source}
+            projectId={linkedProject?.id}
+          />
         </section>
       ) : null}
 

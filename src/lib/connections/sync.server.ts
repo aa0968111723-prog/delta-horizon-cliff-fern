@@ -1,78 +1,58 @@
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import { getAccessToken } from "./oauth.server";
 import type { ProviderId } from "./providers";
-import type { RemoteItem, RemoteItemKind } from "./remote";
+import type { RemoteItem, RemoteItemKind, SyncResult } from "./remote";
 import { readConnection, writeConnection } from "./token-store.server";
 
 export type { RemoteItem, RemoteItemKind } from "./remote";
 
-export type SyncResult =
-  | { ok: true; provider: ProviderId; items: RemoteItem[]; accountLabel: string | null }
-  | { ok: false; error: string; items: RemoteItem[] };
-
-function unwrapId(input: unknown): ProviderId {
-  const schema = z.object({ id: z.enum(["drive", "canva", "instagram"]) });
-  if (input && typeof input === "object" && "data" in input) {
-    return schema.parse((input as { data: unknown }).data).id;
+/** 同步單一來源。token 只在伺服器端使用。 */
+export async function runSync(id: ProviderId): Promise<SyncResult> {
+  const token = await getAccessToken(id);
+  if (!token) {
+    return { ok: false, error: "還沒授權，或授權已經失效。", items: [] };
   }
-  return schema.parse(input).id;
+  try {
+    const items = await listProvider(id, token);
+    const session = readConnection(id);
+    if (session) {
+      writeConnection({ ...session, lastSyncedAt: Date.now() });
+    }
+    return { ok: true, provider: id, items, accountLabel: session?.accountLabel ?? null };
+  } catch {
+    return { ok: false, error: "同步時連不上對方，稍後再試。", items: [] };
+  }
 }
 
-export const syncProvider = createServerFn({ method: "POST" })
-  .validator((input: unknown) => unwrapId(input))
-  .handler(async ({ data: id }): Promise<SyncResult> => {
-    const token = await getAccessToken(id);
-    if (!token) {
-      return { ok: false, error: "還沒授權，或授權已經失效。", items: [] };
-    }
+export async function runSearch(
+  query: string,
+  id?: ProviderId,
+): Promise<{ items: RemoteItem[]; note: string }> {
+  const ids: ProviderId[] = id ? [id] : ["drive", "canva", "instagram"];
+  const all: RemoteItem[] = [];
+  for (const provider of ids) {
+    const token = await getAccessToken(provider);
+    if (!token) continue;
     try {
-      const items =
-        id === "drive" ? await listDrive(token) : id === "canva" ? await listCanva(token) : await listInstagram(token);
-      const session = readConnection(id);
-      if (session) {
-        writeConnection({ ...session, lastSyncedAt: Date.now() });
-      }
-      return { ok: true, provider: id, items, accountLabel: session?.accountLabel ?? null };
+      all.push(...(await listProvider(provider, token)));
     } catch {
-      return { ok: false, error: "同步時連不上對方，稍後再試。", items: [] };
+      // skip this source
     }
-  });
+  }
+  const q = query.trim().toLowerCase();
+  const items = q
+    ? all.filter((item) => `${item.title} ${item.detail}`.toLowerCase().includes(q))
+    : all;
+  return {
+    items: items.slice(0, 40),
+    note: all.length ? "來自已連接的來源" : "還沒連接，或對方沒有可搜的內容。",
+  };
+}
 
-export const searchRemote = createServerFn({ method: "POST" })
-  .validator((input: unknown) => {
-    const schema = z.object({
-      query: z.string().max(80).catch(""),
-      id: z.enum(["drive", "canva", "instagram"]).optional(),
-    });
-    if (input && typeof input === "object" && "data" in input) {
-      return schema.parse((input as { data: unknown }).data);
-    }
-    return schema.parse(input);
-  })
-  .handler(async ({ data }): Promise<{ items: RemoteItem[]; note: string }> => {
-    const ids: ProviderId[] = data.id ? [data.id] : ["drive", "canva", "instagram"];
-    const all: RemoteItem[] = [];
-    for (const id of ids) {
-      const token = await getAccessToken(id);
-      if (!token) continue;
-      try {
-        const items =
-          id === "drive" ? await listDrive(token) : id === "canva" ? await listCanva(token) : await listInstagram(token);
-        all.push(...items);
-      } catch {
-        // skip this source
-      }
-    }
-    const q = data.query.trim().toLowerCase();
-    const items = q
-      ? all.filter((item) => `${item.title} ${item.detail}`.toLowerCase().includes(q))
-      : all;
-    return {
-      items: items.slice(0, 40),
-      note: all.length ? "來自已連接的來源" : "還沒連接，或對方沒有可搜的內容。",
-    };
-  });
+function listProvider(id: ProviderId, token: string): Promise<RemoteItem[]> {
+  if (id === "drive") return listDrive(token);
+  if (id === "canva") return listCanva(token);
+  return listInstagram(token);
+}
 
 async function listDrive(token: string): Promise<RemoteItem[]> {
   const url = new URL("https://www.googleapis.com/drive/v3/files");
@@ -162,7 +142,7 @@ async function listInstagram(token: string): Promise<RemoteItem[]> {
       thumbnail_url?: string;
     }[];
   };
-  return (json.data ?? []).map((post) => ({
+  const items: RemoteItem[] = (json.data ?? []).map((post) => ({
     provider: "instagram" as const,
     id: post.id,
     title: (post.caption ?? "無 Caption").split("\n")[0]!.slice(0, 48),
@@ -176,6 +156,8 @@ async function listInstagram(token: string): Promise<RemoteItem[]> {
       comments: post.comments_count,
     },
   }));
+  await attachInsights(token, items);
+  return items;
 }
 
 async function resolveIgUser(token: string): Promise<string | null> {
@@ -187,4 +169,37 @@ async function resolveIgUser(token: string): Promise<string | null> {
     data?: { instagram_business_account?: { id?: string } }[];
   };
   return json.data?.find((page) => page.instagram_business_account?.id)?.instagram_business_account?.id ?? null;
+}
+
+/**
+ * 每一則最多多打一次 Insights。失敗就略過，貼文本身（Caption、讚、留言）仍可用。
+ * 不重試、一次最多 12 則，避免把額度打完。
+ */
+async function attachInsights(token: string, items: RemoteItem[]): Promise<void> {
+  await Promise.all(
+    items.slice(0, 12).map(async (item) => {
+      const metric = item.kind === "video" ? "plays,reach,saved,shares" : "impressions,reach,saved,shares";
+      try {
+        const url = new URL(`https://graph.facebook.com/v21.0/${item.id}/insights`);
+        url.searchParams.set("metric", metric);
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return;
+        const json = (await res.json()) as { data?: { name?: string; values?: { value?: number }[] }[] };
+        const map: Record<string, number> = {};
+        for (const row of json.data ?? []) {
+          const value = row.values?.[0]?.value;
+          if (row.name && typeof value === "number") map[row.name] = value;
+        }
+        item.metrics = {
+          ...item.metrics,
+          reach: map.reach ?? map.impressions,
+          saved: map.saved,
+          shares: map.shares,
+          plays: map.plays,
+        };
+      } catch {
+        // Insights 權限不足時就只留讚與留言
+      }
+    }),
+  );
 }

@@ -294,7 +294,7 @@ export function InstagramCenter() {
       {tab === "insights" ? (
         <section className="mt-6">
           <SectionHeader title="成效" hint="不只看數字，是回答「哪一種 Hook 有效」" />
-          {insights.sampleCount && (insights.totalLikes || insights.totalComments) ? (
+          {insights.sampleCount && (insights.totalLikes || insights.totalComments || insights.totalReach) ? (
             <div className="space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Card title="按讚">
@@ -303,12 +303,34 @@ export function InstagramCenter() {
                 <Card title="留言">
                   <p className="text-sm text-muted">同步貼文合計 {insights.totalComments}</p>
                 </Card>
+                {insights.totalReach ? (
+                  <Card title="觸及／曝光">
+                    <p className="text-sm text-muted">同步貼文合計 {insights.totalReach}</p>
+                  </Card>
+                ) : null}
+                {insights.totalSaved ? (
+                  <Card title="收藏">
+                    <p className="text-sm text-muted">同步貼文合計 {insights.totalSaved}</p>
+                  </Card>
+                ) : null}
               </div>
+              {insights.hookWins.length ? (
+                <Card title="哪種開頭比較有效">
+                  <ul className="space-y-1 text-xs text-muted">
+                    {insights.hookWins.map((row) => (
+                      <li key={row.kind}>
+                        {row.kind} · 「{row.sample}」
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              ) : null}
               <Card title="互動較高的開頭">
                 <ul className="space-y-1 text-xs text-muted">
                   {insights.topPosts.map((post) => (
                     <li key={post.title}>
                       {post.title} · {post.likes} 讚 / {post.comments} 留言
+                      {post.saved ? ` / ${post.saved} 收藏` : ""}
                     </li>
                   ))}
                 </ul>

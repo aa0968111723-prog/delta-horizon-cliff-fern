@@ -35,7 +35,8 @@ test("LINE copy puts the headline on one line", () => {
   assert.ok(next.caption.includes("來坐一下"));
 });
 
-test("story copy keeps a short headline", () => {
-  const next = convertCopy(copy, "story");
+test("reels copy keeps a REELS eyebrow and a one-line headline", () => {
+  const next = convertCopy(copy, "reels");
+  assert.equal(next.eyebrow, "REELS");
   assert.equal(next.headline, "很久沒有");
 });

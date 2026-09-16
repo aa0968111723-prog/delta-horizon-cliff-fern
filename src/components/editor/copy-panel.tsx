@@ -87,7 +87,7 @@ export function CopyPanel({ project }: { project: Project }) {
       {project.reels ? (
         <div className="pt-2">
           <p className="mb-2 text-sm font-medium">Reels 腳本</p>
-          <ReelsTimeline reels={project.reels} adapter={project.reels.source} />
+          <ReelsTimeline reels={project.reels} adapter={project.reels.source} projectId={project.id} />
         </div>
       ) : null}
     </div>

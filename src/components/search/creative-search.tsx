@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { getConnections } from "@/lib/connections/status";
+import { searchRemote } from "@/lib/connections/sync";
 import type { ConnectionStatus, ProviderId } from "@/lib/connections/providers";
 import { matchesAssetQuery } from "@/lib/studio/assets";
 import { campaignTitle } from "@/lib/studio/campaign";
@@ -27,6 +28,9 @@ export function CreativeSearchPage({ initialQuery }: { initialQuery?: string }) 
   const remoteItems = useRemote((s) => s.items);
   const urls = useAssetUrls(assets.map((a) => a.id));
   const [connections, setConnections] = useState<ConnectionStatus[]>([]);
+  const [liveRemote, setLiveRemote] = useState<RemoteItem[] | null>(null);
+  const [liveNote, setLiveNote] = useState("");
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -37,6 +41,35 @@ export function CreativeSearchPage({ initialQuery }: { initialQuery?: string }) 
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    const query = q.trim();
+    if (!query) {
+      setLiveRemote(null);
+      setLiveNote("");
+      return;
+    }
+    let alive = true;
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      void searchRemote({ data: { query } })
+        .then((res) => {
+          if (!alive) return;
+          setLiveRemote(res.items);
+          setLiveNote(res.note);
+        })
+        .catch(() => {
+          if (alive) setLiveNote("連線搜尋暫時不可用，先看本機已同步的摘要。");
+        })
+        .finally(() => {
+          if (alive) setSearching(false);
+        });
+    }, 380);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [q]);
 
   const query = q.trim();
 
@@ -66,10 +99,10 @@ export function CreativeSearchPage({ initialQuery }: { initialQuery?: string }) 
     );
   }, [campaigns, query]);
 
-  const remoteHits = useMemo(
-    () => (query ? remoteItems.filter((item) => matchRemoteQuery(item, query)) : remoteItems.slice(0, 12)),
-    [remoteItems, query],
-  );
+  const remoteHits = useMemo(() => {
+    const source = liveRemote ?? remoteItems;
+    return query ? source.filter((item) => matchRemoteQuery(item, query)) : source.slice(0, 12);
+  }, [liveRemote, remoteItems, query]);
   const driveHits = remoteHits.filter((item) => item.provider === "drive");
   const canvaHits = remoteHits.filter((item) => item.provider === "canva");
   const igHits = remoteHits.filter((item) => item.provider === "instagram");
@@ -100,7 +133,10 @@ export function CreativeSearchPage({ initialQuery }: { initialQuery?: string }) 
       </div>
 
       {query ? (
-        <p className="mt-3 text-xs text-muted">找到 {total} 個相關項目</p>
+        <p className="mt-3 text-xs text-muted">
+          找到 {total} 個相關項目
+          {searching ? " · 正在連線搜尋 Drive / Canva / IG…" : liveNote ? ` · ${liveNote}` : ""}
+        </p>
       ) : (
         <ul className="mt-3 flex flex-wrap gap-1.5">
           {["浮游禪光", "茶會", "龜龜", "淡水", "夜晚", "社課"].map((tag) => (
@@ -282,24 +318,36 @@ function RemoteList({ items }: { items: RemoteItem[] }) {
     <ul className="space-y-2">
       {items.slice(0, 10).map((item) => (
         <li key={`${item.provider}-${item.id}`}>
-          {item.href ? (
-            <a
-              href={item.href}
-              target="_blank"
-              rel="noreferrer"
-              className="block rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
-            >
-              <span className="block truncate text-sm font-medium">{item.title}</span>
-              <span className="block truncate text-xs text-muted">{item.detail}</span>
-            </a>
-          ) : (
-            <div className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
-              <p className="truncate text-sm font-medium">{item.title}</p>
-              <p className="truncate text-xs text-muted">{item.detail}</p>
-            </div>
-          )}
+          <RemoteRow item={item} />
         </li>
       ))}
     </ul>
   );
+}
+
+function RemoteRow({ item }: { item: RemoteItem }) {
+  const body = (
+    <span className="flex min-w-0 items-center gap-3">
+      {item.thumbnailUrl ? (
+        <img src={item.thumbnailUrl} alt="" className="size-12 shrink-0 rounded-lg object-cover bg-surface-2" />
+      ) : null}
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-medium">{item.title}</span>
+        <span className="block truncate text-xs text-muted">{item.detail}</span>
+      </span>
+    </span>
+  );
+  if (item.href) {
+    return (
+      <a
+        href={item.href}
+        target="_blank"
+        rel="noreferrer"
+        className="block rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+      >
+        {body}
+      </a>
+    );
+  }
+  return <div className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">{body}</div>;
 }

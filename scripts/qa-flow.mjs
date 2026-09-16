@@ -76,6 +76,19 @@ try {
   await page.waitForTimeout(1200);
   await expectText("建立內容後回到創作頁", "進畫面編輯");
 
+  // 6b. 一鍵轉換 + Reels 腳本
+  await expectText("一鍵轉換", "做成其他型態");
+  await page.getByRole("button", { name: /寫 Reels 腳本/ }).click();
+  await page.waitForSelector("text=Reels 腳本", { timeout: 30000 });
+  await expectText("Reels 腳本", "複製整支腳本");
+  await expectText("生成封面", "生成封面圖");
+  await page.screenshot({ path: `${prefix}-reels.png` });
+
+  await page.locator("section").filter({ hasText: "做成其他型態" }).getByRole("button", { name: "輪播" }).click();
+  await page.waitForTimeout(800);
+  const afterConvert = await text();
+  record("一鍵轉換輪播", afterConvert.includes("輪播") || afterConvert.includes("做成其他型態"), "轉換後畫面沒更新");
+
   // 7. 逐頁檢查
   for (const [name, path, needle] of [
     ["活動列表", "/campaigns", "社課與活動"],
@@ -84,7 +97,7 @@ try {
     ["搜尋", "/search", "找素材與過去的內容"],
     ["連接", "/connections", "素材與帳號"],
     ["素材庫", "/assets", "素材"],
-    ["品牌", "/brand", "品牌"],
+    ["品牌", "/brand", "品牌記憶"],
   ]) {
     await page.goto(`${base}${path}`, { waitUntil: "networkidle" });
     await expectText(name, needle);
@@ -106,12 +119,20 @@ try {
   // 9. 手機視窗檢查橫向溢出
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const mp = await mobile.newPage();
-  for (const path of ["/", "/create", "/campaigns", "/calendar", "/instagram", "/search", "/connections"]) {
+  for (const path of ["/", "/create", "/campaigns", "/calendar", "/instagram", "/search", "/connections", "/brand", "/assets"]) {
     await mp.goto(`${base}${path}`, { waitUntil: "networkidle" });
     const overflow = await mp.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
     );
-    record(`手機無橫向溢出 ${path}`, !overflow, "有橫向溢出");
+    record(`手機無橫向溢出 ${path}`, !overflow, overflow ? "有橫向溢出" : "");
+  }
+  for (const width of [375, 430]) {
+    await mp.setViewportSize({ width, height: 844 });
+    await mp.goto(`${base}/`, { waitUntil: "networkidle" });
+    const overflow = await mp.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    );
+    record(`手機 ${width} 無橫向溢出`, !overflow, overflow ? "有橫向溢出" : "");
   }
   // 中央 AI 創作按鈕
   await mp.goto(`${base}/`, { waitUntil: "networkidle" });

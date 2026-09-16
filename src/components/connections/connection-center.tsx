@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { disconnectProvider, getConnections } from "@/lib/connections/status";
-import { syncProvider } from "@/lib/connections/sync.server";
+import { syncProvider } from "@/lib/connections/sync";
 import type { ConnectionStatus, ProviderId } from "@/lib/connections/providers";
 import { cn } from "@/lib/utils";
 import { CLUB_NAME } from "@/lib/zen/club";

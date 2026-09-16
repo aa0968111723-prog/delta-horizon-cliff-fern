@@ -1,5 +1,6 @@
 import type { RemoteItem } from "@/lib/connections/remote";
-import type { BrandKit, Project } from "./types";
+import { hookKind } from "./reels-cover.ts";
+import type { BrandKit, Project } from "./types.ts";
 
 /**
  * Zen Club IG DNA：從社團自己做過的內容抽出習慣，
@@ -18,10 +19,14 @@ export type IgDna = {
 };
 
 export type IgInsightSummary = {
-  topPosts: { title: string; likes: number; comments: number }[];
+  topPosts: { title: string; likes: number; comments: number; reach: number; saved: number }[];
   totalLikes: number;
   totalComments: number;
+  totalReach: number;
+  totalSaved: number;
   sampleCount: number;
+  /** 哪種開頭在真實數據裡比較有效。沒有數據時為空。 */
+  hookWins: { kind: string; score: number; sample: string }[];
 };
 
 export function buildIgDna(
@@ -85,19 +90,53 @@ export function buildIgDna(
   };
 }
 
+export function engagementScore(metrics?: RemoteItem["metrics"]): number {
+  if (!metrics) return 0;
+  return (
+    (metrics.likes ?? 0) +
+    (metrics.comments ?? 0) * 3 +
+    (metrics.saved ?? 0) * 4 +
+    (metrics.shares ?? 0) * 5 +
+    Math.round((metrics.reach ?? 0) / 20) +
+    (metrics.plays ?? 0)
+  );
+}
+
 export function buildIgInsights(remotePosts: RemoteItem[]): IgInsightSummary {
   const withMetrics = remotePosts
     .map((post) => ({
       title: post.title,
       likes: post.metrics?.likes ?? 0,
       comments: post.metrics?.comments ?? 0,
+      reach: post.metrics?.reach ?? 0,
+      saved: post.metrics?.saved ?? 0,
+      score: engagementScore(post.metrics),
+      kind: hookKind(post.title),
     }))
-    .sort((a, b) => b.likes + b.comments - (a.likes + a.comments));
+    .sort((a, b) => b.score - a.score);
+
+  const byKind = new Map<string, { score: number; sample: string }>();
+  for (const row of withMetrics) {
+    if (!row.score) continue;
+    const prev = byKind.get(row.kind);
+    if (!prev || row.score > prev.score) {
+      byKind.set(row.kind, { score: (prev?.score ?? 0) + row.score, sample: row.title });
+    } else {
+      byKind.set(row.kind, { score: prev.score + row.score, sample: prev.sample });
+    }
+  }
+
   return {
     topPosts: withMetrics.slice(0, 5),
     totalLikes: withMetrics.reduce((sum, row) => sum + row.likes, 0),
     totalComments: withMetrics.reduce((sum, row) => sum + row.comments, 0),
+    totalReach: withMetrics.reduce((sum, row) => sum + row.reach, 0),
+    totalSaved: withMetrics.reduce((sum, row) => sum + row.saved, 0),
     sampleCount: remotePosts.length,
+    hookWins: [...byKind.entries()]
+      .map(([kind, row]) => ({ kind, score: row.score, sample: row.sample }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4),
   };
 }
 

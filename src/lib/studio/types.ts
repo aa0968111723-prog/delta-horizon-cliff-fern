@@ -457,6 +457,8 @@ export type ReelsBeat = {
 export type ReelsScript = {
   hook: string;
   cover: string;
+  /** 依腳本生成、存進素材庫的封面圖 */
+  coverAssetId?: string | null;
   beats: ReelsBeat[];
   createdAt: number;
   source: PlanSource;
