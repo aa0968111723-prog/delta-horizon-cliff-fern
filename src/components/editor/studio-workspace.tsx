@@ -274,7 +274,9 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
                 <div className="px-3 pt-3">
                   <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="inspect">屬性</TabsTrigger>
-                    <TabsTrigger value="copy">文字</TabsTrigger>
+                    <TabsTrigger value="copy" data-testid="studio-tab-copy">
+                      文字
+                    </TabsTrigger>
                     <TabsTrigger value="qa">檢查</TabsTrigger>
                     <TabsTrigger value="ai" data-testid="studio-tab-ai">
                       AI

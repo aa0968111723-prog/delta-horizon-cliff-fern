@@ -563,8 +563,8 @@ try {
   });
   record("做成 Reels 封面看得到", Boolean(reelsVisible.ok), reelsVisible.detail || "");
   await expectText("做成 Reels 腳本收到文字", "完整秒數、旁白與拍法在「文字」");
-  await tap(page.getByRole("tab", { name: "文字" }));
-  await page.waitForTimeout(400);
+  await tap(page.getByTestId("studio-tab-copy"));
+  await page.waitForSelector("text=0–3 秒", { timeout: 8000 });
   await expectText("做成 Reels 完整腳本在文字", "0–3 秒");
   await page.screenshot({ path: `${prefix}-from-image-reels.png` });
 

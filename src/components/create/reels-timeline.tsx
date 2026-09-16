@@ -148,6 +148,7 @@ export function ReelsTimeline({
           <p className="min-w-0 flex-1 truncate font-display text-sm leading-snug">{reels.hook}</p>
           {actions}
         </div>
+        <p className="truncate text-xs text-muted">封面：{reels.cover}</p>
         {adapter === "local" || adapter === "mock" ? (
           <p className="text-xs text-subtle">這是本機草稿，可以直接改；不是線上模型的回覆。完整秒數、旁白與拍法在「文字」。</p>
         ) : (
