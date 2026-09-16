@@ -184,6 +184,8 @@ try {
   await expectText("LINE 橫式", "1.91:1");
   await expectText("LINE 預覽", "LINE 預覽");
   await expectText("複製 LINE 文案", "複製 LINE 文案");
+  await expectText("LINE 橫式畫面在下面", "1.91:1 畫面在下面");
+  await page.waitForSelector('[data-testid="line-preview"][data-variant="compact"]', { timeout: 8000 });
   await page.waitForSelector('[data-testid="artboard-photo"]', { timeout: 15000 });
   const linePhoto = await page
     .getByTestId("artboard")
@@ -195,6 +197,22 @@ try {
     linePhoto > 0,
     linePhoto > 0 ? `畫布上有 ${linePhoto} 張主視覺` : "LINE 圖沒有主視覺照片",
   );
+  const lineVisible = await page.evaluate(() => {
+    const board = document.querySelector("[data-testid=artboard]");
+    const preview = document.querySelector("[data-testid=line-preview]");
+    if (!(board instanceof HTMLElement)) return { ok: false, detail: "沒有畫布" };
+    const r = board.getBoundingClientRect();
+    const visibleH = Math.min(r.bottom, window.innerHeight - 40) - Math.max(r.top, 0);
+    const compact = preview?.getAttribute("data-variant") === "compact";
+    return {
+      ok: compact && visibleH >= 120 && r.width >= 180 && r.width > r.height,
+      detail: `${compact ? "compact" : "full"} ${Math.round(r.width)}×${Math.round(visibleH)}`,
+    };
+  });
+  record("LINE 橫式封面看得到", Boolean(lineVisible.ok), lineVisible.detail || "");
+  await tap(page.getByTestId("line-open-copy").first());
+  await page.waitForSelector("text=改這裡只影響目前這一頁", { timeout: 8000 });
+  await expectText("LINE 完整文案在文字", "改這裡只影響目前這一頁");
   await page.screenshot({ path: `${prefix}-line.png` });
   await tap(page.getByRole("button", { name: /做成Threads/ }));
   await page.waitForSelector("text=Threads 預覽", { timeout: 15000 });
@@ -679,6 +697,60 @@ try {
     squarePhoto > 0 ? `畫布上有 ${squarePhoto} 張主視覺` : "1:1 沒有主視覺照片",
   );
   await page.screenshot({ path: `${prefix}-from-image-square.png` });
+
+  // 8g. 從一張圖片做成 LINE：1.91:1 橫式，畫面編輯先看到圖
+  await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });
+  await page.waitForSelector('[data-testid="analyze-asset-asset_tamsui_dusk"]', { timeout: 15000 });
+  await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
+  await page.waitForSelector('[data-testid="image-analysis"]', { timeout: 20000 });
+  await page.waitForSelector('[data-testid="make-kind-line"]', { timeout: 15000 });
+  await expectText("做成 LINE 入口再點", "做成 LINE 圖");
+  await tap(
+    page
+      .locator("section")
+      .filter({ hasText: "圖片理解" })
+      .getByTestId("make-kind-line"),
+  );
+  await page.waitForURL(/\/studio\//, { timeout: 25000 });
+  await page.waitForLoadState("networkidle");
+  await page.waitForSelector('[data-testid="line-preview"][data-variant="compact"]', { timeout: 15000 });
+  await expectText("做成 LINE 來源", "這則用到的來源");
+  await expectText("做成 LINE 已排成比例", "已排成 LINE / 連結");
+  await expectText("做成 LINE 畫面在下面", "1.91:1 畫面在下面");
+  await page.waitForSelector('[data-testid="artboard"]', { timeout: 15000 });
+  const lineRatio = await page.getByTestId("artboard").first().getAttribute("data-ratio");
+  record("做成 LINE 畫布比例", lineRatio === "1.91:1", `畫布是 ${lineRatio ?? "沒有比例"}`);
+  const lineFormat = await page.getByTestId("artboard").first().getAttribute("data-format");
+  record("做成 LINE 畫布格式", lineFormat === "feed-landscape", `格式是 ${lineFormat ?? "沒有格式"}`);
+  await page.waitForSelector('[data-testid="artboard-photo"]', { timeout: 15000 });
+  const fromImageLinePhoto = await page
+    .getByTestId("artboard")
+    .first()
+    .locator("[data-testid=artboard-photo]")
+    .count();
+  record(
+    "做成 LINE 封面有照片",
+    fromImageLinePhoto > 0,
+    fromImageLinePhoto > 0 ? `畫布上有 ${fromImageLinePhoto} 張主視覺` : "LINE 沒有主視覺照片",
+  );
+  const fromImageLineVisible = await page.evaluate(() => {
+    const board = document.querySelector("[data-testid=artboard]");
+    const preview = document.querySelector("[data-testid=line-preview]");
+    const extra = document.querySelectorAll("[data-testid=line-preview] [data-ratio]").length;
+    if (!(board instanceof HTMLElement)) return { ok: false, detail: "沒有畫布" };
+    const r = board.getBoundingClientRect();
+    const visibleH = Math.min(r.bottom, window.innerHeight - 40) - Math.max(r.top, 0);
+    const compact = preview?.getAttribute("data-variant") === "compact";
+    return {
+      ok: compact && extra === 0 && visibleH >= 120 && r.width >= 180 && r.width > r.height,
+      detail: `${compact ? "compact" : "full"} ${Math.round(r.width)}×${Math.round(visibleH)} 預覽圖=${extra}`,
+    };
+  });
+  record("做成 LINE 橫式看得到", Boolean(fromImageLineVisible.ok), fromImageLineVisible.detail || "");
+  await tap(page.getByTestId("line-open-copy").first());
+  await page.waitForSelector("text=改這裡只影響目前這一頁", { timeout: 8000 });
+  await expectText("做成 LINE 完整文案在文字", "改這裡只影響目前這一頁");
+  await page.screenshot({ path: `${prefix}-from-image-line.png` });
 
   await page.goto(`${base}/instagram`, { waitUntil: "networkidle" });
   await expectText("IG 個人頁", "追蹤者");

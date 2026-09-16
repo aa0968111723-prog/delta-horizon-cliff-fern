@@ -13,16 +13,28 @@ export function PublishPreview({
   project,
   brand,
   urls,
+  variant = "full",
+  onOpenCopy,
 }: {
   project: Project;
   brand?: BrandKit;
   urls: Record<string, string>;
+  variant?: "full" | "compact";
+  onOpenCopy?: () => void;
 }) {
   if (project.contentKind === "threads") {
     return <ThreadsPreview copy={project.copy} />;
   }
   if (project.contentKind === "line") {
-    return <LinePreview project={project} brand={brand} urls={urls} />;
+    return (
+      <LinePreview
+        project={project}
+        brand={brand}
+        urls={urls}
+        variant={variant}
+        onOpenCopy={onOpenCopy}
+      />
+    );
   }
   if (project.contentKind === "reels" && project.reels) {
     return (

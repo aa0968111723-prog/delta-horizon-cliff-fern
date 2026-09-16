@@ -13,10 +13,15 @@ export function LinePreview({
   project,
   brand,
   urls,
+  variant = "full",
+  onOpenCopy,
 }: {
   project: Project;
   brand?: BrandKit;
   urls: Record<string, string>;
+  /** compact：畫面編輯只留文案與操作，橫式圖在下面畫布。 */
+  variant?: "full" | "compact";
+  onOpenCopy?: () => void;
 }) {
   const page = pagesOf(project)[0];
   const text = linePostText(project.copy);
@@ -37,16 +42,40 @@ export function LinePreview({
     }
   }
 
+  const actions = (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <Button size="sm" variant="secondary" onClick={() => void copyCaption()} disabled={!text.trim()}>
+        {copied ? <Check className="size-4" /> : <CopyIcon className="size-4" />}
+        {copied ? "已複製" : "複製 LINE 文案"}
+      </Button>
+      {variant === "compact" && onOpenCopy ? (
+        <Button size="sm" variant="ghost" data-testid="line-open-copy" onClick={onOpenCopy}>
+          完整文案
+        </Button>
+      ) : null}
+    </div>
+  );
+
+  if (variant === "compact") {
+    return (
+      <div className="space-y-1.5" data-testid="line-preview" data-variant="compact">
+        <p className="text-xs text-subtle">LINE 預覽 · {CLUB_HANDLE}</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="min-w-0 flex-1 truncate text-sm">{text || "套用一版文案之後，這裡會出現貼到 LINE 的字。"}</p>
+          {actions}
+        </div>
+        <p className="text-xs text-subtle">橫式 1.91:1 畫面在下面這張畫布。完整句子在「文字」。</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="mx-auto w-full max-w-sm">
+    <div className="mx-auto w-full max-w-sm" data-testid="line-preview">
       <p className="mb-2 text-xs text-subtle">LINE 預覽 · {CLUB_HANDLE}</p>
       <div className="space-y-2 rounded-3xl bg-surface p-3 shadow-[var(--shadow-lift)]">
         <div className="flex items-center justify-between gap-2">
           <p className="min-w-0 truncate text-xs text-subtle">{CLUB_NAME}</p>
-          <Button size="sm" variant="secondary" onClick={() => void copyCaption()} disabled={!text.trim()}>
-            {copied ? <Check className="size-4" /> : <CopyIcon className="size-4" />}
-            {copied ? "已複製" : "複製 LINE 文案"}
-          </Button>
+          {actions}
         </div>
         <div className="overflow-hidden rounded-2xl bg-surface-2">
           {page && brand ? (

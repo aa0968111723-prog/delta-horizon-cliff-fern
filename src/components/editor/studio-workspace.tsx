@@ -65,11 +65,15 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
   const setCarouselPreview = useUi((s) => s.setCarouselPreview);
   const [rightTab, setRightTab] = useState("inspect");
 
-  function openReelsScript() {
+  function openCopyPanel() {
     setRightTab("copy");
     if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) {
       setPanel("copy");
     }
+  }
+
+  function openReelsScript() {
+    openCopyPanel();
   }
 
   useEffect(() => {
@@ -267,8 +271,14 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
                     <PublishPreview project={project} brand={brand} urls={urls} />
                   </div>
                 ) : project.contentKind === "line" ? (
-                  <div className="max-h-56 min-h-0 shrink-0 overflow-y-auto border-b border-border bg-surface px-3 py-3 md:max-h-64">
-                    <PublishPreview project={project} brand={brand} urls={urls} />
+                  <div className="shrink-0 border-b border-border bg-surface px-3 py-2">
+                    <PublishPreview
+                      project={project}
+                      brand={brand}
+                      urls={urls}
+                      variant="compact"
+                      onOpenCopy={openCopyPanel}
+                    />
                   </div>
                 ) : null}
                 {project.contentKind === "threads" ? null : (
@@ -329,8 +339,14 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
               <PublishPreview project={project} brand={brand} urls={urls} />
             </div>
           ) : project.contentKind === "line" ? (
-            <div className="max-h-40 min-h-0 shrink-0 overflow-y-auto border-b border-border bg-surface px-3 py-3">
-              <PublishPreview project={project} brand={brand} urls={urls} />
+            <div className="shrink-0 border-b border-border bg-surface px-3 py-2">
+              <PublishPreview
+                project={project}
+                brand={brand}
+                urls={urls}
+                variant="compact"
+                onOpenCopy={openCopyPanel}
+              />
             </div>
           ) : null}
           {project.contentKind === "threads" ? null : (
