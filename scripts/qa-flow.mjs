@@ -348,6 +348,16 @@ try {
   await expectText("圖片不會太宗教", "不會太宗教");
   await expectText("圖片沒看像素", "沒有真的看像素");
   await page.screenshot({ path: `${prefix}-image-analysis.png` });
+  await tap(
+    page
+      .locator("section")
+      .filter({ hasText: "圖片理解" })
+      .getByRole("button", { name: "改這張圖" }),
+  );
+  await page.waitForSelector("text=本機改版", { timeout: 20000 });
+  await expectText("圖片本機改版", "本機改版");
+  await expectText("圖片改版留白", "只改構圖比例與留白");
+  await page.screenshot({ path: `${prefix}-image-revision.png` });
   const tinyPng = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mP8z8BQz0AEYBxVSF+FAP5FDvcfRYWgAAAAAElFTkSuQmCC",
     "base64",

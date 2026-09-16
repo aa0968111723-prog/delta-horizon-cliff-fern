@@ -327,7 +327,7 @@ export function CalendarPage() {
                   }}
                   className={cn(
                     "rounded-xl p-1.5 shadow-[var(--shadow-border)] transition-shadow",
-                    view === "week" ? "glass min-h-40 sm:min-h-52" : "min-h-24 bg-surface sm:min-h-28",
+                    view === "week" ? "glass min-h-40 sm:min-h-52" : "glass min-h-24 sm:min-h-28",
                     dim && "opacity-45",
                     isSameDay(day, new Date()) && "ring-2 ring-ring",
                     (drag || pick) && "hover:shadow-[var(--shadow-lift)]",

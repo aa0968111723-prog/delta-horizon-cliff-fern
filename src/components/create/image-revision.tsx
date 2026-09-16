@@ -1,11 +1,13 @@
 import { Loader2, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { editImage } from "@/lib/ai/image-ai";
 import { REVISION_PRESETS } from "@/lib/ai/imagine-request";
-import { saveGeneratedImage, urlToDataUrl } from "@/lib/studio/generated-image";
+import { saveDataUrlAsAsset, saveGeneratedImage, urlToDataUrl } from "@/lib/studio/generated-image";
+import { LOCAL_REVISE_NOTE, reviseImageLocal } from "@/lib/studio/image-revise-local";
 import type { AssetMeta } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
@@ -37,6 +39,7 @@ export function ImageRevisionBar({
   );
   const [custom, setCustom] = useState("");
   const [busy, setBusy] = useState(false);
+  const [adapter, setAdapter] = useState<"live" | "local" | null>(null);
 
   async function run() {
     const preset = REVISION_PRESETS.find((item) => item.id === presetId);
@@ -55,19 +58,35 @@ export function ImageRevisionBar({
       const res = await editImage({
         data: { imageUrl: dataUrl, instruction, ratio },
       });
-      if (!res.ok) {
-        toast.warning(res.error);
+      if (res.ok) {
+        const meta = await saveGeneratedImage({
+          dataUrl: res.dataUrl,
+          name: `${sourceLabel} · ${preset?.label ?? "改版"}`,
+          prompt: res.revisedPrompt || instruction,
+          tags: ["改版", preset?.label ?? "改版"],
+        });
+        addAsset(meta);
+        setAdapter("live");
+        onSaved?.(meta, res.dataUrl);
+        toast.success("改版已存進素材庫");
         return;
       }
-      const meta = await saveGeneratedImage({
-        dataUrl: res.dataUrl,
+      const local = await reviseImageLocal({
+        imageUrl: dataUrl,
+        presetId,
+        ratio,
+      });
+      const meta = await saveDataUrlAsAsset({
+        dataUrl: local.dataUrl,
         name: `${sourceLabel} · ${preset?.label ?? "改版"}`,
-        prompt: res.revisedPrompt || instruction,
-        tags: ["改版", preset?.label ?? "改版"],
+        tags: ["本機改版", preset?.label ?? "改版", ratio],
+        source: "upload",
+        notes: LOCAL_REVISE_NOTE,
       });
       addAsset(meta);
-      onSaved?.(meta, res.dataUrl);
-      toast.success("改版已存進素材庫");
+      setAdapter("local");
+      onSaved?.(meta, local.dataUrl);
+      toast.info(LOCAL_REVISE_NOTE);
     } catch {
       toast.error("改圖時出錯了，再試一次。");
     } finally {
@@ -77,7 +96,17 @@ export function ImageRevisionBar({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted">改這張圖</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-xs text-muted">改這張圖</p>
+        {adapter === "local" ? (
+          <Badge data-testid="revision-source">本機改版</Badge>
+        ) : adapter === "live" ? (
+          <Badge variant="accent" data-testid="revision-source">
+            AI 改圖
+          </Badge>
+        ) : null}
+      </div>
+      <p className="text-xs text-subtle">沒有線上改圖時，會換成選定比例並留白給標題。不會改畫面裡的東西。</p>
       <div className="flex flex-wrap gap-1.5">
         {REVISION_PRESETS.map((item) => (
           <button
