@@ -541,7 +541,7 @@ export function BrandEditor() {
           label="常用 CTA"
           hint="第一則會作為新專案預設按鈕文案。"
           values={brand.ctas}
-          placeholder="例如：查看風味"
+          placeholder="例如：直接來就好"
           onChange={(ctas) => {
             patch("ctas", ctas);
             patch("boilerplate", { ...brand.boilerplate, cta: ctas[0] || brand.boilerplate.cta });
@@ -551,7 +551,7 @@ export function BrandEditor() {
           <Textarea
             value={brand.boilerplate.captionClose}
             onChange={(e) => patch("boilerplate", { ...brand.boilerplate, captionClose: e.target.value })}
-            placeholder="例如：歡迎到店，或私訊詢問。"
+            placeholder="例如：直接來就好，或週三晚上見。"
           />
         </Field>
         <Field label="固定標籤（逗號分隔）">
@@ -598,14 +598,14 @@ export function BrandEditor() {
           <Input
             value={brand.imageStyle.paletteHint}
             onChange={(e) => patch("imageStyle", { ...brand.imageStyle, paletteHint: e.target.value })}
-            placeholder="亞麻、深焙、赤陶"
+            placeholder="夜晚一盞燈、淡水河邊、真實學生照"
           />
         </Field>
         <Field label="構圖">
           <Input
             value={brand.imageStyle.composition}
             onChange={(e) => patch("imageStyle", { ...brand.imageStyle, composition: e.target.value })}
-            placeholder="商品置中或上半，下半留白給標題"
+            placeholder="人物很小、上 2/3 場景、下 1/3 留白給標題"
           />
         </Field>
         <Field label="應該拍／用">

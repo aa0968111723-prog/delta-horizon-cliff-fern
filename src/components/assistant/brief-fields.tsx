@@ -44,7 +44,7 @@ export function BriefFields({ brief, onChange, compact }: Props) {
             const eventName = e.target.value;
             onChange({ eventName, product: brief.product || eventName });
           }}
-          placeholder="例如：九月單品・耶加雪菲"
+          placeholder="例如：浮游禪光・週三茶會"
         />
       </Field>
 
@@ -91,11 +91,11 @@ export function BriefFields({ brief, onChange, compact }: Props) {
       </Field>
 
       {compact ? null : (
-        <Field label="優惠（選填）">
+        <Field label="參加方式（選填）">
           <Input
             value={brief.offer}
             onChange={(e) => onChange({ offer: e.target.value })}
-            placeholder="期間限定、到店禮"
+            placeholder="不用報名、帶杯子來也可以"
           />
         </Field>
       )}

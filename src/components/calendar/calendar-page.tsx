@@ -449,31 +449,35 @@ function AgendaRow({
   const when = content.publishedAt ?? content.scheduledAt!;
   const kind = rhythmOf(content, campaigns);
   return (
-    <li className="flex flex-wrap items-center gap-2 rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
-      <span className="w-12 text-xs text-muted tabular-nums">{formatDate(when, "HH:mm")}</span>
-      <Link to="/create" search={{ contentId: content.id }} className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{content.copy.hook || content.title}</span>
-        <span className="block text-xs text-muted">
-          {contentTypeShort(content.type)} · {RHYTHM_LABEL[kind]}
-          {content.title !== content.copy.hook ? ` · ${content.title}` : ""}
-        </span>
-      </Link>
-      <ContentStatusBadge status={content.status} />
-      <Input
-        type="date"
-        aria-label="改日期"
-        className="h-8 w-[8.5rem] rounded-full px-2 text-xs"
-        value={todayIso(new Date(when))}
-        onChange={(e) => e.target.value && onMove(content.id, new Date(`${e.target.value}T00:00:00`))}
-      />
-      <Button size="sm" variant="ghost" aria-label="複製" onClick={() => onDuplicate(content.id)}>
-        <Copy className="size-3.5" />
-      </Button>
-      <Button size="sm" variant="ghost" asChild>
-        <Link to="/create" search={{ contentId: content.id }}>
-          <Sparkles className="size-3.5" /> AI 延伸
+    <li className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
+      <div className="flex items-start gap-3">
+        <span className="w-12 shrink-0 pt-0.5 text-xs text-muted tabular-nums">{formatDate(when, "HH:mm")}</span>
+        <Link to="/create" search={{ contentId: content.id }} className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">{content.copy.hook || content.title}</span>
+          <span className="mt-0.5 block truncate text-xs text-muted">
+            {contentTypeShort(content.type)} · {RHYTHM_LABEL[kind]}
+            {content.title !== content.copy.hook ? ` · ${content.title}` : ""}
+          </span>
         </Link>
-      </Button>
+        <ContentStatusBadge status={content.status} />
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2 sm:pl-12">
+        <Input
+          type="date"
+          aria-label="改日期"
+          className="h-8 w-[9.5rem] rounded-full px-2 text-xs"
+          value={todayIso(new Date(when))}
+          onChange={(e) => e.target.value && onMove(content.id, new Date(`${e.target.value}T00:00:00`))}
+        />
+        <Button size="sm" variant="ghost" aria-label="複製" onClick={() => onDuplicate(content.id)}>
+          <Copy className="size-3.5" />
+        </Button>
+        <Button size="sm" variant="ghost" className="rounded-full" asChild>
+          <Link to="/create" search={{ contentId: content.id }}>
+            <Sparkles className="size-3.5" /> AI 延伸
+          </Link>
+        </Button>
+      </div>
     </li>
   );
 }

@@ -80,7 +80,7 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
               id="proj-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：九月單品上市"
+              placeholder="例如：浮游禪光主視覺"
             />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -123,7 +123,7 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
               onChange={(e) =>
                 setBrief({ ...brief, eventName: e.target.value, product: brief.product || e.target.value })
               }
-              placeholder="賣什麼、什麼檔期"
+              placeholder="浮游禪光、週三社課"
             />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

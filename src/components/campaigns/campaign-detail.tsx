@@ -41,7 +41,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   const hydrated = useStudio((s) => s.hydrated);
   const campaign = useStudio((s) => s.campaigns.find((c) => c.id === campaignId));
   const brand = useStudio((s) => s.brands[0]);
-  const contents = useStudio((s) => s.contents.filter((c) => c.campaignId === campaignId));
+  const allContents = useStudio((s) => s.contents);
   const updateCampaign = useStudio((s) => s.updateCampaign);
   const deleteCampaign = useStudio((s) => s.deleteCampaign);
   const createContent = useStudio((s) => s.createContent);
@@ -49,9 +49,13 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  const contents = useMemo(
+    () => allContents.filter((c) => c.campaignId === campaignId),
+    [allContents, campaignId],
+  );
   const coverIds = useMemo(
     () => [campaign?.coverAssetId ?? "", ...contents.map((c) => c.coverAssetId ?? "")].filter(Boolean),
-    [campaign, contents],
+    [campaign?.coverAssetId, contents],
   );
   const urls = useAssetUrls(coverIds);
 
