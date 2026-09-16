@@ -187,7 +187,7 @@ export function HomePage() {
       {lastLearn ? (
         <section className="mt-6 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
           <p className="text-xs tracking-[0.16em] text-muted uppercase">
-            {Date.now() - lastLearn.at < 15 * 60 * 1000 ? "上次發布後學到" : "目前 IG 學到"}
+            {Date.now() - lastLearn.at < 15 * 60 * 1000 ? "剛才學到" : "目前 IG 學到"}
           </p>
           <p className="mt-2 font-display text-xl leading-snug">「{lastLearn.hook}」</p>
           <p className="mt-2 text-sm text-muted">{lastLearn.hookLesson}</p>
