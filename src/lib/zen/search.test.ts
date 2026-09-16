@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { SEED_MEMORY } from "./memory.ts";
 import { creativeSearch, expandCreativeQuery, groupSearchHits, knowledgeFromHits, searchCreativeKnowledge, searchTerms } from "./search.ts";
-import { applyPackToWaves, contentKindForWave, copyKindForWave, emptyCampaign, fillKeptWaveRows, mergeSuiteIntoSchedule, nextWaveAngle, nextWaveVisual, packWithDirection, preferSuiteSchedule, projectForKeptWave, rhythmHint, scheduleItemsFromCampaign, schedulePreviewAssetId, spreadSchedule, suggestWaves, suiteCoversWave, waveOffsets } from "./schedule.ts";
+import { applyPackToWaves, contentKindForWave, copyKindForWave, dueScheduleItems, emptyCampaign, fillKeptWaveRows, mergeSuiteIntoSchedule, nextWaveAngle, nextWaveVisual, packWithDirection, preferSuiteSchedule, projectForKeptWave, rhythmHint, scheduleItemsFromCampaign, schedulePreviewAssetId, spreadSchedule, suggestWaves, suiteCoversWave, upcomingScheduleItems, waveOffsets } from "./schedule.ts";
 import { canvaDraftNotes, canvaDraftTitle, canvaPresetForAspect, canvaPresetForKind } from "./canva-draft.ts";
 import { convertFromPlan, CONVERT_TARGETS, aspectForTarget, briefFlagsForTarget, captionForTarget, contentKindForFormat, convertTargetForFormat } from "./convert.ts";
 import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
 import { applyStudentRewrite } from "./review.ts";
 import { migrateStatus } from "../studio/status.ts";
 import { buildMockPlan } from "../ai/mock.ts";
+import type { ScheduleItem } from "./types.ts";
 
 test("migrateStatus maps old studio statuses", () => {
   assert.equal(migrateStatus("draft"), "creating");
@@ -775,6 +776,44 @@ test("copy kinds include Q&A poll and member stories", async () => {
   assert.equal(copyKindForWave("emotion"), "emotion");
   assert.equal(copyKindForWave("tease"), "knowledge");
   assert.equal(copyKindForWave("reason"), "member");
+});
+
+test("dueScheduleItems are unpublished IG slots whose time has passed", () => {
+  const now = Date.parse("2026-09-16T20:00:00+08:00");
+  const row = (id: string, extra: Partial<ScheduleItem>): ScheduleItem => ({
+    id,
+    title: id,
+    contentKind: "ig-post",
+    status: "scheduled",
+    scheduledAt: now - 1000,
+    publishedAt: null,
+    projectId: null,
+    campaignId: null,
+    captionPreview: "最近是不是連休息都覺得有罪惡感？",
+    ...extra,
+  });
+  const due = dueScheduleItems(
+    [
+      row("past", {}),
+      row("later", { scheduledAt: now + 60_000 }),
+      row("done", { status: "published", publishedAt: now }),
+      row("line", { contentKind: "line" }),
+      row("story", { contentKind: "story", scheduledAt: now - 2000 }),
+    ],
+    now,
+  );
+  assert.deepEqual(
+    due.map((item) => item.id),
+    ["story", "past"],
+  );
+  const upcoming = upcomingScheduleItems(
+    [row("past", {}), row("later", { scheduledAt: now + 60_000 }), row("done", { status: "published", publishedAt: now })],
+    now,
+  );
+  assert.deepEqual(
+    upcoming.map((item) => item.id),
+    ["later"],
+  );
 });
 
 test("canva draft title includes hook and stays short", () => {

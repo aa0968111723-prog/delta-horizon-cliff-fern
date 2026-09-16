@@ -372,6 +372,30 @@ export function schedulePreviewAssetId(
   return campaign.coverAssetId;
 }
 
+export function isIgDueKind(kind: string) {
+  return kind !== "line" && kind !== "poster";
+}
+
+export function isDueScheduleItem(item: ScheduleItem, now = Date.now()) {
+  if (item.status === "published") return false;
+  if (!isIgDueKind(item.contentKind)) return false;
+  return item.scheduledAt <= now;
+}
+
+export function dueScheduleItems(items: ScheduleItem[], now = Date.now(), limit = 3): ScheduleItem[] {
+  return items
+    .filter((item) => isDueScheduleItem(item, now))
+    .sort((a, b) => a.scheduledAt - b.scheduledAt)
+    .slice(0, limit);
+}
+
+export function upcomingScheduleItems(items: ScheduleItem[], now = Date.now(), limit = 4): ScheduleItem[] {
+  return items
+    .filter((item) => item.status !== "published" && item.scheduledAt > now)
+    .sort((a, b) => a.scheduledAt - b.scheduledAt)
+    .slice(0, limit);
+}
+
 export function emptyCampaign(partial?: Partial<ClubCampaign>): ClubCampaign {
   const now = Date.now();
   return {

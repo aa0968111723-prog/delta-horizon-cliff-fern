@@ -15,7 +15,7 @@ import type { ContentKind } from "@/lib/studio/types";
 import { copyKindForContent } from "@/lib/zen/convert";
 import { igDnaBlock } from "@/lib/zen/insights";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
-import { isWaveScheduleItem, placeScheduleItems, rhythmHint, schedulePreviewAssetId } from "@/lib/zen/schedule";
+import { isWaveScheduleItem, placeScheduleItems, rhythmHint, schedulePreviewAssetId, isDueScheduleItem } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -262,16 +262,28 @@ export function CalendarPage() {
       {mode === "agenda" ? (
         <ul className="mt-6 space-y-2">
           {[...schedule]
-            .sort((a, b) => a.scheduledAt - b.scheduledAt)
+            .sort((a, b) => {
+              const dueA = isDueScheduleItem(a) ? 0 : 1;
+              const dueB = isDueScheduleItem(b) ? 0 : 1;
+              if (dueA !== dueB) return dueA - dueB;
+              return a.scheduledAt - b.scheduledAt;
+            })
             .map((item) => (
               <li
                 key={item.id}
-                data-testid={isWaveScheduleItem(item) ? "schedule-wave" : "schedule-suite"}
+                data-testid={
+                  isDueScheduleItem(item)
+                    ? "cal-due"
+                    : isWaveScheduleItem(item)
+                      ? "schedule-wave"
+                      : "schedule-suite"
+                }
                 className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]"
               >
                 <p className="text-xs text-muted">
                   {format(item.scheduledAt, "M/d（EE）HH:mm", { locale: zhTW })} · {CONTENT_KIND_LABEL[item.contentKind]}
                   {isWaveScheduleItem(item) ? " · 節奏" : ""}
+                  {isDueScheduleItem(item) ? " · 現在可以發" : ""}
                 </p>
                 <p className="text-sm font-medium">{item.title}</p>
                 {item.captionPreview ? (
