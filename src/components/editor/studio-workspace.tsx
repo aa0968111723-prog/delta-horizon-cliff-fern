@@ -65,6 +65,13 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
   const setCarouselPreview = useUi((s) => s.setCarouselPreview);
   const [rightTab, setRightTab] = useState("inspect");
 
+  function openReelsScript() {
+    setRightTab("copy");
+    if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) {
+      setPanel("copy");
+    }
+  }
+
   useEffect(() => {
     setLastProjectId(projectId);
   }, [projectId, setLastProjectId]);
@@ -252,6 +259,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
                       reels={project.reels}
                       adapter={project.reels.source}
                       projectId={project.id}
+                      onOpenScript={openReelsScript}
                     />
                   </div>
                 ) : project.contentKind === "threads" ? (
@@ -313,6 +321,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
                 reels={project.reels}
                 adapter={project.reels.source}
                 projectId={project.id}
+                onOpenScript={openReelsScript}
               />
             </div>
           ) : project.contentKind === "threads" ? (

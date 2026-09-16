@@ -20,12 +20,14 @@ export function ReelsTimeline({
   adapter,
   projectId,
   variant = "full",
+  onOpenScript,
 }: {
   reels: ReelsScript;
   adapter?: "live" | "local" | "mock";
   projectId?: string;
   /** compact：畫面編輯只留 hook 與操作，完整秒數在「文字」。 */
   variant?: "full" | "compact";
+  onOpenScript?: () => void;
 }) {
   const addAsset = useStudio((s) => s.addAsset);
   const assets = useStudio((s) => s.assets);
@@ -137,6 +139,11 @@ export function ReelsTimeline({
         {coverBusy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
         {preview || reels.coverAssetId ? "換一張封面" : "生成封面圖"}
       </Button>
+      {variant === "compact" && onOpenScript ? (
+        <Button size="sm" variant="ghost" data-testid="reels-open-script" onClick={onOpenScript}>
+          完整腳本
+        </Button>
+      ) : null}
     </div>
   );
 
