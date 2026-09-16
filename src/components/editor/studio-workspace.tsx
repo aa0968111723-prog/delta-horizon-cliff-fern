@@ -26,6 +26,7 @@ import { PlannerPanel } from "@/components/planner/planner-panel";
 import { QualityPanel } from "@/components/qa/quality-panel";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SaveIndicator } from "@/components/shared/save-indicator";
+import { ContentFlowBar } from "@/components/shared/content-flow";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -163,6 +164,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
           </Link>
         </Button>
         <h1 className="min-w-0 flex-1 truncate text-sm font-medium">{project.name}</h1>
+        <ContentFlowBar project={project} variant="compact" />
         <div className="hidden items-center gap-1 md:flex">
           {FORMATS.map((f) => (
             <Button

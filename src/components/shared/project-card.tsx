@@ -4,7 +4,7 @@ import { zhTW } from "date-fns/locale";
 import { Copy, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { ArtboardView } from "@/components/studio/artboard-view";
-import { StatusBadge } from "@/components/shared/status-badge";
+import { ContentFlowBar } from "@/components/shared/content-flow";
 import { Button } from "@/components/ui/button";
 import { formatById } from "@/lib/studio/formats";
 import { contentKindLabel } from "@/lib/studio/status";
@@ -69,7 +69,7 @@ export function ProjectCard({
             </p>
           ) : null}
         </div>
-        <StatusBadge status={project.status} />
+        <ContentFlowBar project={project} variant="badge" />
       </div>
       {footer ?? (
         <div className="mt-1 flex justify-end">

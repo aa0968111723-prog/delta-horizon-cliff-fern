@@ -21,6 +21,12 @@ export function atLocalTime(dayMs: number, hour = DEFAULT_HOUR, minute = 0): num
   return d.getTime();
 }
 
+/** 還沒指定時間時，排到今天或明天晚上（活動時間解不出來就 19:00）。 */
+export function defaultScheduleAt(now: number = Date.now(), hour = DEFAULT_HOUR, minute = 0): number {
+  const today = atLocalTime(now, hour, minute);
+  return today > now ? today : today + DAY;
+}
+
 /** 把節奏拖到某天時，算出相對活動日的 offsetDays。 */
 export function offsetDaysFromEventDate(eventDate: string, dayMs: number): number | null {
   if (!eventDate) return null;

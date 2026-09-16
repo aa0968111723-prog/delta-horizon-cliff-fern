@@ -1,4 +1,4 @@
-import type { ContentKind, ContentStatus, DeliverableFlags, FormatId } from "./types";
+import type { ContentKind, ContentStatus, DeliverableFlags, FormatId, Project } from "./types";
 
 export const STATUS_META: Record<
   ContentStatus,
@@ -15,6 +15,68 @@ export const STATUS_ORDER: ContentStatus[] = ["idea", "making", "done", "schedul
 
 export function statusLabel(status: ContentStatus): string {
   return STATUS_META[status].label;
+}
+
+/** 一人網宣：做完 → 排程 → 發出去。沒有審核。 */
+export type FlowActionId = "making" | "done" | "scheduled" | "published" | "unschedule" | "unpublish";
+
+export type FlowAction = {
+  id: FlowActionId;
+  label: string;
+  hint: string;
+};
+
+export function flowActions(status: ContentStatus): FlowAction[] {
+  if (status === "published") {
+    return [{ id: "unpublish", label: "還沒發", hint: "改回完成，還可以再改。" }];
+  }
+  if (status === "scheduled") {
+    return [
+      { id: "published", label: "已發出去", hint: "在 IG 貼完之後點這個。" },
+      { id: "unschedule", label: "取消排程", hint: "從日曆拿下來。" },
+    ];
+  }
+  if (status === "done") {
+    return [
+      { id: "scheduled", label: "排到日曆", hint: "選一個晚上發。" },
+      { id: "published", label: "已發出去", hint: "已經貼到 IG 了。" },
+      { id: "making", label: "還要改", hint: "改回創作中。" },
+    ];
+  }
+  return [
+    { id: "done", label: "這則完成了", hint: "可以發了。" },
+    { id: "scheduled", label: "排到日曆", hint: "直接排時間。" },
+    { id: "published", label: "已發出去", hint: "已經貼到 IG 了。" },
+  ];
+}
+
+export function primaryFlowAction(status: ContentStatus): FlowAction | null {
+  return flowActions(status)[0] ?? null;
+}
+
+export function applyFlowToProject(
+  project: Pick<Project, "status" | "scheduledAt" | "publishedAt">,
+  action: FlowActionId,
+  at: number,
+): Pick<Project, "status" | "scheduledAt" | "publishedAt"> {
+  switch (action) {
+    case "making":
+      return { status: "making", scheduledAt: project.scheduledAt, publishedAt: project.publishedAt };
+    case "done":
+      return { status: "done", scheduledAt: null, publishedAt: project.publishedAt };
+    case "scheduled":
+      return { status: "scheduled", scheduledAt: at, publishedAt: project.publishedAt };
+    case "published":
+      return { status: "published", scheduledAt: project.scheduledAt, publishedAt: at };
+    case "unschedule":
+      return { status: "done", scheduledAt: null, publishedAt: project.publishedAt };
+    case "unpublish":
+      return {
+        status: project.scheduledAt ? "scheduled" : "done",
+        scheduledAt: project.scheduledAt,
+        publishedAt: project.publishedAt,
+      };
+  }
 }
 
 export const CONTENT_KIND_META: Record<

@@ -1,5 +1,6 @@
 import { ConvertBar } from "@/components/create/convert-bar";
 import { ReelsTimeline } from "@/components/create/reels-timeline";
+import { ContentFlowBar } from "@/components/shared/content-flow";
 import { SourceList } from "@/components/shared/source-list";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
@@ -84,6 +85,7 @@ export function CopyPanel({ project }: { project: Project }) {
         </Button>
       </div>
       <p className="text-xs leading-relaxed text-muted">{project.copy.hashtags.join(" ")}</p>
+      <ContentFlowBar project={project} className="pt-2" />
       <SourceList sources={project.sources} className="pt-2" />
       <ConvertBar project={project} className="pt-2" />
       {project.reels ? (

@@ -85,6 +85,12 @@ try {
   await page.waitForTimeout(1200);
   await expectText("建立內容後回到創作頁", "進畫面編輯");
   await expectText("來源標示", "這則用到的來源");
+  await expectText("完成這則", "這則完成了");
+  await page.getByRole("button", { name: "這則完成了" }).first().evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForTimeout(500);
+  await expectText("標成完成後可排程", "排到日曆");
 
   // 6b. 一鍵轉換 + Reels 腳本
   await expectText("一鍵轉換", "做成其他型態");

@@ -15,6 +15,7 @@ import { ConvertBar } from "@/components/create/convert-bar";
 import { ImageUnderstanding, type ImageMakePayload } from "@/components/create/image-understanding";
 import { ReelsTimeline } from "@/components/create/reels-timeline";
 import { SourceList } from "@/components/shared/source-list";
+import { ContentFlowBar } from "@/components/shared/content-flow";
 import { StudentReviewPanel } from "@/components/create/student-review-panel";
 import { PageHeader, SectionHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -35,9 +36,11 @@ import { CONTENT_KIND_META, CONTENT_KIND_ORDER, contentKindLabel, deliverablesFo
 import {
   defaultImageRatio,
   pickArrivalWave,
+  claimArrivalAutofill,
   shouldAutofillCopy,
   shouldAutofillReels,
   shouldAutofillVisuals,
+  shouldAutoApplyArrivalDraft,
   topicForKind,
   visualIntent,
   wantsArrivalAutofill,
@@ -234,6 +237,18 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       setDrafts(res.drafts);
       if (!res.ok) toast.warning(res.error);
       else if (res.adapter === "local") toast.info("目前是本機草稿，可以直接編輯。");
+      const first = res.drafts[0];
+      if (
+        first &&
+        shouldAutoApplyArrivalDraft(search, {
+          hasLinkedProject: Boolean(linkedProject),
+          hasUsedDraft: Boolean(usedDraftId),
+          hasCaption: Boolean(linkedProject?.copy.caption?.trim()),
+        })
+      ) {
+        commitDraft(first, { quiet: true, extras: res.drafts.filter((item) => item.id !== first.id) });
+        toast.success("已套用第一版到畫面，可改選其他語氣。");
+      }
       resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch {
       toast.error("生成文案時出錯了，再試一次。");
@@ -258,6 +273,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     }
     if ((search.campaignId || linkedProject?.campaignId) && !campaign) return;
     if (search.kind && campaigns.length > 0 && !campaign) return;
+    if (!claimArrivalAutofill("copy", search)) return;
     autofillRan.current = true;
     void runCopy({ topic: topicForKind(kind, Boolean(campaign)) });
     // 進頁一次：從首頁／活動節奏／延續這則進來就先寫一版。
@@ -318,6 +334,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       return;
     }
     visualsRan.current = true;
+    if (!claimArrivalAutofill("visuals", search)) return;
     void runVisuals({ allowFallback: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, campaign, directions.length, idea, eventName, search.seed, search.campaignId, search.contentId, search.from, search.asset, search.kind, search.step]);
@@ -349,7 +366,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   }
 
   /** 把選中的版本變成一個可以編輯、可以排程的內容。 */
-  function commitDraft(draft: CopyDraft) {
+  function commitDraft(draft: CopyDraft, opts?: { quiet?: boolean; extras?: CopyDraft[] }) {
     if (!brand) return;
     const meta = CONTENT_KIND_META[kind];
     const name = draft.hook.slice(0, 18) || eventName || "未命名內容";
@@ -383,6 +400,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       });
 
     addCopyDraft(target.id, draft);
+    for (const extra of opts?.extras ?? []) addCopyDraft(target.id, extra);
     useCopyDraft(target.id, draft.id);
     if (review) setStudentReview(target.id, review);
     setUsedDraftId(draft.id);
@@ -390,7 +408,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       const asset = useStudio.getState().assets.find((item) => item.id === imageSourceAssetId);
       if (asset) addSources(target.id, [sourceFromAsset(asset, "圖片寫文案")]);
     }
-    if (created && kindUsesPagedLayout(kind)) {
+    if (kindUsesPagedLayout(kind) && (created || !linkedProject?.copy.caption?.trim())) {
       layoutFromKind(target.id, kind);
     }
 
@@ -403,7 +421,9 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       }
     }
 
-    toast.success("已建立內容，可以進畫面編輯了");
+    if (!opts?.quiet) {
+      toast.success(created ? "已建立內容，可以進畫面編輯了" : "已套用到這則內容");
+    }
     return target.id;
   }
 
@@ -570,6 +590,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       return;
     }
     reelsRan.current = true;
+    if (!claimArrivalAutofill("reels", search)) return;
     void runReels(undefined, { quiet: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, campaign, kind, reels, linkedProject?.reels, idea, eventName, painPoint, search.seed, search.campaignId, search.contentId, search.from, search.asset, search.kind]);
@@ -596,15 +617,18 @@ export function CreatePage({ search }: { search: CreateSearch }) {
         }
         actions={
           linkedProject ? (
-            <Button
-              variant="secondary"
-              onClick={() =>
-                void navigate({ to: "/studio/$projectId", params: { projectId: linkedProject.id } })
-              }
-            >
-              進畫面編輯
-              <ArrowRight className="size-4" />
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <ContentFlowBar project={linkedProject} variant="compact" />
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  void navigate({ to: "/studio/$projectId", params: { projectId: linkedProject.id } })
+                }
+              >
+                進畫面編輯
+                <ArrowRight className="size-4" />
+              </Button>
+            </div>
           ) : null
         }
       />
@@ -976,7 +1000,8 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       ) : null}
 
       {linkedProject ? (
-        <section className="mt-8 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+        <section className="mt-8 space-y-4 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <ContentFlowBar project={linkedProject} />
           <ConvertBar project={linkedProject} />
         </section>
       ) : null}

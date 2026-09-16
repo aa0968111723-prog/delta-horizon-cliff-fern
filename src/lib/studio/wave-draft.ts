@@ -43,7 +43,17 @@ export function topicForKind(kind: ContentKind, hasCampaign: boolean): WaveCopyT
   return hasCampaign ? "event" : "emotion";
 }
 
-/** 空白的／create 或「從一句想法」空表單不自動跑；快速開始選了型態就要開始寫。 */
+const claimedArrival = new Set<string>();
+
+export function claimArrivalAutofill(
+  channel: "copy" | "visuals" | "reels",
+  search: ArrivalSearch,
+): boolean {
+  const key = `${channel}:${search.from ?? ""}|${search.seed ?? ""}|${search.campaignId ?? ""}|${search.contentId ?? ""}|${search.kind ?? ""}|${search.step ?? ""}|${search.asset ?? ""}`;
+  if (claimedArrival.has(key)) return false;
+  claimedArrival.add(key);
+  return true;
+}
 export function wantsArrivalAutofill(search: ArrivalSearch): boolean {
   if (search.from === "image" || Boolean(search.asset)) return false;
   if (search.from === "idea" && !search.seed && !search.campaignId && !search.contentId) return false;
@@ -71,6 +81,17 @@ export function shouldAutofillVisuals(
   if (!ready.hydrated) return false;
   if (ready.hasDirections) return false;
   if (!ready.hasIntent) return false;
+  return wantsArrivalAutofill(search);
+}
+
+/** 從活動節奏／首頁進來時，第一版文案直接套到已建立的內容上。 */
+export function shouldAutoApplyArrivalDraft(
+  search: ArrivalSearch,
+  ready: { hasLinkedProject: boolean; hasUsedDraft: boolean; hasCaption: boolean },
+): boolean {
+  if (!ready.hasLinkedProject) return false;
+  if (ready.hasUsedDraft) return false;
+  if (ready.hasCaption) return false;
   return wantsArrivalAutofill(search);
 }
 

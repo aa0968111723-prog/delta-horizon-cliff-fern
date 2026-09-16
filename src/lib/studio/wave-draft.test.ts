@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  claimArrivalAutofill,
   defaultImageRatio,
   pickArrivalWave,
   shouldAutofillCopy,
   shouldAutofillReels,
   shouldAutofillVisuals,
+  shouldAutoApplyArrivalDraft,
   topicForKind,
   visualIntent,
   wantsArrivalAutofill,
@@ -210,6 +212,41 @@ function campaign(patch: Partial<Campaign> & { id: string; waves: CampaignWave[]
     ...patch,
   };
 }
+
+test("shouldAutoApplyArrivalDraft only fills a linked empty project once", () => {
+  assert.equal(
+    shouldAutoApplyArrivalDraft(
+      { contentId: "proj_1", campaignId: "camp_1" },
+      { hasLinkedProject: true, hasUsedDraft: false, hasCaption: false },
+    ),
+    true,
+  );
+  assert.equal(
+    shouldAutoApplyArrivalDraft(
+      { contentId: "proj_1" },
+      { hasLinkedProject: true, hasUsedDraft: true, hasCaption: false },
+    ),
+    false,
+  );
+  assert.equal(
+    shouldAutoApplyArrivalDraft(
+      { contentId: "proj_1" },
+      { hasLinkedProject: true, hasUsedDraft: false, hasCaption: true },
+    ),
+    false,
+  );
+  assert.equal(
+    shouldAutoApplyArrivalDraft({ seed: "第一次來" }, { hasLinkedProject: false, hasUsedDraft: false, hasCaption: false }),
+    false,
+  );
+});
+
+test("claimArrivalAutofill only lets each arrival run once", () => {
+  const search = { contentId: "proj_claim", kind: "ig-post" };
+  assert.equal(claimArrivalAutofill("copy", search), true);
+  assert.equal(claimArrivalAutofill("copy", search), false);
+  assert.equal(claimArrivalAutofill("visuals", search), true);
+});
 
 test("pickArrivalWave prefers a pending wave of the requested kind", () => {
   const camp = campaign({

@@ -6,6 +6,7 @@ import { EmptyState, LoadingState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ExportPanel } from "@/components/export/export-panel";
+import { ContentFlowBar } from "@/components/shared/content-flow";
 import { QualityPanel } from "@/components/qa/quality-panel";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
@@ -163,6 +164,9 @@ export function ExportCenter() {
         </section>
 
         <div className="space-y-4">
+          <section className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+            <ContentFlowBar project={project} />
+          </section>
           <section className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
             <ExportPanel project={project} brand={brand} artboard={artboard} />
           </section>

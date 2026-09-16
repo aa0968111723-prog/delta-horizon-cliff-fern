@@ -343,7 +343,8 @@ export function HomePage() {
             <Instagram className="mx-auto size-5 text-subtle" />
             <p className="mt-2 text-sm text-muted">還沒有標記為已發布的內容。</p>
             <p className="mt-1 text-xs text-subtle">
-              連接 {CLUB_NAME} 的 Instagram 後，這裡會顯示互動最好的貼文，AI 也會用它來調整下一篇。
+              在 IG 貼完之後，打開那則內容點「已發出去」。連接 {CLUB_NAME} 的 Instagram
+              後，這裡會改用真實成效排序。
             </p>
           </div>
         ) : (
