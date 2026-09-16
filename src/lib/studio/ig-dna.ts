@@ -1,3 +1,4 @@
+import type { RemoteItem } from "@/lib/connections/remote";
 import type { BrandKit, Project } from "./types";
 
 /**
@@ -16,8 +17,22 @@ export type IgDna = {
   sampleCount: number;
 };
 
-export function buildIgDna(projects: Project[], brand: BrandKit | undefined): IgDna {
-  const captions = projects.map((p) => p.copy.caption.trim()).filter(Boolean);
+export type IgInsightSummary = {
+  topPosts: { title: string; likes: number; comments: number }[];
+  totalLikes: number;
+  totalComments: number;
+  sampleCount: number;
+};
+
+export function buildIgDna(
+  projects: Project[],
+  brand: BrandKit | undefined,
+  remotePosts: RemoteItem[] = [],
+): IgDna {
+  const captions = [
+    ...projects.map((p) => p.copy.caption.trim()).filter(Boolean),
+    ...remotePosts.map((p) => p.detail).filter(Boolean),
+  ];
   const lengths = captions.map((c) => c.length);
   const hashtags = new Map<string, number>();
   const ctas = new Map<string, number>();
@@ -41,6 +56,16 @@ export function buildIgDna(projects: Project[], brand: BrandKit | undefined): Ig
     if (draft.cta) ctas.set(draft.cta, (ctas.get(draft.cta) ?? 0) + 1);
   }
 
+  for (const post of remotePosts) {
+    const firstLine = post.title.trim();
+    if (firstLine) hooks.push(firstLine);
+    const tags = post.detail.match(/#[^\s#]+/g) ?? [];
+    for (const tag of tags) {
+      hashtags.set(tag, (hashtags.get(tag) ?? 0) + 1);
+    }
+    kinds.set(post.kind === "video" ? "reels" : "ig-post", (kinds.get(post.kind === "video" ? "reels" : "ig-post") ?? 0) + 1);
+  }
+
   return {
     captionLength: {
       min: lengths.length ? Math.min(...lengths) : 0,
@@ -56,7 +81,23 @@ export function buildIgDna(projects: Project[], brand: BrandKit | undefined): Ig
       .map((row) => ({ kind: row.tag, count: row.count })),
     colors: (brand?.colors ?? []).map((c) => c.hex),
     hookStarts: [...new Set(hooks)].slice(0, 6),
-    sampleCount: projects.length,
+    sampleCount: projects.length + remotePosts.length,
+  };
+}
+
+export function buildIgInsights(remotePosts: RemoteItem[]): IgInsightSummary {
+  const withMetrics = remotePosts
+    .map((post) => ({
+      title: post.title,
+      likes: post.metrics?.likes ?? 0,
+      comments: post.metrics?.comments ?? 0,
+    }))
+    .sort((a, b) => b.likes + b.comments - (a.likes + a.comments));
+  return {
+    topPosts: withMetrics.slice(0, 5),
+    totalLikes: withMetrics.reduce((sum, row) => sum + row.likes, 0),
+    totalComments: withMetrics.reduce((sum, row) => sum + row.comments, 0),
+    sampleCount: remotePosts.length,
   };
 }
 

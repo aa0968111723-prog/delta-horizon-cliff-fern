@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Images, Instagram, Link2, Palette, Search, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,9 @@ import { matchesAssetQuery } from "@/lib/studio/assets";
 import { campaignTitle } from "@/lib/studio/campaign";
 import { contentKindLabel } from "@/lib/studio/status";
 import { cn } from "@/lib/utils";
+import { matchRemoteQuery, type RemoteItem } from "@/lib/connections/remote";
 import { useStudio } from "@/stores/studio-store";
+import { useRemote } from "@/stores/remote-store";
 
 /**
  * Global Creative Search：一個搜尋框，同時找素材庫、AI 生成、內容與活動，
@@ -22,6 +24,7 @@ export function CreativeSearchPage({ initialQuery }: { initialQuery?: string }) 
   const assets = useStudio((s) => s.assets);
   const projects = useStudio((s) => s.projects);
   const campaigns = useStudio((s) => s.campaigns);
+  const remoteItems = useRemote((s) => s.items);
   const urls = useAssetUrls(assets.map((a) => a.id));
   const [connections, setConnections] = useState<ConnectionStatus[]>([]);
 
@@ -63,7 +66,20 @@ export function CreativeSearchPage({ initialQuery }: { initialQuery?: string }) 
     );
   }, [campaigns, query]);
 
-  const total = generatedHits.length + libraryHits.length + contentHits.length + campaignHits.length;
+  const remoteHits = useMemo(
+    () => (query ? remoteItems.filter((item) => matchRemoteQuery(item, query)) : remoteItems.slice(0, 12)),
+    [remoteItems, query],
+  );
+  const driveHits = remoteHits.filter((item) => item.provider === "drive");
+  const canvaHits = remoteHits.filter((item) => item.provider === "canva");
+  const igHits = remoteHits.filter((item) => item.provider === "instagram");
+
+  const total =
+    generatedHits.length +
+    libraryHits.length +
+    contentHits.length +
+    campaignHits.length +
+    remoteHits.length;
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-10">
@@ -188,6 +204,22 @@ export function CreativeSearchPage({ initialQuery }: { initialQuery?: string }) 
         )}
       </Group>
 
+      <Group title="Google Drive" count={driveHits.length} icon={Images}>
+        {driveHits.length ? (
+          <RemoteList items={driveHits} />
+        ) : (
+          <Empty text="還沒同步 Drive，或沒有符合的檔案。" />
+        )}
+      </Group>
+
+      <Group title="Canva" count={canvaHits.length} icon={Palette}>
+        {canvaHits.length ? <RemoteList items={canvaHits} /> : <Empty text="還沒同步 Canva，或沒有符合的設計。" />}
+      </Group>
+
+      <Group title="Instagram" count={igHits.length} icon={Instagram}>
+        {igHits.length ? <RemoteList items={igHits} /> : <Empty text="還沒同步 Instagram，或沒有符合的貼文。" />}
+      </Group>
+
       {/* 尚未連接的來源，誠實列出來 */}
       {connections.filter((c) => c.state !== "connected").length ? (
         <section className="mt-8 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
@@ -227,7 +259,7 @@ function Group({
   title: string;
   count: number;
   icon: typeof Images;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="mt-8">
@@ -243,4 +275,31 @@ function Group({
 
 function Empty({ text }: { text: string }) {
   return <p className="rounded-2xl bg-surface px-4 py-5 text-center text-xs text-subtle shadow-[var(--shadow-border)]">{text}</p>;
+}
+
+function RemoteList({ items }: { items: RemoteItem[] }) {
+  return (
+    <ul className="space-y-2">
+      {items.slice(0, 10).map((item) => (
+        <li key={`${item.provider}-${item.id}`}>
+          {item.href ? (
+            <a
+              href={item.href}
+              target="_blank"
+              rel="noreferrer"
+              className="block rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+            >
+              <span className="block truncate text-sm font-medium">{item.title}</span>
+              <span className="block truncate text-xs text-muted">{item.detail}</span>
+            </a>
+          ) : (
+            <div className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
+              <p className="truncate text-sm font-medium">{item.title}</p>
+              <p className="truncate text-xs text-muted">{item.detail}</p>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
 }

@@ -21,7 +21,7 @@ export async function saveGeneratedImage(input: {
     mime: blob.type || "image/png",
     width: size.width,
     height: size.height,
-    category: "photo",
+    category: "illustration",
     tags: ["AI 生成", ...(input.tags ?? [])],
     licenseNotes: `由 AI 依 prompt 生成：${input.prompt.slice(0, 180)}`,
     licenseOwner: "AI 生成",

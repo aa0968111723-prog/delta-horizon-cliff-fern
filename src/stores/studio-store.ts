@@ -13,6 +13,7 @@ import {
   stampSlideMeta,
 } from "@/lib/studio/carousel";
 import { defaultWavePlan, migrateCampaign } from "@/lib/studio/campaign";
+import { convertContent } from "@/lib/studio/convert";
 import { emptyCopy, withBoilerplate } from "@/lib/studio/copy";
 import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
@@ -125,6 +126,7 @@ type StudioState = {
   setCampaignWaves: (id: string, waves: CampaignWave[]) => void;
   updateWave: (campaignId: string, waveId: string, patch: Partial<CampaignWave>) => void;
   fillDefaultWaves: (id: string) => void;
+  convertProject: (id: string, kind: ContentKind) => Project | null;
   setContentKind: (projectId: string, kind: ContentKind) => void;
   setSchedule: (projectId: string, at: number | null) => void;
   markPublished: (projectId: string, at?: number) => void;
@@ -195,6 +197,7 @@ function migrateBrandRecord(raw: BrandKit): BrandKit {
     logos: next.logos.length ? next.logos : SEED_BRAND.logos,
     imageStyle: next.imageStyle.mood ? next.imageStyle : SEED_BRAND.imageStyle,
     rules: next.rules.notes ? next.rules : { ...SEED_BRAND.rules, ...next.rules },
+    memory: next.memory.mission ? next.memory : SEED_BRAND.memory,
   };
 }
 
@@ -704,6 +707,18 @@ export const useStudio = create<StudioState>()(
         set((s) => ({ projects: [copy, ...s.projects], lastProjectId: copy.id }));
         return copy;
       },
+      convertProject: (id, kind) => {
+        const s = get();
+        const src = s.projects.find((p) => p.id === id);
+        if (!src) return null;
+        if (src.contentKind === kind) {
+          return get().duplicateProject(id);
+        }
+        const brand = brandById(s.brands, src.brandId);
+        const next = convertContent(src, brand, kind);
+        set((state) => ({ projects: [next, ...state.projects], lastProjectId: next.id }));
+        return next;
+      },
       recordExport: (id, version) =>
         get().updateProject(id, (p) => ({
           ...p,
@@ -1208,7 +1223,7 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 7,
+      version: 8,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,

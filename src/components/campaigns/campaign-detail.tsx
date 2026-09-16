@@ -27,6 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { formatBrandMemory } from "@/lib/studio/brand";
 import { generateCampaignStrategy } from "@/lib/ai/campaign-ai";
 import {
   campaignTitle,
@@ -93,6 +94,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
           audienceIds: campaign!.audienceIds,
           daysUntil: daysUntil(campaign!) ?? 14,
           availableAssets: [],
+          brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
         },
       });
       if (!res.ok) {

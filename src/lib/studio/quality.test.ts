@@ -31,6 +31,19 @@ const brand: BrandKit = {
   imageStyle: { mood: "", lighting: "", paletteHint: "", composition: "", do: "", dont: "" },
   rules: { noCompetitorMarks: false, noWatermark: false, noLowRes: false, notes: "" },
   boilerplate: { cta: "到店手沖", disclaimer: "", hashtags: [], captionClose: "" },
+  memory: {
+    mission: "",
+    introShort: "",
+    introLong: "",
+    mascotName: "",
+    mascotLook: "",
+    mascotPersonality: "",
+    mascotUsage: "",
+    lights: [],
+    likedStyles: "",
+    dislikedStyles: "",
+    legacyAssetIds: [],
+  },
   updatedAt: 1,
 };
 

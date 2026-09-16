@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { getConnections } from "@/lib/connections/status";
 import type { ConnectionStatus } from "@/lib/connections/providers";
-import { buildIgDna } from "@/lib/studio/ig-dna";
+import { buildIgDna, buildIgInsights } from "@/lib/studio/ig-dna";
 import { contentKindLabel } from "@/lib/studio/status";
 import { cn } from "@/lib/utils";
 import { CLUB_HANDLE, CLUB_INTRO_SHORT, CLUB_NAME } from "@/lib/zen/club";
 import { useStudio } from "@/stores/studio-store";
+import { useRemote } from "@/stores/remote-store";
 
 type Tab = "grid" | "history" | "dna" | "insights";
 
@@ -26,6 +27,8 @@ export function InstagramCenter() {
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
+  const remoteItems = useRemote((s) => s.items);
+  const igPosts = useMemo(() => remoteItems.filter((item) => item.provider === "instagram"), [remoteItems]);
   const urls = useAssetUrls(assets.map((a) => a.id));
   const [tab, setTab] = useState<Tab>("grid");
   const [connection, setConnection] = useState<ConnectionStatus | null>(null);
@@ -54,7 +57,8 @@ export function InstagramCenter() {
         .sort((a, b) => (b.publishedAt ?? b.scheduledAt ?? b.updatedAt) - (a.publishedAt ?? a.scheduledAt ?? a.updatedAt)),
     [projects],
   );
-  const dna = useMemo(() => buildIgDna(projects, brand), [projects, brand]);
+  const dna = useMemo(() => buildIgDna(projects, brand, igPosts), [projects, brand, igPosts]);
+  const insights = useMemo(() => buildIgInsights(igPosts), [igPosts]);
   const connected = connection?.state === "connected";
 
   return (
@@ -165,8 +169,30 @@ export function InstagramCenter() {
               <Loader2 className="size-4 animate-spin" />
               正在確認連接狀態…
             </p>
+          ) : igPosts.length ? (
+            <ul className="space-y-2">
+              {igPosts.map((post) => (
+                <li key={post.id} className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]">
+                  <p className="text-sm font-medium">{post.title}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted">{post.detail}</p>
+                  <p className="mt-1 text-xs text-subtle">
+                    {post.metrics?.likes != null ? `${post.metrics.likes} 個讚` : ""}
+                    {post.metrics?.comments != null ? ` · ${post.metrics.comments} 則留言` : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
           ) : connected ? (
-            <EmptyBlock text="已連接，但還沒同步過。到連接頁按一次「同步」就會把過去貼文帶進來。" />
+            <EmptyBlock
+              text="已連接，但還沒同步過。到連接頁按一次「同步」就會把過去貼文帶進來。"
+              action={
+                <Button asChild size="sm">
+                  <Link to="/connections" search={{ focus: "instagram" }}>
+                    去同步
+                  </Link>
+                </Button>
+              }
+            />
           ) : (
             <EmptyBlock
               text={`還沒連接 Instagram，所以這裡沒有真實貼文。連接之後 AI 才能讀 ${CLUB_NAME} 過去的 Caption、輪播、Reels 與互動，並用它調整下一篇。`}
@@ -268,7 +294,28 @@ export function InstagramCenter() {
       {tab === "insights" ? (
         <section className="mt-6">
           <SectionHeader title="成效" hint="不只看數字，是回答「哪一種 Hook 有效」" />
-          {connected ? (
+          {insights.sampleCount && (insights.totalLikes || insights.totalComments) ? (
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Card title="按讚">
+                  <p className="text-sm text-muted">同步貼文合計 {insights.totalLikes}</p>
+                </Card>
+                <Card title="留言">
+                  <p className="text-sm text-muted">同步貼文合計 {insights.totalComments}</p>
+                </Card>
+              </div>
+              <Card title="互動較高的開頭">
+                <ul className="space-y-1 text-xs text-muted">
+                  {insights.topPosts.map((post) => (
+                    <li key={post.title}>
+                      {post.title} · {post.likes} 讚 / {post.comments} 留言
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+              <p className="text-xs text-subtle">這些數字來自 Instagram 同步回來的貼文，不是假資料。</p>
+            </div>
+          ) : connected ? (
             <EmptyBlock text="已連接，同步之後這裡會分析觸及、互動、收藏與分享，並整理成下一次生成的依據。" />
           ) : (
             <EmptyBlock

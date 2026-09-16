@@ -1,3 +1,5 @@
+import { ConvertBar } from "@/components/create/convert-bar";
+import { ReelsTimeline } from "@/components/create/reels-timeline";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -81,6 +83,13 @@ export function CopyPanel({ project }: { project: Project }) {
         </Button>
       </div>
       <p className="text-xs leading-relaxed text-muted">{project.copy.hashtags.join(" ")}</p>
+      <ConvertBar project={project} className="pt-2" />
+      {project.reels ? (
+        <div className="pt-2">
+          <p className="mb-2 text-sm font-medium">Reels 腳本</p>
+          <ReelsTimeline reels={project.reels} adapter={project.reels.source} />
+        </div>
+      ) : null}
     </div>
   );
 }

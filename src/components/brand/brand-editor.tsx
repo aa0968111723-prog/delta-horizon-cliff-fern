@@ -23,7 +23,7 @@ import { AssetUploadError, decodeAssetImage } from "@/lib/studio/asset-upload";
 import { LOGO_USAGE, logoUsageLabel } from "@/lib/studio/brand";
 import { STUDIO_FONTS } from "@/lib/studio/fonts";
 import { uid } from "@/lib/studio/ids";
-import type { BrandColor, BrandKit, ColorRole, LogoUsage, LogoVariant } from "@/lib/studio/types";
+import type { BrandColor, BrandKit, BrandMemory, ColorRole, LogoUsage, LogoVariant } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 import { SwatchBook } from "lucide-react";
@@ -38,6 +38,7 @@ const ROLES: { id: ColorRole; label: string }[] = [
 
 const SECTIONS = [
   { id: "identity", label: "識別" },
+  { id: "memory", label: "品牌記憶" },
   { id: "logo", label: "Logo" },
   { id: "colors", label: "色彩" },
   { id: "fonts", label: "字體" },
@@ -76,6 +77,10 @@ export function BrandEditor() {
 
   function patch<K extends keyof BrandKit>(key: K, value: BrandKit[K]) {
     updateBrand(brand.id, { [key]: value });
+  }
+
+  function patchMemory<K extends keyof BrandMemory>(key: K, value: BrandMemory[K]) {
+    updateBrand(brand.id, { memory: { ...brand.memory, [key]: value } });
   }
 
   async function onLogo(file: File) {
@@ -130,8 +135,8 @@ export function BrandEditor() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-8 md:py-10">
       <PageHeader
         kicker="品牌中心"
-        title="品牌規範"
-        description="名稱、Logo 版本、色彩、字體、標語、CTA、圖片風格與禁用規則會套進排版、AI 企劃與品質檢查。"
+        title="品牌記憶"
+        description="理念、龜龜、三色光、語氣與歷屆文宣會在每一次 AI 生成前先被讀進去。名稱與 Logo 仍然在這裡改。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="brand" />
@@ -231,6 +236,108 @@ export function BrandEditor() {
         <Field label="品牌聲音">
           <Textarea value={brand.voice} onChange={(e) => patch("voice", e.target.value)} placeholder="語氣、節奏、像誰在說話" />
         </Field>
+      </section>
+
+      <section id="brand-memory" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+        <div>
+          <h2 className="text-sm font-medium">品牌記憶</h2>
+          <p className="mt-0.5 text-xs text-muted">
+            這不是規範文件。是社團自己的東西：為什麼存在、龜龜是誰、三色光是什麼意思、喜歡與不喜歡的畫面。
+          </p>
+        </div>
+        <Field label="理念">
+          <Textarea
+            value={brand.memory.mission}
+            onChange={(e) => patchMemory("mission", e.target.value)}
+            placeholder="給淡江學生一個可以坐下來的地方。"
+          />
+        </Field>
+        <Field label="固定短介紹">
+          <Textarea
+            value={brand.memory.introShort}
+            onChange={(e) => patchMemory("introShort", e.target.value)}
+          />
+        </Field>
+        <Field label="固定長介紹">
+          <Textarea
+            value={brand.memory.introLong}
+            onChange={(e) => patchMemory("introLong", e.target.value)}
+          />
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="吉祥物名字">
+            <Input value={brand.memory.mascotName} onChange={(e) => patchMemory("mascotName", e.target.value)} />
+          </Field>
+          <Field label="怎麼用">
+            <Input value={brand.memory.mascotUsage} onChange={(e) => patchMemory("mascotUsage", e.target.value)} />
+          </Field>
+        </div>
+        <Field label="長什麼樣子">
+          <Textarea value={brand.memory.mascotLook} onChange={(e) => patchMemory("mascotLook", e.target.value)} />
+        </Field>
+        <Field label="個性">
+          <Textarea
+            value={brand.memory.mascotPersonality}
+            onChange={(e) => patchMemory("mascotPersonality", e.target.value)}
+          />
+        </Field>
+        <div>
+          <p className="mb-2 text-sm">三色光</p>
+          <ul className="space-y-3">
+            {brand.memory.lights.map((light, index) => (
+              <li key={`${light.label}-${index}`} className="grid gap-2 sm:grid-cols-[5.5rem_1fr]">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={light.hex}
+                    onChange={(e) =>
+                      patchMemory(
+                        "lights",
+                        brand.memory.lights.map((item, i) =>
+                          i === index ? { ...item, hex: e.target.value.toUpperCase() } : item,
+                        ),
+                      )
+                    }
+                    className="size-10 cursor-pointer rounded-md border border-border bg-transparent"
+                    aria-label={light.label}
+                  />
+                  <Input
+                    value={light.label}
+                    onChange={(e) =>
+                      patchMemory(
+                        "lights",
+                        brand.memory.lights.map((item, i) => (i === index ? { ...item, label: e.target.value } : item)),
+                      )
+                    }
+                  />
+                </div>
+                <Input
+                  value={light.meaning}
+                  onChange={(e) =>
+                    patchMemory(
+                      "lights",
+                      brand.memory.lights.map((item, i) => (i === index ? { ...item, meaning: e.target.value } : item)),
+                    )
+                  }
+                  placeholder="這道光用在什麼時候"
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+        <Field label="喜歡的風格">
+          <Textarea
+            value={brand.memory.likedStyles}
+            onChange={(e) => patchMemory("likedStyles", e.target.value)}
+          />
+        </Field>
+        <Field label="不要的風格">
+          <Textarea
+            value={brand.memory.dislikedStyles}
+            onChange={(e) => patchMemory("dislikedStyles", e.target.value)}
+          />
+        </Field>
+        <p className="text-xs text-muted">歷屆文宣可以到素材庫標記分類「海報／文宣」，再從那裡被 AI 讀進來。</p>
       </section>
 
       <section id="brand-logo" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">

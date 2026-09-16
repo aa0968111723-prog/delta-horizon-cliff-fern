@@ -23,6 +23,7 @@ const CampaignBriefSchema = z.object({
   daysUntil: z.number().int().min(-90).max(400).catch(14),
   /** 跨來源搜到的素材摘要，讓 AI 知道有什麼可用 */
   availableAssets: z.array(z.string().max(120)).max(20).catch([]),
+  brandMemoryText: z.string().max(2500).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -91,7 +92,7 @@ export const generateCampaignStrategy = createServerFn({ method: "POST" })
     }
 
     const prompt = [
-      buildZenContext({ audienceIds: data.audienceIds }),
+      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText }),
       "",
       "【這場活動】",
       `名稱：${data.name || "未命名"}（${eventKindLabel(data.kind)}）`,
@@ -162,6 +163,7 @@ const IdeaSchema = z.object({
   audienceIds: z.array(z.string().max(40)).max(8).catch([]),
   recentTopics: z.array(z.string().max(120)).max(12).catch([]),
   upcoming: z.string().max(300).catch(""),
+  brandMemoryText: z.string().max(2500).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -193,7 +195,7 @@ export const generateIdeas = createServerFn({ method: "POST" })
       return { ok: false, error: "目前沒有連上 AI。", adapter: "local" };
     }
     const prompt = [
-      buildZenContext({ audienceIds: data.audienceIds }),
+      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText }),
       "",
       data.upcoming ? `【近期活動】${data.upcoming}` : "【近期活動】沒有排定的活動。",
       data.recentTopics.length ? `【最近發過】${data.recentTopics.join("、")}（不要重複）` : "",

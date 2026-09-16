@@ -19,7 +19,9 @@ test("migrateBrand fills slogans, logos, image style and rules", () => {
   assert.deepEqual(next.slogans, []);
   assert.equal(next.imageStyle.mood, "");
   assert.equal(next.rules.noWatermark, true);
-  assert.deepEqual(next.forbiddenWords, ["爆款"]);
+  assert.ok(next.memory);
+  assert.equal(next.memory.mascotName, "");
+  assert.ok(Array.isArray(next.memory.lights));
 });
 
 test("createEmptyBrand has usable defaults", () => {
@@ -36,6 +38,9 @@ test("inferCategory reads kind and tags", () => {
   assert.equal(inferCategory({ kind: "pattern", name: "paper" }), "background");
   assert.equal(inferCategory({ name: "店員人像", tags: ["人物"] }), "people");
   assert.equal(inferCategory({ name: "手沖杯", tags: ["商品"] }), "photo");
+  assert.equal(inferCategory({ name: "龜龜揮手", tags: ["吉祥物"] }), "mascot");
+  assert.equal(inferCategory({ name: "淡水河", tags: ["夕陽"] }), "campus");
+  assert.equal(inferCategory({ name: "迎新海報", tags: ["文宣"] }), "poster");
 });
 
 test("migrateAsset infers category and local source", () => {

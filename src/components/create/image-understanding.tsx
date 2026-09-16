@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { analyzeImage, type ImageAnalysis } from "@/lib/ai/image-ai";
+import { formatBrandMemory } from "@/lib/studio/brand";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
@@ -21,6 +22,7 @@ export function ImageUnderstanding({
   onUseStylePrompt?: (prompt: string) => void;
 }) {
   const assets = useStudio((s) => s.assets);
+  const brand = useStudio((s) => s.brands[0]);
   const urls = useAssetUrls(assets.map((a) => a.id));
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -61,7 +63,13 @@ export function ImageUnderstanding({
     }
     setBusy(true);
     try {
-      const res = await analyzeImage({ data: { imageUrl: preview, audienceIds } });
+      const res = await analyzeImage({
+        data: {
+          imageUrl: preview,
+          audienceIds,
+          brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+        },
+      });
       if (!res.ok) {
         toast.warning(res.error);
         return;

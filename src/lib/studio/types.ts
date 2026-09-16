@@ -102,6 +102,25 @@ export type BrandRules = {
   notes: string;
 };
 
+/**
+ * 品牌記憶裡「不是規範、而是社團自己的東西」：理念、固定介紹、龜龜、三色光的意義、
+ * 喜歡與不喜歡的風格、歷屆文宣。AI 每次生成前都會先讀這一段。
+ */
+export type BrandMemory = {
+  mission: string;
+  introShort: string;
+  introLong: string;
+  mascotName: string;
+  mascotLook: string;
+  mascotPersonality: string;
+  mascotUsage: string;
+  lights: { label: string; hex: string; meaning: string }[];
+  likedStyles: string;
+  dislikedStyles: string;
+  /** 歷屆海報／文宣，AI 參考品牌 DNA 時會看 */
+  legacyAssetIds: string[];
+};
+
 export type BrandKit = {
   id: string;
   name: string;
@@ -121,12 +140,17 @@ export type BrandKit = {
   imageStyle: ImageStyle;
   rules: BrandRules;
   boilerplate: BrandBoilerplate;
+  /** 社團自己的記憶：龜龜、三色光、理念、歷屆文宣。AI 每次都會先讀。 */
+  memory: BrandMemory;
   updatedAt: number;
 };
 
 export type AssetKind = "image" | "logo" | "pattern";
 
 export type AssetCategory =
+  | "mascot"
+  | "campus"
+  | "poster"
   | "photo"
   | "people"
   | "background"
@@ -139,6 +163,18 @@ export type AssetCategory =
 export type AssetSourceKind = "upload" | "seed" | "generated";
 
 export type AssetUsageStatus = "in-use" | "used" | "unused";
+
+/** AI 讀過這張圖之後留下的理解，方便延續風格或寫文案。 */
+export type AssetInsight = {
+  summary: string;
+  stylePrompt: string;
+  captionIdea: string;
+  tooReligious: boolean;
+  tooAi: boolean;
+  fitsTku: boolean;
+  nextSteps: string[];
+  analyzedAt: number;
+};
 
 export type AssetMeta = {
   id: string;
@@ -159,6 +195,7 @@ export type AssetMeta = {
   favorite: boolean;
   lastUsedAt: number | null;
   useCount: number;
+  insight?: AssetInsight;
 };
 
 export type Background = {

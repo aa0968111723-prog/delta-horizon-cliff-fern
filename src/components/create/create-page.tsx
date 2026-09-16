@@ -25,6 +25,9 @@ import {
 import { COPY_TONES, COPY_TOPICS, type CopyTopic } from "@/lib/ai/copy-local";
 import { generateIgCopy, getZenAiStatus, reviewAsStudent, generateReelsScript } from "@/lib/ai/copy-ai";
 import { generateVisualDirections, type VisualDirection } from "@/lib/ai/image-ai";
+import { ConvertBar } from "@/components/create/convert-bar";
+import { ReelsTimeline } from "@/components/create/reels-timeline";
+import { formatBrandMemory } from "@/lib/studio/brand";
 import { CONTENT_KIND_META, CONTENT_KIND_ORDER, contentKindLabel } from "@/lib/studio/status";
 import type { ContentKind, CopyDraft, CopyTone, StudentReview } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -92,6 +95,8 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   );
 
   const [aiStatus, setAiStatus] = useState<{ available: boolean; label: string; detail: string } | null>(null);
+  const [reels, setReelsLocal] = useState(linkedProject?.reels ?? null);
+  const [reelsAdapter, setReelsAdapter] = useState<"live" | "local" | "mock" | undefined>(linkedProject?.reels?.source);
   const [copyBusy, setCopyBusy] = useState(false);
   const [drafts, setDrafts] = useState<CopyDraft[]>(linkedProject?.copyDrafts ?? []);
   const [usedDraftId, setUsedDraftId] = useState<string | null>(null);
@@ -134,6 +139,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       brandVoice: brand?.voice,
       brandDontSay: brand?.dontSay,
       forbiddenWords: brand?.forbiddenWords ?? [],
+      brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
     }),
     [topic, eventName, schedule, location, idea, painPoint, signupUrl, audienceIds, brand, campaign],
   );
@@ -176,6 +182,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           imageStyle: brand
             ? `${brand.imageStyle.mood}｜${brand.imageStyle.lighting}｜${brand.imageStyle.composition}`
             : undefined,
+          brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
         },
       });
       setDirections(res.directions);
@@ -200,6 +207,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           signupUrl: signupUrl.trim(),
           painPoint: painPoint.trim(),
           audienceIds,
+          brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
         },
       });
       setReview(res.review);
@@ -276,9 +284,12 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           painPoint: painPoint.trim(),
           cta: draft?.cta ?? "",
           audienceIds,
+          brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
         },
       });
       if (!res.ok) toast.warning(res.error);
+      setReelsLocal(res.reels);
+      setReelsAdapter(res.adapter);
       const id = linkedProject?.id;
       if (id) {
         setReels(id, res.reels);
@@ -644,36 +655,16 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       ) : null}
 
       {/* Reels 腳本 */}
-      {linkedProject?.reels ? (
+      {reels || linkedProject?.reels ? (
         <section className="mt-8">
-          <SectionHeader title="Reels 腳本" hint={`Hook：${linkedProject.reels.hook}`} />
-          <ol className="space-y-2">
-            {linkedProject.reels.beats.map((beat) => (
-              <li key={beat.range} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-                <p className="text-xs font-medium tracking-wide text-[var(--color-accent)]">{beat.range}</p>
-                <p className="mt-1 text-sm font-medium">{beat.caption}</p>
-                <dl className="mt-2 grid gap-1 text-xs text-muted sm:grid-cols-2">
-                  <div>
-                    <dt className="text-subtle">畫面</dt>
-                    <dd>{beat.visual}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-subtle">旁白</dt>
-                    <dd>{beat.voice}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-subtle">轉場</dt>
-                    <dd>{beat.transition}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-subtle">素材</dt>
-                    <dd>{beat.asset}</dd>
-                  </div>
-                </dl>
-              </li>
-            ))}
-          </ol>
-          <p className="mt-2 text-xs text-subtle">封面：{linkedProject.reels.cover}</p>
+          <SectionHeader title="Reels 腳本" hint="20 秒、一個人、一支手機就能拍" />
+          <ReelsTimeline reels={reels ?? linkedProject!.reels!} adapter={reelsAdapter ?? linkedProject?.reels?.source} />
+        </section>
+      ) : null}
+
+      {linkedProject ? (
+        <section className="mt-8 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <ConvertBar project={linkedProject} />
         </section>
       ) : null}
     </main>

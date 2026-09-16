@@ -1,4 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
+import { Loader2, Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -11,8 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { ASSET_CATEGORIES, sourceLabel, usageLabel } from "@/lib/studio/assets";
-import { kindFromCategory } from "@/lib/studio/assets";
+import { analyzeImage, generateImage } from "@/lib/ai/image-ai";
+import { formatBrandMemory } from "@/lib/studio/brand";
+import { ASSET_CATEGORIES, kindFromCategory, similarAssets, sourceLabel, usageLabel } from "@/lib/studio/assets";
+import { saveGeneratedImage } from "@/lib/studio/generated-image";
 import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
 
@@ -33,9 +37,18 @@ export function AssetDetailSheet({
 }) {
   const navigate = useNavigate();
   const updateAsset = useStudio((s) => s.updateAsset);
+  const addAsset = useStudio((s) => s.addAsset);
   const placeAsset = useStudio((s) => s.placeAsset);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
+  const assets = useStudio((s) => s.assets);
+  const brand = useStudio((s) => s.brands[0]);
+  const [busy, setBusy] = useState<"analyze" | "extend" | null>(null);
+
+  const similar = useMemo(
+    () => (asset ? similarAssets(asset, assets, 4) : []),
+    [asset, assets],
+  );
 
   if (!asset) return null;
   const current = asset;
@@ -57,6 +70,87 @@ export function AssetDetailSheet({
     toast.success(`已放入「${current.name}」`);
     onOpenChange(false);
     void navigate({ to: "/studio/$projectId", params: { projectId: lastProjectId } });
+  }
+
+  async function analyze() {
+    if (!url) {
+      toast.error("這張圖還沒載入，稍後再試。");
+      return;
+    }
+    setBusy("analyze");
+    try {
+      const res = await analyzeImage({
+        data: {
+          imageUrl: url,
+          question: "這張圖適不適合禪學社網宣？可以怎麼延續？",
+          brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+        },
+      });
+      if (!res.ok) {
+        toast.warning(res.error);
+        return;
+      }
+      updateAsset(current.id, {
+        insight: {
+          summary: res.analysis.summary,
+          stylePrompt: res.analysis.stylePrompt,
+          captionIdea: res.analysis.captionIdea,
+          tooReligious: res.analysis.tooReligious,
+          tooAi: res.analysis.tooAi,
+          fitsTku: res.analysis.fitsTku,
+          nextSteps: res.analysis.nextSteps,
+          analyzedAt: Date.now(),
+        },
+      });
+      toast.success("已讀完這張圖");
+    } catch {
+      toast.error("讀圖時出錯了。");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function extendStyle() {
+    const prompt = current.insight?.stylePrompt;
+    if (!prompt) {
+      toast.error("先按「讀這張圖」，才有風格可以延續。");
+      return;
+    }
+    setBusy("extend");
+    try {
+      const res = await generateImage({ data: { prompt, ratio: "4:5" } });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      const meta = await saveGeneratedImage({
+        dataUrl: res.dataUrl,
+        name: `${current.name} 延續`,
+        prompt: res.revisedPrompt || prompt,
+        tags: ["延續風格", current.name],
+      });
+      addAsset(meta);
+      toast.success("延續圖已存進素材庫");
+    } catch {
+      toast.error("生成時出錯了。");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function useCaption() {
+    const idea = current.insight?.captionIdea;
+    if (!idea) {
+      toast.error("先讀這張圖，才有文案可以帶走。");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(idea);
+      toast.success("已複製文案想法");
+    } catch {
+      toast.error("複製失敗");
+    }
+    void navigate({ to: "/create", search: { from: "image", seed: idea } });
   }
 
   return (
@@ -83,6 +177,50 @@ export function AssetDetailSheet({
             ) : null}
           </div>
         </div>
+
+        <div className="rounded-2xl bg-surface-2/70 p-3">
+          <p className="text-sm font-medium">AI 怎麼用這張</p>
+          {asset.insight ? (
+            <div className="mt-2 space-y-1.5 text-xs text-muted">
+              <p>{asset.insight.summary}</p>
+              {asset.insight.captionIdea ? <p>文案想法：{asset.insight.captionIdea}</p> : null}
+              <p>
+                {asset.insight.fitsTku ? "看起來像淡江學生的生活。" : "不太像淡江學生會停下來的畫面。"}
+                {asset.insight.tooReligious ? " 偏宗教。" : ""}
+                {asset.insight.tooAi ? " 有 AI 感。" : ""}
+              </p>
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-muted">還沒讀過。讀完之後可以延續風格、寫文案，或找相近的素材。</p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => void analyze()} disabled={busy !== null}>
+              {busy === "analyze" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+              讀這張圖
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => void extendStyle()} disabled={busy !== null}>
+              {busy === "extend" ? <Loader2 className="size-4 animate-spin" /> : null}
+              延續這個風格
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => void useCaption()}>
+              用這張寫文案
+            </Button>
+          </div>
+        </div>
+
+        {similar.length ? (
+          <div>
+            <p className="mb-2 text-sm font-medium">相近素材</p>
+            <ul className="flex flex-wrap gap-1.5">
+              {similar.map((item) => (
+                <li key={item.id} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">
+                  {item.name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         <div>
           <Label className="mb-1.5 block">名稱</Label>
           <Input value={asset.name} onChange={(e) => patch("name", e.target.value)} />

@@ -17,6 +17,8 @@ export type ZenContextInput = {
   brandDontSay?: string;
   forbiddenWords?: string[];
   imageStyle?: string;
+  /** formatBrandMemory() 的產出，會蓋過預設的社團介紹 */
+  brandMemoryText?: string;
   /** 覆寫「今天」，測試用 */
   now?: number;
 };
@@ -30,7 +32,7 @@ export function buildZenContext(input: ZenContextInput = {}): string {
   const now = input.now ? new Date(input.now) : new Date();
   const blocks = [
     "【品牌記憶】",
-    describeClub(),
+    input.brandMemoryText?.trim() || describeClub(),
     input.brandVoice ? `使用者設定的語氣：${input.brandVoice}` : "",
     input.brandDoSay ? `使用者設定可以說：${input.brandDoSay}` : "",
     input.brandDontSay ? `使用者設定不要說：${input.brandDontSay}` : "",

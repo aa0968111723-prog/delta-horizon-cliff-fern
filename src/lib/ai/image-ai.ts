@@ -25,6 +25,7 @@ const DirectionBriefSchema = z.object({
   painPoint: z.string().max(300).catch(""),
   audienceIds: z.array(z.string().max(40)).max(8).catch([]),
   imageStyle: z.string().max(600).optional(),
+  brandMemoryText: z.string().max(2500).optional(),
   forceLocal: z.boolean().optional(),
 });
 
@@ -111,7 +112,11 @@ export const generateVisualDirections = createServerFn({ method: "POST" })
     }
 
     const prompt = [
-      buildZenContext({ audienceIds: data.audienceIds, imageStyle: data.imageStyle }),
+      buildZenContext({
+        audienceIds: data.audienceIds,
+        imageStyle: data.imageStyle,
+        brandMemoryText: data.brandMemoryText,
+      }),
       "",
       "【使用者想做的事】",
       data.intent,
@@ -247,6 +252,7 @@ const VisionSchema = z.object({
   imageUrl: z.string().min(1).max(3_000_000),
   question: z.string().max(600).catch(""),
   audienceIds: z.array(z.string().max(40)).max(8).catch([]),
+  brandMemoryText: z.string().max(2500).optional(),
 });
 
 const VisionJsonSchema = z.object({
@@ -284,7 +290,7 @@ export const analyzeImage = createServerFn({ method: "POST" })
       return { ok: false, error: "這個環境沒有連上圖片理解服務。" };
     }
     const prompt = [
-      buildZenContext({ audienceIds: data.audienceIds }),
+      buildZenContext({ audienceIds: data.audienceIds, brandMemoryText: data.brandMemoryText }),
       "",
       "【任務】看這張圖，用禪學社小編的眼光判斷它能不能用、怎麼用。",
       data.question ? `使用者特別想知道：${data.question}` : "",

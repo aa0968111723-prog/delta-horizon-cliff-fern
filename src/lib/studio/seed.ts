@@ -12,6 +12,7 @@ import {
   MASCOT,
   VISUAL_ANCHORS,
 } from "@/lib/zen/club";
+import { clubBrandMemory } from "./brand";
 import { emptyBoilerplate } from "./boilerplate";
 import { defaultWavePlan, migrateCampaign } from "./campaign";
 import { migrateBrief, migratePlan, migratePlanVersions } from "./brief";
@@ -54,7 +55,7 @@ export const SEED_ASSETS: AssetMeta[] = [
     id: SEED_MASCOT_ID,
     name: "龜龜",
     kind: "logo",
-    category: "illustration",
+    category: "mascot",
     mime: "image/svg+xml",
     width: 320,
     height: 320,
@@ -73,7 +74,7 @@ export const SEED_ASSETS: AssetMeta[] = [
     id: SEED_DUSK_ID,
     name: "淡水河傍晚",
     kind: "image",
-    category: "background",
+    category: "campus",
     mime: "image/svg+xml",
     width: 1080,
     height: 1350,
@@ -111,7 +112,7 @@ export const SEED_ASSETS: AssetMeta[] = [
     id: SEED_NIGHT_ID,
     name: "宿舍夜燈",
     kind: "image",
-    category: "background",
+    category: "campus",
     mime: "image/svg+xml",
     width: 1080,
     height: 1350,
@@ -174,6 +175,7 @@ export const SEED_BRAND: BrandKit = {
     hashtags: CLUB_HASHTAGS.slice(0, 3),
     captionClose: CLUB_INTRO_SHORT,
   },
+  memory: clubBrandMemory([SEED_LOGO_ID, SEED_MASCOT_ID, SEED_DUSK_ID]),
   updatedAt: SEED_TIME,
 };
 
