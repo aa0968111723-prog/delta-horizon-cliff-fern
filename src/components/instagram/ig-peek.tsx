@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogClose, DialogDescription, DialogTitle, DialogViewport } from "@/components/ui/dialog";
@@ -21,14 +21,12 @@ export function IgPeek({
   width?: "story" | "feed";
   children: ReactNode;
 }) {
+  useEffect(() => {
+    if (open) toast.dismiss();
+  }, [open]);
+
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (next) toast.dismiss();
-        onOpenChange(next);
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogViewport
         overlayClassName="z-[80] bg-fg/80"
         data-testid="ig-peek"

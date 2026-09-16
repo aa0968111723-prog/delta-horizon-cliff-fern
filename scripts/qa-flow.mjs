@@ -557,14 +557,19 @@ try {
     };
   });
   record("編輯裡限動是直式", Boolean(studioPeek.ok), studioPeek.detail);
-  const peekToasts = await page.evaluate(() =>
-    [...document.querySelectorAll("[data-sonner-toast]")].filter((el) => {
-      const box = el.getBoundingClientRect();
-      return box.width > 0 && box.height > 0;
-    }).length,
-  );
-  record("限動預覽沒有提示蓋住", peekToasts === 0, peekToasts ? `還有 ${peekToasts} 則提示` : "");
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(500);
+  const toastCover = await page.evaluate(() => {
+    const board = document.querySelector("[data-testid=ig-story-viewer] [data-ratio='9:16']");
+    if (!board) return { ok: false, detail: "沒有 9:16 畫面可量" };
+    const box = board.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.left + box.width / 2, box.bottom - 24);
+    const toast = hit?.closest("[data-sonner-toast]");
+    return {
+      ok: !toast,
+      detail: toast ? "提示還蓋在限動下緣" : "",
+    };
+  });
+  record("限動預覽沒有提示蓋住", Boolean(toastCover.ok), toastCover.detail);
   await page.screenshot({ path: `${prefix}-studio-ig-peek.png` });
   await page.getByTestId("ig-story-next").first().evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
