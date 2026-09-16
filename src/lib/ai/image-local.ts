@@ -69,7 +69,7 @@ function detectScene(input: LocalVisionInput): Scene {
   return "generic";
 }
 
-function flags(input: LocalVisionInput, scene: Scene) {
+function readFlags(input: LocalVisionInput, scene: Scene) {
   const blob = blobOf(input);
   const tooReligious = RELIGIOUS.some((word) => blob.includes(word));
   const tooOld = OLD.some((word) => blob.includes(word));
@@ -82,7 +82,11 @@ function flags(input: LocalVisionInput, scene: Scene) {
 
 const MAKE_NEXT = ["做成限動", "做成輪播", "做成 Reels 封面", "用這張寫文案"];
 
-function sceneDraft(scene: Scene, input: LocalVisionInput, flags: ReturnType<typeof flags>): LocalImageAnalysis {
+function sceneDraft(
+  scene: Scene,
+  input: LocalVisionInput,
+  verdict: ReturnType<typeof readFlags>,
+): LocalImageAnalysis {
   const title = input.name?.trim() || "這張圖";
 
   if (scene === "dusk") {
@@ -98,7 +102,7 @@ function sceneDraft(scene: Scene, input: LocalVisionInput, flags: ReturnType<typ
       brandFit: "符合三色光的暖夜感，不像宗教場所。",
       studentFit: "像放學走去捷運站時會看到的淡水，適合淡江學生。",
       stopPower: "地方感強，學生會停一下。",
-      ...flags,
+      ...verdict,
       nextSteps: ["當成主視覺", ...MAKE_NEXT],
       stylePrompt: `Tamsui riverside at dusk seen from a campus slope, warm amber sky fading into blue, distant ferry lights, quiet and wide, cinematic photo, ${ANCHOR}`,
       captionIdea: "走上坡的時候，你通常在想什麼？",
@@ -118,7 +122,7 @@ function sceneDraft(scene: Scene, input: LocalVisionInput, flags: ReturnType<typ
       brandFit: "像社團現場，不像宗教場所。",
       studentFit: "第一次來的人看了會覺得「原來是這樣的教室」。",
       stopPower: "現場感清楚，適合體驗與社課宣傳。",
-      ...flags,
+      ...verdict,
       nextSteps: ["當成社課主視覺", ...MAKE_NEXT],
       stylePrompt: `sunlit corner of a university classroom, meditation cushions on wooden floor, soft daylight through window blinds, warm neutral palette, documentary photo, ${ANCHOR}`,
       captionIdea: "坐下來，然後什麼都不用做。",
@@ -138,7 +142,7 @@ function sceneDraft(scene: Scene, input: LocalVisionInput, flags: ReturnType<typ
       brandFit: "夜晚情緒，不是金光或仙氣。",
       studentFit: "期末或睡不著的晚上，淡江學生很容易對上。",
       stopPower: "情緒鉤強，適合晚上發。",
-      ...flags,
+      ...verdict,
       nextSteps: ["當成情緒主視覺", ...MAKE_NEXT],
       stylePrompt: `dim dorm desk at night lit by a single warm lamp, notebook and a mug, deep indigo shadows, soft glow, muted film photo, ${ANCHOR}`,
       captionIdea: "有時候需要的，只是一個安靜的晚上。",
@@ -158,7 +162,7 @@ function sceneDraft(scene: Scene, input: LocalVisionInput, flags: ReturnType<typ
       brandFit: "這就是社團識別。",
       studentFit: "認識的人看得到是禪學社；第一次來的人需要配一張現場照片。",
       stopPower: "單獨發標誌，學生通常會滑過去。",
-      ...flags,
+      ...verdict,
       nextSteps: ["放到畫面當標誌，不要當主視覺", "配一張淡水或窗邊照片當底", "用在限動貼紙或倒數"],
       stylePrompt: `simple three-light emblem on warm paper, amber teal indigo glow, generous negative space, ${ANCHOR}`,
       captionIdea: "坐下來，就是開始。",
@@ -178,7 +182,7 @@ function sceneDraft(scene: Scene, input: LocalVisionInput, flags: ReturnType<typ
       brandFit: "輕鬆、慢、不說教。",
       studentFit: "適合限動、倒數、Q&A；正式海報只留殼上的光就好。",
       stopPower: "可愛會停，但不要拿來當講座主視覺。",
-      ...flags,
+      ...verdict,
       nextSteps: ["放到限動或倒數", "配一句龜龜也不想動", "正式主視覺改用淡水或窗邊照片"],
       stylePrompt: `round green turtle mascot with three soft lights on its shell, relaxed expression, warm paper background, ${ANCHOR}`,
       captionIdea: "龜龜今天也不想動，但牠說這叫坐一下。",
@@ -198,7 +202,7 @@ function sceneDraft(scene: Scene, input: LocalVisionInput, flags: ReturnType<typ
       brandFit: "真人現場比海報更像這個社團。",
       studentFit: "同儕畫面最容易讓人覺得「我也可以去」。",
       stopPower: "有人的狀態通常比風景更能停。",
-      ...flags,
+      ...verdict,
       nextSteps: ["做成限動", "做成輪播第二頁", "用這張寫文案"],
       stylePrompt: `candid side profile of a university student sitting on a cushion, soft window light, no posed smile, documentary photo, ${ANCHOR}`,
       captionIdea: "第一次來的時候也覺得很尬，坐十分鐘就好了。",
@@ -215,10 +219,10 @@ function sceneDraft(scene: Scene, input: LocalVisionInput, flags: ReturnType<typ
       composition: "已有層級；若字太多，重做時要留白",
       textRatio: "海報通常字偏多，IG 上要再收",
       hierarchy: "先看第一句能不能讓學生停下來",
-      brandFit: flags.tooReligious ? "宗教符號偏多，不建議直接當今年主視覺。" : "可當品牌記憶，新內容不要原封不動重發。",
-      studentFit: flags.tooOld ? "偏老氣，淡江學生可能覺得這不是給他們的。" : "可延續風格，但文案要換成現在的學生語氣。",
+      brandFit: verdict.tooReligious ? "宗教符號偏多，不建議直接當今年主視覺。" : "可當品牌記憶，新內容不要原封不動重發。",
+      studentFit: verdict.tooOld ? "偏老氣，淡江學生可能覺得這不是給他們的。" : "可延續風格，但文案要換成現在的學生語氣。",
       stopPower: "舊海報直接重發，停留感通常不好。",
-      ...flags,
+      ...verdict,
       nextSteps: ["延續這個風格重做", "只留畫面、文案重寫", "做成輪播把字拆開"],
       stylePrompt: `quiet university poster layout on warm paper, generous negative space, serif headline, documentary campus photo, ${ANCHOR}`,
       captionIdea: "不用準備好才能來。",
@@ -238,7 +242,7 @@ function sceneDraft(scene: Scene, input: LocalVisionInput, flags: ReturnType<typ
       brandFit: "適合當畫布底，不要單獨發。",
       studentFit: "配上一句學生會停下來的話才有用。",
       stopPower: "沒有字的底圖，IG 上幾乎不會停。",
-      ...flags,
+      ...verdict,
       nextSteps: ["放到畫布當底", "壓一句 hook 再發", "做成限動封面"],
       stylePrompt: `airy textured paper background, soft window light, warm neutral, lots of negative space for type, ${ANCHOR}`,
       captionIdea: "先坐一下再說。",
@@ -258,7 +262,7 @@ function sceneDraft(scene: Scene, input: LocalVisionInput, flags: ReturnType<typ
       brandFit: "紀實比海報更接近社團實際樣子。",
       studentFit: "看起來像同學的活動，不是外面的禪修中心。",
       stopPower: "真實現場通常比模板海報更能停。",
-      ...flags,
+      ...verdict,
       nextSteps: MAKE_NEXT,
       stylePrompt: `candid documentary photo of a quiet student club gathering, cushions and warm daylight, unposed, ${ANCHOR}`,
       captionIdea: "不用盤腿，不用信什麼，來就好。",
@@ -279,7 +283,7 @@ function sceneDraft(scene: Scene, input: LocalVisionInput, flags: ReturnType<typ
     brandFit: "沒有標籤時，不敢說跟品牌近不近。",
     studentFit: "沒有名稱與分類時，本機規則無法確認這像淡江學生的生活。",
     stopPower: "還不知道。有線上模型時會真的看圖。",
-    ...flags,
+    ...verdict,
     nextSteps: ["先在素材庫標分類", "做成限動試試", "有線上模型時再按 AI 分析"],
     stylePrompt: `quiet Tamkang campus corner, warm paper light, airy negative space, documentary photo, ${ANCHOR}`,
     captionIdea: "最近是不是連休息都覺得有罪惡感？",
@@ -292,8 +296,8 @@ function sceneDraft(scene: Scene, input: LocalVisionInput, flags: ReturnType<typ
  */
 export function localImageAnalysis(input: LocalVisionInput): LocalImageAnalysis {
   const scene = detectScene(input);
-  const next = flags(input, scene);
-  const draft = sceneDraft(scene, input, next);
+  const verdict = readFlags(input, scene);
+  const draft = sceneDraft(scene, input, verdict);
   if (input.question?.trim()) {
     draft.summary = `${draft.summary} 你想知道：${input.question.trim()}`;
   }
