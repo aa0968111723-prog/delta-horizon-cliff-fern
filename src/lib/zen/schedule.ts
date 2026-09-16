@@ -382,6 +382,10 @@ export function isDueScheduleItem(item: ScheduleItem, now = Date.now()) {
   return item.scheduledAt <= now;
 }
 
+export function shiftScheduleDay(scheduledAt: number, days: number) {
+  return scheduledAt + days * 86_400_000;
+}
+
 export function dueScheduleItems(items: ScheduleItem[], now = Date.now(), limit = 3): ScheduleItem[] {
   const rows = items.filter((item) => isDueScheduleItem(item, now)).sort((a, b) => a.scheduledAt - b.scheduledAt);
   if (limit <= 0) return rows;

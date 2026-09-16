@@ -1,4 +1,4 @@
-import { addDays, addWeeks, format, startOfMonth, startOfWeek, addMonths, isSameDay, isSameMonth } from "date-fns";
+import { addDays, addWeeks, format, getDaysInMonth, startOfMonth, startOfWeek, addMonths, isSameDay, isSameMonth } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { zhTW } from "date-fns/locale";
 import { useNavigate } from "@tanstack/react-router";
@@ -15,8 +15,8 @@ import { uid } from "@/lib/studio/ids";
 import type { ContentKind } from "@/lib/studio/types";
 import { copyKindForContent } from "@/lib/zen/convert";
 import { igDnaBlock } from "@/lib/zen/insights";
-import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
-import { isWaveScheduleItem, placeScheduleItems, rhythmHint, schedulePreviewAssetId, isDueScheduleItem } from "@/lib/zen/schedule";
+import { CONTENT_KIND_LABEL, type ScheduleItem } from "@/lib/zen/types";
+import { isWaveScheduleItem, placeScheduleItems, rhythmHint, schedulePreviewAssetId, isDueScheduleItem, shiftScheduleDay } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -42,6 +42,66 @@ function toLocalInput(ts: number) {
   const d = new Date(ts);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function dayAtHour(day: Date, hours = 20, minutes = 0) {
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate(), hours, minutes).getTime();
+}
+
+function PhoneDayList({
+  days,
+  schedule,
+  testId,
+  onMove,
+  onEdit,
+}: {
+  days: Date[];
+  schedule: ScheduleItem[];
+  testId: string;
+  onMove: (id: string, scheduledAt: number) => void;
+  onEdit: (id: string) => void;
+}) {
+  return (
+    <ul className="mt-4 space-y-2 md:hidden" data-testid={testId}>
+      {days.map((day) => {
+        const items = schedule.filter((row) => isSameDay(row.scheduledAt, day));
+        return (
+          <li
+            key={day.toISOString()}
+            className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              const id = e.dataTransfer.getData("text/schedule-id");
+              if (id) onMove(id, dayAtHour(day));
+            }}
+          >
+            <p className="text-xs text-muted">{format(day, "M/d（EE）", { locale: zhTW })}</p>
+            {items.length ? (
+              <ul className="mt-2 space-y-1">
+                {items.map((item) => (
+                  <li
+                    key={item.id}
+                    draggable
+                    data-testid={isWaveScheduleItem(item) ? "schedule-wave" : "schedule-suite"}
+                    onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", item.id)}
+                    onClick={() => onEdit(item.id)}
+                    className={cn(
+                      "min-h-11 rounded-md px-2 py-2 text-sm",
+                      isWaveScheduleItem(item) ? "bg-bg/70 text-muted" : "bg-bg",
+                    )}
+                  >
+                    {item.title}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-xs text-muted">這天還沒有內容</p>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 export function CalendarPage() {
@@ -89,6 +149,16 @@ export function CalendarPage() {
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
   }, [cursor]);
 
+  const monthDays = useMemo(() => {
+    const start = startOfMonth(cursor);
+    return Array.from({ length: getDaysInMonth(cursor) }, (_, i) => addDays(start, i));
+  }, [cursor]);
+
+  function moveToDay(id: string, scheduledAt: number) {
+    moveSchedule(id, scheduledAt);
+    toast.success(`已改到 ${format(scheduledAt, "M/d（EE）", { locale: zhTW })}`);
+  }
+
   async function extendItem(id: string) {
     const item = schedule.find((row) => row.id === id);
     if (!item) return;
@@ -134,7 +204,13 @@ export function CalendarPage() {
         actions={
           <div className="flex gap-2">
             {(["month", "week", "agenda"] as const).map((id) => (
-              <Button key={id} size="sm" variant={mode === id ? "default" : "secondary"} onClick={() => setMode(id)}>
+              <Button
+                key={id}
+                size="sm"
+                variant={mode === id ? "default" : "secondary"}
+                data-testid={`cal-mode-${id}`}
+                onClick={() => setMode(id)}
+              >
                 {id === "month" ? "月" : id === "week" ? "週" : "Agenda"}
               </Button>
             ))}
@@ -261,49 +337,27 @@ export function CalendarPage() {
       ) : null}
 
       {mode === "week" ? (
-        <ul className="mt-4 space-y-2 md:hidden" data-testid="cal-week">
-          {weekDays.map((day) => {
-            const items = schedule.filter((s) => isSameDay(s.scheduledAt, day));
-            return (
-              <li
-                key={day.toISOString()}
-                className="rounded-2xl bg-surface p-3 shadow-[var(--shadow-border)]"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  const id = e.dataTransfer.getData("text/schedule-id");
-                  if (id) moveSchedule(id, new Date(day.getFullYear(), day.getMonth(), day.getDate(), 20).getTime());
-                }}
-              >
-                <p className="text-xs text-muted">{format(day, "M/d（EE）", { locale: zhTW })}</p>
-                {items.length ? (
-                  <ul className="mt-2 space-y-1">
-                    {items.map((item) => (
-                      <li
-                        key={item.id}
-                        draggable
-                        data-testid={isWaveScheduleItem(item) ? "schedule-wave" : "schedule-suite"}
-                        onDragStart={(e) => e.dataTransfer.setData("text/schedule-id", item.id)}
-                        onClick={() => setEditingId(item.id)}
-                        className={cn(
-                          "rounded-md px-2 py-1.5 text-sm",
-                          isWaveScheduleItem(item) ? "bg-bg/70 text-muted" : "bg-bg",
-                        )}
-                      >
-                        {item.title}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-2 text-xs text-muted">這天還沒有內容</p>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <PhoneDayList
+          days={weekDays}
+          schedule={schedule}
+          testId="cal-week"
+          onMove={moveToDay}
+          onEdit={setEditingId}
+        />
+      ) : null}
+
+      {mode === "month" ? (
+        <PhoneDayList
+          days={monthDays}
+          schedule={schedule}
+          testId="cal-month"
+          onMove={moveToDay}
+          onEdit={setEditingId}
+        />
       ) : null}
 
       {mode === "agenda" ? (
-        <ul className="mt-6 space-y-2">
+        <ul className="mt-6 space-y-2" data-testid="cal-agenda">
           {[...schedule]
             .sort((a, b) => {
               const dueA = isDueScheduleItem(a) ? 0 : 1;
@@ -314,6 +368,12 @@ export function CalendarPage() {
             .map((item) => (
               <li
                 key={item.id}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const id = e.dataTransfer.getData("text/schedule-id");
+                  if (id && id !== item.id) moveToDay(id, item.scheduledAt);
+                }}
                 data-testid={
                   isDueScheduleItem(item)
                     ? "cal-due"
@@ -363,6 +423,26 @@ export function CalendarPage() {
                     改這則
                   </Button>
                   {item.status !== "published" ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        data-testid="nudge-earlier"
+                        onClick={() => moveToDay(item.id, shiftScheduleDay(item.scheduledAt, -1))}
+                      >
+                        早一天
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        data-testid="nudge-later"
+                        onClick={() => moveToDay(item.id, shiftScheduleDay(item.scheduledAt, 1))}
+                      >
+                        晚一天
+                      </Button>
+                    </>
+                  ) : null}
+                  {item.status !== "published" ? (
                     isDueScheduleItem(item) ? (
                       <DueSlotActions
                         item={item}
@@ -408,7 +488,7 @@ export function CalendarPage() {
             ))}
         </ul>
       ) : (
-        <div className={cn("mt-4 grid-cols-7 gap-1", mode === "week" ? "hidden md:grid" : "grid")}>
+        <div className="mt-4 hidden grid-cols-7 gap-1 md:grid">
           {["一", "二", "三", "四", "五", "六", "日"].map((d) => (
             <p key={d} className="py-2 text-center text-xs text-muted">
               {d}
