@@ -261,6 +261,7 @@ export function InstagramCenter() {
           </Button>
         ))}
       </div>
+      {tab === "grid" ? (
       <section className="mt-6 rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-border)]">
         <p className="text-xs text-muted">Zen Club IG DNA</p>
         <p className="mt-2 text-sm">{IG_DNA.visual}</p>
@@ -287,6 +288,7 @@ export function InstagramCenter() {
           {igStatus === "connected" ? "只讀 Meta 官方授權範圍內的貼文。" : "還沒連接時會提示，不會爬蟲或存帳密。"}
         </p>
       </section>
+      ) : null}
 
       {tab === "grid" ? (
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_18rem]">
