@@ -264,6 +264,7 @@ export const useCreative = create<CreativeState>()(
           igFormat?: FormatId;
           driveFolderQuery?: string;
         };
+        const igView: IgView = row.igView === "preview" || row.igView === "calendar" ? row.igView : "grid";
         const igFormat: FormatId =
           row.igFormat === "story" ||
           row.igFormat === "reels-cover" ||
@@ -280,7 +281,7 @@ export const useCreative = create<CreativeState>()(
           connections: row.connections,
           lastPack: row.lastPack ?? null,
           lastVisualAssetId: row.lastVisualAssetId ?? null,
-          igView: row.igView === "preview" || row.igView === "calendar" ? row.igView : "grid",
+          igView,
           igFormat,
           driveFolderQuery: row.driveFolderQuery || "淡江禪學社",
         };
