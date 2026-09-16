@@ -78,6 +78,23 @@ test("buildMockPlan uses a live tea-party IG caption over older seed metrics", (
   assert.match(plan.hook, /可以自己來/);
 });
 
+test("zen mock caption is a student post, not a brief dump", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "茶會",
+    product: "茶會",
+    audience: "淡江大一新生",
+    brandName: "淡江大學禪學社",
+    slogans: "",
+    preferredCtas: "來坐一下",
+    features: "下週有一場茶會\n一句介紹：\n學生痛點：開學後行程變滿\n主題：",
+  });
+  const blob = plan.captions.map((row) => row.text).join("\n");
+  assert.doesNotMatch(blob, /一句介紹|學生痛點|這次看點/);
+  assert.match(plan.hook, /[？?]/);
+  assert.match(blob, /想找人一起/);
+});
+
 test("buildMockPlan uses the learned IG hook for 禪學社", () => {
   const plan = buildMockPlan({
     eventName: "茶會",

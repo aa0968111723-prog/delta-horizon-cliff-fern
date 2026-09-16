@@ -497,9 +497,9 @@ export function CreateStudio() {
         location,
         audience: DEFAULT_AUDIENCE,
         goal: "traffic",
-        features: `${workingIdea}\n一句介紹：${oneLiner}\n學生痛點：${studentPain}\n主題：${theme}`.slice(0, 400),
+        features: [oneLiner, workingIdea].filter(Boolean).join("。").slice(0, 280),
         style: "生活感、夜晚、年輕",
-        notes: `一人網宣。不要宗教語氣。${description ? `介紹：${description}。` : ""}參考來源：${sourceNotes(hits)}`.slice(0, 400),
+        notes: `一人網宣。不要宗教語氣。不要把「一句介紹」「學生痛點」「主題」寫進 Caption。學生最近：${studentPain}。${description ? `介紹：${description}。` : ""}參考來源：${sourceNotes(hits)}`.slice(0, 400),
         deliverables: { post: true, story: true, carousel: true, reels: true },
       });
       const result = await generateCampaignPlan({

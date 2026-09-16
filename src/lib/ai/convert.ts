@@ -1,4 +1,5 @@
 import type { CampaignPlan, CarouselPagePlan, ContentKind } from "@/lib/studio/types";
+import { tidyCopy } from "../zen/review.ts";
 
 export type ConvertedPack = {
   kind: ContentKind;
@@ -86,5 +87,10 @@ export function packCaption(plan: CampaignPlan, pack: ConvertedPack) {
 }
 
 export function captionFromCopyPack(pack: { hook: string; body: string; cta: string; hashtags?: string[] }) {
-  return [pack.hook, pack.body, pack.cta, (pack.hashtags ?? []).join(" ")].filter(Boolean).join("\n");
+  const hook = pack.hook.trim();
+  let body = pack.body.trim();
+  if (hook && (body === hook || body.startsWith(`${hook}\n`))) {
+    body = body.slice(hook.length).trim();
+  }
+  return tidyCopy([hook, body, pack.cta, (pack.hashtags ?? []).join(" ")].filter(Boolean).join("\n"));
 }

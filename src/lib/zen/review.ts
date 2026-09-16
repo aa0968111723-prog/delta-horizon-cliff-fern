@@ -1,8 +1,17 @@
 import type { StudentReview } from "../studio/types.ts";
 import { HOOK_EXAMPLES } from "./context.ts";
 
+/** Drop planner-form labels so IG captions do not read like a brief. */
+export function stripBriefLeak(text: string) {
+  return text
+    .split(/\n+/)
+    .map((line) => line.replace(/^(一句介紹|學生痛點|主題|這次看點)[：:]\s*/, "").trim())
+    .filter((line) => line.length > 0)
+    .join("\n");
+}
+
 export function tidyCopy(text: string) {
-  return text.replace(/。{2,}/g, "。").replace(/，。/g, "。").trim();
+  return stripBriefLeak(text).replace(/。{2,}/g, "。").replace(/，。/g, "。").trim();
 }
 
 /** Student-facing rewrite — never keep a formal invitation as the first line. */

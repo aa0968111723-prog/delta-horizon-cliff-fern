@@ -58,3 +58,15 @@ test("captionFromCopyPack is what Calendar and Canva should send after 快速修
   assert.match(caption, /來坐一下/);
   assert.match(caption, /#淡江禪學社/);
 });
+
+test("captionFromCopyPack does not leak brief form labels into the calendar", () => {
+  const caption = captionFromCopyPack({
+    hook: "可以自己來？",
+    body: "可以自己來？\n下週茶會\n一句介紹：\n學生痛點：開學後很滿\n主題：\n這次看點：下週有一場茶會",
+    cta: "來坐一下",
+    hashtags: ["#淡江禪學社"],
+  });
+  assert.match(caption, /^可以自己來？/);
+  assert.equal(caption.match(/可以自己來？/g)?.length, 1);
+  assert.doesNotMatch(caption, /一句介紹|學生痛點|主題：|這次看點/);
+});
