@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { objectUrlForAsset } from "@/lib/studio/assets-idb";
+import { assetUrlKey } from "@/lib/studio/asset-url-key";
 import { useStudio } from "@/stores/studio-store";
 
 export function useAssetUrls(ids: string[]): Record<string, string> {
   const assets = useStudio((s) => s.assets);
-  const list = useMemo(() => [...new Set(ids.filter(Boolean))].sort(), [ids]);
-  const key = list.join("|");
+  const key = assetUrlKey(ids);
+  const list = useMemo(() => (key ? key.split("|") : []), [key]);
   const seedFallbacks = useMemo(() => {
     const map: Record<string, string> = {};
     for (const asset of assets) {
@@ -31,7 +32,12 @@ export function useAssetUrls(ids: string[]): Record<string, string> {
         }),
       );
       if (cancelled) return;
-      setBlobUrls(next);
+      setBlobUrls((prev) => {
+        const same =
+          Object.keys(prev).length === Object.keys(next).length &&
+          Object.keys(next).every((id) => prev[id] === next[id]);
+        return same ? prev : next;
+      });
       const missing = list.filter((id) => !next[id] && !seedFallbacks[id]);
       if (missing.length && attempts < 10) {
         attempts += 1;

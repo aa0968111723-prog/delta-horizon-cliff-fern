@@ -49,7 +49,7 @@ export function CampaignList() {
       <div className="flex items-end justify-between gap-3">
         <div>
           <p className="text-xs tracking-[0.18em] text-muted uppercase">活動</p>
-          <h1 className="mt-1 font-display text-3xl">Campaign</h1>
+          <h1 className="mt-1 font-display text-3xl">這一季要做什麼</h1>
         </div>
         <Button onClick={() => setOpen(true)}>建立活動</Button>
       </div>

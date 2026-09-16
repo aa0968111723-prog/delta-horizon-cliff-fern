@@ -16,6 +16,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         if (!cancelled) {
           useStudio.getState().setHydrated(true);
           useCreative.getState().setHydrated(true);
+          document.documentElement.dataset.studioReady = "1";
         }
         const assets = useStudio.getState().assets;
         void Promise.all(

@@ -21,6 +21,7 @@ import { Route as ExportRouteImport } from './routes/export'
 import { Route as IgRouteImport } from './routes/ig'
 import { Route as InspireRouteImport } from './routes/inspire'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
 import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
 import { Route as StudioIndexRouteImport } from './routes/studio.index'
 import { Route as StudioProjectIdRouteImport } from './routes/studio.$projectId'
@@ -86,6 +87,11 @@ const StudioRoute = StudioRouteImport.update({
   path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CampaignsIndexRoute = CampaignsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CampaignsRoute,
+} as any)
 const CampaignsCampaignIdRoute = CampaignsCampaignIdRouteImport.update({
   id: '/$campaignId',
   path: '/$campaignId',
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/studio': typeof StudioRouteWithChildren
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns/': typeof CampaignsIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/api/connect/$': typeof ApiConnectSplatRoute
 }
@@ -131,7 +138,6 @@ export interface FileRoutesByTo {
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
   '/calendar': typeof CalendarRoute
-  '/campaigns': typeof CampaignsRouteWithChildren
   '/connect': typeof ConnectRoute
   '/create': typeof CreateRoute
   '/export': typeof ExportRoute
@@ -139,6 +145,7 @@ export interface FileRoutesByTo {
   '/inspire': typeof InspireRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns': typeof CampaignsIndexRoute
   '/studio': typeof StudioIndexRoute
   '/api/connect/$': typeof ApiConnectSplatRoute
 }
@@ -158,6 +165,7 @@ export interface FileRoutesById {
   '/studio': typeof StudioRouteWithChildren
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
+  '/campaigns/': typeof CampaignsIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/api/connect/$': typeof ApiConnectSplatRoute
 }
@@ -178,6 +186,7 @@ export interface FileRouteTypes {
     | '/studio'
     | '/campaigns/$campaignId'
     | '/studio/$projectId'
+    | '/campaigns/'
     | '/studio/'
     | '/api/connect/$'
   fileRoutesByTo: FileRoutesByTo
@@ -187,7 +196,6 @@ export interface FileRouteTypes {
     | '/assistant'
     | '/brand'
     | '/calendar'
-    | '/campaigns'
     | '/connect'
     | '/create'
     | '/export'
@@ -195,6 +203,7 @@ export interface FileRouteTypes {
     | '/inspire'
     | '/campaigns/$campaignId'
     | '/studio/$projectId'
+    | '/campaigns'
     | '/studio'
     | '/api/connect/$'
   id:
@@ -213,6 +222,7 @@ export interface FileRouteTypes {
     | '/studio'
     | '/campaigns/$campaignId'
     | '/studio/$projectId'
+    | '/campaigns/'
     | '/studio/'
     | '/api/connect/$'
   fileRoutesById: FileRoutesById
@@ -319,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/campaigns/': {
+      id: '/campaigns/'
+      path: '/'
+      fullPath: '/campaigns/'
+      preLoaderRoute: typeof CampaignsIndexRouteImport
+      parentRoute: typeof CampaignsRoute
+    }
     '/campaigns/$campaignId': {
       id: '/campaigns/$campaignId'
       path: '/$campaignId'
@@ -352,10 +369,12 @@ declare module '@tanstack/react-router' {
 
 interface CampaignsRouteChildren {
   CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRoute
+  CampaignsIndexRoute: typeof CampaignsIndexRoute
 }
 
 const CampaignsRouteChildren: CampaignsRouteChildren = {
   CampaignsCampaignIdRoute: CampaignsCampaignIdRoute,
+  CampaignsIndexRoute: CampaignsIndexRoute,
 }
 
 const CampaignsRouteWithChildren = CampaignsRoute._addFileChildren(
