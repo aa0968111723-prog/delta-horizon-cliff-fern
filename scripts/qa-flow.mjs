@@ -163,6 +163,15 @@ try {
   await page.locator("#convert-pack").evaluate((el) => el instanceof HTMLElement && el.scrollIntoView({ block: "start" }));
   await expectText("全套下載", "下載全套");
   await expectText("全套完成", "這套完成了");
+  await expectText("全套同步文案", "文案套到全套");
+  await tap(page.getByRole("button", { name: "文案套到全套" }));
+  await page.waitForTimeout(500);
+  const afterSpread = await text();
+  record(
+    "全套文案已套上",
+    afterSpread.includes("套到") || afterSpread.includes("Threads"),
+    "套到全套之後沒有更新",
+  );
   await tap(page.getByRole("button", { name: "這套完成了" }));
   await page.waitForTimeout(400);
   await expectText("全套可排程", "排這套到日曆");

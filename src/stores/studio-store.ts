@@ -18,6 +18,7 @@ import { applyAssetToArtboard } from "@/lib/studio/reels-cover";
 import { sourceFromAsset } from "@/lib/studio/sources";
 import { emptyCopy, withBoilerplate } from "@/lib/studio/copy";
 import { copyFromDraft } from "@/lib/studio/copy-draft";
+import { spreadCopyAcrossPack } from "@/lib/studio/pack-copy";
 import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
 import { uid, uniqueById } from "@/lib/studio/ids";
@@ -139,6 +140,8 @@ type StudioState = {
   markPublished: (projectId: string, at?: number) => void;
   addCopyDraft: (projectId: string, draft: CopyDraft) => void;
   useCopyDraft: (projectId: string, draftId: string) => void;
+  applyCopyDeckToPack: (projectId: string, deck: CopyDeck) => number;
+  applyCopyToPack: (projectId: string) => number;
   setStudentReview: (projectId: string, review: StudentReview | null) => void;
   setReels: (projectId: string, reels: ReelsScript | null) => void;
   addSources: (projectId: string, sources: CreativeSourceRef[]) => void;
@@ -563,11 +566,24 @@ export const useStudio = create<StudioState>()(
         const project = get().projects.find((p) => p.id === projectId);
         const draft = project?.copyDrafts.find((d) => d.id === draftId);
         if (!project || !draft) return;
-        get().setCopy(projectId, copyFromDraft(project.copy, draft));
+        get().applyCopyDeckToPack(projectId, copyFromDraft(project.copy, draft));
         get().updateProject(projectId, (p) => ({
           ...p,
           status: p.status === "idea" ? "making" : p.status,
         }));
+      },
+      applyCopyDeckToPack: (projectId, deck) => {
+        const updates = spreadCopyAcrossPack(get().projects, projectId, deck);
+        for (const update of updates) {
+          get().setCopy(update.projectId, update.copy);
+          if (update.reels) get().setReels(update.projectId, update.reels);
+        }
+        return updates.length;
+      },
+      applyCopyToPack: (projectId) => {
+        const project = get().projects.find((item) => item.id === projectId);
+        if (!project) return 0;
+        return get().applyCopyDeckToPack(projectId, project.copy);
       },
       setStudentReview: (projectId, review) => get().updateProject(projectId, { studentReview: review }),
       setReels: (projectId, reels) => get().updateProject(projectId, { reels }),

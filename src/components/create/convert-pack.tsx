@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
+import { toast } from "sonner";
 import { PostPackBar } from "@/components/create/post-pack";
 import { PublishPreview } from "@/components/create/publish-preview";
 import { DownloadPackButton } from "@/components/export/download-pack";
@@ -11,27 +12,34 @@ import { pagesOf } from "@/lib/studio/layers";
 import { contentKindLabel } from "@/lib/studio/status";
 import type { BrandKit, Project } from "@/lib/studio/types";
 import { CONVERT_TARGETS } from "@/lib/studio/convert-copy";
+import { useStudio } from "@/stores/studio-store";
 
 /** 一次做成全套之後：同一則內容的每種型態都可以直接複製帶走。 */
 export function ConvertPack({
   members,
   brand,
   urls,
+  sourceId,
 }: {
   members: Project[];
   brand?: BrandKit;
   urls: Record<string, string>;
+  sourceId?: string;
 }) {
   if (members.length < 2) return null;
+  const packId = sourceId ?? members[0]!.id;
 
   return (
     <section id="convert-pack" className="mt-8 space-y-4">
       <SectionHeader
         title="這次做成的全套"
         hint="同一則內容的貼文、輪播、限動、Threads、LINE、Reels。一次標完成、一次下載，貼完再一次標已發。"
-        action={<DownloadPackButton projectId={members[0]!.id} size="sm" />}
+        action={<DownloadPackButton projectId={packId} size="sm" />}
       />
-      <PackFlowBar projectId={members[0]!.id} />
+      <div className="flex flex-wrap items-center gap-2">
+        <PackFlowBar projectId={packId} />
+        <SpreadCopyButton projectId={packId} />
+      </div>
       <ul className="grid gap-4 lg:grid-cols-2">
         {members.map((project) => {
           const page = pagesOf(project)[0];
@@ -73,5 +81,23 @@ export function ConvertPack({
         })}
       </ul>
     </section>
+  );
+}
+
+function SpreadCopyButton({ projectId }: { projectId: string }) {
+  const applyCopyToPack = useStudio((s) => s.applyCopyToPack);
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      aria-label="文案套到全套"
+      onClick={() => {
+        const count = applyCopyToPack(projectId);
+        if (count > 1) toast.success(`這則文案已套到 ${count} 種型態。Threads、LINE、Reels 也換了。`);
+        else toast.info("這則還沒做成其他型態。");
+      }}
+    >
+      文案套到全套
+    </Button>
   );
 }

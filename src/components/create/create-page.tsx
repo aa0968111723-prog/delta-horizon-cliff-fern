@@ -440,7 +440,14 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     }
 
     if (!opts?.quiet) {
-      toast.success(created ? "已建立內容，可以進畫面編輯了" : "已套用到這則內容");
+      const packSize = convertPackOf(useStudio.getState().projects, target.id).length;
+      toast.success(
+        packSize > 1
+          ? "這版已套到全套文案，Threads、LINE、Reels 也換了。"
+          : created
+            ? "已建立內容，可以進畫面編輯了"
+            : "已套用到這則內容",
+      );
     }
     return target.id;
   }
@@ -1089,7 +1096,9 @@ export function CreatePage({ search }: { search: CreateSearch }) {
         </section>
       ) : null}
 
-      {pack.length > 1 ? <ConvertPack members={pack} brand={brand} urls={urls} /> : null}
+      {linkedProject && pack.length > 1 ? (
+        <ConvertPack members={pack} brand={brand} urls={urls} sourceId={linkedProject.id} />
+      ) : null}
     </main>
   );
 }
