@@ -5,12 +5,15 @@ import {
   convertedScheduleDrafts,
   convertedScheduleInput,
   convertedScheduleUpserts,
+  hourForPurpose,
+  leadDaysUntil,
   matchingScheduleRow,
   offsetDaysForKind,
   publishableScheduleRows,
   scheduleChipLabel,
   scheduleDraftsFromCampaign,
 } from "./schedule.ts";
+import { rhythmMemoryFromIg, rhythmMemoryFromLessonText } from "./insights.ts";
 
 test("tea ceremony rhythm is not a wall of ads", () => {
   const waves = buildCampaignRhythm({ eventDate: "2026-09-24", eventType: "浮游禪光", leadDays: 10 });
@@ -136,4 +139,76 @@ test("short lead compresses into a dense sequence", () => {
   const waves = buildCampaignRhythm({ eventDate: "2026-09-20", eventType: "社課", leadDays: 3 });
   assert.ok(waves.length <= 6);
   assert.ok(waves.some((w) => w.purpose === "countdown" || w.purpose === "dayof"));
+});
+
+test("next-week tea keeps hero and recap instead of dropping colliding days", () => {
+  const now = Date.parse("2026-09-16T12:00:00+08:00");
+  assert.equal(leadDaysUntil("2026-09-23", now), 7);
+  const waves = buildCampaignRhythm({
+    eventDate: "2026-09-23",
+    eventType: "茶會",
+    leadDays: 7,
+    now,
+  });
+  const purposes = waves.map((w) => w.purpose);
+  assert.ok(purposes.includes("tease"));
+  assert.ok(purposes.includes("hero"));
+  assert.ok(purposes.includes("life"));
+  assert.ok(purposes.includes("recap"));
+  assert.equal(waves.filter((w) => w.purpose === "hero").length, 1);
+  assert.ok(waves.every((w) => !w.hook.includes("誠摯邀請您")));
+});
+
+test("IG memory rewrites the first hook and keeps recap after a strong carousel", () => {
+  const memory = rhythmMemoryFromIg([
+    {
+      mediaType: "carousel",
+      caption: "來的人比想像中多。有人問「我不會禪也可以嗎？」\n可以。",
+      metrics: { reach: 2410, likes: 154, comments: 23, saves: 71 },
+    },
+    {
+      mediaType: "image",
+      caption: "龜龜今天也在。",
+      metrics: { reach: 200, likes: 10, comments: 1, saves: 2 },
+    },
+  ]);
+  assert.match(memory.learnedHook, /我不會禪也可以嗎/);
+  assert.equal(memory.preferCarousel, true);
+  assert.equal(memory.turtleUnderperforms, true);
+  const waves = buildCampaignRhythm({
+    eventDate: "2026-09-23",
+    eventType: "茶會",
+    leadDays: 7,
+    memory,
+  });
+  assert.equal(waves.some((w) => w.purpose === "recap"), true);
+  assert.ok(waves.some((w) => w.hook.includes("我不會禪也可以嗎")));
+  assert.ok(waves.filter((w) => w.purpose === "info" || w.purpose === "emotion").every((w) => w.contentKind === "carousel"));
+  assert.match(memory.note, /根據過去 IG/);
+});
+
+test("three ad captions in a row insert living content instead of another poster", () => {
+  const memory = rhythmMemoryFromLessonText("一直在招生。連續活動廣告。");
+  assert.equal(memory.recentAdHeavy, true);
+  const waves = buildCampaignRhythm({
+    eventDate: "2026-09-20",
+    eventType: "社課",
+    leadDays: 4,
+    memory,
+  });
+  assert.ok(waves.some((w) => w.purpose === "life" || w.purpose === "emotion"));
+  const ads = waves.filter((w) => w.purpose === "hero" || w.purpose === "info" || w.purpose === "reason");
+  assert.ok(ads.length < waves.length);
+});
+
+test("life and story land at different hours so same-day chips stay readable", () => {
+  assert.equal(hourForPurpose("life"), 12);
+  assert.equal(hourForPurpose("countdown"), 21);
+  const waves = buildCampaignRhythm({ eventDate: "2026-09-24", eventType: "浮游禪光", leadDays: 8 });
+  const rows = scheduleDraftsFromCampaign(
+    { id: "camp_hours", name: "浮游禪光", date: "2026-09-24", waves, projectIds: [] },
+    Date.parse("2026-09-16T12:00:00+08:00"),
+  );
+  const hours = new Set(rows.map((row) => new Date(row.plannedAt).getHours()));
+  assert.ok(hours.size >= 2);
 });

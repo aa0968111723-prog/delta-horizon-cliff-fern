@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lessonsFromIg, formatLessons, quotedHookFromLessons, lessonPrompt, nextCreateIdeaFromLessons, analysisFromLive, preferPublishedAnalysis } from "./insights.ts";
+import { lessonsFromIg, formatLessons, quotedHookFromLessons, lessonPrompt, nextCreateIdeaFromLessons, analysisFromLive, preferPublishedAnalysis, rhythmMemoryFromIg, rhythmMemoryFromLessonText } from "./insights.ts";
 
 test("empty metrics become honest next-step advice, not a dashboard", () => {
   const lessons = lessonsFromIg([]);
@@ -87,4 +87,24 @@ test("nextCreateIdeaFromLessons prefers a just-published hook over a high-save r
   assert.match(idea, /我不會禪也可以嗎/);
   assert.match(idea, /茶會/);
   assert.doesNotMatch(idea, /來的人比想像中多/);
+});
+
+test("rhythm memory turns a winning carousel recap into the next schedule hook", () => {
+  const memory = rhythmMemoryFromIg([
+    {
+      mediaType: "carousel",
+      caption: "來的人比想像中多。有人問「我不會禪也可以嗎？」",
+      metrics: { reach: 2410, likes: 154, comments: 23, saves: 71 },
+    },
+    {
+      mediaType: "image",
+      caption: "龜龜今天也在。",
+      metrics: { reach: 200, likes: 10, comments: 1, saves: 2 },
+    },
+  ]);
+  assert.equal(memory.preferCarousel, true);
+  assert.equal(memory.turtleUnderperforms, true);
+  assert.match(memory.learnedHook, /我不會禪也可以嗎/);
+  assert.match(memory.note, /Carousel|Hook|龜龜/);
+  assert.equal(rhythmMemoryFromLessonText("").learnedHook, "");
 });

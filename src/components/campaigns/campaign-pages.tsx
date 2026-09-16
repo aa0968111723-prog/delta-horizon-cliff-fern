@@ -8,9 +8,9 @@ import { Textarea } from "@/components/ui/input";
 import { writeHandoff } from "@/lib/create/handoff";
 import { generateCopyPack, type CopyTone } from "@/lib/copy/generate";
 import { generateImageDirections } from "@/lib/image/studio";
-import { lessonPrompt } from "@/lib/club/insights";
+import { lessonPrompt, rhythmMemoryFromIg } from "@/lib/club/insights";
 import { FEATURED_EVENT, featuredCampaignIdea } from "@/lib/club/memory";
-import { buildCampaignRhythm } from "@/lib/club/schedule";
+import { buildCampaignRhythm, leadDaysUntil } from "@/lib/club/schedule";
 import { adoptIdeaFromAsset } from "@/lib/search/hits";
 import { assetsByIds, sourceLabel } from "@/lib/studio/assets";
 import { CONTENT_KIND_META } from "@/lib/studio/status";
@@ -252,15 +252,26 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
             <Button
               size="sm"
               variant="secondary"
+              data-testid="campaign-rerhythm"
               onClick={() =>
-                setWaves(current.id, buildCampaignRhythm({ eventDate: current.date, eventType: current.type || current.name }), {
-                  syncCalendar: true,
-                })
+                setWaves(
+                  current.id,
+                  buildCampaignRhythm({
+                    eventDate: current.date,
+                    eventType: current.type || current.name,
+                    leadDays: leadDaysUntil(current.date),
+                    memory: rhythmMemoryFromIg(igPosts),
+                  }),
+                  { syncCalendar: true },
+                )
               }
             >
-              依活動重排節奏
+              依過去表現重排節奏
             </Button>
           </div>
+          <p className="mt-2 text-sm text-muted" data-testid="rhythm-note">
+            {rhythmMemoryFromIg(igPosts).note}
+          </p>
           <ul className="mt-3 space-y-2">
             {current.waves.map((wave) => (
               <li key={wave.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">

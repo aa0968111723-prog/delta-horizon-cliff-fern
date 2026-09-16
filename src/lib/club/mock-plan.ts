@@ -1,8 +1,8 @@
-import { buildCampaignRhythm } from "./schedule.ts";
+import { buildCampaignRhythm, leadDaysUntil } from "./schedule.ts";
 import { CLUB, DEFAULT_HASHTAGS } from "./identity.ts";
 import { studentContext } from "./season.ts";
 import { MEMORY_ITEMS } from "./memory.ts";
-import { quotedHookFromLessons } from "./insights.ts";
+import { quotedHookFromLessons, rhythmMemoryFromLessonText } from "./insights.ts";
 import type { BriefInput } from "../ai/schema.ts";
 import type { CampaignPlan, CarouselPagePlan, TemplateId } from "../studio/types.ts";
 
@@ -45,6 +45,7 @@ export function buildZenMockPlan(data: BriefInput): CampaignPlan {
         { role: "cover", headline, subhead: `${when} · ${where}`, body: hook, cta, visualNote: "單張三層資訊。", templateId },
       ];
 
+  const eventDate = guessDate(data.schedule);
   const related = MEMORY_ITEMS.filter((item) =>
     `${item.title}${item.tags.join()}`.includes(name.slice(0, 2)) || item.tags.some((tag) => name.includes(tag)),
   ).slice(0, 4);
@@ -120,7 +121,12 @@ export function buildZenMockPlan(data: BriefInput): CampaignPlan {
         subhead: `${where}`,
       },
     ],
-    waves: buildCampaignRhythm({ eventDate: guessDate(data.schedule), eventType: name }),
+    waves: buildCampaignRhythm({
+      eventDate,
+      eventType: name,
+      leadDays: leadDaysUntil(eventDate),
+      memory: rhythmMemoryFromLessonText(data.igLessons),
+    }),
     studentReview: {
       wouldStop: "第一句在問生活，比較有機會停。",
       understood: "活動名稱有出現。",

@@ -2,9 +2,9 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { type LastPack, persistablePack } from "@/lib/club/last-pack";
 import { campaignIdForUpsert } from "@/lib/club/campaign";
-import { preferPublishedAnalysis } from "@/lib/club/insights";
+import { preferPublishedAnalysis, rhythmMemoryFromIg } from "@/lib/club/insights";
 import { FEATURED_EVENT } from "@/lib/club/memory";
-import { buildCampaignRhythm, scheduleDraftsFromCampaign } from "@/lib/club/schedule";
+import { buildCampaignRhythm, leadDaysUntil, scheduleDraftsFromCampaign } from "@/lib/club/schedule";
 import { uid } from "@/lib/studio/ids";
 import type {
   CampaignWave,
@@ -121,7 +121,12 @@ function seedCampaign(): ClubCampaign {
     imageAssetIds: ["asset_tricolor"],
     relatedAssetIds: ["asset_turtle", "asset_tea"],
     projectIds: ["proj_floating_light", "proj_sit_down"],
-    waves: buildCampaignRhythm({ eventDate: FEATURED_EVENT.date, eventType: FEATURED_EVENT.name, leadDays: 8 }),
+    waves: buildCampaignRhythm({
+      eventDate: FEATURED_EVENT.date,
+      eventType: FEATURED_EVENT.name,
+      leadDays: 8,
+      memory: rhythmMemoryFromIg(seedIg()),
+    }),
     directions: [],
     createdAt: now,
     updatedAt: now,
@@ -218,7 +223,14 @@ export const useCreative = create<CreativeState>()(
           name: input.name.trim() || existing?.name || "未命名活動",
           updatedAt: Date.now(),
         };
-        if (!next.waves.length) next.waves = buildCampaignRhythm({ eventDate: next.date, eventType: next.type || next.name });
+        if (!next.waves.length) {
+          next.waves = buildCampaignRhythm({
+            eventDate: next.date,
+            eventType: next.type || next.name,
+            leadDays: leadDaysUntil(next.date),
+            memory: rhythmMemoryFromIg(get().igPosts),
+          });
+        }
         set((s) => ({
           campaigns: existing
             ? s.campaigns.map((c) => (c.id === next.id ? next : c))

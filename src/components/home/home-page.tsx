@@ -352,7 +352,9 @@ export function HomePage() {
             <ul className="mt-3 space-y-2 text-sm" data-testid="home-ig-lessons">
               <li>Hook：{lessons.hook}</li>
               <li>圖片：{lessons.visual}</li>
+              <li>活動文案：{lessons.activity}</li>
               <li>Carousel：{lessons.carousel}</li>
+              <li>Story：{lessons.story}</li>
             </ul>
           </article>
           <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">

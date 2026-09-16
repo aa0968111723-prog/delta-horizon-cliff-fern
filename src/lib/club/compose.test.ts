@@ -61,6 +61,15 @@ test("tea idea becomes a full campaign brief and sourced plan", () => {
   assert.ok(plan.sources?.some((item) => item.kind === "canva"));
   assert.ok(plan.captions[0]?.text.includes("？") || plan.hook.includes("？"));
   assert.equal(`${plan.hook}${plan.captions[0]?.text}`.includes("誠摯邀請您"), false);
+  assert.ok(plan.waves?.some((wave) => wave.purpose === "hero"));
+  assert.ok(plan.waves?.some((wave) => wave.purpose === "recap"));
+
+  const learned = buildZenMockPlan({
+    ...input,
+    igLessons: "Hook：「我不會禪也可以嗎？」\nCarousel 結構比較有效時，中段會變成對話。\n活動文案裡，來了以後發生什麼比預告更有停留。",
+  });
+  assert.ok(learned.waves?.some((wave) => wave.hook.includes("我不會禪也可以嗎")));
+  assert.ok(learned.waves?.some((wave) => wave.purpose === "info" && wave.contentKind === "carousel"));
 
   const picked = applyPickedDirection(plan, plan.directions![1]);
   assert.equal(picked.headline, plan.directions![1].headline);

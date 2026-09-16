@@ -109,6 +109,82 @@ export function nextCreateIdeaFromLessons(posts: IgLessonPost[], eventName?: str
   return `根據過去 IG 表現來寫。${lessons.hook} 活動是${event}。`;
 }
 
+export type RhythmMemory = {
+  learnedHook: string;
+  preferCarousel: boolean;
+  recapOutperforms: boolean;
+  turtleUnderperforms: boolean;
+  recentAdHeavy: boolean;
+  note: string;
+};
+
+export function emptyRhythmMemory(): RhythmMemory {
+  return {
+    learnedHook: "",
+    preferCarousel: false,
+    recapOutperforms: false,
+    turtleUnderperforms: false,
+    recentAdHeavy: false,
+    note: "還沒有足夠成效，先用活動類型排節奏。",
+  };
+}
+
+export function rhythmMemoryFromLessonText(text = ""): RhythmMemory {
+  const learnedHook = quotedHookFromLessons(text);
+  const preferCarousel = /Carousel/.test(text) && /有效|結構|對話/.test(text);
+  const recapOutperforms = /回顧比預告|來了以後/.test(text);
+  const turtleUnderperforms = /龜龜/.test(text) && /互動少|沒有生活/.test(text);
+  const recentAdHeavy = /一直在招生|連續.*廣告|發太多活動/.test(text);
+  return withRhythmNote({
+    learnedHook,
+    preferCarousel,
+    recapOutperforms,
+    turtleUnderperforms,
+    recentAdHeavy,
+    note: "",
+  });
+}
+
+/** Translate IG memory into schedule choices: hook, format, density of ads. */
+export function rhythmMemoryFromIg(posts: IgLessonPost[]): RhythmMemory {
+  if (!posts.length) return emptyRhythmMemory();
+  const base = rhythmMemoryFromLessonText(formatLessons(lessonsFromIg(posts)));
+  const scored = posts.filter((post) => post.metrics).sort((a, b) => score(b) - score(a));
+  const best = scored[0];
+  const weakest = scored[scored.length - 1];
+  const preferCarousel = best?.mediaType === "carousel" || base.preferCarousel;
+  const turtleUnderperforms =
+    Boolean(weakest && best && /龜龜/.test(weakest.caption) && score(weakest) < score(best) / 2) ||
+    base.turtleUnderperforms;
+  const recapOutperforms =
+    Boolean(best && (/來的人|回顧/.test(best.caption) || best.mediaType === "carousel")) || base.recapOutperforms;
+  const recent = posts.slice(-3);
+  const adLike = (caption: string) => /誠摯邀請|報名連結|活動時間|歡迎參加/.test(caption);
+  const recentAdHeavy = (recent.length >= 3 && recent.every((post) => adLike(post.caption))) || base.recentAdHeavy;
+  return withRhythmNote({
+    learnedHook: base.learnedHook,
+    preferCarousel,
+    recapOutperforms,
+    turtleUnderperforms,
+    recentAdHeavy,
+    note: "",
+  });
+}
+
+function withRhythmNote(memory: RhythmMemory): RhythmMemory {
+  const bits = [
+    memory.learnedHook ? `延續有效 Hook「${memory.learnedHook}」` : "",
+    memory.preferCarousel ? "活動介紹用 Carousel" : "",
+    memory.turtleUnderperforms ? "龜龜不放第一句" : "",
+    memory.recapOutperforms ? "回顧比預告有停留，倒數後仍要留回顧" : "",
+    memory.recentAdHeavy ? "穿插生活，不要連續招生" : "",
+  ].filter(Boolean);
+  return {
+    ...memory,
+    note: bits.length ? `根據過去 IG：${bits.join("，")}。` : emptyRhythmMemory().note,
+  };
+}
+
 /** Turn IG metrics into next-generation advice, not a dashboard. */
 export function lessonsFromIg(posts: IgLessonPost[]): IgLessons {
   const published = posts.find((post) => (post.analysis || "").includes("剛發布"));

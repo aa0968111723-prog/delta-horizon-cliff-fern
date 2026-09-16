@@ -1,12 +1,27 @@
 import type { CampaignWave, ContentKind, ContentStatus, WavePurpose } from "../studio/types.ts";
 import { CONTENT_KIND_META } from "../studio/status.ts";
 import { uid } from "../studio/ids.ts";
+import { emptyRhythmMemory, type RhythmMemory } from "./insights.ts";
 
 export type RhythmInput = {
   eventDate: string;
   eventType: string;
   leadDays?: number;
   density?: "light" | "normal" | "dense";
+  now?: number;
+  memory?: RhythmMemory;
+};
+
+const AD_PURPOSES = new Set<WavePurpose>(["tease", "hero", "info", "reason"]);
+
+const PURPOSE_HOUR: Partial<Record<WavePurpose, number>> = {
+  life: 12,
+  knowledge: 16,
+  interact: 18,
+  dayof: 18,
+  story: 21,
+  countdown: 21,
+  recap: 21,
 };
 
 const PURPOSE_KIND: Record<WavePurpose, ContentKind> = {
@@ -43,44 +58,128 @@ function wave(
   };
 }
 
+export function leadDaysUntil(eventDate: string, now = Date.now()) {
+  const [y, m, d] = eventDate.split("-").map(Number);
+  const event = new Date(y, (m ?? 1) - 1, d ?? 1);
+  const today = new Date(now);
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.max(1, Math.round((event.getTime() - start.getTime()) / 86_400_000));
+}
+
+export function hourForPurpose(purpose: WavePurpose) {
+  return PURPOSE_HOUR[purpose] ?? 19;
+}
+
 /** Compress or expand a natural rhythm so IG is not just ads. */
 export function buildCampaignRhythm(input: RhythmInput): CampaignWave[] {
   const type = input.eventType.trim() || "活動";
-  const lead = input.leadDays ?? Math.max(3, daysFromType(type));
+  const until = leadDaysUntil(input.eventDate, input.now);
+  const lead = input.leadDays ?? Math.max(3, Math.min(until, typeLead(type)));
   const density = input.density ?? (lead >= 12 ? "normal" : lead >= 7 ? "light" : "dense");
-
+  const memory = input.memory ?? emptyRhythmMemory();
   const name = type;
-  if (density === "dense" || lead <= 5) {
-    return [
-      wave(-Math.min(lead, 4), "emotion", "情緒共鳴", `為什麼現在需要${name}`, "最近是不是連休息都覺得有罪惡感？"),
-      wave(-Math.min(2, lead - 1), "hero", "主視覺", `${name}長什麼樣子`, "有時候我們需要的不是答案，只是一個安靜的晚上。"),
-      wave(-1, "countdown", "倒數", "時間地點", "明天這個時候，淡水會暗得比較早。"),
-      wave(0, "dayof", "當日", "今天來坐一下", "人到了就好，不用準備成另一個自己。"),
-      wave(1, "recap", "回顧", "現場溫度", "原來大家真的會為了一個晚上留下來。"),
-    ];
-  }
 
-  const core: CampaignWave[] = [
-    wave(-Math.min(lead, density === "light" ? 8 : 12), "tease", "預熱", `先讓人感覺到${name}`, "大學生活很自由，但你最近真的有比較快樂嗎？"),
-    wave(-Math.min(lead - 2, density === "light" ? 6 : 10), "life", "生活", "淡江／淡水日常", "從捷運走出來的時候，風是不是都比較大？"),
-    wave(-Math.min(lead - 3, 7), "emotion", "情緒共鳴", "學生此刻的卡住", "最近是不是很久沒有好好坐下來？"),
-    wave(-Math.min(5, lead - 1), "hero", "主視覺", `${name}主畫面`, "不是要你變成誰，只是留一個位置。"),
-    wave(-Math.min(4, lead - 1), "info", "活動介紹", "時間地點內容", "來之前你只需要知道三件事。"),
-    wave(-Math.min(3, lead - 1), "interact", "互動", "問一句真話", "你比較想安靜坐著，還是跟朋友一起來？"),
-    wave(-2, "reason", "參加理由", "為什麼適合淡江學生", "沒有人要你懂禪。人到了就好。"),
-    wave(-1, "countdown", "倒數", "明天", "明天這個點，燈會先亮。"),
-    wave(0, "dayof", "當日", "今天", "到了再找位子。不用準時到分。"),
-    wave(1, "recap", "回顧", "現場", "有人是第一次來，也有人帶了認識一個月的朋友。"),
-  ];
+  const specs =
+    density === "dense" || lead <= 5
+      ? [
+          wave(-Math.min(lead, 4), "emotion", "情緒共鳴", `為什麼現在需要${name}`, "最近是不是連休息都覺得有罪惡感？"),
+          wave(-Math.min(2, Math.max(lead - 1, 1)), "hero", "主視覺", `${name}長什麼樣子`, "有時候我們需要的不是答案，只是一個安靜的晚上。"),
+          wave(-1, "countdown", "倒數", "時間地點", "明天這個時候，淡水會暗得比較早。"),
+          wave(0, "dayof", "當日", "今天來坐一下", "人到了就好，不用準備成另一個自己。"),
+          wave(1, "recap", "回顧", "現場溫度", "原來大家真的會為了一個晚上留下來。"),
+        ]
+      : [
+          wave(-Math.min(lead, density === "light" ? 8 : 12), "tease", "預熱", `先讓人感覺到${name}`, "大學生活很自由，但你最近真的有比較快樂嗎？"),
+          wave(-Math.min(lead - 2, density === "light" ? 6 : 10), "life", "生活", "淡江／淡水日常", "從捷運走出來的時候，風是不是都比較大？"),
+          wave(-Math.min(lead - 3, 7), "emotion", "情緒共鳴", "學生此刻的卡住", "最近是不是很久沒有好好坐下來？"),
+          wave(-Math.min(5, lead - 1), "hero", "主視覺", `${name}主畫面`, "不是要你變成誰，只是留一個位置。"),
+          ...(density === "normal"
+            ? [wave(-6, "knowledge", "輕輕認識", "把禪講成生活", "專注不一定要正坐。有時候只是把手機翻過去。")]
+            : []),
+          wave(-Math.min(4, lead - 1), "info", "活動介紹", "時間地點內容", "來之前你只需要知道三件事。"),
+          wave(-Math.min(3, lead - 1), "interact", "互動", "問一句真話", "你比較想安靜坐著，還是跟朋友一起來？"),
+          wave(-2, "reason", "參加理由", "為什麼適合淡江學生", "沒有人要你懂禪。人到了就好。"),
+          wave(-1, "countdown", "倒數", "明天", "明天這個點，燈會先亮。"),
+          wave(0, "dayof", "當日", "今天", "到了再找位子。不用準時到分。"),
+          wave(1, "recap", "回顧", "現場", "有人是第一次來，也有人帶了認識一個月的朋友。"),
+        ];
 
-  if (density === "normal") {
-    core.splice(4, 0, wave(-6, "knowledge", "輕輕認識", "把禪講成生活", "專注不一定要正坐。有時候只是把手機翻過去。"));
-  }
-
-  return core.filter((item, index, list) => list.findIndex((row) => row.offsetDays === item.offsetDays) === index);
+  return applyRhythmMemory(uniquifyWaveDays(specs, lead), memory);
 }
 
-function daysFromType(type: string) {
+function uniquifyWaveDays(waves: CampaignWave[], lead: number): CampaignWave[] {
+  const used = new Set<number>();
+  const anchored = waves.filter((item) => item.offsetDays === 0 || item.purpose === "countdown" || item.purpose === "recap");
+  const flexible = waves.filter((item) => !anchored.includes(item));
+  const ordered = [...anchored, ...flexible];
+  const placed = new Map<string, number>();
+  for (const item of ordered) {
+    placed.set(item.id, takeOffset(item.offsetDays, lead, used, item.offsetDays > 0));
+    used.add(placed.get(item.id)!);
+  }
+  return waves.map((item) => ({ ...item, offsetDays: placed.get(item.id) ?? item.offsetDays }));
+}
+
+function takeOffset(want: number, lead: number, used: Set<number>, after: boolean) {
+  let d = Math.max(-lead, Math.min(want, 1));
+  if (!used.has(d)) return d;
+  if (!after) {
+    for (let i = d - 1; i >= -lead; i--) if (!used.has(i)) return i;
+    for (let i = d + 1; i <= 1; i++) if (!used.has(i)) return i;
+  } else {
+    for (let i = d + 1; i <= 1; i++) if (!used.has(i)) return i;
+    for (let i = d - 1; i >= -lead; i--) if (!used.has(i)) return i;
+  }
+  return d;
+}
+
+export function applyRhythmMemory(waves: CampaignWave[], memory: RhythmMemory): CampaignWave[] {
+  let next = waves.map((item) => ({ ...item }));
+  if (memory.learnedHook) {
+    const first = next.find((item) => item.purpose === "tease" || item.purpose === "emotion");
+    if (first) first.hook = memory.learnedHook;
+  }
+  if (memory.preferCarousel) {
+    for (const item of next) {
+      if (item.purpose === "info" || item.purpose === "emotion" || item.purpose === "knowledge") {
+        item.contentKind = "carousel";
+      }
+    }
+  }
+  if (memory.turtleUnderperforms) {
+    next = next.map((item) => ({
+      ...item,
+      hook: /龜龜/.test(item.hook) ? item.hook.replace(/龜龜[^。！？]*/, "燈會先亮").trim() : item.hook,
+    }));
+  }
+  if (memory.recentAdHeavy) {
+    const hasLife = next.some((item) => item.purpose === "life");
+    const hero = next.find((item) => item.purpose === "hero");
+    if (!hasLife && hero && next.some((item) => item.purpose === "info" || item.purpose === "emotion")) {
+      hero.purpose = "life";
+      hero.label = "生活";
+      hero.topic = "淡江／淡水日常";
+      hero.contentKind = "ig-post";
+      hero.hook = memory.learnedHook || "從捷運走出來的時候，風是不是都比較大？";
+    }
+  }
+  return spreadAdWaves(next);
+}
+
+function spreadAdWaves(waves: CampaignWave[]): CampaignWave[] {
+  const sorted = [...waves].sort((a, b) => a.offsetDays - b.offsetDays || a.id.localeCompare(b.id));
+  for (let i = 1; i < sorted.length; i++) {
+    if (!AD_PURPOSES.has(sorted[i].purpose) || !AD_PURPOSES.has(sorted[i - 1].purpose)) continue;
+    const swap = sorted.slice(i + 1).find((item) => !AD_PURPOSES.has(item.purpose) && item.offsetDays <= 0);
+    if (!swap) continue;
+    const left = sorted[i].offsetDays;
+    sorted[i].offsetDays = swap.offsetDays;
+    swap.offsetDays = left;
+  }
+  return sorted.sort((a, b) => a.offsetDays - b.offsetDays);
+}
+
+function typeLead(type: string) {
   if (/招生|迎新/.test(type)) return 14;
   if (/茶會|浮游|禪光/.test(type)) return 10;
   if (/社課|例會/.test(type)) return 5;
@@ -116,7 +215,7 @@ export function scheduleDraftsFromCampaign(
 ): CampaignScheduleDraft[] {
   const projectId = campaign.projectIds[0] ?? null;
   return campaign.waves.map((wave) => {
-    const plannedAt = plannedTimestamp(campaign.date, wave.offsetDays);
+    const plannedAt = plannedTimestamp(campaign.date, wave.offsetDays, hourForPurpose(wave.purpose));
     return {
       campaignId: campaign.id,
       projectId,
