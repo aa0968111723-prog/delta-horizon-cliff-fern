@@ -9,6 +9,7 @@ export type LastCreateSession = {
   copies: CopyBlock[];
   tone: CopyBlock["tone"];
   imageSrc: string | null;
+  reelsCoverSrc?: string | null;
   createdCampaignId?: string;
   projectId?: string;
   aspect: "4:5" | "1:1" | "9:16";

@@ -88,3 +88,27 @@ test("session keeps the Canva return asset for IG Preview", () => {
   assert.equal(read?.canvaReturnAssetId, "asset_canva_1");
   assert.equal(read?.canvaStep, "returned");
 });
+
+test("session keeps the 9:16 cover next to the feed hero", () => {
+  const memory = new Map<string, string>();
+  const fake = {
+    getItem: (key: string) => memory.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      memory.set(key, value);
+    },
+  };
+  (globalThis as { sessionStorage?: typeof fake }).sessionStorage = fake;
+  writeLastSession({
+    pack: { query: "茶會" },
+    dirId: "a",
+    copies: [],
+    tone: "student",
+    imageSrc: "https://cdn.example.com/feed.png",
+    reelsCoverSrc: "https://cdn.example.com/story.png",
+    aspect: "4:5",
+    savedAt: Date.now(),
+  } as unknown as LastCreateSession);
+  const read = readLastSession();
+  assert.equal(read?.imageSrc, "https://cdn.example.com/feed.png");
+  assert.equal(read?.reelsCoverSrc, "https://cdn.example.com/story.png");
+});

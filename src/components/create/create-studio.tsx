@@ -22,7 +22,7 @@ import { publicImageUrl } from "@/lib/connect/ig-publish";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { varyImagePrompt } from "@/lib/creative/image-vary";
 import { inferCampaignType, inferEventDate, isoFromMs, scheduledAtFor } from "@/lib/creative/schedule";
-import { annotateWavesFromPack, captionForPackKind, PACK_SCHEDULE_KINDS, remainingPackKinds, topicForPackKind } from "@/lib/creative/pack-schedule";
+import { annotateWavesFromPack, captionForPackKind, coverForKind, PACK_SCHEDULE_KINDS, remainingPackKinds, topicForPackKind, usesStoryCover } from "@/lib/creative/pack-schedule";
 import { gatherStatusLine, searchCreative, selectSourcesForPack } from "@/lib/creative/search";
 import type { SearchHit } from "@/lib/creative/types";
 import type { CanvaLoopStep } from "@/lib/creative/session";
@@ -159,6 +159,7 @@ export function CreateStudio({
   const [vision, setVision] = useState<VisionReport | null>(null);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [reelsCoverSrc, setReelsCoverSrc] = useState<string | null>(null);
+  const lastAsset = useRef<{ feed?: string; story?: string }>({});
   const [visionKit, setVisionKit] = useState<{
     story: StoryFrame[];
     reels: ReelsBeat[];
@@ -260,6 +261,7 @@ export function CreateStudio({
         copies: revised.copies,
         tone: "student",
         imageSrc: persistableImageSrc(heroSrc),
+        reelsCoverSrc: persistableImageSrc(reelsCoverSrc),
         createdCampaignId,
         projectId: studioProjectId,
         aspect,
@@ -339,6 +341,7 @@ export function CreateStudio({
     setCopies(session.copies);
     setTone(session.tone);
     if (session.imageSrc) setImageSrc(session.imageSrc);
+    if (session.reelsCoverSrc) setReelsCoverSrc(session.reelsCoverSrc);
     if (session.createdCampaignId) setCreatedCampaignId(session.createdCampaignId);
     if (session.projectId) setStudioProjectId(session.projectId);
     if (session.aspect) setAspect(session.aspect);
@@ -404,20 +407,19 @@ export function CreateStudio({
   async function runImage(
     prompt: string,
     ratio: (typeof ASPECTS)[number]["id"] = aspect,
-    opts?: { silent?: boolean; keepBusy?: boolean },
+    opts?: { silent?: boolean; keepBusy?: boolean; asCover?: boolean },
   ) {
     const gen = ++paintGen.current;
+    const coverOnly = Boolean(opts?.asCover);
     if (!opts?.keepBusy) setBusy(true);
     try {
-      if (ratio !== aspect) setAspect(ratio);
+      if (!coverOnly && ratio !== aspect) setAspect(ratio);
       const result = await generateStudioImage({ data: { prompt, topic: query, aspect: ratio } });
       if (gen !== paintGen.current) return null;
       if (!result.ok) {
         if (!opts?.silent) toast.error(result.error);
         return null;
       }
-      setImageSrc(result.src);
-      if (ratio === "9:16") setReelsCoverSrc(result.src);
       const id = uid("asset");
       const blob = await (await fetch(result.src)).blob();
       if (gen !== paintGen.current) return null;
@@ -425,22 +427,30 @@ export function CreateStudio({
       addAsset(
         createGeneratedAsset({
           id,
-          name: query.slice(0, 18) || "AI 主視覺",
+          name: coverOnly || ratio === "9:16" ? "Reels／Story 封面" : query.slice(0, 18) || "AI 主視覺",
           mime: blob.type || "image/png",
-          width: ratio === "9:16" ? 1080 : 1080,
+          width: 1080,
           height: ratio === "9:16" ? 1920 : ratio === "1:1" ? 1080 : 1350,
-          category: "poster",
+          category: ratio === "9:16" ? "story" : "poster",
         }),
       );
+      if (coverOnly || ratio === "9:16") {
+        setReelsCoverSrc(result.src);
+        lastAsset.current.story = id;
+      }
+      if (!coverOnly) {
+        setImageSrc(result.src);
+        if (ratio !== "9:16") lastAsset.current.feed = id;
+      }
       if (result.src.startsWith("https:")) {
         addMemory({
           id: `gen_${id}`,
           source: "generated",
           sourceLabel: "AI Generated",
-          title: query.slice(0, 18) || "AI 主視覺",
-          kind: "poster",
-          tags: ["generated", "ig"],
-          summary: "剛才生成的主視覺，可發到 IG。",
+          title: coverOnly || ratio === "9:16" ? "Reels／Story 封面" : query.slice(0, 18) || "AI 主視覺",
+          kind: ratio === "9:16" ? "poster" : "poster",
+          tags: ["generated", ratio === "9:16" ? "story" : "ig"],
+          summary: coverOnly || ratio === "9:16" ? "9:16 封面，可排 Story／Reels。" : "剛才生成的主視覺，可發到 IG。",
           thumbUrl: result.src,
           assetId: id,
           createdAt: Date.now(),
@@ -450,11 +460,12 @@ export function CreateStudio({
       if (session) {
         writeLastSession({
           ...session,
-          imageSrc: persistableImageSrc(result.src),
+          imageSrc: persistableImageSrc(coverOnly ? session.imageSrc : result.src),
+          reelsCoverSrc: persistableImageSrc(coverOnly || ratio === "9:16" ? result.src : session.reelsCoverSrc),
           savedAt: Date.now(),
         });
       }
-      if (!opts?.silent) toast.success(ratio === "9:16" ? "Reels 封面已進素材庫" : "主視覺已進素材庫");
+      if (!opts?.silent) toast.success(coverOnly || ratio === "9:16" ? "9:16 封面已進素材庫，主視覺還在" : "主視覺已進素材庫");
       return result.src;
     } finally {
       if (!opts?.keepBusy && gen === paintGen.current) setBusy(false);
@@ -496,8 +507,8 @@ export function CreateStudio({
       await runPack();
       return;
     }
-    if (kind === "story") await runImage(varyImagePrompt(vision.imagePrompt, "story"), "9:16");
-    if (kind === "reels") await runImage(varyImagePrompt(vision.imagePrompt, "reels"), "9:16");
+    if (kind === "story") await runImage(varyImagePrompt(vision.imagePrompt, "story"), "9:16", { asCover: true });
+    if (kind === "reels") await runImage(varyImagePrompt(vision.imagePrompt, "reels"), "9:16", { asCover: true });
     const result = await convertContent({
       data: {
         title: query.slice(0, 40) || "淡江禪學社",
@@ -599,13 +610,21 @@ export function CreateStudio({
       pack: active,
       createdCampaignId: camp?.id ?? prevSession?.createdCampaignId,
       projectId: project.id,
+      reelsCoverSrc: persistableImageSrc(reelsCoverSrc),
       savedAt: Date.now(),
     });
     const scheduledAt = scheduledAtFor(kind, camp?.date);
     const status = andSchedule ? "scheduled" : opts?.stay ? "done" : "creating";
-    const hero = opts?.heroSrc ?? imageSrc;
-    const fromCanva = opts?.heroSource === "canva" || (!opts?.heroSource && canvaStep === "returned");
-    const heroAssetId = opts?.heroAssetId ?? (fromCanva ? canvaReturnAssetId : null);
+    const storyKind = usesStoryCover(kind);
+    const fromCanva = !storyKind && (opts?.heroSource === "canva" || (!opts?.heroSource && canvaStep === "returned"));
+    const hero =
+      opts?.heroSrc ??
+      coverForKind(kind, { feed: imageSrc, story: reelsCoverSrc });
+    const heroAssetId =
+      opts?.heroAssetId ??
+      (fromCanva
+        ? canvaReturnAssetId
+        : coverForKind(kind, { feed: lastAsset.current.feed, story: lastAsset.current.story }));
     const persistable = persistableImageSrc(hero);
     const coverId = heroAssetId || persistable || (!heroAssetId && hero?.startsWith("data:") ? hero : undefined);
     useStudio.getState().updateProject(project.id, {
@@ -616,7 +635,7 @@ export function CreateStudio({
         ...(coverId
           ? [{
               source: (fromCanva ? "canva" : "generated") as SourceRef["source"],
-              label: fromCanva ? "Canva 微調後" : "AI 主視覺",
+              label: fromCanva ? "Canva 微調後" : storyKind ? "9:16 封面" : "AI 主視覺",
               id: coverId,
             }]
           : []),
@@ -649,7 +668,7 @@ export function CreateStudio({
     return { projectId: project.id, day };
   }
 
-  function scheduleWholeCampaign() {
+  async function scheduleWholeCampaign() {
     const active = pack;
     if (!active || !brands[0]) {
       toast.message("先生成一版完整宣傳");
@@ -683,19 +702,38 @@ export function CreateStudio({
       void navigate({ to: "/calendar", search: { day } });
       return;
     }
-    let firstDay = camp.date;
-    for (const kind of kinds) {
-      const placed = applyToStudio(true, {
-        kind,
-        nextPack: active,
-        silent: true,
-        skipNavigate: true,
-        campaignId: campId,
-      });
-      if (placed && kind === kinds[0]) firstDay = placed.day;
+    setBusy(true);
+    let storySrc = reelsCoverSrc;
+    try {
+      if (kinds.some(usesStoryCover) && !storySrc) {
+        const prompt = varyImagePrompt(
+          active.directions.find((item) => item.id === dirId)?.imagePrompt || active.plan.visualTheme || query,
+          "reels",
+        );
+        storySrc = (await runImage(prompt, "9:16", { silent: true, keepBusy: true, asCover: true })) ?? storySrc;
+      }
+      let firstDay = camp.date;
+      for (const kind of kinds) {
+        const placed = applyToStudio(true, {
+          kind,
+          nextPack: active,
+          silent: true,
+          skipNavigate: true,
+          campaignId: campId,
+          heroSrc: coverForKind(kind, { feed: imageSrc, story: storySrc }),
+          heroAssetId: coverForKind(kind, { feed: lastAsset.current.feed, story: lastAsset.current.story }),
+        });
+        if (placed && kind === kinds[0]) firstDay = placed.day;
+      }
+      toast.success(
+        storySrc
+          ? `已把 ${kinds.map((kind) => contentKindLabel(kind)).join("、")} 依節奏排進月曆，限動和 Reels 用 9:16`
+          : `已把 ${kinds.map((kind) => contentKindLabel(kind)).join("、")} 依節奏排進月曆`,
+      );
+      void navigate({ to: "/calendar", search: { day: firstDay } });
+    } finally {
+      setBusy(false);
     }
-    toast.success(`已把 ${kinds.map((kind) => contentKindLabel(kind)).join("、")} 依節奏排進月曆`);
-    void navigate({ to: "/calendar", search: { day: firstDay } });
   }
 
   function goIgPreview() {
@@ -1155,7 +1193,7 @@ export function CreateStudio({
               <p className="mt-1 text-xs text-muted">靈感抽象：{inspirations[0].pattern} → {inspirations[0].clubTurn}</p>
             ) : null}
             <p className="mt-3 text-xs text-muted">Carousel、Story、Reels、Threads 可以一次排進月曆，節奏會錯開，不會連發招生。</p>
-            <Button className="mt-3 min-h-11 rounded-full" onClick={scheduleWholeCampaign}>
+            <Button className="mt-3 min-h-11 rounded-full" disabled={busy} onClick={() => void scheduleWholeCampaign()}>
               整套排進月曆
             </Button>
           </div>
@@ -1288,6 +1326,7 @@ export function CreateStudio({
               void runImage(
                 activeDir?.imagePrompt || pack.conversions.reels[0]?.visual || query,
                 "9:16",
+                { asCover: true },
               )
             }
           />
@@ -1304,7 +1343,13 @@ export function CreateStudio({
               onSchedule={(kind, kit) => {
                 const next = mergeConvert(pack, kind, kit);
                 setPack(next);
-                applyToStudio(true, { kind: CONVERT_TO_KIND[kind] ?? "carousel", nextPack: next });
+                const contentKind = CONVERT_TO_KIND[kind] ?? "carousel";
+                applyToStudio(true, {
+                  kind: contentKind,
+                  nextPack: next,
+                  heroSrc: coverForKind(contentKind, { feed: imageSrc, story: reelsCoverSrc }),
+                  heroAssetId: coverForKind(contentKind, { feed: lastAsset.current.feed, story: lastAsset.current.story }),
+                });
               }}
             />
           </div>
@@ -1369,7 +1414,7 @@ export function CreateStudio({
                   <Button className="min-h-11 rounded-full" variant={canvaStep === "returned" ? "default" : "secondary"} onClick={goIgPreview}>
                     IG Preview
                   </Button>
-                  <Button variant="secondary" className="min-h-11 rounded-full" onClick={scheduleWholeCampaign}>
+                  <Button variant="secondary" className="min-h-11 rounded-full" disabled={busy} onClick={() => void scheduleWholeCampaign()}>
                     整套排進月曆
                   </Button>
                   <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => applyToStudio(true)}>
@@ -1381,7 +1426,7 @@ export function CreateStudio({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button className="min-h-11 rounded-full" onClick={scheduleWholeCampaign}>
+            <Button className="min-h-11 rounded-full" disabled={busy} onClick={() => void scheduleWholeCampaign()}>
               整套排進月曆
             </Button>
             <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => applyToStudio(false)}>

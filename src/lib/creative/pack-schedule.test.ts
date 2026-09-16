@@ -3,8 +3,10 @@ import test from "node:test";
 import {
   annotateWavesFromPack,
   captionForPackKind,
+  coverForKind,
   remainingPackKinds,
   topicForPackKind,
+  usesStoryCover,
 } from "./pack-schedule.ts";
 import { suggestWaves } from "./schedule.ts";
 
@@ -56,4 +58,15 @@ test("already scheduled carousel is not duplicated", () => {
   assert.equal(left.includes("carousel"), false);
   assert.ok(left.includes("story"));
   assert.ok(left.includes("threads"));
+});
+
+test("Story and Reels keep the 9:16 cover off the carousel hero", () => {
+  const covers = { feed: "feed.png", story: "story.png" };
+  assert.equal(coverForKind("carousel", covers), "feed.png");
+  assert.equal(coverForKind("threads", covers), "feed.png");
+  assert.equal(coverForKind("story", covers), "story.png");
+  assert.equal(coverForKind("reels", covers), "story.png");
+  assert.equal(coverForKind("story", { feed: "feed.png" }), "feed.png");
+  assert.equal(usesStoryCover("reels"), true);
+  assert.equal(usesStoryCover("carousel"), false);
 });

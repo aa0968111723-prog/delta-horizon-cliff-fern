@@ -3,6 +3,21 @@ import type { CampaignWave } from "./types.ts";
 
 export const PACK_SCHEDULE_KINDS: ContentKind[] = ["carousel", "story", "reels", "threads"];
 
+export const STORY_COVER_KINDS: ContentKind[] = ["story", "reels", "countdown"];
+
+export function usesStoryCover(kind: ContentKind) {
+  return STORY_COVER_KINDS.includes(kind);
+}
+
+/** Story／Reels 用 9:16；Carousel／Threads 用主視覺，互不覆蓋。 */
+export function coverForKind<T>(
+  kind: ContentKind,
+  covers: { feed?: T | null; story?: T | null },
+): T | null {
+  if (usesStoryCover(kind)) return covers.story ?? covers.feed ?? null;
+  return covers.feed ?? null;
+}
+
 export type PackForSchedule = {
   plan: {
     hook: string;
