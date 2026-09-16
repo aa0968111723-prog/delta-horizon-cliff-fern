@@ -28,6 +28,61 @@ function daysBetween(from: Date, to: Date) {
   return Math.max(1, Math.round((to.getTime() - from.getTime()) / 86_400_000));
 }
 
+const WAVE_HOUR: Record<CampaignWaveKind, number> = {
+  warmup: 20,
+  emotion: 21,
+  hero: 19,
+  detail: 18,
+  reason: 20,
+  countdown: 21,
+  dayof: 16,
+  recap: 20,
+};
+
+/**
+ * Pre-event waves keep order 生活 → 情緒 → 主視覺 → 介紹 → 理由,
+ * and never land 預熱 on the same evening after 主視覺.
+ */
+export function placePreEventWaves(
+  lead: number,
+  longLead: boolean,
+  includeReason: boolean,
+): Array<{ kind: CampaignWaveKind; offset: number; hour: number }> {
+  type PreKind = "warmup" | "emotion" | "hero" | "detail" | "reason";
+  const kinds: PreKind[] = ["warmup", "emotion", "hero", "detail"];
+  if (includeReason) kinds.push("reason");
+  const minOff = -lead;
+  const maxOff = -2;
+  const ideals: Record<PreKind, number> = {
+    warmup: -lead,
+    emotion: -(longLead ? 10 : Math.min(5, Math.max(lead - 1, 1))),
+    hero: -(longLead ? 7 : Math.min(5, Math.max(lead - 2, 1))),
+    detail: -(longLead ? 5 : Math.min(4, Math.max(lead - 3, 1))),
+    reason: -(longLead ? 3 : Math.min(3, Math.max(lead - 4, 1))),
+  };
+  const items = kinds.map((kind) => ({
+    kind,
+    offset: Math.min(maxOff, Math.max(minOff, ideals[kind])),
+    hour: WAVE_HOUR[kind],
+  }));
+  for (let i = 1; i < items.length; i++) {
+    if (items[i].offset <= items[i - 1].offset) {
+      items[i].offset = items[i - 1].offset + 1;
+    }
+  }
+  const overflow = items[items.length - 1].offset - maxOff;
+  if (overflow > 0) {
+    for (const item of items) item.offset -= overflow;
+    if (items[0].offset < minOff) {
+      items[0].offset = minOff;
+      for (let i = 1; i < items.length; i++) {
+        items[i].offset = Math.min(maxOff, Math.max(items[i - 1].offset + 1, items[i].offset));
+      }
+    }
+  }
+  return items;
+}
+
 /** Soft rhythm, not a hardcoded blast of ads. */
 export function suggestWaves(
   campaign: Pick<ClubCampaign, "date" | "type" | "name">,
@@ -37,51 +92,36 @@ export function suggestWaves(
   const event = new Date(`${campaign.date}T19:00:00+08:00`);
   const lead = daysBetween(now, event);
   const longLead = lead >= 12;
-  const kinds: Array<{ kind: CampaignWaveKind; offset: number; hour: number; notes: string }> = [];
   const recent = opts?.recentKinds ?? [];
   const needsBreath = recent.length >= 2 && ["member-story", "knowledge"].includes(nextKindAfter(recent));
-  const span = Math.max(lead - 1, 1);
+  const notes: Record<CampaignWaveKind, string> = {
+    warmup: needsBreath ? "最近連續宣傳，先插一則生活。" : longLead ? "生活感，不硬推活動名。" : "短宣傳期，先生活再活動。",
+    emotion: "讓學生覺得被看見。",
+    hero: "主視覺進 Feed。",
+    detail: "時間地點內容一次講完。",
+    reason: "為什麼今晚要出門。",
+    countdown: "Story 為主，短。",
+    dayof: "今天、現在、怎麼走。",
+    recap: "人、光、一句話，不要通稿。",
+  };
+  const kinds: Array<{ kind: CampaignWaveKind; offset: number; hour: number; notes: string }> = [
+    ...placePreEventWaves(lead, longLead, campaign.type !== "recruit").map((item) => ({
+      ...item,
+      notes: notes[item.kind],
+    })),
+    { kind: "countdown", offset: -1, hour: WAVE_HOUR.countdown, notes: notes.countdown },
+    { kind: "dayof", offset: 0, hour: WAVE_HOUR.dayof, notes: notes.dayof },
+    { kind: "recap", offset: 1, hour: WAVE_HOUR.recap, notes: notes.recap },
+  ];
 
-  kinds.push({
-    kind: "warmup",
-    offset: -Math.min(longLead ? 14 : 6, span),
-    hour: 20,
-    notes: needsBreath ? "最近連續宣傳，先插一則生活。" : longLead ? "生活感，不硬推活動名。" : "短宣傳期，先生活再活動。",
-  });
-  kinds.push({
-    kind: "emotion",
-    offset: -Math.min(longLead ? 10 : 5, span),
-    hour: 21,
-    notes: "讓學生覺得被看見。",
-  });
-
-  kinds.push({ kind: "hero", offset: -Math.min(7, span), hour: 19, notes: "主視覺進 Feed。" });
-  kinds.push({ kind: "detail", offset: -Math.min(5, Math.max(span - 1, 1)), hour: 18, notes: "時間地點內容一次講完。" });
-
-  if (campaign.type !== "recruit") {
-    kinds.push({ kind: "reason", offset: -Math.min(3, Math.max(lead - 1, 1)), hour: 20, notes: "為什麼今晚要出門。" });
-  }
-
-  kinds.push({ kind: "countdown", offset: -1, hour: 21, notes: "Story 為主，短。" });
-  kinds.push({ kind: "dayof", offset: 0, hour: 16, notes: "今天、現在、怎麼走。" });
-  kinds.push({ kind: "recap", offset: 1, hour: 20, notes: "人、光、一句話，不要通稿。" });
-
-  const seen = new Set<string>();
-  return kinds
-    .filter((item) => {
-      const key = `${item.kind}:${item.offset}`;
-      if (seen.has(item.kind) && item.kind !== "emotion") return false;
-      seen.add(item.kind);
-      return true;
-    })
-    .map((item) => ({
-      id: uid("wave"),
-      kind: item.kind,
-      title: `${WAVE_LABEL[item.kind]} · ${campaign.name}`,
-      scheduledAt: at(campaign.date, item.offset, item.hour),
-      projectId: null,
-      notes: item.notes,
-    }));
+  return kinds.map((item) => ({
+    id: uid("wave"),
+    kind: item.kind,
+    title: `${WAVE_LABEL[item.kind]} · ${campaign.name}`,
+    scheduledAt: at(campaign.date, item.offset, item.hour),
+    projectId: null,
+    notes: item.notes,
+  }));
 }
 
 /** Each campaign wave swaps a different visual axis so 換視覺 is not the same poster. */

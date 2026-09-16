@@ -35,7 +35,7 @@ import { composeMemoryHint } from "@/lib/zen/memory-hook";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
 import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction";
 import { researchInspiration } from "@/lib/zen/inspiration";
-import { offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
+import { convertedScheduledAt, offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
 import { searchCreative, groupCreativeHits, hitFromRemote, igSearchHookBlock, type CreativeHit } from "@/lib/zen/search";
 import { pickSourceRefs, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
@@ -506,15 +506,17 @@ export function CreateStudio() {
   }
 
   function applyWaveCopy(draft: WaveDraft) {
-    setPacks((rows) =>
-      rows.map((pack) => ({
-        ...pack,
-        hook: draft.hook,
-        body: draft.body,
-        cta: draft.cta,
-      })),
-    );
-    setPlan((current) => (current ? { ...current, hook: draft.hook, body: draft.body, cta: draft.cta } : current));
+    if (draft.kind === "hero") {
+      setPacks((rows) =>
+        rows.map((pack) => ({
+          ...pack,
+          hook: draft.hook,
+          body: draft.body,
+          cta: draft.cta,
+        })),
+      );
+      setPlan((current) => (current ? { ...current, hook: draft.hook, body: draft.body, cta: draft.cta } : current));
+    }
     const currentCampaign = campaign;
     if (currentCampaign) {
       const caption = `${draft.hook}\n${draft.body}`.trim();
@@ -980,7 +982,9 @@ export function CreateStudio() {
     const when = Date.parse(`${date}T19:00:00+08:00`);
     const existing = useStudio.getState().schedule.filter((row) => row.campaignId === created.id);
     for (const pack of KINDS.map((kind) => convertPlan(nextPlan, kind))) {
-      const scheduledAt = Number.isNaN(when) ? Date.now() : when + offsetDaysForConvertedKind(pack.kind) * 86_400_000;
+      const scheduledAt = Number.isNaN(when)
+        ? Date.now()
+        : convertedScheduledAt(pack.kind, when, created.waves ?? []);
       if (pack.kind === "story") {
         const frames = storyFrameLines(nextPlan);
         for (const row of storyRowsForFrames(existing, frames, created.id)) {
@@ -1010,7 +1014,7 @@ export function CreateStudio() {
         campaignId: created.id,
         kind: pack.kind,
         title: `${pack.title} · ${eventName || nextPlan.campaignName || idea.slice(0, 12)}`,
-        scheduledAt: prev?.scheduledAt ?? scheduledAt,
+        scheduledAt: prev?.status === "published" ? prev.scheduledAt : scheduledAt,
         publishedAt: null,
         status: "scheduled",
         caption: packCaption(nextPlan, pack),

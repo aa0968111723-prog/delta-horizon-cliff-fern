@@ -251,7 +251,28 @@ test("wave clocks stay 淡水 evening, not the host timezone 03:00", () => {
   const hero = waves.find((wave) => wave.kind === "hero");
   const warmup = waves.find((wave) => wave.kind === "warmup");
   const dayof = waves.find((wave) => wave.kind === "dayof");
-  assert.equal(new Date(hero?.scheduledAt ?? 0).toISOString(), "2026-09-17T11:00:00.000Z");
-  assert.equal(new Date(warmup?.scheduledAt ?? 0).toISOString(), "2026-09-17T12:00:00.000Z");
+  const hourTaipei = (ms: number) =>
+    Number(
+      new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Taipei", hour: "numeric", hourCycle: "h23" }).format(new Date(ms)),
+    );
+  const dayTaipei = (ms: number) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit" }).format(
+      new Date(ms),
+    );
+  assert.equal(hourTaipei(hero?.scheduledAt ?? 0), 19);
+  assert.equal(hourTaipei(warmup?.scheduledAt ?? 0), 20);
+  assert.equal(hourTaipei(dayof?.scheduledAt ?? 0), 16);
   assert.equal(new Date(dayof?.scheduledAt ?? 0).toISOString(), "2026-09-23T08:00:00.000Z");
+  assert.ok((warmup?.scheduledAt ?? 0) < (hero?.scheduledAt ?? 0));
+  assert.ok(dayTaipei(warmup?.scheduledAt ?? 0) < dayTaipei(hero?.scheduledAt ?? 0));
+});
+
+test("7-day tea 預熱 is a calendar day before 主視覺, not the same evening after it", () => {
+  const waves = suggestWaves(
+    { date: "2026-09-23", type: "tea", name: "茶會" },
+    new Date("2026-09-16T10:00:00+08:00"),
+  );
+  const order = waves.map((wave) => wave.kind);
+  assert.ok(order.indexOf("warmup") < order.indexOf("hero"));
+  assert.ok(order.indexOf("hero") < order.indexOf("countdown"));
 });

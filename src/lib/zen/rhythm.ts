@@ -51,3 +51,31 @@ export function offsetDaysForConvertedKind(kind: ContentKind): number {
       return -5;
   }
 }
+
+/** When a campaign has waves, converted IG/Carousel follow 主視覺 — they must not jump ahead of 預熱. */
+export function convertedScheduledAt(
+  kind: ContentKind,
+  eventWhen: number,
+  waves: { kind: string; scheduledAt?: number | null }[],
+): number {
+  const day = 86_400_000;
+  const hero = waves.find((wave) => wave.kind === "hero")?.scheduledAt;
+  if (!hero) return eventWhen + offsetDaysForConvertedKind(kind) * day;
+  const countdown = waves.find((wave) => wave.kind === "countdown")?.scheduledAt;
+  switch (kind) {
+    case "ig-post":
+      return hero;
+    case "carousel":
+      return hero + day;
+    case "threads":
+      return hero + 2 * day;
+    case "reels":
+      return hero + 3 * day;
+    case "story":
+      return countdown ?? eventWhen - 2 * day;
+    case "line":
+      return eventWhen - day;
+    default:
+      return eventWhen + offsetDaysForConvertedKind(kind) * day;
+  }
+}

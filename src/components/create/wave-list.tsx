@@ -82,6 +82,10 @@ export function WaveList({
                   <p className="mt-1 whitespace-pre-wrap text-muted">{draft.body}</p>
                   <p className="mt-1 text-xs text-subtle">{draft.visualNote}</p>
                 </div>
+              ) : wave.caption ? (
+                <p className="mt-2 line-clamp-3 text-sm text-muted" data-testid="wave-caption" data-wave-kind={wave.kind}>
+                  {wave.caption}
+                </p>
               ) : null}
                 </div>
               </div>

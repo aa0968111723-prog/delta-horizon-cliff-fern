@@ -232,6 +232,11 @@ export function HomePage() {
                   <p className="truncate text-sm" data-testid="home-scheduled-title">
                     {item.title}
                   </p>
+                  {item.caption ? (
+                    <p className="truncate text-xs text-muted" data-testid="home-scheduled-hook">
+                      {hookLine(item.caption)}
+                    </p>
+                  ) : null}
                   <p className="text-xs text-muted">
                     {contentKindLabel(item.kind)} · {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })}
                   </p>

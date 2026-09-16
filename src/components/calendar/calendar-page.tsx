@@ -141,7 +141,7 @@ export function CalendarPage() {
   }
 
   return (
-    <main data-testid="calendar-ready" className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
+    <main data-testid="calendar-ready" className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 py-6 pb-nav md:px-8 md:py-10">
       <PageHeader
         kicker="排程"
         title={focused ? `什麼時候發「${focused.name}」？` : "什麼時候要發？"}
@@ -282,7 +282,9 @@ export function CalendarPage() {
                   />
                 ) : null}
                 <div className="min-w-0 flex-1">
-                <p className="text-sm">{item.title}</p>
+                <p className="text-sm" data-testid="agenda-title">
+                  {item.title}
+                </p>
                 {item.caption ? (
                   <p className="mt-1 line-clamp-2 text-xs text-muted" data-testid="schedule-caption">
                     {item.caption}

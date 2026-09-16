@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { awaitingFeel, hookLine, learnFromIg } from "./insights.ts";
-import { nextKindAfter, offsetDaysForConvertedKind, rhythmHint } from "./rhythm.ts";
+import { nextKindAfter, offsetDaysForConvertedKind, convertedScheduledAt, rhythmHint } from "./rhythm.ts";
 import { createPkce } from "../connect/pkce.ts";
 import { canvaBrief, canvaSize } from "../connect/canva-format.ts";
 import { mockWaveDraft } from "../ai/wave-draft.ts";
@@ -159,6 +159,23 @@ test("converted formats land on different days so the grid is not all ads", () =
   assert.equal(offsetDaysForConvertedKind("carousel"), -5);
   assert.equal(offsetDaysForConvertedKind("story"), -2);
   assert.ok(offsetDaysForConvertedKind("carousel") !== offsetDaysForConvertedKind("story"));
+});
+
+test("converted IG Post follows 主視覺 instead of jumping ahead of 預熱", () => {
+  const hero = Date.parse("2026-09-19T11:00:00.000Z");
+  const warmup = Date.parse("2026-09-16T12:00:00.000Z");
+  const event = Date.parse("2026-09-23T11:00:00.000Z");
+  const waves = [
+    { kind: "warmup", scheduledAt: warmup },
+    { kind: "hero", scheduledAt: hero },
+    { kind: "countdown", scheduledAt: Date.parse("2026-09-22T13:00:00.000Z") },
+  ];
+  const ig = convertedScheduledAt("ig-post", event, waves);
+  const carousel = convertedScheduledAt("carousel", event, waves);
+  assert.equal(ig, hero);
+  assert.ok(ig > warmup);
+  assert.ok(carousel > ig);
+  assert.equal(convertedScheduledAt("ig-post", event, []), event - 7 * 86_400_000);
 });
 
 test("pkce verifier is not the challenge", () => {
