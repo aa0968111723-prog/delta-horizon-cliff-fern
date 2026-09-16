@@ -58,8 +58,8 @@ await page.goto(`${base}/`, { waitUntil: "networkidle" });
 await page.waitForSelector('[data-testid="home-ready"]', { timeout: 20_000 });
 const recMobile = (await page.locator('[data-testid="home-recommend-name"]').innerText()) ?? "";
 if (!/茶會/.test(recMobile)) issues.push(`390 今天推薦 lost 茶會: ${recMobile}`);
-if (await page.locator('[data-testid="home-due"]').count()) {
-  issues.push("390 發布後還掛著現在可以發");
+if (await page.locator('[data-testid="home-extend-hook"]').count() === 0) {
+  issues.push("390 學習後沒有用這個 Hook 再寫一篇");
 }
 const overflow = await page.evaluate(
   () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
