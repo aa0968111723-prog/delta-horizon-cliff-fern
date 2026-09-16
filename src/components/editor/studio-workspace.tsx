@@ -208,6 +208,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
           <ConvertBar project={project} variant="compact" />
           <PackSyncButtons projectId={project.id} />
         </div>
+        <p className="text-xs text-subtle">左側素材：照片點一下當主視覺，Logo 點一下放入。</p>
         <SourceList sources={project.sources} />
       </div>
 

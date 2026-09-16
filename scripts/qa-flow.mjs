@@ -189,7 +189,6 @@ try {
   await tap(page.locator("#convert-pack a").filter({ hasText: "進畫面" }).first());
   await page.waitForURL(/\/studio\//, { timeout: 15000 });
   await expectText("畫面裡可套全套", "文案套到全套");
-  await tap(page.getByRole("tab", { name: "素材" }));
   await page.waitForSelector("text=當主視覺", { timeout: 15000 });
   await expectText("畫面裡當主視覺", "當主視覺");
   await page.screenshot({ path: `${prefix}-studio-pack.png` });
