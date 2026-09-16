@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mergeCampaignWaves, scheduleItemsForWave, soonestScheduled, waveLabel, waveVisualVariation, heroScheduleItem } from "./schedule.ts";
+import {
+  agendaSorted,
+  dueScheduled,
+  firstPublishable,
+  isDue,
+  mergeCampaignWaves,
+  scheduleItemsForWave,
+  soonestScheduled,
+  waveLabel,
+  waveVisualVariation,
+  heroScheduleItem,
+} from "./schedule.ts";
 
 test("soonestScheduled surfaces the next tea-party IG post, not a later LINE draft", () => {
   const items = [
@@ -43,6 +54,80 @@ test("scheduleItemsForWave matches 主視覺 rows for one campaign", () => {
     scheduleItemsForWave(rows, "camp_1", "hero").map((row) => row.id),
     ["a"],
   );
+});
+
+test("isDue is only scheduled rows whose time has passed", () => {
+  const now = 100;
+  assert.equal(isDue({ status: "scheduled", scheduledAt: 90 }, now), true);
+  assert.equal(isDue({ status: "scheduled", scheduledAt: 100 }, now), true);
+  assert.equal(isDue({ status: "scheduled", scheduledAt: 110 }, now), false);
+  assert.equal(isDue({ status: "published", scheduledAt: 1 }, now), false);
+  assert.equal(isDue({ status: "idea", scheduledAt: 1 }, now), false);
+});
+
+test("dueScheduled lists overdue tea-party rows soonest first", () => {
+  const now = 50;
+  const due = dueScheduled(
+    [
+      { id: "later", status: "scheduled", scheduledAt: 80 },
+      { id: "overdue", status: "scheduled", scheduledAt: 10 },
+      { id: "done", status: "published", scheduledAt: 1 },
+    ],
+    now,
+  );
+  assert.deepEqual(
+    due.map((row) => row.id),
+    ["overdue"],
+  );
+});
+
+test("agendaSorted lifts overdue rows above later LINE drafts", () => {
+  const now = 50;
+  const rows = agendaSorted(
+    [
+      { id: "line", status: "scheduled", scheduledAt: 90 },
+      { id: "hero", status: "scheduled", scheduledAt: 10 },
+      { id: "old", status: "published", scheduledAt: 1 },
+    ],
+    now,
+  );
+  assert.deepEqual(
+    rows.map((row) => row.id),
+    ["hero", "old", "line"],
+  );
+});
+
+test("firstPublishable prefers a due carousel over a due Story", () => {
+  const now = 100;
+  const pick = firstPublishable(
+    [
+      { id: "story", status: "scheduled", scheduledAt: 10, kind: "story" },
+      { id: "hero", status: "scheduled", scheduledAt: 40, kind: "carousel" },
+      { id: "later", status: "scheduled", scheduledAt: 200, kind: "ig-post" },
+    ],
+    now,
+  );
+  assert.equal(pick?.id, "hero");
+});
+
+test("firstPublishable falls back to a due Story, then the next Feed post", () => {
+  const now = 100;
+  const dueStory = firstPublishable(
+    [
+      { id: "story", status: "scheduled", scheduledAt: 10, kind: "story" },
+      { id: "later", status: "scheduled", scheduledAt: 200, kind: "carousel" },
+    ],
+    now,
+  );
+  assert.equal(dueStory?.id, "story");
+  const upcoming = firstPublishable(
+    [
+      { id: "idea", status: "idea", scheduledAt: 10, kind: "line" },
+      { id: "carousel", status: "scheduled", scheduledAt: 200, kind: "carousel" },
+    ],
+    now,
+  );
+  assert.equal(upcoming?.id, "carousel");
 });
 
 test("heroScheduleItem finds the 主視覺 row for a tea-party campaign", () => {

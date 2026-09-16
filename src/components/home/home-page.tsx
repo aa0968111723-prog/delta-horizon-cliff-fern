@@ -12,7 +12,7 @@ import { academicBeat, academicBeatLabel, daysUntil } from "@/lib/zen/context";
 import { ideaFromInspiration, inspirationForBeat } from "@/lib/zen/inspiration";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
-import { soonestScheduled } from "@/lib/zen/schedule";
+import { soonestScheduled, isDue } from "@/lib/zen/schedule";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 import { ProjectCard } from "@/components/shared/project-card";
@@ -211,6 +211,15 @@ export function HomePage() {
                   </p>
                   </div>
                 </div>
+                {isDue(item) ? (
+                  <Link
+                    to="/calendar"
+                    data-testid={item.id === scheduled.find((row) => isDue(row))?.id ? "home-due" : undefined}
+                    className="shrink-0 rounded-full bg-amber/20 px-2.5 py-1 text-[11px] text-warn"
+                  >
+                    現在可以發
+                  </Link>
+                ) : null}
               </li>
             ))}
           </ul>

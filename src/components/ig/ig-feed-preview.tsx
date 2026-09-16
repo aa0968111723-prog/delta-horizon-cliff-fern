@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import type { IgMemoryPost, ScheduleItem } from "@/lib/studio/types";
 import { feelLabel, type PostFeel } from "@/lib/zen/feel";
+import { isDue } from "@/lib/zen/schedule";
 import { contentKindLabel } from "@/lib/studio/content";
 
 export function IgFeedPreview({
@@ -99,7 +100,9 @@ export function IgFeedPreview({
                 <div className="flex size-16 shrink-0 items-end rounded-xl bg-surface-2 p-2 text-xs">{nextUp.title}</div>
               )}
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted">即將 · {contentKindLabel(nextUp.kind)}</p>
+                <p className="text-xs text-muted" data-testid={isDue(nextUp) ? "ig-due" : undefined}>
+                  {isDue(nextUp) ? "現在可以發" : "即將"} · {contentKindLabel(nextUp.kind)}
+                </p>
                 <p className="mt-1 line-clamp-2 text-sm">{nextUp.caption || nextUp.title}</p>
                 <Button
                   className="mt-2 min-h-11 w-full"

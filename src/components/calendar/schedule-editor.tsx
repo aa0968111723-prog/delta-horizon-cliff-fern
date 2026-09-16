@@ -42,7 +42,13 @@ export function ScheduleEditor({
         </div>
         <div>
           <Label>預計發布</Label>
-          <Input className="mt-1" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          <Input
+            className="mt-1"
+            type="datetime-local"
+            data-testid="schedule-when"
+            value={when}
+            onChange={(e) => setWhen(e.target.value)}
+          />
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -79,6 +85,7 @@ export function ScheduleEditor({
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <Button
+          data-testid="schedule-save"
           onClick={() => {
             const scheduledAt = new Date(when).getTime();
             onSave({

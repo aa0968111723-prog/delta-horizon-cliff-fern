@@ -1,7 +1,9 @@
 import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
 import { pullCanvaDesign } from "@/lib/connect/canva";
+import { extraFromIgMemory, insightsLearnPatch } from "@/lib/connect/insights-learn";
 import { publishInstagramMedia } from "@/lib/connect/instagram-publish";
 import { carouselPosterInputs, pickCarouselPages } from "@/lib/connect/publish-slides";
+import { syncConnection } from "@/lib/connect/sync";
 import { getAssetBlob } from "@/lib/studio/assets-idb";
 import { bytesToBase64 } from "@/lib/studio/bytes";
 import { isIgPublishMime, persistGeneratedImage } from "@/lib/studio/raster";
@@ -25,6 +27,7 @@ export type PublishItemResult = {
   note: string;
   marked: boolean;
   extra?: PublishItemExtra;
+  insightsLearned?: boolean;
 };
 
 async function pngFromBase64(base64: string, mime: string) {
@@ -82,11 +85,42 @@ async function collectSlides(item: ScheduleItem): Promise<{ slides: string[]; im
   return { slides, imageUrl };
 }
 
+async function refreshIgInsightsAfterPublish(extra?: PublishItemExtra): Promise<{
+  extra?: PublishItemExtra;
+  learned: boolean;
+  note: string;
+}> {
+  const result = await syncConnection({ data: { provider: "instagram" } }).catch(() => null);
+  if (!result) return { extra, learned: false, note: "" };
+  const patch = insightsLearnPatch(result);
+  const store = useStudio.getState();
+  if (patch.posts) store.upsertIgMemory(patch.posts);
+  if (patch.connection) store.setConnection("instagram", patch.connection);
+  const merged = extraFromIgMemory(extra, patch.posts ?? []);
+  return {
+    extra: merged,
+    learned: Boolean(patch.posts),
+    note: patch.posts ? "已讀取成效，下次生成會學。" : "",
+  };
+}
+
+async function withInsights(result: PublishItemResult): Promise<PublishItemResult> {
+  if (!result.marked) return result;
+  const insights = await refreshIgInsightsAfterPublish(result.extra);
+  if (!insights.learned) return { ...result, extra: insights.extra ?? result.extra, insightsLearned: false };
+  return {
+    ...result,
+    extra: insights.extra ?? result.extra,
+    insightsLearned: true,
+    note: `${result.note} ${insights.note}`.trim(),
+  };
+}
+
 export async function runPublishItem(item: ScheduleItem): Promise<PublishItemResult> {
   const caption = (item.caption || item.title).slice(0, 2200);
   await navigator.clipboard.writeText(caption).catch(() => undefined);
   if (!canGraphPublish(item.kind)) {
-    return { note: "限動／Reels／Threads 請在 IG App 發。文案已複製。", marked: true };
+    return withInsights({ note: "限動／Reels／Threads 請在 IG App 發。文案已複製。", marked: true });
   }
   const { slides, imageUrl } = await collectSlides(item);
   const result = await publishInstagramMedia({
@@ -101,7 +135,7 @@ export async function runPublishItem(item: ScheduleItem): Promise<PublishItemRes
     },
   });
   if (result.ok) {
-    return {
+    return withInsights({
       note: result.note,
       marked: true,
       extra: {
@@ -114,7 +148,7 @@ export async function runPublishItem(item: ScheduleItem): Promise<PublishItemRes
         shares: result.insights?.shares,
         plays: result.insights?.plays,
       },
-    };
+    });
   }
-  return { note: result.note, marked: true };
+  return withInsights({ note: result.note, marked: true });
 }

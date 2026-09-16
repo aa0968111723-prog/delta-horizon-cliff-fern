@@ -1,5 +1,6 @@
 import { uid } from "../studio/ids.ts";
 import type { CampaignWave, CampaignWaveKind, ClubCampaign, ContentKind, EventKind } from "../studio/types.ts";
+import { canGraphPublish } from "./memory.ts";
 import { nextKindAfter } from "./rhythm.ts";
 
 const WAVE_LABEL: Record<CampaignWaveKind, string> = {
@@ -129,6 +130,38 @@ export function soonestScheduled<T extends { status: string; scheduledAt: number
     .filter((item) => item.status === "scheduled")
     .sort((a, b) => a.scheduledAt - b.scheduledAt)
     .slice(0, limit);
+}
+
+/** 到時間發布：沒有 cron，過了預計時間就出現「現在可以發」。 */
+export function isDue<T extends { status: string; scheduledAt: number }>(item: T, now = Date.now()) {
+  return item.status === "scheduled" && item.scheduledAt <= now;
+}
+
+export function dueScheduled<T extends { status: string; scheduledAt: number }>(items: T[], now = Date.now()): T[] {
+  return [...items].filter((item) => isDue(item, now)).sort((a, b) => a.scheduledAt - b.scheduledAt);
+}
+
+/** Agenda puts overdue rows first so one-tap publish is not buried under later drafts. */
+export function agendaSorted<T extends { status: string; scheduledAt: number }>(items: T[], now = Date.now()): T[] {
+  const due = dueScheduled(items, now);
+  const rest = [...items].filter((item) => !isDue(item, now)).sort((a, b) => a.scheduledAt - b.scheduledAt);
+  return [...due, ...rest];
+}
+
+/** Prefer a due Feed post/carousel so Calendar 發布 hits Graph, not a Story sitting in the app. */
+export function firstPublishable<
+  T extends { status: string; scheduledAt: number; kind: ContentKind },
+>(items: T[], now = Date.now()): T | undefined {
+  const unpublished = [...items]
+    .filter((item) => item.status !== "published")
+    .sort((a, b) => a.scheduledAt - b.scheduledAt);
+  const due = dueScheduled(unpublished, now);
+  return (
+    due.find((item) => canGraphPublish(item.kind)) ??
+    due[0] ??
+    unpublished.find((item) => canGraphPublish(item.kind)) ??
+    unpublished[0]
+  );
 }
 
 /** Keep wave ids when regenerating a campaign so calendar rows upsert instead of duplicating. */

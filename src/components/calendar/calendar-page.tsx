@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { runPublishItem } from "@/lib/connect/publish-item";
 import { igMemoryFromSchedule } from "@/lib/zen/memory";
+import { agendaSorted, firstPublishable, isDue } from "@/lib/zen/schedule";
 import { contentKindLabel, contentStatusLabel } from "@/lib/studio/content";
 import { uid } from "@/lib/studio/ids";
 import { cn } from "@/lib/utils";
@@ -100,11 +101,8 @@ export function CalendarPage() {
   }
 
   const cells = view === "month" ? days : weekDays;
-  const agenda = useMemo(
-    () => schedule.slice().sort((a, b) => a.scheduledAt - b.scheduledAt),
-    [schedule],
-  );
-  const firstPublishable = agenda.find((item) => item.status !== "published");
+  const agenda = useMemo(() => agendaSorted(schedule), [schedule]);
+  const publishTarget = firstPublishable(agenda);
 
   if (!hydrated) {
     return (
@@ -222,7 +220,13 @@ export function CalendarPage() {
       ) : (
         <ul data-testid="calendar-agenda" className="mt-4 space-y-2">
           {agenda.map((item) => (
-              <li key={item.id} className="flex gap-3 rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+              <li
+                key={item.id}
+                className={cn(
+                  "flex gap-3 rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]",
+                  isDue(item) && "ring-1 ring-amber/40",
+                )}
+              >
                 {item.imageAssetId && urls[item.imageAssetId] ? (
                   <img
                     src={urls[item.imageAssetId]}
@@ -235,18 +239,31 @@ export function CalendarPage() {
                 <p className="text-sm">{item.title}</p>
                 <p className="text-xs text-muted">
                   {format(item.scheduledAt, "M/d HH:mm", { locale: zhTW })} · {contentKindLabel(item.kind)} · {contentStatusLabel(item.status)}
+                  {isDue(item) ? (
+                    <span
+                      data-testid={item.id === agenda.find((row) => isDue(row))?.id ? "calendar-due" : undefined}
+                      className="ml-2 inline-flex rounded-full bg-amber/20 px-2 py-0.5 text-[10px] text-warn"
+                    >
+                      現在可以發
+                    </span>
+                  ) : null}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button size="sm" variant="secondary" onClick={() => duplicate(item.id)}>
                     複製
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={() => setEditingId(item.id)}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    data-testid={item.id === agenda.find((row) => row.status === "scheduled")?.id ? "calendar-edit" : undefined}
+                    onClick={() => setEditingId(item.id)}
+                  >
                     直接編輯
                   </Button>
                   <Button
                     size="sm"
                     disabled={publishingId === item.id || item.status === "published"}
-                    data-testid={item.id === firstPublishable?.id ? "calendar-publish" : undefined}
+                    data-testid={item.id === publishTarget?.id ? "calendar-publish" : undefined}
                     onClick={() => void publishItem(item.id)}
                   >
                     發布到 IG
