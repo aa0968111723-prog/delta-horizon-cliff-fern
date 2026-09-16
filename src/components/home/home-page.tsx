@@ -3,13 +3,16 @@ import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { ArrowRight, Images, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { calendarSearchFromScheduled, calendarSearchParams } from "@/lib/studio/calendar-search";
+import { runPublishItem } from "@/lib/connect/publish-item";
+import { calendarSearchFromScheduled } from "@/lib/studio/calendar-search";
 import { contentKindLabel } from "@/lib/studio/content";
 import { createSearchParams } from "@/lib/studio/create-search";
+import type { ScheduleItem } from "@/lib/studio/types";
 import { academicBeat, academicBeatLabel, daysUntil } from "@/lib/zen/context";
 import { formatTaipeiClock } from "@/lib/zen/dates";
 import { gatherCreativeHits } from "@/lib/zen/gather-hits";
@@ -31,6 +34,8 @@ export function HomePage() {
   const setCreateOpen = useUi((s) => s.setCreateOpen);
   const setSearchOpen = useUi((s) => s.setSearchOpen);
   const rateIgMemory = useStudio((s) => s.rateIgMemory);
+  const publishSchedule = useStudio((s) => s.publishSchedule);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
@@ -70,6 +75,21 @@ export function HomePage() {
   const heroProject = projects.find((p) => p.campaignId === upcoming?.id) ?? projects[0];
   const board = heroProject?.artboards[heroProject.activeFormatId];
   const hydrated = useStudio((s) => s.hydrated);
+
+  async function publishDue(item: ScheduleItem) {
+    if (publishingId) return;
+    setPublishingId(item.id);
+    try {
+      const result = await runPublishItem(item);
+      toast.message(result.note);
+      if (result.marked) {
+        publishSchedule(item.id, result.extra);
+        toast.success("已寫進過去 IG。標記學生會不會停，下次生成會學。");
+      }
+    } finally {
+      setPublishingId(null);
+    }
+  }
 
   useEffect(() => {
     if (!hydrated) return;
@@ -327,14 +347,16 @@ export function HomePage() {
                   </div>
                 </div>
                 {isDue(item) ? (
-                  <Link
-                    to="/calendar"
-                    search={calendarSearchParams({ campaign: item.campaignId ?? upcoming?.id })}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={publishingId === item.id}
                     data-testid={item.id === scheduled.find((row) => isDue(row))?.id ? "home-due" : undefined}
-                    className="shrink-0 rounded-full bg-amber/20 px-2.5 py-1 text-[11px] text-warn"
+                    className="min-h-11 shrink-0 rounded-full bg-amber/20 px-3 text-warn hover:bg-amber/30"
+                    onClick={() => void publishDue(item)}
                   >
-                    現在可以發
-                  </Link>
+                    {publishingId === item.id ? "發布中…" : "現在可以發"}
+                  </Button>
                 ) : null}
               </li>
             ))}
@@ -355,7 +377,10 @@ export function HomePage() {
                 className="min-h-11"
                 variant="secondary"
                 data-testid={feel === "strong" ? "home-rate-strong" : undefined}
-                onClick={() => rateIgMemory(pendingFeel.id, feel)}
+                onClick={() => {
+                  rateIgMemory(pendingFeel.id, feel);
+                  toast.success(`已記成「${feelLabel(feel)}」，下次生成會參考`);
+                }}
               >
                 {feelLabel(feel)}
               </Button>
