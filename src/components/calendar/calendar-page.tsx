@@ -111,9 +111,9 @@ export function CalendarPage() {
         description="只服務創作與發布。可以改日期、複製、讓 AI 延伸，沒有審核人。"
         actions={
           <div className="flex gap-2">
-            <Button variant={view === "month" ? "default" : "secondary"} size="sm" onClick={() => setView("month")}>月</Button>
-            <Button variant={view === "week" ? "default" : "secondary"} size="sm" onClick={() => setView("week")}>週</Button>
-            <Button variant={view === "agenda" ? "default" : "secondary"} size="sm" onClick={() => setView("agenda")}>手機清單</Button>
+            <Button data-testid="cal-view-month" variant={view === "month" ? "default" : "secondary"} size="sm" onClick={() => setView("month")}>月</Button>
+            <Button data-testid="cal-view-week" variant={view === "week" ? "default" : "secondary"} size="sm" onClick={() => setView("week")}>週</Button>
+            <Button data-testid="cal-view-agenda" variant={view === "agenda" ? "default" : "secondary"} size="sm" onClick={() => setView("agenda")}>手機清單</Button>
           </div>
         }
       />
