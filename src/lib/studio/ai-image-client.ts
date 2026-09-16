@@ -56,12 +56,9 @@ export async function prepareImageForAi(blob: Blob): Promise<PreparedImage> {
 
 export async function base64ImageToBlob(base64: string, mime: string) {
   const bytes = atob(base64);
-  const chunks: Uint8Array[] = [];
-  for (let offset = 0; offset < bytes.length; offset += 32_768) {
-    const slice = bytes.slice(offset, offset + 32_768);
-    chunks.push(Uint8Array.from(slice, (char) => char.charCodeAt(0)));
-  }
-  return new Blob(chunks, { type: mime });
+  const data = new Uint8Array(bytes.length);
+  for (let index = 0; index < bytes.length; index += 1) data[index] = bytes.charCodeAt(index);
+  return new Blob([data.buffer], { type: mime });
 }
 
 export async function sourceBlob(assetId: string, url?: string) {
