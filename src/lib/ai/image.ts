@@ -50,7 +50,15 @@ function escapeXml(value: string) {
 }
 
 export const listVisualDirections = createServerFn({ method: "POST" })
-  .validator((input: unknown) => parseFnInput(z.object({ topic: z.string().min(1).max(200) }), input))
+  .validator((input: unknown) =>
+    parseFnInput(
+      z.object({
+        topic: z.string().min(1).max(200),
+        notes: z.string().max(1600).optional(),
+      }),
+      input,
+    ),
+  )
   .handler(async ({ data }) => {
     const mocked = mockDirections(data.topic);
     try {
@@ -62,6 +70,8 @@ export const listVisualDirections = createServerFn({ method: "POST" })
           {
             role: "user",
             content: `為「${data.topic}」提出 3 個視覺方向。先想活動、淡江學生情境、淡水、夜晚、校園、壓力、朋友感、品牌色、龜龜、三色光、IG 停留。不要只生禪風海報。
+${data.notes ? `先讀這些：\n${data.notes}` : ""}
+名稱、概念、配色、構圖、字、headline、subhead 用台灣繁體中文。imagePrompt 用生活中文畫面描述。
 輸出 JSON {directions:[{id,name,concept,palette,composition,typeDirection,imagePrompt,headline,subhead}]} 必須 3 個。`,
           },
         ],

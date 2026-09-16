@@ -49,6 +49,7 @@ const PackInput = z.object({
     .optional()
     .catch([]),
   dnaNotes: z.string().max(3600).optional(),
+  visionNotes: z.string().max(1600).optional(),
   inspirationNotes: z.string().max(1200).optional(),
   forceMock: z.boolean().optional(),
 });
@@ -117,7 +118,7 @@ export function buildPackFromPlan(
     query,
     sourceSummary: sources.length ? `找到 ${sources.length} 個相關素材` : "先用品牌記憶生成",
     sources,
-    studentContext: `${season.label}。${season.studentNow}`,
+    studentContext: `${season.label}。${season.studentNow}${sources.some((item) => item.source === "upload") ? " 延續你丟進來的圖的光與留白，不要複製。" : ""}`,
     directions,
     plan: { ...plan, directions, sources },
     copyVariants: variantsFromPlan(plan),
@@ -163,10 +164,12 @@ export const generateCreativePack = createServerFn({ method: "POST" })
 一句話：${brief.features}
 參考來源：${sources.map((s) => s.label).join("、") || "品牌記憶"}
 ${data.dnaNotes ? `品牌與 IG DNA：\n${data.dnaNotes}` : ""}
+${data.visionNotes ? `圖片理解（延續風格，不要複製原圖）：\n${data.visionNotes}` : ""}
 ${data.inspirationNotes ? `靈感抽象（不要抄作品）：\n${data.inspirationNotes}` : ""}
 
 請輸出 JSON：
 全程台灣繁體中文口語，禁止英文句子，禁止年輕人／Z世代等抽象客群稱呼。
+directions 的 imagePrompt 用生活中文畫面描述，不要英文段落。
 campaignName, hook, concept, insight, visualTheme, visualDirection, templateId, colorMood,
 eyebrow, headline, subhead, body, cta,
 captions[{style,text}], hashtags, storyBeats, carouselPages[6],

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { daysUntil, academicMoment } from "@/lib/club/season";
 import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { clubDnaFromMemory } from "@/lib/club/dna";
-import { clubInsightsFromPosts } from "@/lib/club/insights";
+import { clubInsightsFromPosts, nextCreateFromLearn } from "@/lib/club/insights";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { searchCreative } from "@/lib/creative/search";
 import { calendarFrom, useCreative } from "@/stores/creative-store";
@@ -152,6 +152,11 @@ export function HomePage() {
           <p className="mt-2 font-display text-xl leading-snug">「{lastLearn.hook}」</p>
           <p className="mt-2 text-sm text-muted">{lastLearn.hookLesson}</p>
           <p className="mt-1 text-xs text-muted">{lastLearn.mixLesson}</p>
+          <Button asChild className="mt-4 min-h-11 rounded-full">
+            <Link to="/create" search={{ q: nextCreateFromLearn(lastLearn), auto: "1" }}>
+              用這次學到的再創作
+            </Link>
+          </Button>
         </section>
       ) : null}
 

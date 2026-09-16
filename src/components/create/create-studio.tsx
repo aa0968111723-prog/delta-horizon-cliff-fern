@@ -12,8 +12,9 @@ import { generateStudioImage, listVisualDirections } from "@/lib/ai/image";
 import { applyStudentRevisions } from "@/lib/ai/pack-mock";
 import { generateCreativePack, type CreativePack } from "@/lib/ai/pack";
 import { analyzeImage, type VisionReport } from "@/lib/ai/vision";
+import { visionPromptBlock } from "@/lib/ai/vision-notes";
 import { clubDnaFromMemory, dnaPromptBlock } from "@/lib/club/dna";
-import { clubInsightsFromPosts, insightsPromptBlock } from "@/lib/club/insights";
+import { clubInsightsFromPosts, insightsPromptBlock, lastLearnPromptBlock } from "@/lib/club/insights";
 import { createCanvaDesign } from "@/lib/connect/oauth";
 import { buildCanvaKit } from "@/lib/connect/canva-kit";
 import { publicImageUrl } from "@/lib/connect/ig-publish";
@@ -119,12 +120,14 @@ export function CreateStudio({
     [query, memory, assets, campaigns, igPosts, projects],
   );
 
-  async function runPack() {
+  async function runPack(opts?: { vision?: VisionReport | null; query?: string }) {
+    const report = opts && "vision" in opts ? opts.vision : vision;
+    const q = opts?.query ?? query;
     setBusy(true);
     try {
-      await gatherIntoStore(query);
+      await gatherIntoStore(q);
       const liveHits = searchCreative({
-        query,
+        query: q,
         memory: useCreative.getState().memory,
         assets,
         campaigns: useCreative.getState().campaigns,
@@ -136,19 +139,33 @@ export function CreateStudio({
         label: hit.sourceLabel || hit.title,
         id: hit.id.slice(0, 160),
       }));
+      if (report || imageSrc || initialAssetId) {
+        const label = assets.find((item) => item.id === initialAssetId)?.name || "你丟進來的圖";
+        if (!sources.some((item) => item.id === initialAssetId || item.label === label)) {
+          sources.unshift({
+            source: "upload",
+            label,
+            id: (initialAssetId ?? "upload").slice(0, 160),
+          });
+        }
+      }
       const dna = clubDnaFromMemory({
         igPosts: useCreative.getState().igPosts,
         memory: useCreative.getState().memory,
       });
       const result = await generateCreativePack({
         data: {
-          query,
+          query: q,
           eventName: campaign?.name,
           schedule: campaign ? `${campaign.date} ${campaign.time}` : undefined,
           location: campaign?.location,
           oneLiner: campaign?.oneLiner,
           sources,
-          dnaNotes: `${brands[0] ? brandMemoryBlock(brands[0]) : ""}\n${dnaPromptBlock(dna)}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}`.slice(0, 3600),
+          visionNotes: report ? visionPromptBlock(report) : undefined,
+          dnaNotes: `${brands[0] ? brandMemoryBlock(brands[0]) : ""}\n${dnaPromptBlock(dna)}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}\n${lastLearnPromptBlock(useCreative.getState().lastLearn)}`.slice(
+            0,
+            3600,
+          ),
           inspirationNotes: useCreative
             .getState()
             .inspirations.slice(0, 4)
@@ -191,9 +208,13 @@ export function CreateStudio({
             if (result.ok) {
               setVision(result.report);
               toast.success(`已讀「${asset.name}」，可以延續風格或整套生成`);
+              if (autoRun) await runPack({ vision: result.report });
+            } else if (autoRun) {
+              await runPack();
             }
+          } else if (autoRun) {
+            await runPack();
           }
-          if (autoRun) await runPack();
         } catch {
           toast.error("這張圖讀不到，改丟一張進來也可以。");
           if (autoRun) await runPack();
@@ -220,7 +241,7 @@ export function CreateStudio({
           kind: mode,
           when: campaign ? `${campaign.date} ${campaign.time}` : undefined,
           where: campaign?.location,
-          insightNotes: `${brands[0] ? brandMemoryBlock(brands[0]) : ""}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}\n${dnaPromptBlock(
+          insightNotes: `${brands[0] ? brandMemoryBlock(brands[0]) : ""}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}\n${lastLearnPromptBlock(useCreative.getState().lastLearn)}\n${vision ? visionPromptBlock(vision) : ""}\n${dnaPromptBlock(
             clubDnaFromMemory({
               igPosts: useCreative.getState().igPosts,
               memory: useCreative.getState().memory,
@@ -237,7 +258,15 @@ export function CreateStudio({
   async function runDirections() {
     setBusy(true);
     try {
-      const result = await listVisualDirections({ data: { topic: query } });
+      const result = await listVisualDirections({
+        data: {
+          topic: query,
+          notes: [brands[0] ? brandMemoryBlock(brands[0]) : "", vision ? visionPromptBlock(vision) : ""]
+            .filter(Boolean)
+            .join("\n")
+            .slice(0, 1600),
+        },
+      });
       if (result.ok) {
         setDirections(result.directions);
         setDirId(result.directions[0]?.id ?? null);
@@ -310,7 +339,11 @@ export function CreateStudio({
   async function fromVision(kind: "style" | "similar" | "restyle" | "story" | "carousel" | "reels") {
     if (!vision) return;
     if (kind === "style") {
+      const nextQuery = /延續/.test(query) ? query : `${query}。延續這張圖的風格做新網宣。`;
+      setQuery(nextQuery);
       await runImage(vision.imagePrompt);
+      await runPack({ vision, query: nextQuery });
+      toast.success("已延續風格，文案和方向一起出來了");
       return;
     }
     if (kind === "similar") {
@@ -521,6 +554,59 @@ export function CreateStudio({
           }}
         />
       </div>
+
+      {imageSrc ? (
+        <img src={imageSrc} alt="生成或上傳的畫面" className="mt-6 w-full rounded-3xl shadow-[var(--shadow-artboard)]" />
+      ) : null}
+      {vision ? (
+        <section className="mt-4 rounded-2xl bg-surface p-4 text-sm shadow-[var(--shadow-border)]">
+          <h2 className="text-sm font-medium">圖片理解</h2>
+          <p className="mt-2">{vision.scene}</p>
+          <ul className="mt-3 grid gap-1 text-xs text-muted sm:grid-cols-2">
+            <li>人物：{vision.people}</li>
+            <li>色彩：{vision.color}</li>
+            <li>光線：{vision.light}</li>
+            <li>構圖：{vision.composition}</li>
+            <li>文字比例：{vision.typeShare}</li>
+            <li>層級：{vision.hierarchy}</li>
+            <li>品牌感：{vision.brandFit}</li>
+            <li>停留感：{vision.stay}</li>
+          </ul>
+          <p className="mt-2 text-muted">{vision.studentFit}</p>
+          <p className="mt-2 text-xs">
+            太宗教 {vision.tooReligious ? "是" : "沒有"} · 太老氣 {vision.tooOld ? "是" : "沒有"} · 太 AI {vision.tooAi ? "是" : "沒有"}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" disabled={busy} onClick={() => void fromVision("style")}>
+              延續這個風格
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("restyle")}>
+              保留內容重新設計
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("story")}>
+              做成限動
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("carousel")}>
+              做成 Carousel
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("reels")}>
+              做成 Reels Cover
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("similar")}>
+              生成相似視覺
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-muted">延續風格會連文案、方向、Carousel 一起出，不是只換一張圖。</p>
+          {visionKit ? (
+            <div className="mt-4 space-y-3">
+              <pre className="whitespace-pre-wrap rounded-2xl bg-bg p-3 font-sans text-xs leading-relaxed">{visionKit.carousel}</pre>
+              <StoryStrip frames={visionKit.story} />
+              <ReelsDesk beats={visionKit.reels} coverSrc={reelsCoverSrc} />
+              <pre className="whitespace-pre-wrap font-sans text-xs text-muted">{visionKit.threads}</pre>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {hits.length ? (
         <div className="mt-4">
@@ -755,58 +841,6 @@ export function CreateStudio({
               />
             )}
           </div>
-        </section>
-      ) : null}
-
-      {imageSrc ? (
-        <img src={imageSrc} alt="生成或上傳的畫面" className="mt-6 w-full rounded-3xl shadow-[var(--shadow-artboard)]" />
-      ) : null}
-      {vision ? (
-        <section className="mt-4 rounded-2xl bg-surface p-4 text-sm shadow-[var(--shadow-border)]">
-          <h2 className="text-sm font-medium">圖片理解</h2>
-          <p className="mt-2">{vision.scene}</p>
-          <ul className="mt-3 grid gap-1 text-xs text-muted sm:grid-cols-2">
-            <li>人物：{vision.people}</li>
-            <li>色彩：{vision.color}</li>
-            <li>光線：{vision.light}</li>
-            <li>構圖：{vision.composition}</li>
-            <li>文字比例：{vision.typeShare}</li>
-            <li>層級：{vision.hierarchy}</li>
-            <li>品牌感：{vision.brandFit}</li>
-            <li>停留感：{vision.stay}</li>
-          </ul>
-          <p className="mt-2 text-muted">{vision.studentFit}</p>
-          <p className="mt-2 text-xs">
-            太宗教 {vision.tooReligious ? "是" : "沒有"} · 太老氣 {vision.tooOld ? "是" : "沒有"} · 太 AI {vision.tooAi ? "是" : "沒有"}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => void fromVision("style")}>
-              延續這個風格
-            </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("restyle")}>
-              保留內容重新設計
-            </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("story")}>
-              做成限動
-            </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("carousel")}>
-              做成 Carousel
-            </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("reels")}>
-              做成 Reels Cover
-            </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("similar")}>
-              生成相似視覺
-            </Button>
-          </div>
-          {visionKit ? (
-            <div className="mt-4 space-y-3">
-              <pre className="whitespace-pre-wrap rounded-2xl bg-bg p-3 font-sans text-xs leading-relaxed">{visionKit.carousel}</pre>
-              <StoryStrip frames={visionKit.story} />
-              <ReelsDesk beats={visionKit.reels} coverSrc={reelsCoverSrc} />
-              <pre className="whitespace-pre-wrap font-sans text-xs text-muted">{visionKit.threads}</pre>
-            </div>
-          ) : null}
         </section>
       ) : null}
     </main>

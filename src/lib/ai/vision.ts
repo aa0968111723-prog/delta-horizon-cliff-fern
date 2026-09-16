@@ -47,7 +47,7 @@ const fallback: VisionReport = {
   tooAi: false,
   next: ["延續這個風格", "做成限動", "做成 Carousel", "做成 Reels Cover", "生成相似視覺"],
   imagePrompt:
-    "Same mood, Tamkang student life, airy night light, not temple, not monk, IG 4:5, cinematic still",
+    "延續同一種夜間生活感，淡江學生、淡水、三色光、霧亞麻、空氣感，不要寺廟、不要僧袍，IG 4:5 電影靜幀",
 };
 
 export const analyzeImage = createServerFn({ method: "POST" })

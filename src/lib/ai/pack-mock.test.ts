@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { looksEnglish } from "./zh.ts";
 import { buildZenMockPlan, mockDirections, applyStudentRevisions, mockStudentSim } from "./pack-mock.ts";
 import type { BriefInput } from "./schema.ts";
 
@@ -33,6 +34,8 @@ test("zen mock plan opens with a lived hook not a formal invitation", () => {
   assert.ok(plan.studentSim);
   assert.equal(plan.carouselPages.length, 6);
   assert.ok(plan.reelsScript?.length);
+  assert.equal(looksEnglish(plan.directions?.[0]?.imagePrompt ?? ""), false);
+  assert.ok(plan.directions?.[0]?.imagePrompt.includes("三色光"));
 });
 
 test("student-sim revisions add time and a way to come", () => {

@@ -117,3 +117,13 @@ export function lastLearnFromPosts(
     hookLesson: insights.hookLesson,
   };
 }
+
+export function lastLearnPromptBlock(learn: Pick<LastLearn, "hook" | "hookLesson" | "mixLesson"> | null) {
+  if (!learn?.hook) return "";
+  return `上次發布第一句是「${learn.hook}」。下一篇換生活切入，不要重複同一句。${learn.hookLesson} ${learn.mixLesson}`;
+}
+
+export function nextCreateFromLearn(learn: Pick<LastLearn, "hook" | "hookLesson" | "mixLesson">) {
+  const hook = learn.hook.replace(/\s+/g, " ").slice(0, 48);
+  return `下一篇不要重複「${hook}」。${learn.hookLesson} ${learn.mixLesson} 幫我寫一篇新的 IG。`.slice(0, 280);
+}
