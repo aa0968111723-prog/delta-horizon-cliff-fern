@@ -45,12 +45,12 @@ export function SectionHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-3 flex items-end justify-between gap-3">
-      <div>
+    <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0 flex-1">
         <h2 className="text-sm font-medium">{title}</h2>
         {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}
       </div>
-      {action}
+      {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
 }

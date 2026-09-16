@@ -97,8 +97,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
       eventName: "值得傳給朋友",
       audience: "需要被一句話打動的淡江學生",
       goal: "ugc",
-      notes: "短、可截圖、可分享。",
-      style: "短句、可分享",
+      notes: "短、可截圖。不要金句工廠。",
+      style: "口語、可分享",
     }),
     copy: {
       eyebrow: "記得",

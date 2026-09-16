@@ -1,4 +1,4 @@
-import type { ProjectStatus } from "./types";
+import type { ContentKind, ContentStatus, Project, ProjectStatus } from "./types";
 
 export const STATUS_META: Record<
   ProjectStatus,

@@ -30,6 +30,9 @@ export function AssetCard({
 
   return (
     <article
+      data-testid="asset-card"
+      data-asset-name={asset.name}
+      data-asset-source={asset.source}
       className="group overflow-hidden rounded-2xl bg-surface shadow-[var(--shadow-border)]"
       draggable={draggable}
       onDragStart={(e) => {

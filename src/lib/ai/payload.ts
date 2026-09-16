@@ -55,5 +55,7 @@ export function toBriefInput(
       outcomeHashtags: extra?.outcomeHashtags,
     }),
     ...(extra?.forceMock ? { forceMock: true } : {}),
+    ...(extra?.igLessons ? { igLessons: extra.igLessons.slice(0, 800) } : {}),
+    ...(extra?.styleMemory ? { styleMemory: extra.styleMemory.slice(0, 400) } : {}),
   };
 }

@@ -70,6 +70,18 @@ function carouselPlans(plan: CampaignPlan, copy: CopyDeck, carousel: boolean): C
   }).slice(0, MAX_SLIDES);
 }
 
+function withUniqueLayerIds(board: Artboard, prefix: string): Artboard {
+  const seen = new Set<string>();
+  return {
+    ...board,
+    layers: board.layers.map((layer, index) => {
+      const nextId = layer.id && !seen.has(layer.id) ? layer.id : `${prefix}_${index}`;
+      seen.add(nextId);
+      return { ...layer, id: nextId };
+    }),
+  };
+}
+
 export function buildCampaignBoards(input: {
   project: Project;
   brand: BrandKit;
@@ -94,26 +106,32 @@ export function buildCampaignBoards(input: {
 
   for (const formatId of formats) {
     if (brief.deliverables.carousel) {
-      const boards = stampSlideMeta(
-        pages.map((page) => {
-          const board = buildLayout(
-            formatId,
-            copyForCarouselPage(copy, page, input.plan),
-            input.brand,
-            page.templateId || input.plan.templateId,
-            { imageAssetId },
+          const boards = stampSlideMeta(
+            pages.map((page, pageIndex) => {
+              const board = buildLayout(
+                formatId,
+                copyForCarouselPage(copy, page, input.plan),
+                input.brand,
+                page.templateId || input.plan.templateId,
+                { imageAssetId },
+              );
+              board.role = page.role;
+              board.templateId = page.templateId || input.plan.templateId;
+              return withUniqueLayerIds(board, `${formatId}_${pageIndex}`);
+            }),
           );
-          board.role = page.role;
-          board.templateId = page.templateId || input.plan.templateId;
-          return board;
-        }),
-      );
-      slides[formatId] = boards;
-      artboards[formatId] = boards[0];
-      continue;
-    }
-    const pageCopy = formatId === "story" || formatId === "reels-cover" ? storyCopy(copy, input.plan) : copy;
-    const board = buildLayout(formatId, pageCopy, input.brand, input.plan.templateId, { imageAssetId });
+          slides[formatId] = boards;
+          artboards[formatId] = boards[0];
+          continue;
+        }
+        const pageCopy =
+          formatId === "story" || formatId === "reels-cover" || formatId === "line-promo"
+            ? storyCopy(copy, input.plan)
+            : copy;
+        const board = withUniqueLayerIds(
+          buildLayout(formatId, pageCopy, input.brand, input.plan.templateId, { imageAssetId }),
+          formatId,
+        );
     board.role = "cover";
     board.templateId = input.plan.templateId;
     slides[formatId] = [board];

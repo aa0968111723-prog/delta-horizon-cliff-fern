@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { ExportPanel } from "@/components/export/export-panel";
 import { QualityPanel } from "@/components/qa/quality-panel";
 import { ArtboardView } from "@/components/studio/artboard-view";
+import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -85,11 +86,14 @@ export function ExportCenter() {
         title="預覽與下載"
         description="檢查安全區與文案，再輸出 Instagram 用的高畫質檔案與一人發佈包。這是本機下載，不是發文。"
         actions={
-          <Button asChild variant="secondary">
-            <Link to="/studio/$projectId" params={{ projectId: project.id }}>
-              回編輯器
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <BrandSubnav current="export" />
+            <Button asChild variant="secondary">
+              <Link to="/studio/$projectId" params={{ projectId: project.id }}>
+                回編輯器
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -127,7 +131,7 @@ export function ExportCenter() {
       <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <section className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
           <div className="mb-3 flex flex-wrap gap-1">
-            {(["feed-square", "feed-portrait", "feed-landscape", "story", "reels-cover"] as const).map(
+            {(["feed-square", "feed-portrait", "feed-landscape", "story", "reels-cover", "threads", "line-promo"] as const).map(
               (id) => (
                 <Button
                   key={id}

@@ -1,3 +1,4 @@
+import { matchHit } from "../club/rank.ts";
 import type {
   Artboard,
   AssetCategory,
@@ -23,8 +24,19 @@ export const ASSET_CATEGORIES: {
   { id: "illustration", label: "插圖", hint: "手繪、裝飾、編輯素材" },
   { id: "icon", label: "圖示", hint: "小圖、符號、徽章" },
   { id: "logo", label: "Logo", hint: "標誌與變體" },
+  { id: "illustration", label: "龜龜／插圖", hint: "角色、手繪、裝飾" },
+  { id: "photo", label: "活動照片", hint: "現場、紀實" },
+  { id: "people", label: "社員照片", hint: "人、手、互動瞬間" },
+  { id: "campus", label: "淡江校園", hint: "教室、走廊、光影" },
+  { id: "tamsui", label: "淡水", hint: "河邊、捷運、生活" },
+  { id: "poster", label: "海報", hint: "歷屆文宣與主視覺" },
+  { id: "background", label: "背景", hint: "材質、留白、光" },
+  { id: "event", label: "歷屆活動", hint: "茶會、社課、浮游禪光" },
+  { id: "story-asset", label: "Story", hint: "限動畫面" },
+  { id: "reels-asset", label: "Reels", hint: "封面與片段" },
+  { id: "icon", label: "圖示", hint: "小圖、符號" },
   { id: "template", label: "模板", hint: "可套用的版型起點", virtual: true },
-  { id: "history", label: "歷史素材", hint: "曾放到畫布的檔案", virtual: true },
+  { id: "history", label: "IG", hint: "曾放到畫布或來自 IG", virtual: true },
 ];
 
 export const ASSET_SOURCES: { id: AssetSourceKind; label: string }[] = [
@@ -72,9 +84,15 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
   const tags = (raw.tags ?? []).join(" ").toLowerCase();
   const name = (raw.name ?? "").toLowerCase();
   const blob = `${tags} ${name}`;
-  if (/人物|人像|portrait|people/.test(blob)) return "people";
+  if (/人物|人像|社員|portrait|people/.test(blob)) return "people";
+  if (/淡水|河邊|捷運/.test(blob)) return "tamsui";
+  if (/校園|淡江|教室/.test(blob)) return "campus";
+  if (/海報|文宣|poster/.test(blob)) return "poster";
+  if (/歷屆|茶會|浮游|活動回顧/.test(blob)) return "event";
+  if (/story|限動/.test(blob)) return "story-asset";
+  if (/reels/.test(blob)) return "reels-asset";
   if (/背景|場景|材質|background|texture/.test(blob)) return "background";
-  if (/插圖|illustration|handdrawn/.test(blob)) return "illustration";
+  if (/龜龜|插圖|illustration|handdrawn/.test(blob)) return "illustration";
   if (/圖示|icon|badge/.test(blob)) return "icon";
   if (/logo|標誌/.test(blob)) return "logo";
   return "photo";
@@ -118,27 +136,28 @@ export function createGeneratedAsset(input: {
   width: number;
   height: number;
   category?: AssetCategory;
+  tags?: string[];
 }): AssetMeta {
   const now = Date.now();
   return migrateAsset({
     id: input.id,
     name: input.name,
-    kind: kindFromCategory(input.category ?? "icon"),
-    category: input.category ?? "icon",
+    kind: kindFromCategory(input.category ?? "poster"),
+    category: input.category ?? "poster",
     mime: input.mime,
     width: input.width,
     height: input.height,
-    tags: ["生成", "QR"],
+    tags: input.tags ?? ["AI生成"],
     createdAt: now,
     updatedAt: now,
     source: "generated",
-    licenseNotes: "由構幀依報名網址在本機產生，僅供畫面使用。",
-    licenseOwner: "本機產生",
+    licenseNotes: "由禪光工作室產生，來源標示為 AI Generated。",
+    licenseOwner: "AI Generated",
   });
 }
 
 export function matchesAssetQuery(asset: AssetMeta, query: string) {
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   if (!q) return true;
   const blob = [
     asset.name,

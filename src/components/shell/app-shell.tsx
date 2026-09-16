@@ -10,9 +10,10 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { AssistantSheet } from "@/components/assistant/assistant-sheet";
+import { CreateSheet } from "@/components/create/create-sheet";
+import { CreativeSearch } from "@/components/search/creative-search";
 import { SaveIndicator } from "@/components/shared/save-indicator";
 import { cn } from "@/lib/utils";
-import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
 type NavKey = "home" | "assistant" | "calendar" | "studio" | "assets" | "instagram";
@@ -45,8 +46,8 @@ function activeKey(pathname: string): NavKey {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const lastProjectId = useStudio((s) => s.lastProjectId);
-  const setAssistantOpen = useUi((s) => s.setAssistantOpen);
+  const setCreateOpen = useUi((s) => s.setCreateOpen);
+  const setSearchOpen = useUi((s) => s.setSearchOpen);
   const current = activeKey(pathname);
 
   function hrefFor(item: (typeof SIDE_NAV)[number]) {
@@ -58,7 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-dvh bg-bg text-fg">
-      <aside className="sticky top-0 hidden h-dvh w-[4.5rem] shrink-0 flex-col border-r border-border bg-surface lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-[4.75rem] shrink-0 flex-col border-r border-border bg-surface lg:flex">
         <Link
           to="/"
           className="flex h-14 items-center justify-center font-display text-lg tracking-tight"
@@ -69,12 +70,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav className="flex flex-1 flex-col gap-1 p-2">
           {SIDE_NAV.map((item) => {
             const active = current === item.match;
-            const dest = hrefFor(item);
             return (
               <Link
                 key={item.match}
-                to={dest.to}
-                params={"params" in dest ? dest.params : undefined}
+                to={item.to}
                 className={cn(
                   "flex min-h-12 flex-col items-center justify-center gap-1 rounded-md text-xs transition-colors",
                   active ? "bg-surface-2 text-fg" : "text-muted hover:bg-surface-2 hover:text-fg",
@@ -93,7 +92,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="flex size-11 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-fg"
             aria-label="開啟 AI 創作"
           >
-            <Sparkles className="size-4" />
+            <Plus className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="flex size-11 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-fg"
+            aria-label="搜尋素材"
+          >
+            <span className="text-sm">尋</span>
           </button>
           <SaveIndicator />
         </div>
@@ -134,5 +141,30 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       <AssistantSheet />
     </div>
+  );
+}
+
+function MobileLink({
+  to,
+  label,
+  active,
+  icon: Icon,
+}: {
+  to: string;
+  label: string;
+  active: boolean;
+  icon: LucideIcon;
+}) {
+  return (
+    <Link
+      to={to}
+      className={cn(
+        "flex h-14 min-h-11 flex-col items-center justify-center gap-1 text-xs",
+        active ? "text-fg" : "text-muted",
+      )}
+    >
+      <Icon className="size-4" />
+      {label}
+    </Link>
   );
 }

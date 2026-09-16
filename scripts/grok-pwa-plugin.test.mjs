@@ -22,6 +22,10 @@ import { renderInstallPage } from "./grok-pwa-plugin.mjs";
 const TEMPLATE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const EMPTY_ROOT = mkdtempSync(join(tmpdir(), "grok-pwa-empty-root-"));
 
+function isolated(ctx = {}) {
+  return { cwd: mkdtempSync(join(tmpdir(), "grok-pwa-iso-")), ...ctx };
+}
+
 test("injects before </head>", () => {
   const out = injectGrokPwaHead("<html><head><title>x</title></head><body></body></html>");
   assert.match(out, /rel="manifest"/);
@@ -245,7 +249,7 @@ test("site title Grok App is a real name, not a sentinel", () => {
 });
 
 test("published grok.me slug is still a title fallback", () => {
-  const out = injectGrokPwaHead("<html><head></head></html>", {
+  const out = injectGrokPwaHead("<html><head></head></html>", isolated({
     host: "wild-race.grok.me",
     cwd: EMPTY_ROOT,
   });
@@ -305,12 +309,12 @@ test("vercel Host without a public hostname emits no og:image", () => {
 });
 
 test("emits og:image for a public host and prefers a custom card", () => {
-  const placeholder = injectGrokPwaHead("<html><head></head></html>", {
+  const placeholder = injectGrokPwaHead("<html><head></head></html>", isolated({
     appName: "Wild Race",
     host: "wild-race.grok.me",
     cwd: EMPTY_ROOT,
     site: { title: "Wild Race" },
-  });
+  }));
   assert.match(
     placeholder,
     /property="og:image" content="https:\/\/og\.grok\.me\/v1\/card\.png\?host=wild-race\.grok\.me&amp;title=Wild%20Race"/,
@@ -328,21 +332,21 @@ test("emits og:image for a public host and prefers a custom card", () => {
 });
 
 test("placeholder og:image appends site.color when it is 6-digit hex", () => {
-  const themed = injectGrokPwaHead("<html><head></head></html>", {
+  const themed = injectGrokPwaHead("<html><head></head></html>", isolated({
     host: "wild-race.grok.me",
     cwd: EMPTY_ROOT,
     site: { title: "Wild Race", color: "#FF4D2E" },
-  });
+  }));
   assert.match(
     themed,
     /property="og:image" content="https:\/\/og\.grok\.me\/v1\/card\.png\?host=wild-race\.grok\.me&amp;title=Wild%20Race&amp;color=FF4D2E"/,
   );
 
-  const invalid = injectGrokPwaHead("<html><head></head></html>", {
+  const invalid = injectGrokPwaHead("<html><head></head></html>", isolated({
     host: "wild-race.grok.me",
     cwd: EMPTY_ROOT,
     site: { title: "Wild Race", color: "red" },
-  });
+  }));
   assert.doesNotMatch(invalid, /color=/);
 
   const custom = injectGrokPwaHead("<html><head></head></html>", {

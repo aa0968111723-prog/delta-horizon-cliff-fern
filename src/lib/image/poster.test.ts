@@ -1,0 +1,61 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { clipLines, composePosterSvg, moodFromVariation, variationForFormat, xmlText } from "./poster.ts";
+
+test("poster svg is valid xml with student hook text", () => {
+  const svg = composePosterSvg({
+    hook: "最近是不是很久沒有好好坐下來？",
+    eventName: "茶會",
+    schedule: "9/23 19:30",
+    location: "淡江校園",
+    mood: "sit",
+  });
+  assert.match(svg, /<svg xmlns=/);
+  assert.match(svg, /最近是不是很久沒/);
+  assert.equal(svg.includes("誠摯邀請"), false);
+  assert.equal(/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(svg), false);
+});
+
+test("xmlText escapes markup and clipLines keep short IG lines", () => {
+  assert.equal(xmlText(`a&b<c>"`), "a&amp;b&lt;c&gt;&quot;");
+  assert.deepEqual(clipLines("最近是不是很久沒有好好坐下來？", 12, 2), ["最近是不是很久沒有好好坐", "下來？"]);
+});
+
+test("variations map to poster moods without inventing religious art", () => {
+  assert.equal(moodFromVariation("mood"), "night");
+  assert.equal(moodFromVariation("style"), "lights");
+  assert.equal(moodFromVariation("compose"), "split");
+  assert.equal(moodFromVariation("background"), "tamsui");
+  assert.equal(moodFromVariation(undefined), "sit");
+});
+
+test("compose and background posters are visually distinct from regen", () => {
+  const sit = composePosterSvg({ hook: "最近是不是很久沒有好好坐下來？", mood: "sit" });
+  const split = composePosterSvg({ hook: "最近是不是很久沒有好好坐下來？", mood: "split" });
+  const tamsui = composePosterSvg({ hook: "最近是不是很久沒有好好坐下來？", mood: "tamsui" });
+  assert.match(sit, /data-mood="sit"/);
+  assert.match(split, /data-mood="split"/);
+  assert.match(tamsui, /data-mood="tamsui"/);
+  assert.notEqual(sit, split);
+  assert.notEqual(sit, tamsui);
+});
+
+test("story extend uses a night-safe variation, not the same regen poster", () => {
+  assert.equal(variationForFormat("story"), "mood");
+  assert.equal(moodFromVariation(variationForFormat("story")), "night");
+  assert.equal(variationForFormat("reels-cover"), "style");
+  assert.equal(variationForFormat("feed-portrait"), "regen");
+});
+
+test("story posters center copy on 9:16", () => {
+  const svg = composePosterSvg({
+    hook: "明天這個點，燈會先亮。",
+    eventName: "浮游禪光",
+    width: 1080,
+    height: 1920,
+  });
+  assert.match(svg, /viewBox="0 0 1080 1920"/);
+  assert.match(svg, /width="1080"/);
+  assert.match(svg, /height="1920"/);
+  assert.match(svg, /x="540"/);
+});

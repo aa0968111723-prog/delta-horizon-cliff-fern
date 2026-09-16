@@ -26,12 +26,14 @@ import { hashtagsFromOutcomes, mergeHashtagMemory } from "@/lib/creative/learnin
 import { toBriefInput } from "@/lib/ai/payload";
 import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
 import { emptyBrief, formatsFromBrief, migrateBrief } from "@/lib/studio/brief";
+import { lessonPrompt } from "@/lib/club/insights";
 import { FORMATS } from "@/lib/studio/formats";
 import type { Brief, FormatId, Project } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
+import { useCreative } from "@/stores/creative-store";
 import { useUi } from "@/stores/ui-store";
 
 type Props = {
