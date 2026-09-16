@@ -176,6 +176,7 @@ function LayerNode({
     const src = urls[layer.assetId];
     inner = src ? (
       <img
+        data-testid="artboard-photo"
         src={src}
         alt=""
         draggable={false}

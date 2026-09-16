@@ -6,6 +6,7 @@ import { emptyCopy } from "./copy.ts";
 import { pagesOf } from "./layers.ts";
 import { buildLayout, extractImageAssetId } from "./layout.ts";
 import { uid } from "./ids.ts";
+import { paintAssetOnProject } from "./pack-visual.ts";
 import { kindUsesPagedLayout } from "./status.ts";
 import type { Project } from "./types.ts";
 
@@ -78,6 +79,38 @@ test("applyKindLayout turns one photo into a multi-page carousel", () => {
   assert.notEqual(headlines[1], headlines[0]);
   assert.ok(new Set(headlines.filter(Boolean)).size >= 4, `headlines were ${headlines.join(" / ")}`);
   assert.ok(pages.some((page) => extractImageAssetId(page) === "asset_photo"));
+});
+
+test("painting then laying out a no-photo page puts the photo on the product cover", () => {
+  const brand = createEmptyBrand("禪學社");
+  const source = sampleProject();
+  const blank = buildLayout("feed-portrait", source.copy, brand, "editorial");
+  const unpainted = {
+    ...source,
+    templateId: "editorial" as const,
+    artboards: { "feed-portrait": blank },
+    slides: { "feed-portrait": [blank] },
+  };
+  assert.equal(extractImageAssetId(pagesOf(unpainted)[0]), null);
+  const painted = paintAssetOnProject(unpainted, "asset_dusk");
+  const next = applyKindLayout(painted, brand, "carousel");
+  const cover = pagesOf(next)[0];
+  assert.equal(cover?.role, "cover");
+  assert.equal(extractImageAssetId(cover), "asset_dusk");
+  assert.equal(
+    cover?.layers.some((layer) => layer.name === "主視覺色塊"),
+    false,
+  );
+  const stillBlank = applyKindLayout(unpainted, brand, "carousel");
+  const blankCover = pagesOf(stillBlank)[0];
+  assert.ok(blankCover?.layers.some((layer) => layer.name === "主視覺色塊"));
+  const swapped = paintAssetOnProject(stillBlank, "asset_dusk");
+  const swappedCover = pagesOf(swapped)[0];
+  assert.equal(extractImageAssetId(swappedCover), "asset_dusk");
+  assert.equal(
+    swappedCover?.layers.some((layer) => layer.name === "主視覺色塊"),
+    false,
+  );
 });
 
 test("applyKindLayout turns one photo into a 3-page story", () => {

@@ -645,6 +645,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       if (payload.caption) {
         setCopy(project.id, { headline: payload.caption.slice(0, 24), caption: payload.caption });
       }
+      applyVisualToPack(project.id, assetId);
       if (payload.kind === "carousel") {
         const cue = imageCueFromTexts(payload.caption, payload.summary);
         try {

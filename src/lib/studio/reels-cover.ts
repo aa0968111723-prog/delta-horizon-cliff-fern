@@ -1,4 +1,5 @@
-import type { Artboard, ReelsScript } from "./types.ts";
+import { DEFAULT_CROP, DEFAULT_FILTER } from "./layers.ts";
+import type { Artboard, ImageLayer, ReelsScript, ShapeLayer } from "./types.ts";
 
 /** 依腳本寫出可送去生圖的封面 prompt。不帶字幕、不含宗教符號。 */
 export function coverImagePrompt(reels: Pick<ReelsScript, "hook" | "cover" | "beats">): string {
@@ -34,12 +35,40 @@ export function shotListText(reels: ReelsScript): string {
   return [`封面：${reels.cover}`, `Hook：${reels.hook}`, "", "拍攝順序", shots].join("\n");
 }
 
+/** 產品模版沒有照片時會先放「主視覺色塊」；套圖時換成同位置的照片層。 */
+function heroShapeToImage(layer: ShapeLayer, assetId: string): ImageLayer {
+  return {
+    id: layer.id,
+    name: "主視覺",
+    type: "image",
+    x: layer.x,
+    y: layer.y,
+    w: layer.w,
+    h: layer.h,
+    rotation: layer.rotation,
+    opacity: layer.opacity,
+    locked: layer.locked,
+    hidden: layer.hidden,
+    fromLayout: layer.fromLayout,
+    assetId,
+    objectFit: "cover",
+    crop: { ...DEFAULT_CROP },
+    filter: { ...DEFAULT_FILTER },
+    radius: layer.radius ?? 0,
+    shadow: layer.shadow,
+  };
+}
+
 export function applyAssetToArtboard(artboard: Artboard, assetId: string): Artboard {
   let found = false;
   const layers = artboard.layers.map((layer) => {
     if (layer.type === "image") {
       found = true;
       return { ...layer, assetId };
+    }
+    if (layer.type === "shape" && layer.name === "主視覺色塊") {
+      found = true;
+      return heroShapeToImage(layer, assetId);
     }
     return layer;
   });

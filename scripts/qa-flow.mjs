@@ -458,6 +458,13 @@ try {
   record("做成輪播畫布比例", carouselRatio === "4:5", `畫布是 ${carouselRatio ?? "沒有比例"}`);
   const carouselFormat = await page.getByTestId("artboard").first().getAttribute("data-format");
   record("做成輪播畫布格式", carouselFormat === "feed-portrait", `格式是 ${carouselFormat ?? "沒有格式"}`);
+  await page.waitForSelector('[data-testid="artboard-photo"]', { timeout: 15000 });
+  const carouselPhoto = await page
+    .getByTestId("artboard")
+    .first()
+    .locator("[data-testid=artboard-photo]")
+    .count();
+  record("做成輪播封面有照片", carouselPhoto > 0, "封面沒有主視覺照片");
   await page.screenshot({ path: `${prefix}-from-image-carousel.png` });
 
   await page.goto(`${base}/instagram`, { waitUntil: "networkidle" });

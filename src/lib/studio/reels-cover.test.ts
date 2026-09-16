@@ -84,3 +84,58 @@ test("applyAssetToArtboard replaces image layer or becomes background", () => {
   assert.equal(bg.background.type, "image");
   assert.equal(bg.background.assetId, "cover-2");
 });
+
+test("applyAssetToArtboard turns 主視覺色塊 into the photo", () => {
+  const board: Artboard = {
+    formatId: "feed-portrait",
+    background: { type: "solid", color: "#F7F1E8" },
+    layers: [
+      {
+        id: "block",
+        name: "主視覺色塊",
+        type: "shape",
+        x: 0,
+        y: 0,
+        w: 1080,
+        h: 756,
+        rotation: 0,
+        opacity: 1,
+        locked: false,
+        hidden: false,
+        fromLayout: true,
+        shape: "rect",
+        fill: "#1A7A6D",
+        radius: 0,
+      },
+      {
+        id: "panel",
+        name: "資訊底板",
+        type: "shape",
+        x: 0,
+        y: 728,
+        w: 1080,
+        h: 624,
+        rotation: 0,
+        opacity: 1,
+        locked: false,
+        hidden: false,
+        fromLayout: true,
+        shape: "rect",
+        fill: "#F7F1E8",
+        radius: 36,
+      },
+    ],
+  };
+  const next = applyAssetToArtboard(board, "asset_dusk");
+  const hero = next.layers[0];
+  assert.equal(hero?.type, "image");
+  assert.equal(hero && hero.type === "image" ? hero.assetId : "", "asset_dusk");
+  assert.equal(hero?.name, "主視覺");
+  assert.equal(hero?.w, 1080);
+  assert.equal(hero?.h, 756);
+  assert.equal(
+    next.layers.some((layer) => layer.name === "主視覺色塊"),
+    false,
+  );
+  assert.equal(next.layers.some((layer) => layer.name === "資訊底板"), true);
+});
