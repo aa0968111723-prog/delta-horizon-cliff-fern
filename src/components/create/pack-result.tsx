@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Layers } from "lucide-react";
+import { applyFormatSuite } from "@/components/create/apply-suite";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { createCanvaDraft } from "@/lib/ai/oauth";
@@ -12,13 +14,20 @@ export function PackResult({
   pack,
   compact,
   onApply,
+  campaignId,
+  onSuiteDone,
 }: {
   pack: CreativePack;
   compact?: boolean;
   onApply?: (directionId?: string) => void | Promise<void>;
+  campaignId?: string | null;
+  onSuiteDone?: (result: { count: number; scheduled: number }) => void | Promise<void>;
 }) {
   const converted = convertFromPlan(pack.plan);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [suiteBusy, setSuiteBusy] = useState(false);
+  const [pickedId, setPickedId] = useState(pack.directions?.[0]?.id);
+  const locked = Boolean(busyId) || suiteBusy;
   return (
     <div className={cn("rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-border)] md:p-6", compact && "p-4")}>
       <p className="text-xs text-muted">
@@ -35,7 +44,10 @@ export function PackResult({
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         {(pack.directions ?? []).map((dir) => (
-          <article key={dir.id} className="rounded-2xl bg-bg p-4">
+          <article
+            key={dir.id}
+            className={cn("rounded-2xl bg-bg p-4", pickedId === dir.id && "ring-2 ring-accent/40")}
+          >
             <p className="text-xs text-muted">{dir.title}</p>
             <p className="mt-1 text-sm font-medium">{dir.concept}</p>
             <p className="mt-2 text-xs text-muted">{dir.palette}</p>
@@ -43,17 +55,55 @@ export function PackResult({
               <Button
                 className="mt-3 w-full"
                 size="sm"
-                disabled={Boolean(busyId)}
+                disabled={locked}
                 onClick={() => {
+                  setPickedId(dir.id);
                   setBusyId(dir.id);
                   void Promise.resolve(onApply(dir.id)).finally(() => setBusyId(null));
                 }}
               >
                 {busyId === dir.id ? "生成主視覺中…" : "生成這個方向的主視覺"}
               </Button>
-            ) : null}
+            ) : (
+              <Button
+                className="mt-3 w-full"
+                size="sm"
+                variant={pickedId === dir.id ? "default" : "secondary"}
+                onClick={() => setPickedId(dir.id)}
+              >
+                {pickedId === dir.id ? "已選這個方向" : "用這個方向做整套"}
+              </Button>
+            )}
           </article>
         ))}
+      </div>
+      <div className="mt-4 rounded-2xl bg-bg p-4">
+        <p className="text-xs text-muted">一篇做成六種格式，錯開幾晚再發</p>
+        <p className="mt-1 text-sm">Post · Story · Carousel · Reels · Threads · LINE</p>
+        <Button
+          className="mt-3 min-h-11 w-full"
+          disabled={locked}
+          onClick={() => {
+            setSuiteBusy(true);
+            void applyFormatSuite({
+              pack,
+              directionId: pickedId,
+              campaignId,
+            })
+              .then((result) => {
+                if (!result.ok) {
+                  toast.error(result.error);
+                  return;
+                }
+                toast.success(`已做成 ${result.count} 種格式並排進日曆`);
+                return onSuiteDone?.(result);
+              })
+              .finally(() => setSuiteBusy(false));
+          }}
+        >
+          <Layers className="size-4" />
+          {suiteBusy ? "正在做成整套…" : "做成整套並排進日曆"}
+        </Button>
       </div>
       {!compact ? (
         <>

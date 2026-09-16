@@ -241,7 +241,12 @@ export function CreateHub() {
 
       {lastPack ? (
         <section className="mt-8">
-          <PackResult pack={lastPack} onApply={applyDirection} />
+          <PackResult
+            pack={lastPack}
+            campaignId={ideaCampaignId}
+            onApply={applyDirection}
+            onSuiteDone={() => navigate({ to: "/calendar" })}
+          />
           {ideaCampaignId ? (
             <div className="mt-3 flex flex-wrap gap-2">
               <Button variant="secondary" asChild>

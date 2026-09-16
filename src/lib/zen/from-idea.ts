@@ -1,3 +1,4 @@
+import { CONVERT_TARGETS, captionForTarget, convertFromPlan } from "./convert.ts";
 import { todayIso } from "./season.ts";
 import { applyPackToWaves, emptyCampaign, suggestWaves } from "./schedule.ts";
 import type { CampaignType, ClubCampaign, CreativePack } from "./types.ts";
@@ -111,6 +112,22 @@ export function convertStaggerDays(id: string) {
   if (id === "story") return 1;
   if (id === "threads") return 2;
   if (id === "carousel") return 3;
+  if (id === "line") return 4;
   if (id === "reels") return 5;
   return 0;
+}
+
+export function formatSuitePlan(pack: CreativePack) {
+  const converted = convertFromPlan(pack.plan);
+  return CONVERT_TARGETS.map((target) => ({
+    id: target.id,
+    label: target.label,
+    formatId: target.formatId,
+    contentKind: target.contentKind,
+    days: convertStaggerDays(target.id),
+    caption: captionForTarget(converted, target.id),
+    generate: target.id === "post" || target.id === "story" || target.id === "reels" || target.id === "threads",
+    reuseFrom:
+      target.id === "carousel" ? ("post" as const) : target.id === "line" ? ("threads" as const) : null,
+  }));
 }

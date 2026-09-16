@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildMockPlan } from "../ai/mock.ts";
-import { convertStaggerDays, materializeCampaignFromPack, parseEventIdea } from "./from-idea.ts";
+import { convertStaggerDays, formatSuitePlan, materializeCampaignFromPack, parseEventIdea } from "./from-idea.ts";
 
 const now = new Date("2026-09-16T12:00:00+08:00");
 
@@ -96,8 +96,71 @@ test("convertStaggerDays keeps formats off the same night", () => {
   assert.equal(convertStaggerDays("story"), 1);
   assert.equal(convertStaggerDays("threads"), 2);
   assert.equal(convertStaggerDays("carousel"), 3);
+  assert.equal(convertStaggerDays("line"), 4);
   assert.equal(convertStaggerDays("reels"), 5);
-  assert.ok(new Set(["post", "story", "threads", "carousel", "reels"].map(convertStaggerDays)).size === 5);
+  assert.equal(new Set(["post", "story", "threads", "carousel", "line", "reels"].map(convertStaggerDays)).size, 6);
+});
+
+test("formatSuitePlan reuses post for carousel and threads for LINE", () => {
+  const plan = buildMockPlan({
+    eventName: "茶會",
+    schedule: "2026-09-23 19:30",
+    location: "淡江大學淡水校園",
+    product: "茶會",
+    offer: "",
+    audience: "淡江大學學生",
+    goal: "awareness",
+    features: "坐下來",
+    style: "",
+    notes: "",
+    wantPost: true,
+    wantStory: true,
+    wantCarousel: true,
+    wantReels: true,
+    brandName: "淡江大學禪學社",
+    handle: "@tkuzen",
+    voice: "",
+    doSay: "",
+    dontSay: "",
+    forbiddenWords: [],
+  });
+  const suite = formatSuitePlan({
+    campaignName: plan.campaignName,
+    insight: plan.insight,
+    studentContext: "淡江大學學生",
+    foundCount: 3,
+    citedSources: [],
+    directions: plan.visualDirections,
+    plan,
+    copy: {
+      hook: plan.hook,
+      body: plan.captions[0]?.text ?? "",
+      cta: plan.cta,
+      hashtags: plan.hashtags,
+      variants: plan.captions,
+      studentReview: plan.studentReview ?? {
+        wouldStop: "",
+        understandable: "",
+        tooReligious: "",
+        tooSerious: "",
+        tooLiterary: "",
+        tooAi: "",
+        tooLong: "",
+        knowsWhat: "",
+        knowsWhenWhere: "",
+        wouldBringFriend: "",
+        knowsSignup: "",
+        notes: [],
+        rewriteHook: "",
+      },
+    },
+  });
+  assert.equal(suite.length, 6);
+  assert.equal(new Set(suite.map((step) => step.days)).size, 6);
+  assert.equal(suite.find((step) => step.id === "carousel")?.reuseFrom, "post");
+  assert.equal(suite.find((step) => step.id === "line")?.reuseFrom, "threads");
+  assert.equal(suite.filter((step) => step.generate).length, 4);
+  assert.ok(suite.every((step) => step.caption.length > 0));
 });
 
 test("materializeCampaignFromPack reuses floating light date", () => {

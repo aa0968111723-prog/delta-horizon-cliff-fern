@@ -289,10 +289,22 @@ export function HomePage() {
           <PackResult
             compact
             pack={lastPack}
+            campaignId={
+              campaigns.find(
+                (campaign) =>
+                  campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name),
+              )?.id ?? featured?.id
+            }
             onApply={async (directionId) => {
+              const campaignId =
+                campaigns.find(
+                  (campaign) =>
+                    campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name),
+                )?.id ?? featured?.id;
               const result = await applyVisualDirection({
                 pack: lastPack,
                 directionId,
+                campaignId,
               });
               if (!result.ok) {
                 toast.error(result.error);
@@ -301,6 +313,7 @@ export function HomePage() {
               toast.success("已生成主視覺，打開 IG Preview");
               void navigate({ to: "/instagram" });
             }}
+            onSuiteDone={() => navigate({ to: "/calendar" })}
           />
         </section>
       ) : null}

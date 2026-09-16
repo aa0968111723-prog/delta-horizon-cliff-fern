@@ -329,6 +329,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
         <section className="mt-6">
           <PackResult
             pack={lastPack}
+            campaignId={campaign.id}
             onApply={async (directionId) => {
               const result = await applyVisualDirection({
                 pack: lastPack,
@@ -342,6 +343,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               toast.success("已生成主視覺，打開 IG Preview");
               void navigate({ to: "/instagram" });
             }}
+            onSuiteDone={() => navigate({ to: "/calendar" })}
           />
           <ConvertPanel pack={lastPack} campaignId={campaign.id} />
         </section>
