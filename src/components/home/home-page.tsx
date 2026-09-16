@@ -22,6 +22,7 @@ import { APP_NAME, APP_TAGLINE, CLUB_SHORT } from "@/lib/zen/club";
 import { igDnaBlock } from "@/lib/zen/insights";
 import { clientMemoryLines } from "@/lib/zen/ingest";
 import { INSPIRATION_SEEDS } from "@/lib/zen/inspiration";
+import { applyPackToWaves } from "@/lib/zen/schedule";
 import { daysUntil, formatMd, seasonContext } from "@/lib/zen/season";
 import { creativeSearch, groupSearchHits, type SearchHit } from "@/lib/zen/search";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
@@ -41,6 +42,8 @@ export function HomePage() {
   const memory = useCreative((s) => s.memory);
   const setLastPack = useCreative((s) => s.setLastPack);
   const lastPack = useCreative((s) => s.lastPack);
+  const upsertCampaign = useCreative((s) => s.upsertCampaign);
+  const attachProject = useCreative((s) => s.attachProject);
   const setCreateIntent = useCreative((s) => s.setCreateIntent);
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -118,6 +121,7 @@ export function HomePage() {
         return;
       }
       setLastPack(result.pack);
+      upsertCampaign(applyPackToWaves(featured, result.pack));
       const project = createProject({
         name: result.pack.campaignName,
         brandId: brand.id,
@@ -126,7 +130,12 @@ export function HomePage() {
         templateId: result.pack.plan.templateId,
       });
       applyCampaignPlan(project.id, result.pack.plan, brief);
-      toast.success(result.adapter === "mock" ? "已生成本機草案" : "AI 已完成一組宣傳");
+      attachProject(featured.id, project.id);
+      toast.success(
+        result.adapter === "mock"
+          ? `已生成本機草案，並排進「${featured.name}」日曆節奏`
+          : `AI 已完成一組宣傳，並排進「${featured.name}」日曆節奏`,
+      );
       void navigate({ to: "/create" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "生成失敗");
@@ -141,7 +150,8 @@ export function HomePage() {
       <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl tracking-tight md:text-4xl">{APP_NAME}</h1>
-          <p className="mt-2 max-w-xl text-sm text-muted">
+          <p className="mt-2 max-w-xl text-base text-fg">今天可以創作什麼？</p>
+          <p className="mt-1 max-w-xl text-sm text-muted">
             {CLUB_SHORT}一人創作台。{season.label} · {season.studentNow}
           </p>
         </div>
@@ -251,9 +261,14 @@ export function HomePage() {
         <section className="mt-8">
           <div className="mb-3 flex items-end justify-between">
             <h2 className="text-sm font-medium">剛才 AI 生成</h2>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/create">繼續修</Link>
-            </Button>
+            <div className="flex gap-1">
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/calendar">看日曆節奏</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/create">繼續修</Link>
+              </Button>
+            </div>
           </div>
           <PackResult compact pack={lastPack} />
         </section>
@@ -264,6 +279,7 @@ export function HomePage() {
         <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
           {(
             [
+              { label: "從一句想法開始", to: "/create", intent: { idea: "最近是不是連休息都覺得有罪惡感？", kind: "emotion", autoGenerate: true } },
               { label: "生成 IG 貼文", to: "/create", intent: { idea: "下週有一場茶會", kind: "event", autoGenerate: false } },
               { label: "生成圖片", to: "/create/image" },
               { label: "從一張圖片開始", to: "/create/image" },

@@ -14,12 +14,19 @@ import {
   tonightAt,
   type ConvertTargetId,
 } from "@/lib/zen/convert";
+import { convertStaggerDays } from "@/lib/zen/from-idea";
 import type { CreativePack } from "@/lib/zen/types";
 import { uid } from "@/lib/studio/ids";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
-export function ConvertPanel({ pack }: { pack: CreativePack }) {
+export function ConvertPanel({
+  pack,
+  campaignId,
+}: {
+  pack: CreativePack;
+  campaignId?: string | null;
+}) {
   const navigate = useNavigate();
   const brands = useStudio((s) => s.brands);
   const createProject = useStudio((s) => s.createProject);
@@ -58,13 +65,14 @@ export function ConvertPanel({ pack }: { pack: CreativePack }) {
       title: `${pack.copy.hook} · ${target.label}`,
       contentKind: target.contentKind,
       status: "scheduled",
-      scheduledAt: tonightAt(2),
+      scheduledAt: tonightAt(convertStaggerDays(id)),
       publishedAt: null,
       projectId: null,
-      campaignId: null,
+      campaignId: campaignId ?? null,
       captionPreview: captionForTarget(converted, id),
     });
-    toast.success(`已排進日曆（${target.label}）`);
+    const days = convertStaggerDays(id);
+    toast.success(days ? `已排進日曆（${target.label}，${days} 天後）` : `已排進日曆（${target.label}，今晚）`);
     void navigate({ to: "/calendar" });
   }
 

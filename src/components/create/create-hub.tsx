@@ -14,6 +14,8 @@ import { migrateBrief } from "@/lib/studio/brief";
 import type { CopyPack } from "@/lib/zen/types";
 import { igDnaBlock } from "@/lib/zen/insights";
 import { clientMemoryLines } from "@/lib/zen/ingest";
+import { materializeCampaignFromPack, parseEventIdea } from "@/lib/zen/from-idea";
+import { seasonContext } from "@/lib/zen/season";
 import { applyStudentRewrite } from "@/lib/zen/review";
 import { COPY_KIND_OPTIONS, type CopyKindId } from "@/lib/zen/voice";
 import { useCreative } from "@/stores/creative-store";
@@ -30,8 +32,11 @@ export function CreateHub() {
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const lastPack = useCreative((s) => s.lastPack);
   const setLastPack = useCreative((s) => s.setLastPack);
+  const upsertCampaign = useCreative((s) => s.upsertCampaign);
   const memory = useCreative((s) => s.memory);
   const igPosts = useCreative((s) => s.igPosts);
+  const campaigns = useCreative((s) => s.campaigns);
+  const [ideaCampaignId, setIdeaCampaignId] = useState<string | null>(null);
   const intentTick = useCreative((s) => s.createIntent ?? s.searchQuery);
   const [idea, setIdea] = useState("下週有一場茶會");
   const [copyKind, setCopyKind] = useState<CopyKindId>("event");
@@ -56,17 +61,29 @@ export function CreateHub() {
     }
   }, [intentTick]);
 
+  useEffect(() => {
+    if (!lastPack || ideaCampaignId) return;
+    const match = campaigns.find(
+      (campaign) =>
+        campaign.name === lastPack.campaignName || lastPack.campaignName.includes(campaign.name),
+    );
+    if (match) setIdeaCampaignId(match.id);
+  }, [lastPack, campaigns, ideaCampaignId]);
+
   async function runPack(nextIdea = idea) {
     if (!brand) return;
     setBusy(true);
     try {
+      const parsed = parseEventIdea(nextIdea);
+      const season = seasonContext();
       const brief = migrateBrief({
-        eventName: nextIdea.slice(0, 40),
+        eventName: parsed.name,
+        schedule: `${parsed.date} ${parsed.time}`,
+        location: parsed.location,
         product: nextIdea,
         audience: "淡江大學學生",
-        location: "淡江大學淡水校園",
         goal: "awareness",
-        notes: nextIdea,
+        notes: `${nextIdea}\n${season.label}：${season.studentNow}\n${season.contentHint}`,
         deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
       });
       const result = await generateCreativePack({
@@ -80,7 +97,14 @@ export function CreateHub() {
         return;
       }
       setLastPack(result.pack);
-      toast.success("已生成 3 個方向與完整宣傳");
+      const campaign = materializeCampaignFromPack({
+        idea: nextIdea,
+        pack: result.pack,
+        campaigns,
+      });
+      upsertCampaign(campaign);
+      setIdeaCampaignId(campaign.id);
+      toast.success(`已生成 3 個方向，並排進「${campaign.name}」日曆節奏`);
     } finally {
       setBusy(false);
     }
@@ -163,7 +187,19 @@ export function CreateHub() {
       {lastPack ? (
         <section className="mt-8">
           <PackResult pack={lastPack} onApply={applyDirection} />
-          <ConvertPanel pack={lastPack} />
+          {ideaCampaignId ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button variant="secondary" asChild>
+                <Link to="/campaigns/$campaignId" params={{ campaignId: ideaCampaignId }}>
+                  打開這檔活動
+                </Link>
+              </Button>
+              <Button variant="ghost" asChild>
+                <Link to="/calendar">看日曆節奏</Link>
+              </Button>
+            </div>
+          ) : null}
+          <ConvertPanel pack={lastPack} campaignId={ideaCampaignId} />
         </section>
       ) : null}
 

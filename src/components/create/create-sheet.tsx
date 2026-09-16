@@ -25,7 +25,7 @@ const ACTIONS = [
   { id: "carousel", label: "生成 Carousel", hint: "Hook 到 CTA 六頁", to: "/create", kind: "carousel", idea: "下週茶會 Carousel，第一頁先講生活", auto: true },
   { id: "reels", label: "生成 Reels", hint: "0–20 秒分鏡", to: "/create", kind: "reels", idea: "茶會 Reels，前三秒先讓淡江學生停下來", auto: true },
   { id: "campaign", label: "建立活動", hint: "茶會、禪光、社課", to: "/campaigns" },
-  { id: "idea", label: "從一句想法開始", hint: "先寫感覺再變內容", to: "/create", kind: "emotion", idea: "最近是不是連休息都覺得有罪惡感？", auto: false },
+  { id: "idea", label: "從一句想法開始", hint: "先寫感覺再變內容", to: "/create", kind: "emotion", idea: "最近是不是連休息都覺得有罪惡感？", auto: true },
   { id: "photo", label: "從一張圖片開始", hint: "理解畫面再延伸", to: "/create/image" },
   { id: "qa", label: "生成 Q&A", hint: "學生會問的事", to: "/create", kind: "qa", idea: "禪學社是在做什麼？要先懂禪嗎？", auto: true },
   { id: "poll", label: "生成互動投票", hint: "限動互動", to: "/create", kind: "poll", idea: "最近比較像課表塞滿，還是晚上不知道要幹嘛？", auto: true },

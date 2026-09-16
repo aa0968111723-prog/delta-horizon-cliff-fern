@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { createCanvaDraft } from "@/lib/ai/oauth";
 import { canvaDraftNotes, canvaPresetForKind } from "@/lib/zen/canva-draft";
+import { convertFromPlan } from "@/lib/zen/convert";
 import type { CreativePack } from "@/lib/zen/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -15,6 +16,7 @@ export function PackResult({
   compact?: boolean;
   onApply?: (directionId?: string) => void;
 }) {
+  const converted = convertFromPlan(pack.plan);
   return (
     <div className={cn("rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-border)] md:p-6", compact && "p-4")}>
       <p className="text-xs text-muted">
@@ -48,8 +50,38 @@ export function PackResult({
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <Block title="IG Caption" body={pack.copy.body} />
             <Block title="學生視角" body={reviewText(pack)} />
-            <Block title="Threads" body={pack.plan.threadsPost || ""} />
-            <Block title="LINE" body={pack.plan.lineCopy || ""} />
+            <Block title="Threads" body={pack.plan.threadsPost || converted.threads} />
+            <Block title="LINE" body={pack.plan.lineCopy || converted.line} />
+          </div>
+          <div className="mt-6">
+            <p className="text-xs text-muted">Carousel</p>
+            <ol className="mt-2 grid gap-2 md:grid-cols-2">
+              {converted.carousel.map((page, i) => (
+                <li key={`${page.role}-${i}`} className="rounded-2xl bg-bg p-3">
+                  <p className="text-xs text-muted">
+                    Page {i + 1} · {page.role}
+                  </p>
+                  <p className="mt-1 text-sm font-medium">{page.headline.replace(/\n/g, " ")}</p>
+                  <p className="mt-1 text-xs text-muted">{page.body}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div className="mt-6">
+            <p className="text-xs text-muted">Reels</p>
+            <ol className="mt-2 space-y-2">
+              {converted.reels.map((beat) => (
+                <li key={`${beat.startSec}-${beat.endSec}`} className="rounded-2xl bg-bg p-3">
+                  <p className="text-xs text-muted">
+                    {beat.startSec}–{beat.endSec} 秒 · {beat.transition}
+                  </p>
+                  <p className="mt-1 text-sm font-medium">{beat.caption}</p>
+                  <p className="mt-1 text-xs text-muted">
+                    畫面 {beat.visual} · 旁白 {beat.voiceover} · 素材 {beat.assetHint}
+                  </p>
+                </li>
+              ))}
+            </ol>
           </div>
           <Button
             className="mt-4"

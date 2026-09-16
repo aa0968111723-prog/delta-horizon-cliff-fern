@@ -2,6 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { ConvertPanel } from "@/components/create/convert-panel";
 import { PackResult } from "@/components/create/pack-result";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -316,6 +317,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
       {lastPack && lastPack.campaignName === campaign.name ? (
         <section className="mt-6">
           <PackResult pack={lastPack} />
+          <ConvertPanel pack={lastPack} campaignId={campaign.id} />
         </section>
       ) : null}
       <ol className="mt-8 space-y-2">
