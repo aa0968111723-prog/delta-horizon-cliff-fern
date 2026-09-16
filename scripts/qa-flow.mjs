@@ -351,8 +351,8 @@ try {
   // 8b. 從一張圖片：示範照片會自動用本機規則分析；上傳圖也能直接做成限動
   await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });
   await expectText("從一張圖片", "圖片理解");
-  await page.waitForSelector('button[aria-label="分析 淡水河傍晚"]', { timeout: 15000 });
-  await tap(page.getByRole("button", { name: "分析 淡水河傍晚" }));
+  await page.waitForSelector('[data-testid="analyze-asset-asset_tamsui_dusk"]', { timeout: 15000 });
+  await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
   await page.waitForSelector("text=本機規則", { timeout: 20000 });
   await expectText("圖片本機規則", "本機規則");
   await expectText("圖片適合淡江", "適合淡江學生");
@@ -408,8 +408,8 @@ try {
 
   // 8c. 從一張圖片做成 Reels：腳本 + 9:16 封面
   await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });
-  await page.waitForSelector('button[aria-label="分析 淡水河傍晚"]', { timeout: 15000 });
-  await tap(page.getByRole("button", { name: "分析 淡水河傍晚" }));
+  await page.waitForSelector('[data-testid="analyze-asset-asset_tamsui_dusk"]', { timeout: 15000 });
+  await tap(page.getByTestId("analyze-asset-asset_tamsui_dusk"));
   await page.waitForSelector("text=本機規則", { timeout: 20000 });
   await expectText("做成 Reels 會寫腳本", "做成 Reels 封面會同時寫一支 20 秒腳本");
   await tap(
