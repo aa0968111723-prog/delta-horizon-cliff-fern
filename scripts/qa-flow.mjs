@@ -251,10 +251,9 @@ try {
     el instanceof HTMLElement ? el.click() : undefined,
   );
   await expectText("IG 動態預覽", "動態預覽");
-  await expectText("IG 輪播翻頁", "下一頁");
-  await page.getByRole("button", { name: "下一頁" }).evaluate((el) =>
-    el instanceof HTMLElement ? el.click() : undefined,
-  );
+  const nextPage = page.getByRole("button", { name: "下一頁" }).first();
+  record("IG 輪播翻頁", (await nextPage.count()) > 0, "找不到下一頁");
+  await nextPage.evaluate((el) => (el instanceof HTMLElement ? el.click() : undefined));
   await page.screenshot({ path: `${prefix}-ig-feed.png` });
   await page.getByRole("button", { name: "限動" }).evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
