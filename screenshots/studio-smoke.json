@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8080/studio/proj_yirgacheffe",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "構幀",
+      "hasCanvas": false,
+      "bodyTextLen": 253,
+      "bodyTextHash": "55de08c4adaa2e2a4197d6068c26c8a9aff03f55b87be9c6ef1685af49b1404c",
+      "bodyTextPrefix": "構 首頁 助手 編輯 品牌 輸出 九月單品・耶加雪菲 1:1 4:5 1.91:1 9:16 封面 94 圖層 素材 版本 圖層",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <Primitive.div data-radix-scroll-area-viewport=\"\" className=\"size-full ...\" ref={function} style={{...}}>\n      <div data-radix-scroll-area-viewport=\"\" className=\"size-full ...\" style={{...}} ref={function}>\n        <div ref={function bound dispatchSetState} style={{minWidth:\"...\", ...}}>\n          <TabsContent value=\"inspect\">\n            <TabsContent className=\"outline-none\" value=\"inspect\">\n              <Presence present={true}>\n                <Primitive.div data-state=\"active\" data-orientation=\"horizontal\" role=\"tabpanel\" ...>\n                  <div data-state=\"active\" data-orientation=\"horizontal\" role=\"tabpanel\" aria-labelledby=\"radix-_R_6...\" ...>\n                    <Inspector projectId=\"proj_yirga...\" artboard={{formatId:\"...\", ...}} brand={{id:\"brand_...\", ...}}>\n                      <div className=\"space-y-4 p-4\">\n                        <p>\n                        <Field>\n                        <Field label=\"底色\">\n                          <div className=\"space-y-1.5\">\n                            <Label>\n                            <ColorRow value=\"#F4E6D4\" brand={{id:\"brand_...\", ...}} onChange={function onChange}>\n                              <div className=\"space-y-2\">\n                                <div>\n                                <div className=\"flex gap-2\">\n                                  <input\n                                    type=\"color\"\n                                    value=\"#F4E6D4\"\n                                    onChange={function onChange}\n                                    className=\"size-11 cursor-pointer rounded-md border border-border\"\n-                                   style={{caret-color:\"transparent\"}}\n                                  >\n                                  <Input value=\"#F4E6D4\" onChange={function onChange}>\n                                    <input\n                                      type={undefined}\n                                      className=\"flex h-11 w-full rounded-md border border-border bg-surface px-3 text...\"\n                                      value=\"#F4E6D4\"\n                                      onChange={function onChange}\n-                                     style={{caret-color:\"transparent\"}}\n                                    >\n                        ...\n          ...\n"
+      ],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/studio-smoke.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "構幀",
+      "hasCanvas": false,
+      "bodyTextLen": 156,
+      "bodyTextHash": "4b9f2b629abcaca0ee4cfab2c229898e28519586c3b9eaa3ba3d9ede11560170",
+      "bodyTextPrefix": "九月單品・耶加雪菲 適應 50% 100% 格線 SEPTEMBER SINGLE ORIGIN 衣索比亞 水洗耶加雪菲 茉莉、",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/studio-smoke-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/studio-smoke.json"
+}

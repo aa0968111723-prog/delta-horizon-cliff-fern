@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @font-face {
+        font-family: "Noto Serif TC";
+        src: url("http://og.local/NotoSerifTC.ttf") format("truetype");
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Noto Sans TC";
+        src: url("http://og.local/NotoSansTC.ttf") format("truetype");
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: block;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        background: #f3f0ea url("http://og.local/og-bg.jpg") center / cover no-repeat;
+      }
+      .lockup {
+        position: absolute;
+        left: 50%;
+        top: 49%;
+        transform: translate(-50%, -50%);
+        width: 420px;
+        text-align: center;
+      }
+      .wordmark {
+        font-family: "Noto Serif TC", serif;
+        font-weight: 600;
+        font-size: 108px;
+        line-height: 1.05;
+        color: #1a1814;
+        letter-spacing: 0.14em;
+        margin-right: -0.14em;
+        font-feature-settings: "kern" 1;
+        -webkit-font-smoothing: antialiased;
+      }
+      .rule {
+        width: 36px;
+        height: 2px;
+        background: #1e4a45;
+        margin: 28px auto 18px;
+      }
+      .caption {
+        font-family: "Noto Sans TC", sans-serif;
+        font-weight: 500;
+        font-size: 15px;
+        line-height: 1.4;
+        color: #1e4a45;
+        letter-spacing: 0.18em;
+        margin-right: -0.18em;
+        -webkit-font-smoothing: antialiased;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="lockup">
+      <div class="wordmark">構幀</div>
+      <div class="rule"></div>
+      <div class="caption">Instagram 專業網宣工作站</div>
+    </div>
+  </body>
+</html>

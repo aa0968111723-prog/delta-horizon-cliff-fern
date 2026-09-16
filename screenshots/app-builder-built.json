@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "構幀",
+      "hasCanvas": false,
+      "bodyTextLen": 718,
+      "bodyTextHash": "0e68b861f4f03eeb7f5aa473893b2af03153b016ad65494214283e8b34554035",
+      "bodyTextPrefix": "構 首頁 助手 編輯 品牌 輸出 INSTAGRAM 網宣工作台 構幀 最近作品、草稿、模板與品牌資產都在這裡。手機用底部導覽，",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "構幀",
+      "hasCanvas": false,
+      "bodyTextLen": 716,
+      "bodyTextHash": "c932eace67adba1ee5184e03d00a27f0d620d86231176dd889183a8e94f53a2b",
+      "bodyTextPrefix": "INSTAGRAM 網宣工作台 構幀 最近作品、草稿、模板與品牌資產都在這裡。手機用底部導覽，電腦可開左右面板編輯。 新建專案 ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

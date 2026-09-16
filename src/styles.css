@@ -1,0 +1,113 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "Noto Sans TC", "PingFang TC", "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Noto Serif TC", "Source Han Serif TC", "Noto Serif", ui-serif, serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --color-bg: #f3f0ea;
+  --color-surface: #fffcf7;
+  --color-surface-2: #ebe6dc;
+  --color-fg: #1a1814;
+  --color-muted: #6f6a63;
+  --color-subtle: #9a948c;
+  --color-border: #ddd6ca;
+  --color-border-strong: #c9c1b4;
+  --color-accent: #1e4a45;
+  --color-accent-fg: #f3f0ea;
+  --color-danger: #a33b2a;
+  --color-warn: #9a6b2f;
+  --color-success: #2f6a4a;
+  --color-ring: #1e4a45;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 28px;
+
+  --spacing-nav: 3.5rem;
+  --spacing-nav-safe: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  --spacing-header: 3.5rem;
+
+  --shadow-border:
+    0px 0px 0px 1px rgba(26, 24, 20, 0.06),
+    0px 1px 2px -1px rgba(26, 24, 20, 0.06),
+    0px 2px 4px 0px rgba(26, 24, 20, 0.04);
+  --shadow-border-hover:
+    0px 0px 0px 1px rgba(26, 24, 20, 0.08),
+    0px 1px 2px -1px rgba(26, 24, 20, 0.08),
+    0px 2px 4px 0px rgba(26, 24, 20, 0.06);
+  --shadow-artboard:
+    0 18px 40px -24px rgba(26, 24, 20, 0.35),
+    0 0 0 1px rgba(26, 24, 20, 0.06);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--color-bg);
+    color: var(--color-fg);
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-accent) 22%, transparent);
+    color: var(--color-fg);
+  }
+}
+
+@layer utilities {
+  .pb-nav {
+    padding-bottom: var(--spacing-nav-safe);
+  }
+
+  .h-app {
+    height: calc(100dvh - var(--spacing-nav-safe));
+  }
+
+  @media (min-width: 1024px) {
+    .pb-nav {
+      padding-bottom: 0;
+    }
+
+    .h-app {
+      height: 100dvh;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
