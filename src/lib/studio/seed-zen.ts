@@ -232,7 +232,7 @@ export function createSeedProject(): Project {
     brandId: SEED_BRAND_ID,
     templateId: "editorial",
     activeFormatId: "feed-portrait",
-    status: "ready",
+    status: "complete",
     brief,
     copy,
     plan,
@@ -276,7 +276,7 @@ export function createSeedDraft(): Project {
     brandId: SEED_BRAND_ID,
     templateId: "quote",
     activeFormatId: "story",
-    status: "draft",
+    status: "idea",
     brief: migrateBrief({
       eventName: "開學後的三十秒",
       audience: "剛下課、正在通勤或回宿舍的淡江學生",

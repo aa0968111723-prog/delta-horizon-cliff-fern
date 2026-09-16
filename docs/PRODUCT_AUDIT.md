@@ -111,13 +111,14 @@
 
 | Phase | 產品能力 | 現況 | 尚未在這個環境證明的事 |
 | --- | --- | --- | --- |
-| 8 Canva | 官方 Connect OAuth PKCE、`design:meta:read` / `design:content:read`、搜尋／最近設計、風格摘要寫入 Brand Memory、Autofill 不假裝 | 已有 server-only secrets、unavailable 卡片、metadata 風格摘要、複製 brief | 真實 Canva OAuth、真實設計列表、視覺像素分析 |
+| 1–7 | 淡江語意、Campaign、Copy、多模態、Brand Memory、素材庫 | 單人創作主幹已在跑：首頁節奏、AI 創作、Studio、素材、Brand、Export | 真實 xAI 圖片／Vision 依部署金鑰；跨裝置同步仍是本機 |
+| 8 Canva | 官方 Connect OAuth PKCE、搜尋／最近設計、metadata 風格摘要寫入 Brand Memory、Autofill 不假裝 | 已有 server-only secrets、unavailable 卡片、複製 brief、風格參考可寫入規律 | 真實 Canva OAuth、真實設計列表、視覺像素分析、Enterprise Autofill |
 | 9 Instagram | Graph / Instagram Login OAuth PKCE + refresh、加密 httpOnly cookie | 已有官方授權 URL、nested token 解析、Insights 權限另開 | 真實 IG OAuth、真實貼文同步 |
-| 10 Creative Brain | 跨素材庫 + Drive + Canva + IG 搜尋 | 本機索引即時搜；已連接來源需使用者主動搜尋 | 真實 Drive／Canva／IG 回傳 |
-| 11 Calendar | 月／週／議程、改期、AI 節奏 | 已可排程；手機預設議程、桌機才顯示月曆格 | — |
-| 12 IG Preview | Studio 畫面套進手機預覽 | 已有電話框、Caption、Carousel、尺寸切換 | 不是發文 |
+| 10 Creative Brain | 跨素材庫 + Drive + Canva + IG + Copy Pack + Brand Memory 搜尋 | 本機索引即時搜；已連接來源需使用者主動搜尋；Drive 僅在 loginRequired+loginUrl 顯示 Continue with Grok | 真實 Drive／Canva／IG 回傳 |
+| 11 Calendar | 月／週／議程、改期、AI 節奏 | 手機 375–430 預設議程，可切本週；桌機才顯示月曆格 | — |
+| 12 IG Preview | Studio 畫面套進手機預覽 | 貼文／限動／Reels 框不同、Carousel 可滑、不顯示假讚數 | 不是發文 |
 | 13 Reels | 腳本 + 9:16 封面 | 封面可進素材庫並放到 Studio Reels 封面 | 真實 AI 封面需 xAI；不能直接上傳 IG |
-| 14 Insights | 僅專業帳號授權後顯示 | 無 grant 時誠實 unavailable，不補假數據 | 真實 insights 數字 |
+| 14 Insights | 僅專業帳號授權後顯示 | 無 grant 時誠實 unavailable；有官方列才能寫入 Brand Memory | 真實 insights 數字 |
 | 15 Mobile | 375／390／430 | 需以瀏覽器再驗 | — |
 
 ## Phase 1 驗收

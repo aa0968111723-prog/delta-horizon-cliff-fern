@@ -3,74 +3,98 @@
   <head>
     <meta charset="utf-8" />
     <style>
-      @font-face {
-        font-family: "Noto Serif TC";
-        src: url("http://og.local/NotoSerifTC.ttf") format("truetype");
-        font-weight: 100 900;
-        font-style: normal;
-        font-display: block;
-      }
-      @font-face {
-        font-family: "Noto Sans TC";
-        src: url("http://og.local/NotoSansTC.ttf") format("truetype");
-        font-weight: 100 900;
-        font-style: normal;
-        font-display: block;
-      }
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      html,
-      body {
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
         width: 1200px;
         height: 630px;
         overflow: hidden;
-        background: #f3f0ea url("http://og.local/og-bg.jpg") center / cover no-repeat;
+        background: #f4f1ea;
+      }
+      body {
+        background:
+          radial-gradient(900px 420px at 88% 18%, rgba(217, 122, 91, 0.28), transparent 58%),
+          radial-gradient(720px 360px at 8% 92%, rgba(216, 184, 106, 0.22), transparent 60%),
+          linear-gradient(135deg, #f4f1ea 0%, #e7efe9 52%, #d9e4df 100%);
+      }
+      .frame {
+        position: absolute;
+        inset: 36px;
+        border: 1px solid rgba(23, 77, 73, 0.18);
+        border-radius: 28px;
       }
       .lockup {
         position: absolute;
-        left: 50%;
-        top: 49%;
-        transform: translate(-50%, -50%);
-        width: 420px;
-        text-align: center;
+        left: 88px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 640px;
+      }
+      .kicker {
+        font-family: "Noto Sans TC", "PingFang TC", sans-serif;
+        font-size: 18px;
+        letter-spacing: 0.28em;
+        color: #174d49;
+        font-weight: 600;
       }
       .wordmark {
-        font-family: "Noto Serif TC", serif;
+        margin-top: 18px;
+        font-family: "Noto Serif TC", "Source Han Serif TC", serif;
         font-weight: 600;
-        font-size: 108px;
-        line-height: 1.05;
+        font-size: 118px;
+        line-height: 0.95;
         color: #1a1814;
-        letter-spacing: 0.14em;
-        margin-right: -0.14em;
-        font-feature-settings: "kern" 1;
-        -webkit-font-smoothing: antialiased;
       }
       .rule {
-        width: 36px;
-        height: 2px;
-        background: #1e4a45;
-        margin: 28px auto 18px;
+        width: 48px;
+        height: 3px;
+        background: #d8b86a;
+        margin: 28px 0 22px;
       }
       .caption {
+        font-family: "Noto Sans TC", "PingFang TC", sans-serif;
+        font-size: 22px;
+        line-height: 1.45;
+        color: #174d49;
+        max-width: 520px;
+      }
+      .card {
+        position: absolute;
+        right: 92px;
+        top: 118px;
+        width: 280px;
+        height: 350px;
+        border-radius: 28px;
+        background: #174d49;
+        color: #f4f1ea;
+        padding: 28px 24px;
+        box-shadow: 0 28px 60px -28px rgba(26, 24, 20, 0.45);
+        transform: rotate(6deg);
+      }
+      .card small {
         font-family: "Noto Sans TC", sans-serif;
-        font-weight: 500;
-        font-size: 15px;
-        line-height: 1.4;
-        color: #1e4a45;
-        letter-spacing: 0.18em;
-        margin-right: -0.18em;
-        -webkit-font-smoothing: antialiased;
+        letter-spacing: 0.16em;
+        font-size: 12px;
+        opacity: 0.72;
+      }
+      .card p {
+        font-family: "Noto Serif TC", serif;
+        font-size: 36px;
+        line-height: 1.15;
+        margin-top: 72px;
       }
     </style>
   </head>
   <body>
+    <div class="frame"></div>
     <div class="lockup">
-      <div class="wordmark">構幀</div>
+      <div class="kicker">淡江大學禪學社</div>
+      <div class="wordmark">禪作所</div>
       <div class="rule"></div>
-      <div class="caption">Instagram 專業網宣工作站</div>
+      <div class="caption">一人完成給淡江學生看的 IG 網宣</div>
+    </div>
+    <div class="card">
+      <small>09.24 / TKU</small>
+      <p>最近是不是<br>很久沒有<br>好好坐下來？</p>
     </div>
   </body>
 </html>

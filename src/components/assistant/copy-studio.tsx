@@ -6,16 +6,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { generateCopyPack } from "@/lib/ai/copy";
 import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
+import { lessonsFromLocalWork } from "@/lib/creative/learning";
 import { buildBrandMemoryPrompt } from "@/lib/creative/memory";
+import { emptyBrandMemory } from "@/lib/studio/brand";
 import type { CopyTone } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
 export function CopyStudio({ projectId }: { projectId: string }) {
   const project = useStudio((state) => state.projects.find((item) => item.id === projectId));
   const brand = useStudio((state) => state.brands.find((item) => item.id === project?.brandId));
   const patchPlan = useStudio((state) => state.patchPlan);
+  const updateBrand = useStudio((state) => state.updateBrand);
+  const campaigns = useCreative((state) => state.campaigns);
+  const contentItems = useCreative((state) => state.contentItems);
   const instagramItems = useConnectionStore((state) => state.instagramItems);
   const styleReferences = useConnectionStore((state) => state.styleReferences);
   const memoryHashtags = hashtagsFromInstagramMemory(instagramItems);
@@ -163,6 +169,31 @@ export function CopyStudio({ projectId }: { projectId: string }) {
                 </li>
               ))}
             </ul>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="mt-3"
+              onClick={() => {
+                if (!brand || !pack) return;
+                const memory = brand.memory ?? emptyBrandMemory();
+                updateBrand(brand.id, {
+                  memory: {
+                    ...memory,
+                    learnedPatterns: lessonsFromLocalWork({
+                      brand,
+                      assets: [],
+                      campaigns,
+                      contentItems,
+                      copyPacks: [pack],
+                    }),
+                    updatedAt: Date.now(),
+                  },
+                });
+                toast.success("學生視角檢查已寫入 Brand Memory");
+              }}
+            >
+              寫入 Brand Memory
+            </Button>
           </div>
 
           {memoryHashtags.length ? (

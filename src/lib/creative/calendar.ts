@@ -1,4 +1,4 @@
-import { addDays, formatISO, isSameDay, parseISO, startOfDay } from "date-fns";
+import { addDays, differenceInCalendarDays, formatISO, isSameDay, parseISO, startOfDay } from "date-fns";
 import {
   addWeeks,
   eachDayOfInterval,
@@ -78,4 +78,15 @@ export function shiftWeek(anchor: Date, direction: -1 | 1) {
 
 export function campaignNameOf(campaigns: Campaign[], campaignId: string) {
   return campaigns.find((campaign) => campaign.id === campaignId)?.name ?? "活動";
+}
+
+export function daysUntil(dateIso: string, from = new Date()) {
+  return differenceInCalendarDays(startOfDay(parseISO(dateIso)), startOfDay(from));
+}
+
+export function daysUntilLabel(dateIso: string, from = new Date()) {
+  const days = daysUntil(dateIso, from);
+  if (days < 0) return "已結束";
+  if (days === 0) return "就是今天";
+  return `還有 ${days} 天`;
 }

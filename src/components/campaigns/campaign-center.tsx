@@ -31,6 +31,7 @@ import type {
 } from "@/lib/creative/types";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
+import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
 const STATUS: Record<
@@ -49,6 +50,7 @@ export function CampaignCenter() {
   const contentItems = useCreative((state) => state.contentItems);
   const generateRhythm = useCreative((state) => state.generateRhythm);
   const setContentStatus = useCreative((state) => state.setContentStatus);
+  const setProjectStatus = useStudio((state) => state.setProjectStatus);
   const startCreative = useUi((state) => state.startCreative);
   const [selectedId, setSelectedId] = useState(campaigns[0]?.id ?? "");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -85,6 +87,7 @@ export function CampaignCenter() {
   function createContent(item: ContentItem) {
     if (!campaign) return;
     setContentStatus(item.id, "creating");
+    if (item.projectId) setProjectStatus(item.projectId, "creating");
     startCreative(campaignBrief(campaign, item));
   }
 
@@ -217,7 +220,11 @@ export function CampaignCenter() {
                   <div className="flex items-center gap-2 sm:justify-end">
                     <Select
                       value={item.status}
-                      onValueChange={(value) => setContentStatus(item.id, value as ContentStatus)}
+                      onValueChange={(value) => {
+                        const status = value as ContentStatus;
+                        setContentStatus(item.id, status);
+                        if (item.projectId) setProjectStatus(item.projectId, status);
+                      }}
                     >
                       <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                       <SelectContent>

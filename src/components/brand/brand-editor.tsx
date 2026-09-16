@@ -22,10 +22,13 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { AssetUploadError, decodeAssetImage } from "@/lib/studio/asset-upload";
 import { emptyBrandMemory, LOGO_USAGE, logoUsageLabel } from "@/lib/studio/brand";
+import { lessonsFromLocalWork } from "@/lib/creative/learning";
 import { STUDIO_FONTS } from "@/lib/studio/fonts";
 import { uid } from "@/lib/studio/ids";
 import type { BrandColor, BrandKit, ColorRole, LogoUsage, LogoVariant } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
+import { useConnectionStore } from "@/stores/connection-store";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { SwatchBook } from "lucide-react";
 
@@ -53,6 +56,11 @@ export function BrandEditor() {
   const updateBrand = useStudio((s) => s.updateBrand);
   const createBrand = useStudio((s) => s.createBrand);
   const addAsset = useStudio((s) => s.addAsset);
+  const assets = useStudio((s) => s.assets);
+  const projects = useStudio((s) => s.projects);
+  const campaigns = useCreative((s) => s.campaigns);
+  const contentItems = useCreative((s) => s.contentItems);
+  const styleReferences = useConnectionStore((s) => s.styleReferences);
   const [activeId, setActiveId] = useState(brands[0]?.id ?? "");
   const [section, setSection] = useState<(typeof SECTIONS)[number]["id"]>("identity");
   const brand = brands.find((b) => b.id === activeId) ?? brands[0];
@@ -264,6 +272,29 @@ export function BrandEditor() {
           placeholder="例如：先說學生生活，再介紹活動"
           onChange={(learnedPatterns) => patch("memory", { ...memory, learnedPatterns, updatedAt: Date.now() })}
         />
+        <Button
+          type="button"
+          variant="secondary"
+          className="min-h-11"
+          onClick={() => {
+            patch("memory", {
+              ...memory,
+              learnedPatterns: lessonsFromLocalWork({
+                brand,
+                assets,
+                campaigns,
+                contentItems,
+                copyPacks: projects.flatMap((item) => item.plan?.copyPack ? [item.plan.copyPack] : []),
+                styleNotes: styleReferences.map((item) => `${item.provider}／${item.collection}「${item.title}」${item.notes}`),
+                insights: null,
+              }),
+              updatedAt: Date.now(),
+            });
+            toast.success("已從本機創作與已分析素材更新規律。沒有官方 Insights 時不會寫入模擬成效。");
+          }}
+        >
+          從本機工作學習
+        </Button>
         <StyleMemoryPanel />
       </section>
 

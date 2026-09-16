@@ -1,27 +1,33 @@
-import { BrainCircuit, Search, Sparkles } from "lucide-react";
+import { BrainCircuit, ExternalLink, Search, Sparkles } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { redirectToLoginIfRequired } from "@/lib/app-data";
 import { emptySearchHint, GLOBAL_SEARCH_FILTERS, searchGlobalCreative, type GlobalSearchFilter } from "@/lib/creative/global-search";
 import { searchConnectedSources } from "@/lib/connections/live-search";
 import type { ExternalMemoryItem } from "@/lib/connections/types";
-import { creativeMemoryStats } from "@/lib/creative/memory";
+import { creativeMemoryStats, type CreativeMemoryResult } from "@/lib/creative/memory";
 import { cn } from "@/lib/utils";
 import { useCreative } from "@/stores/creative-store";
 import { allExternalItems, useConnectionStore } from "@/stores/connection-store";
 import { useStudio } from "@/stores/studio-store";
+import { useUi } from "@/stores/ui-store";
 
 export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAsset: (id: string) => void; compact?: boolean }) {
   const navigate = useNavigate();
   const assets = useStudio((state) => state.assets);
+  const projects = useStudio((state) => state.projects);
+  const brand = useStudio((state) => state.brands[0]);
   const campaigns = useCreative((state) => state.campaigns);
   const contentItems = useCreative((state) => state.contentItems);
   const driveItems = useConnectionStore((state) => state.driveItems);
   const canvaItems = useConnectionStore((state) => state.canvaItems);
   const instagramItems = useConnectionStore((state) => state.instagramItems);
+  const styleReferences = useConnectionStore((state) => state.styleReferences);
+  const setStylePrompt = useUi((state) => state.setStylePrompt);
   const externalItems = useMemo(
     () => allExternalItems({ driveItems, canvaItems, instagramItems }),
     [driveItems, canvaItems, instagramItems],
@@ -33,31 +39,39 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
   const [filter, setFilter] = useState<GlobalSearchFilter>("all");
   const [liveBusy, setLiveBusy] = useState(false);
   const [liveNotes, setLiveNotes] = useState<string[]>([]);
+  const [loginUrl, setLoginUrl] = useState<string | null>(null);
   const stats = useMemo(
     () => creativeMemoryStats({ assets, campaigns, contentItems, externalItems }),
     [assets, campaigns, contentItems, externalItems],
   );
   const results = useMemo(
-    () => searchGlobalCreative(query, { assets, campaigns, contentItems, externalItems }, filter),
-    [query, assets, campaigns, contentItems, externalItems, filter],
+    () => searchGlobalCreative(
+      query,
+      { assets, campaigns, contentItems, externalItems, brand, projects, styleReferences },
+      filter,
+    ),
+    [query, assets, campaigns, contentItems, externalItems, brand, projects, styleReferences, filter],
   );
 
   async function searchLive() {
     const needle = query.trim();
     if (!needle) return;
     setLiveBusy(true);
+    setLoginUrl(null);
     try {
       const bundle = await searchConnectedSources({ data: { query: needle } });
       const notes: string[] = [];
-      absorb(bundle.drive, rememberDriveItems, notes, "Google Drive");
-      absorb(bundle.canva, rememberCanvaItems, notes, "Canva");
-      absorb(bundle.instagram, (items) => {
+      let nextLogin: string | null = null;
+      nextLogin = absorb(bundle.drive, rememberDriveItems, notes, "Google Drive") ?? nextLogin;
+      nextLogin = absorb(bundle.canva, rememberCanvaItems, notes, "Canva") ?? nextLogin;
+      nextLogin = absorb(bundle.instagram, (items) => {
         const previous = useConnectionStore.getState().instagramItems;
         const merged = new Map(previous.map((item) => [item.id, item]));
         for (const item of items) merged.set(item.id, item);
         syncInstagramItems([...merged.values()]);
-      }, notes, "Instagram");
+      }, notes, "Instagram") ?? nextLogin;
       setLiveNotes(notes);
+      setLoginUrl(nextLogin);
       if ([bundle.drive, bundle.canva, bundle.instagram].some((item) => item.ok)) {
         toast.success("已把已連接來源的真實結果併入 Creative Brain");
       }
@@ -66,6 +80,47 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
     } finally {
       setLiveBusy(false);
     }
+  }
+
+  async function useResult(result: CreativeMemoryResult) {
+    if (result.assetId) {
+      onOpenAsset(result.assetId);
+      return;
+    }
+    if (result.kind === "copy" && result.copyText) {
+      await navigator.clipboard.writeText(result.copyText);
+      toast.success("已複製這則可重用文案");
+      if (result.projectId) void navigate({ to: "/studio/$projectId", params: { projectId: result.projectId } });
+      return;
+    }
+    if (result.kind === "style") {
+      setStylePrompt({
+        title: result.title,
+        collection: result.subtitle,
+        notes: result.subtitle,
+        provider: result.provider,
+      });
+      toast.success("已當成生成參考，打開素材頁即可接著生成");
+      void navigate({ to: "/assets" });
+      return;
+    }
+    if (result.kind === "memory") {
+      void navigate({ to: "/brand" });
+      return;
+    }
+    if (result.providerKind === "instagram") {
+      void navigate({ to: "/instagram" });
+      return;
+    }
+    if (result.externalId) {
+      void navigate({ to: "/connections" });
+      return;
+    }
+    if (result.kind === "content") {
+      void navigate({ to: "/calendar" });
+      return;
+    }
+    void navigate({ to: "/campaigns" });
   }
 
   return (
@@ -78,7 +133,7 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
           </Badge>
           <h2 className="mt-3 text-xl font-semibold tracking-tight">從做過的內容開始，不再每次從零</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
-            同一個搜尋框會同時找素材、Campaign、內容節奏、Drive、Canva 與 Instagram。沒連接的來源不會假裝有結果。
+            同一個搜尋框會找素材、Campaign、節奏、Copy Pack、Brand Memory、Canva 風格、Drive 與 Instagram。沒連接的來源不會假裝有結果。
           </p>
         </div>
         <div className="grid grid-cols-4 gap-2 text-center">
@@ -132,13 +187,7 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
               <li key={result.id}>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (result.assetId) onOpenAsset(result.assetId);
-                    else if (result.providerKind === "instagram") void navigate({ to: "/instagram" });
-                    else if (result.externalId) void navigate({ to: "/connections" });
-                    else if (result.kind === "content") void navigate({ to: "/calendar" });
-                    else void navigate({ to: "/campaigns" });
-                  }}
+                  onClick={() => void useResult(result)}
                   className="flex min-h-20 w-full items-start gap-3 rounded-2xl bg-bg p-3 text-left transition-colors hover:bg-surface-2"
                 >
                   <span className={cn(
@@ -153,6 +202,9 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
                       <Badge variant="default">{result.provider}</Badge>
                     </span>
                     <span className="mt-1 line-clamp-2 block text-xs leading-5 text-muted">{result.subtitle}</span>
+                    {result.matchedBy.length ? (
+                      <span className="mt-1 block text-xs text-subtle">命中：{result.matchedBy.join("、")}</span>
+                    ) : null}
                   </span>
                 </button>
               </li>
@@ -173,12 +225,26 @@ export function CreativeBrainPanel({ onOpenAsset, compact = false }: { onOpenAss
           {liveNotes.map((note) => <li key={note}>{note}</li>)}
         </ul>
       ) : null}
+      {loginUrl ? (
+        <Button
+          className="mt-3 min-h-11"
+          onClick={() => redirectToLoginIfRequired({
+            ok: false,
+            data: null,
+            loginRequired: true,
+            loginUrl,
+          })}
+        >
+          Continue with Grok
+          <ExternalLink className="size-4" />
+        </Button>
+      ) : null}
     </section>
   );
 }
 
 function absorb(
-  result: { ok: true; data: ExternalMemoryItem[] } | { ok: false; message: string },
+  result: { ok: true; data: ExternalMemoryItem[] } | { ok: false; message: string; loginRequired?: boolean; loginUrl?: string },
   remember: (items: ExternalMemoryItem[]) => void,
   notes: string[],
   label: string,
@@ -186,9 +252,11 @@ function absorb(
   if (result.ok) {
     remember(result.data);
     notes.push(`${label}：找到 ${result.data.length} 筆真實結果`);
-    return;
+    return null;
   }
   notes.push(`${label}：${result.message}`);
+  if (result.loginRequired && result.loginUrl) return result.loginUrl;
+  return null;
 }
 
 function Stat({ value, label }: { value: number; label: string }) {

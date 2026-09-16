@@ -16,7 +16,7 @@ import { CreativeBrainPanel } from "@/components/assets/creative-brain-panel";
 import { ProjectCard } from "@/components/shared/project-card";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { upcomingItems } from "@/lib/creative/calendar";
+import { upcomingItems, daysUntilLabel } from "@/lib/creative/calendar";
 import { categoryLabel } from "@/lib/studio/assets";
 import type { Brief } from "@/lib/studio/types";
 import { useCreative } from "@/stores/creative-store";
@@ -74,6 +74,7 @@ export function HomePage() {
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
   const contentItems = useCreative((s) => s.contentItems);
+  const campaign = useCreative((s) => s.campaigns[0]);
   const startCreative = useUi((s) => s.startCreative);
   const upcoming = useMemo(() => upcomingItems(contentItems), [contentItems]);
   const recent = useMemo(
@@ -127,7 +128,11 @@ export function HomePage() {
           <div className="p-5 sm:p-7">
             <div className="flex flex-wrap items-center gap-2 text-xs text-accent-fg/75">
               <span className="rounded-full bg-accent-fg/10 px-2.5 py-1">今天推薦創作</span>
-              <span>09/24・還有 8 天</span>
+              <span>
+                {campaign
+                  ? `${campaign.eventDate.slice(5).replace("-", "/")}・${daysUntilLabel(campaign.eventDate)}`
+                  : "先從下一場活動開始"}
+              </span>
             </div>
             <h2 className="mt-5 max-w-xl font-display text-3xl leading-tight tracking-tight sm:text-4xl">
               最近是不是很久沒有
@@ -135,7 +140,9 @@ export function HomePage() {
               好好坐下來？
             </h2>
             <p className="mt-4 max-w-lg text-sm leading-6 text-accent-fg/80">
-              用開學後的忙亂切入「浮游禪光」，做一組不說教、有夜晚校園感的 IG Carousel。
+              {campaign
+                ? `用開學後的忙亂切入「${campaign.name.replace(/^\d{2}\/\d{2}\s*/, "")}」，做一組不說教、有夜晚校園感的 IG Carousel。`
+                : "先建立下一場活動，再做一組給淡江學生看的 IG 內容。"}
             </p>
             <Button
               className="mt-6 bg-accent-fg text-accent hover:bg-accent-fg/90"

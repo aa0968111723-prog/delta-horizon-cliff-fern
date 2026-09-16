@@ -1,11 +1,13 @@
 import { sourceLabel } from "../studio/assets.ts";
-import type { AssetMeta, BrandKit } from "../studio/types.ts";
+import type { AssetMeta, BrandKit, Project } from "../studio/types.ts";
 import type { ExternalMemoryItem } from "../connections/types.ts";
 import type { Campaign, ContentItem } from "./types";
 
+export type CreativeMemoryKind = "asset" | "campaign" | "content" | "external" | "memory" | "copy" | "style";
+
 export type CreativeMemoryResult = {
   id: string;
-  kind: "asset" | "campaign" | "content" | "external";
+  kind: CreativeMemoryKind;
   title: string;
   subtitle: string;
   provider: string;
@@ -13,9 +15,20 @@ export type CreativeMemoryResult = {
   assetId?: string;
   campaignId?: string;
   contentId?: string;
+  projectId?: string;
   externalId?: string;
   webUrl?: string;
+  copyText?: string;
   providerKind?: "google-drive" | "canva" | "instagram";
+};
+
+export type StyleMemoryRef = {
+  id: string;
+  provider: string;
+  collection: string;
+  title: string;
+  notes: string;
+  webUrl?: string;
 };
 
 function terms(query: string) {
@@ -27,9 +40,26 @@ function matches(haystack: string, needles: string[]) {
   return needles.filter((term) => text.includes(term));
 }
 
+function rank(results: CreativeMemoryResult[], query: string) {
+  const phrase = query.trim().toLowerCase();
+  return results.sort((a, b) => {
+    const aPhrase = Number(a.title.toLowerCase().includes(phrase) || a.subtitle.toLowerCase().includes(phrase));
+    const bPhrase = Number(b.title.toLowerCase().includes(phrase) || b.subtitle.toLowerCase().includes(phrase));
+    return bPhrase - aPhrase || b.matchedBy.length - a.matchedBy.length || a.title.localeCompare(b.title, "zh-TW");
+  });
+}
+
 export function searchCreativeMemory(
   query: string,
-  input: { assets: AssetMeta[]; campaigns: Campaign[]; contentItems: ContentItem[]; externalItems?: ExternalMemoryItem[] },
+  input: {
+    assets: AssetMeta[];
+    campaigns: Campaign[];
+    contentItems: ContentItem[];
+    externalItems?: ExternalMemoryItem[];
+    brand?: BrandKit;
+    projects?: Project[];
+    styleReferences?: StyleMemoryRef[];
+  },
 ): CreativeMemoryResult[] {
   const needles = terms(query);
   if (!needles.length) return [];
@@ -127,9 +157,80 @@ export function searchCreativeMemory(
     }];
   });
 
-  return [...assets, ...campaigns, ...contentItems, ...externalItems]
-    .sort((a, b) => b.matchedBy.length - a.matchedBy.length || a.title.localeCompare(b.title, "zh-TW"))
-    .slice(0, 30);
+  const memoryItems = (() => {
+    const brand = input.brand;
+    if (!brand?.memory) return [] as CreativeMemoryResult[];
+    const rows: { title: string; subtitle: string }[] = [
+      { title: brand.memory.mission, subtitle: "Brand Memory・使命" },
+      ...brand.memory.audienceSegments.map((item) => ({ title: item, subtitle: "Brand Memory・核心學生" })),
+      ...brand.memory.campusContexts.map((item) => ({ title: item, subtitle: "Brand Memory・校園情境" })),
+      ...brand.memory.seasonalMoments.map((item) => ({ title: item, subtitle: "Brand Memory・時機" })),
+      ...brand.memory.contentPillars.map((item) => ({ title: item, subtitle: "Brand Memory・內容支柱" })),
+      ...brand.memory.signatureElements.map((item) => ({ title: item, subtitle: "Brand Memory・辨識元素" })),
+      ...brand.memory.learnedPatterns.map((item) => ({ title: item, subtitle: "Brand Memory・已學到" })),
+    ];
+    return rows.flatMap((row, index) => {
+      const found = matches(`${row.title} ${row.subtitle} Brand Memory`, needles);
+      if (!found.length || !row.title) return [];
+      return [{
+        id: `memory:${index}:${row.title}`,
+        kind: "memory" as const,
+        title: row.title,
+        subtitle: row.subtitle,
+        provider: "Brand Memory",
+        matchedBy: found,
+      }];
+    });
+  })();
+
+  const copyItems = (input.projects ?? []).flatMap((project) => {
+    const pack = project.plan?.copyPack;
+    const variants = pack?.variants ?? [];
+    const captions = project.plan?.captions ?? [];
+    const rows = [
+      ...variants.map((variant) => ({
+        title: variant.hook,
+        subtitle: `${project.name}・${variant.tone}`,
+        copyText: `${variant.body}\n\n${variant.cta}\n\n${variant.hashtags.join(" ")}`,
+      })),
+      ...captions.map((caption) => ({
+        title: caption.text.split("\n")[0] || project.name,
+        subtitle: `${project.name}・${caption.style}`,
+        copyText: caption.text,
+      })),
+    ];
+    return rows.flatMap((row, index) => {
+      const found = matches(`${row.title} ${row.subtitle} ${row.copyText} Copy`, needles);
+      if (!found.length) return [];
+      return [{
+        id: `copy:${project.id}:${index}`,
+        kind: "copy" as const,
+        title: row.title,
+        subtitle: row.subtitle,
+        provider: "Copy Pack",
+        matchedBy: found,
+        projectId: project.id,
+        copyText: row.copyText,
+      }];
+    });
+  });
+
+  const styleItems = (input.styleReferences ?? []).flatMap((item) => {
+    const found = matches(`${item.title} ${item.collection} ${item.notes} ${item.provider} 風格`, needles);
+    if (!found.length) return [];
+    return [{
+      id: `style:${item.id}`,
+      kind: "style" as const,
+      title: item.title,
+      subtitle: `${item.provider}／${item.collection}｜${item.notes}`,
+      provider: item.provider,
+      matchedBy: found,
+      webUrl: item.webUrl,
+    }];
+  });
+
+  return rank([...assets, ...campaigns, ...contentItems, ...externalItems, ...memoryItems, ...copyItems, ...styleItems], query)
+    .slice(0, 36);
 }
 
 function list(values: string[] | undefined, fallback: string) {

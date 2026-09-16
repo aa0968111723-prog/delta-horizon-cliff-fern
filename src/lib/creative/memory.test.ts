@@ -155,6 +155,108 @@ test("style references are appended to Brand Memory prompts", () => {
   );
 });
 
+test("searchCreativeMemory includes Brand Memory lessons and Copy Pack hooks", () => {
+  const results = searchCreativeMemory("先寫學生生活 坐下來 三色光", {
+    assets: [],
+    campaigns: [],
+    contentItems: [],
+    brand,
+    projects: [{
+      id: "proj-copy",
+      name: "浮游禪光",
+      createdAt: 1,
+      updatedAt: 1,
+      brandId: "b1",
+      templateId: "editorial",
+      activeFormatId: "feed-portrait",
+      status: "creating",
+      brief: {
+        product: "",
+        eventName: "",
+        schedule: "",
+        location: "",
+        offer: "",
+        audience: "",
+        goal: "awareness",
+        features: "",
+        style: "",
+        notes: "",
+        deliverables: { post: true, story: false, carousel: false, reels: false },
+      },
+      copy: {
+        eyebrow: "",
+        headline: "",
+        subhead: "",
+        body: "",
+        cta: "",
+        handle: "",
+        caption: "",
+        hashtags: [],
+        altText: "",
+      },
+      plan: {
+        campaignName: "浮游禪光",
+        concept: "",
+        insight: "",
+        hook: "最近是不是很久沒有好好坐下來？",
+        visualTheme: "",
+        visualDirection: "",
+        templateId: "editorial",
+        colorMood: "",
+        eyebrow: "",
+        headline: "",
+        subhead: "",
+        body: "",
+        cta: "",
+        captions: [],
+        hashtags: [],
+        storyBeats: [],
+        carouselPages: [],
+        assetNeeds: [],
+        checklist: [],
+        altText: "",
+        qaNotes: [],
+        copyPack: {
+          variants: [{
+            tone: "學生版",
+            hook: "最近是不是很久沒有好好坐下來？",
+            body: "課表先放一下",
+            cta: "保留這個晚上",
+            hashtags: ["#淡江禪學社"],
+          }],
+          studentReview: [],
+          revisedCaption: "",
+          threads: "",
+          line: "",
+          storyFrames: [],
+          carouselPages: [],
+          reelsScript: [],
+          generatedAt: 1,
+          source: "mock",
+        },
+        generatedAt: 1,
+        source: "mock",
+      },
+      artboards: {},
+      slides: {},
+      slideIndex: 0,
+      snapshots: [],
+      planVersions: [],
+      exports: [],
+    }],
+    styleReferences: [{
+      id: "canva:1",
+      provider: "Canva",
+      collection: "浮游禪光",
+      title: "歷屆茶會主視覺",
+      notes: "夜晚三色光",
+    }],
+  });
+  assert.equal(results.some((item) => item.kind === "memory" && item.title.includes("先寫學生生活")), true);
+  assert.equal(results.some((item) => item.kind === "copy"), true);
+  assert.equal(results.some((item) => item.kind === "style"), true);
+});
+
 test("searchCreativeMemory includes synced external references with attribution", () => {
   const results = searchCreativeMemory("歷屆 茶會", {
     assets: [],

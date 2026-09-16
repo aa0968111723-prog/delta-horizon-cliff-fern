@@ -32,3 +32,10 @@ test("global search can filter to Canva without inventing other sources", () => 
     0,
   );
 });
+
+test("memory filter does not invent Drive or Instagram hits", () => {
+  assert.equal(
+    searchGlobalCreative("茶會", { assets: [], campaigns: [], contentItems: [], externalItems: [canva] }, "memory").length,
+    0,
+  );
+});

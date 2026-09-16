@@ -13,6 +13,8 @@ import { getInstagramInsightsStatus, getInstagramStatus, listInstagramMedia, sta
 import { openExternalUrl } from "@/components/connections/connection-status";
 import { redirectToLoginIfRequired } from "@/lib/app-data";
 import type { ConnectorUiState, InstagramInsightsSnapshot } from "@/lib/connections/types";
+import { lessonsFromInsights } from "@/lib/creative/learning";
+import { emptyBrandMemory } from "@/lib/studio/brand";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useStudio } from "@/stores/studio-store";
 
@@ -21,6 +23,8 @@ export function InstagramCenter() {
   const syncItems = useConnectionStore((state) => state.syncInstagramItems);
   const username = useConnectionStore((state) => state.instagramUsername);
   const lastProjectId = useStudio((state) => state.lastProjectId);
+  const brand = useStudio((state) => state.brands[0]);
+  const updateBrand = useStudio((state) => state.updateBrand);
   const [status, setStatus] = useState<ConnectorUiState>("idle");
   const [insightsNote, setInsightsNote] = useState("官方 Insights 尚未授權。這裡不會顯示模擬數據。");
   const [insights, setInsights] = useState<InstagramInsightsSnapshot | null>(null);
@@ -171,6 +175,27 @@ export function InstagramCenter() {
                   </li>
                 ))}
               </ul>
+              <Button
+                className="mt-5 min-h-11"
+                variant="secondary"
+                onClick={() => {
+                  if (!brand) return;
+                  const memory = brand.memory ?? emptyBrandMemory();
+                  updateBrand(brand.id, {
+                    memory: {
+                      ...memory,
+                      learnedPatterns: [
+                        ...lessonsFromInsights(insights.rows),
+                        ...memory.learnedPatterns,
+                      ].filter((item, index, list) => list.indexOf(item) === index).slice(0, 12),
+                      updatedAt: Date.now(),
+                    },
+                  });
+                  toast.success("已把官方 Insights 寫入 Brand Memory");
+                }}
+              >
+                寫入 Brand Memory
+              </Button>
             </div>
           ) : (
             <div className="rounded-3xl bg-surface p-6 shadow-[var(--shadow-border)] md:p-10">

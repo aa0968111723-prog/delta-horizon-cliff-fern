@@ -31,6 +31,7 @@ export function ContentCalendar() {
   const startCreative = useUi((state) => state.startCreative);
   const [anchor, setAnchor] = useState(() => startOfToday());
   const [view, setView] = useState<CalendarView>("month");
+  const [mobileView, setMobileView] = useState<Extract<CalendarView, "agenda" | "week">>("agenda");
   const [campaignId, setCampaignId] = useState(campaigns[0]?.id ?? "all");
 
   useEffect(() => {
@@ -108,6 +109,21 @@ export function ContentCalendar() {
             <ChevronRight className="size-4" />
           </Button>
         </div>
+        <div className="flex flex-wrap gap-2 md:hidden">
+          {(["agenda", "week"] as const).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setMobileView(item)}
+              className={cn(
+                "min-h-11 rounded-full px-3 text-sm",
+                mobileView === item ? "bg-accent text-accent-fg" : "bg-surface text-muted shadow-[var(--shadow-border)]",
+              )}
+            >
+              {item === "week" ? "本週" : "議程"}
+            </button>
+          ))}
+        </div>
         <div className="hidden flex-wrap gap-2 md:flex">
           {(["month", "week", "agenda"] as const).map((item) => (
             <button
@@ -135,24 +151,53 @@ export function ContentCalendar() {
       </div>
 
       <div className="mt-5 md:hidden">
-        <ol className="space-y-3">
-          {days.filter((day) => day.items.length).map((day) => (
-            <li key={`m-${day.date}`} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-              <p className="text-xs font-medium text-accent">{format(parseISO(day.date), "M月d日 EEEE", { locale: zhTW })}</p>
-              <ul className="mt-3 space-y-2">
-                {day.items.map((item) => (
-                  <AgendaRow
-                    key={item.id}
-                    item={item}
-                    campaignName={campaignNameOf(campaigns, item.campaignId)}
-                    onCreate={() => createFrom(item)}
-                    onMove={(next) => dropOnDay(next, item.id)}
-                  />
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ol>
+        {mobileView === "week" ? (
+          <ol className="space-y-3">
+            {weekGrid(anchor, filtered).map((day) => (
+              <li key={`mw-${day.date}`} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+                <p className="text-xs font-medium text-accent">{format(parseISO(day.date), "M月d日 EEEE", { locale: zhTW })}</p>
+                {day.items.length ? (
+                  <ul className="mt-3 space-y-2">
+                    {day.items.map((item) => (
+                      <AgendaRow
+                        key={item.id}
+                        item={item}
+                        campaignName={campaignNameOf(campaigns, item.campaignId)}
+                        onCreate={() => createFrom(item)}
+                        onMove={(next) => dropOnDay(next, item.id)}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-sm text-muted">這天還沒有節奏。</p>
+                )}
+              </li>
+            ))}
+          </ol>
+        ) : days.filter((day) => day.items.length).length ? (
+          <ol className="space-y-3">
+            {days.filter((day) => day.items.length).map((day) => (
+              <li key={`m-${day.date}`} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+                <p className="text-xs font-medium text-accent">{format(parseISO(day.date), "M月d日 EEEE", { locale: zhTW })}</p>
+                <ul className="mt-3 space-y-2">
+                  {day.items.map((item) => (
+                    <AgendaRow
+                      key={item.id}
+                      item={item}
+                      campaignName={campaignNameOf(campaigns, item.campaignId)}
+                      onCreate={() => createFrom(item)}
+                      onMove={(next) => dropOnDay(next, item.id)}
+                    />
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="rounded-2xl bg-surface px-4 py-10 text-center text-sm text-muted shadow-[var(--shadow-border)]">
+            這段時間還沒有內容節奏。到 Campaign 依活動生成一版，或用日期改期。
+          </p>
+        )}
       </div>
 
       {view === "agenda" ? (

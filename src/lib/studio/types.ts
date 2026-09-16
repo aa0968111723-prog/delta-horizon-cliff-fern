@@ -26,7 +26,7 @@ export type Align = "left" | "center" | "right";
 
 export type ColorRole = "primary" | "secondary" | "accent" | "background" | "ink";
 
-export type ProjectStatus = "draft" | "ready" | "exported";
+export type ProjectStatus = "idea" | "creating" | "complete" | "scheduled" | "published";
 
 export type EditorTool = "select" | "text" | "rect" | "ellipse" | "line";
 

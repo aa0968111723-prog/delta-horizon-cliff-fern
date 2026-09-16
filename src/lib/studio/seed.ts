@@ -383,7 +383,7 @@ export function createSeedProject(): Project {
     brandId: SEED_BRAND_ID,
     templateId: "product",
     activeFormatId: "feed-portrait",
-    status: "ready",
+    status: "complete",
     brief,
     copy,
     plan,
@@ -439,7 +439,7 @@ export function createSeedDraft(): Project {
     brandId: SEED_BRAND_ID,
     templateId: "offer",
     activeFormatId: "story",
-    status: "draft",
+    status: "idea",
     brief: migrateBrief({
       product: "週末手沖體驗席",
       eventName: "週末手沖體驗",

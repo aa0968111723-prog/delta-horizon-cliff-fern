@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isoDay, monthGrid, movePlannedAt, weekGrid } from "./calendar.ts";
+import { isoDay, monthGrid, movePlannedAt, weekGrid, daysUntilLabel } from "./calendar.ts";
 import type { ContentItem } from "./types.ts";
 
 function item(id: string, plannedAt: string): ContentItem {
@@ -35,4 +35,10 @@ test("reschedule keeps the original hour", () => {
 
 test("week grid always has seven days", () => {
   assert.equal(weekGrid(new Date("2026-09-16T00:00:00+08:00"), []).length, 7);
+});
+
+test("daysUntilLabel uses the campaign date instead of a hardcoded countdown", () => {
+  assert.equal(daysUntilLabel("2026-09-24", new Date("2026-09-16T08:00:00+08:00")), "還有 8 天");
+  assert.equal(daysUntilLabel("2026-09-16", new Date("2026-09-16T08:00:00+08:00")), "就是今天");
+  assert.equal(daysUntilLabel("2026-09-10", new Date("2026-09-16T08:00:00+08:00")), "已結束");
 });

@@ -66,6 +66,7 @@ export function ImageStudio() {
   useEffect(() => {
     if (!stylePrompt) return;
     setIdea(`${stylePrompt.title}。風格參考：${stylePrompt.provider}／${stylePrompt.collection}。${stylePrompt.notes}`);
+    document.getElementById("image-studio")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [stylePrompt]);
 
   useEffect(() => {
@@ -140,7 +141,7 @@ export function ImageStudio() {
   }
 
   return (
-    <section className="mt-6 overflow-hidden rounded-3xl bg-accent text-accent-fg shadow-[var(--shadow-card)]">
+    <section id="image-studio" className="mt-6 overflow-hidden rounded-3xl bg-accent text-accent-fg shadow-[var(--shadow-artboard)]">
       <div className="grid lg:grid-cols-[1fr_1.15fr]">
         <div className="p-5 md:p-7">
           <Badge className="bg-accent-fg/10 text-accent-fg">

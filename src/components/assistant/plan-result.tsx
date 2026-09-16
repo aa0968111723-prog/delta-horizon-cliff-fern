@@ -1,14 +1,17 @@
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { CopyStudio } from "@/components/assistant/copy-studio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { matchAssetNeed } from "@/lib/creative/needs";
 import { ASSET_NEED_LABEL, PAGE_ROLE_LABEL } from "@/lib/studio/brief";
 import { TEMPLATE_META } from "@/lib/studio/layout";
 import type { CampaignPlan, CarouselPagePlan } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
+import { useUi } from "@/stores/ui-store";
 
 type Props = {
   projectId: string;
@@ -21,6 +24,9 @@ export function PlanResult({ projectId, onOpenEditor }: Props) {
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const restorePlanVersion = useStudio((s) => s.restorePlanVersion);
   const reflow = useStudio((s) => s.reflow);
+  const assets = useStudio((s) => s.assets);
+  const placeAsset = useStudio((s) => s.placeAsset);
+  const setStylePrompt = useUi((s) => s.setStylePrompt);
   const plan = project?.plan;
   if (!project || !plan) return null;
   const current = project;
@@ -166,34 +172,76 @@ export function PlanResult({ projectId, onOpenEditor }: Props) {
       {plan.assetNeeds.length ? (
         <div className="space-y-2">
           <Label>素材需求</Label>
-          {plan.assetNeeds.map((need, index) => (
-            <div key={`${need.title}-${index}`} className="rounded-lg bg-bg p-3">
-              <p className="text-xs text-muted">
-                {ASSET_NEED_LABEL[need.kind]}
-                {need.required ? " · 必要" : " · 選用"}
-              </p>
-              <Input
-                className="mt-2"
-                value={need.title}
-                onChange={(e) => {
-                  const assetNeeds = plan.assetNeeds.map((item, i) =>
-                    i === index ? { ...item, title: e.target.value } : item,
-                  );
-                  set("assetNeeds", assetNeeds);
-                }}
-              />
-              <Textarea
-                className="mt-2 min-h-16"
-                value={need.detail}
-                onChange={(e) => {
-                  const assetNeeds = plan.assetNeeds.map((item, i) =>
-                    i === index ? { ...item, detail: e.target.value } : item,
-                  );
-                  set("assetNeeds", assetNeeds);
-                }}
-              />
-            </div>
-          ))}
+          <p className="text-xs leading-5 text-muted">會對照本機素材庫。沒有符合的檔案時，不會假裝 Drive／Canva 已有這張圖。</p>
+          {plan.assetNeeds.map((need, index) => {
+            const matches = matchAssetNeed(need, assets);
+            return (
+              <div key={`${need.title}-${index}`} className="rounded-lg bg-bg p-3">
+                <p className="text-xs text-muted">
+                  {ASSET_NEED_LABEL[need.kind]}
+                  {need.required ? " · 必要" : " · 選用"}
+                </p>
+                <Input
+                  className="mt-2"
+                  value={need.title}
+                  onChange={(e) => {
+                    const assetNeeds = plan.assetNeeds.map((item, i) =>
+                      i === index ? { ...item, title: e.target.value } : item,
+                    );
+                    set("assetNeeds", assetNeeds);
+                  }}
+                />
+                <Textarea
+                  className="mt-2 min-h-16"
+                  value={need.detail}
+                  onChange={(e) => {
+                    const assetNeeds = plan.assetNeeds.map((item, i) =>
+                      i === index ? { ...item, detail: e.target.value } : item,
+                    );
+                    set("assetNeeds", assetNeeds);
+                  }}
+                />
+                {matches.length ? (
+                  <ul className="mt-2 space-y-1">
+                    {matches.map((asset) => (
+                      <li key={asset.id} className="flex items-center justify-between gap-2 rounded-md bg-surface px-2 py-2">
+                        <span className="truncate text-xs">{asset.name}</span>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            placeAsset(projectId, asset.id);
+                            toast.success(`已把「${asset.name}」放到畫布`);
+                          }}
+                        >
+                          放到畫布
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-xs text-muted">素材庫沒有符合的真實檔案。</p>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="mt-2"
+                  onClick={() => {
+                    setStylePrompt({
+                      title: need.title,
+                      collection: ASSET_NEED_LABEL[need.kind],
+                      notes: need.detail,
+                      provider: "素材需求",
+                    });
+                    toast.success("已帶到圖片生成。只有按下生成才會呼叫 AI。");
+                  }}
+                  asChild
+                >
+                  <Link to="/assets">去生成這張</Link>
+                </Button>
+              </div>
+            );
+          })}
         </div>
       ) : null}
 

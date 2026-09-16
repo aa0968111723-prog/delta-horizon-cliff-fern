@@ -30,6 +30,7 @@ import {
   normalizeArtboard,
   pagesOf,
 } from "@/lib/studio/layers";
+import { migrateProjectStatus } from "@/lib/studio/status";
 import {
   SEED_ASSETS,
   SEED_BRAND,
@@ -209,7 +210,7 @@ function migrateProject(raw: Project): Project {
   const plan = migratePlan(raw.plan);
   return {
     ...raw,
-    status: raw.status ?? (plan ? "ready" : "draft"),
+    status: migrateProjectStatus(raw.status, Boolean(plan)),
     exports: raw.exports ?? [],
     artboards,
     slides,
@@ -391,7 +392,7 @@ export const useStudio = create<StudioState>()(
           brandId,
           templateId: tpl,
           activeFormatId: formatId,
-          status: "draft",
+          status: "idea",
           brief: migrateBrief(brief),
           copy,
           plan: null,
@@ -421,7 +422,7 @@ export const useStudio = create<StudioState>()(
           brandId,
           templateId,
           activeFormatId: starter.formatId,
-          status: "draft",
+          status: "idea",
           brief: migrateBrief(starter.brief),
           copy,
           plan: null,
@@ -465,7 +466,7 @@ export const useStudio = create<StudioState>()(
           artboards: boards.artboards,
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
-          status: "ready" as const,
+          status: "creating" as const,
           planVersions: [version, ...(p.planVersions ?? [])].slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, nextPlan.source === "mock" ? "本機草案" : "AI 企劃", "manual");
@@ -489,7 +490,7 @@ export const useStudio = create<StudioState>()(
           artboards: boards.artboards,
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
-          status: "ready" as const,
+          status: "creating" as const,
           planVersions: [version, p.planVersions.filter((v) => v.id !== versionId)].flat().slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, `還原 ${version.name}`, "manual");
@@ -560,7 +561,7 @@ export const useStudio = create<StudioState>()(
           name: `${src.name} 副本`,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          status: "draft",
+          status: "idea",
           exports: [],
         };
         set((s) => ({ projects: [copy, ...s.projects], lastProjectId: copy.id }));
@@ -569,7 +570,7 @@ export const useStudio = create<StudioState>()(
       recordExport: (id, version) =>
         get().updateProject(id, (p) => ({
           ...p,
-          status: "exported",
+          status: "complete",
           exports: [version, ...p.exports].slice(0, 20),
         })),
       ensureArtboard: (projectId, formatId) => {
@@ -1070,7 +1071,7 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 7,
+      version: 8,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,
