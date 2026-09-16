@@ -175,7 +175,7 @@ if (seedAutoRun) return;
       const foundHits = flattenHits(groups);
       setHits(foundHits);
       const found = summarizeFound(groups);
-      setStatus(`找到 ${found.found} 個相關素材。根據過去內容生成 3 個方向…`);
+      setStatus(`${found.line}${found.detail ? ` · ${found.detail}` : ""}。根據過去內容生成 3 個方向…`);
       const brief = briefFromIdea(parsed, notesFromHits(parsed, foundHits, creative.styleMemory));
       const result = await generateCampaignPlan({
         data: toBriefInput(brief, brand, {
@@ -191,9 +191,9 @@ if (seedAutoRun) return;
       const nextPlan = applyStudentReviewToPlan(mergePlanSources(result.plan, foundHits)).plan;
       setPlan(nextPlan);
       setPhase("directions");
-      setStatus(found.line + "。根據過去內容生成 3 個方向。");
+      setStatus(`${found.line}${found.detail ? ` · ${found.detail}` : ""}。根據過去內容生成 3 個方向。`);
       if (autoPack && nextPlan.directions?.[0]) {
-        setStatus(found.line + "。已依第一個方向做成完整宣傳，可再換方向。");
+        setStatus(`${found.line}${found.detail ? ` · ${found.detail}` : ""}。已依第一個方向做成完整宣傳，可再換方向。`);
         await packDirection(nextPlan, nextPlan.directions[0], foundHits, raw);
       }
     } catch (err) {
@@ -889,7 +889,7 @@ if (seedAutoRun) return;
                 onClick={() => {
                   const next = nextCreateIdeaFromLessons(igPosts, parseIdea(idea).eventName);
                   setIdea(next);
-                  void research(next);
+                  void research(next, true);
                 }}
               >
                 下一篇延續這個 Hook

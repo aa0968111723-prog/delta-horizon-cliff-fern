@@ -109,6 +109,22 @@ export function nextCreateIdeaFromLessons(posts: IgLessonPost[], eventName?: str
   return `根據過去 IG 表現來寫。${lessons.hook} 活動是${event}。`;
 }
 
+/** Calendar / 排程「AI 延伸」：帶上剛學會的 Hook，不要只丟波次標題。 */
+export function extendScheduleIdea(
+  title: string,
+  pack?: { hook?: string; eventName?: string } | null,
+  kindLabel?: string,
+) {
+  const event = pack?.eventName?.trim() || "";
+  const hook = (pack?.hook || "").replace(/^[「"]+|[」"]+$/g, "").trim();
+  const format = kindLabel?.trim() ? ` ${kindLabel.trim()}` : " IG";
+  if (hook && event) {
+    return `延續這個比較讓人停下來的第一句：「${hook}」。${title}。幫${event}做新的${format}。`;
+  }
+  if (hook) return `延續這個比較讓人停下來的第一句：「${hook}」。${title}`;
+  return title;
+}
+
 export type RhythmMemory = {
   learnedHook: string;
   preferCarousel: boolean;

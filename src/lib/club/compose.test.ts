@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyPickedDirection, briefFromIdea, mergePlanSources, notesFromHits, summarizeFound } from "./compose.ts";
+import { applyPickedDirection, briefFromIdea, mergePlanSources, notesFromHits, orderedSourceEntries, publishedHits, summarizeFound } from "./compose.ts";
 import { parseIdea } from "./idea.ts";
-import { searchMemory } from "./memory.ts";
+import { searchMemory, type MemoryItem } from "./memory.ts";
 import { buildZenMockPlan } from "./mock-plan.ts";
 import type { BriefInput } from "../ai/schema.ts";
 
@@ -19,6 +19,8 @@ test("tea idea becomes a full campaign brief and sourced plan", () => {
   });
   assert.ok(summary.found >= 3);
   assert.match(summary.line, /找到 \d+ 個相關素材/);
+  assert.match(summary.detail, /Instagram/);
+  assert.ok(summary.counts.some((row) => row.key === "instagram" && row.n >= 1));
 
   const brief = briefFromIdea(parsed, notesFromHits(parsed, hits));
   assert.equal(brief.eventName, "茶會");
@@ -74,4 +76,19 @@ test("tea idea becomes a full campaign brief and sourced plan", () => {
   const picked = applyPickedDirection(plan, plan.directions![1]);
   assert.equal(picked.headline, plan.directions![1].headline);
   assert.match(picked.visualDirection, /Prompt/);
+});
+
+test("published IG hits surface first and source groups stay Drive / Canva / Instagram", () => {
+  const groups: Record<string, MemoryItem[]> = {
+    generated: [{ id: "gen_1", source: "generated" as const, title: "草稿", subtitle: "AI Generated", tags: [], kind: "ig-post" as const, date: "", thumb: "", notes: "" }],
+    instagram: [
+      { id: "ig_old", source: "instagram" as const, title: "舊貼", subtitle: "Instagram / 2025-11-13", tags: ["茶會"], kind: "carousel" as const, date: "", thumb: "", notes: "" },
+      { id: "ig_new", source: "instagram" as const, title: "剛發出", subtitle: "Instagram / 2026-09-16 · 剛發布", tags: ["剛發布", "茶會"], kind: "ig-post" as const, date: "", thumb: "", notes: "剛發布 · ig-post · 茶會" },
+    ],
+    drive: [{ id: "drv", source: "drive" as const, title: "茶會照片", subtitle: "Google Drive", tags: ["茶會"], kind: "asset" as const, date: "", thumb: "", notes: "" }],
+  };
+  const ordered = orderedSourceEntries(groups).map(([key]) => key);
+  assert.deepEqual(ordered, ["drive", "instagram", "generated"]);
+  const published = publishedHits(groups.instagram);
+  assert.equal(published[0]?.id, "ig_new");
 });

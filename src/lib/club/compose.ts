@@ -29,26 +29,51 @@ export function flattenHits(groups: Record<string, MemoryItem[] | undefined>): M
     .filter((item, index, all) => all.findIndex((row) => row.id === item.id) === index);
 }
 
+export const CREATIVE_SOURCE_ORDER = ["drive", "canva", "instagram", "generated", "brand"] as const;
+
 export function summarizeFound(groups: Record<string, MemoryItem[] | undefined>) {
-  const counts = [
-    ["drive", "Google Drive"],
-    ["canva", "Canva"],
-    ["instagram", "Instagram"],
-    ["generated", "AI Generated"],
-    ["brand", "Brand Memory"],
-  ] as const;
-  const parts = counts
-    .map(([key, label]) => {
-      const n = groups[key]?.length ?? 0;
-      return n ? `${label} ${n}` : "";
-    })
-    .filter(Boolean);
+  const counts = CREATIVE_SOURCE_ORDER.map((key) => {
+    const label =
+      key === "drive"
+        ? "Google Drive"
+        : key === "canva"
+          ? "Canva"
+          : key === "instagram"
+            ? "Instagram"
+            : key === "generated"
+              ? "AI Generated"
+              : "Brand Memory";
+    return { key, label, n: groups[key]?.length ?? 0 };
+  }).filter((row) => row.n > 0);
   const found = flattenHits(groups).length;
   return {
     found,
     line: found ? `找到 ${found} 個相關素材` : "先用社團 Creative Memory 繼續",
-    detail: parts.join(" · "),
+    detail: counts.map((row) => `${row.label} ${row.n}`).join(" · "),
+    counts,
   };
+}
+
+export function isPublishedHit(item: Pick<MemoryItem, "tags" | "subtitle" | "notes">) {
+  return (
+    (item.tags ?? []).includes("剛發布") ||
+    (item.subtitle || "").includes("剛發布") ||
+    (item.notes || "").includes("剛發布")
+  );
+}
+
+export function publishedHits<T extends MemoryItem>(hits: T[]) {
+  return hits.filter(isPublishedHit);
+}
+
+export function orderedSourceEntries<T extends MemoryItem>(groups: Record<string, T[] | undefined>) {
+  const seen = new Set<string>();
+  const keys = [...CREATIVE_SOURCE_ORDER, ...Object.keys(groups)].filter((key) => {
+    if (seen.has(key) || !groups[key]?.length) return false;
+    seen.add(key);
+    return true;
+  });
+  return keys.map((key) => [key, groups[key]!] as const);
 }
 
 export function notesFromHits(parsed: ParsedIdea, hits: MemoryItem[], styleMemory: string[] = []) {
