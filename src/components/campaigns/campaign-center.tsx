@@ -87,7 +87,7 @@ export function CampaignCenter() {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-8">
         <PageHeader
-          kicker="CAMPAIGN"
+          kicker="禪作所"
           title="從下一場活動開始"
           description="建立活動後，先安排一版宣傳節奏，再逐篇進入 AI 創作。"
           actions={<Button onClick={() => setDialogOpen(true)}><Plus className="size-4" />建立活動</Button>}
@@ -104,7 +104,7 @@ export function CampaignCenter() {
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
         kicker="一人完成整套淡江禪學社網宣"
-        title="Campaign"
+        title="這一檔活動"
         description="活動資訊、學生情境與每一波內容放在一起。一人完成淡江禪學社網宣。"
         actions={
           <Button onClick={() => setDialogOpen(true)}>
@@ -171,7 +171,7 @@ export function CampaignCenter() {
             </div>
           </div>
           <div className="bg-accent p-5 text-accent-fg sm:p-7">
-            <p className="text-xs tracking-widest text-accent-fg/65">STUDENT CONTEXT</p>
+            <p className="text-xs tracking-widest text-accent-fg/65">淡江學生情境</p>
             <h3 className="mt-3 font-display text-xl">先理解學生，再講活動</h3>
             <p className="mt-3 text-sm leading-6 text-accent-fg/80">{campaign.studentPain}</p>
             {campaign.theme ? (
@@ -187,7 +187,7 @@ export function CampaignCenter() {
       <section className="mt-8">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs text-muted">CONTENT RHYTHM</p>
+            <p className="text-xs text-muted">本機節奏</p>
             <h2 className="mt-1 font-display text-xl">宣傳節奏</h2>
             <p className="mt-1 text-sm text-muted">這是可調整的本機節奏草案，不會自動發布。</p>
           </div>

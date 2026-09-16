@@ -183,11 +183,11 @@ export function HomePage() {
       <section className="mt-8">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-xs text-muted">QUICK START</p>
+            <p className="text-xs text-muted">先選一種尺寸</p>
             <h2 className="mt-1 font-display text-xl">我現在想創作什麼？</h2>
           </div>
           <Button asChild variant="ghost" size="sm">
-            <Link to="/assistant">完整創作台 <ChevronRight className="size-4" /></Link>
+            <Link to="/assistant">打開 AI 創作 <ChevronRight className="size-4" /></Link>
           </Button>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -212,7 +212,7 @@ export function HomePage() {
         <section className="min-w-0">
           <div className="flex items-end justify-between gap-3">
             <div>
-            <p className="text-xs text-muted">RECENT WORK</p>
+            <p className="text-xs text-muted">最近網宣</p>
             <h2 className="mt-1 font-display text-xl">最近作品</h2>
             </div>
             <Button
@@ -281,7 +281,7 @@ export function HomePage() {
       <section className="mt-8">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-xs text-muted">RECENT ASSETS</p>
+            <p className="text-xs text-muted">此裝置</p>
             <h2 className="mt-1 font-display text-xl">最近素材</h2>
           </div>
           <Button asChild variant="ghost" size="sm">
