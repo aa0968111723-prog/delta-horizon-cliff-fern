@@ -314,7 +314,7 @@ export function CreateStudio() {
       updateCampaign(currentCampaign.id, { oneLiner: hook });
       setCampaign({ ...currentCampaign, oneLiner: hook });
       for (const item of useStudio.getState().schedule.filter((row) => row.campaignId === currentCampaign.id)) {
-        if (item.kind === "story" || item.kind === "countdown") continue;
+        if (item.kind === "story" || item.kind === "countdown" || item.kind === "threads" || item.kind === "line") continue;
         upsertSchedule({
           ...item,
           caption,
@@ -1103,7 +1103,7 @@ export function CreateStudio() {
         await attachWaveLooks(created, dir, imageId);
       }
       for (const item of useStudio.getState().schedule.filter((row) => row.campaignId === created.id)) {
-        if (item.kind === "story" || item.kind === "countdown") continue;
+        if (item.kind === "story" || item.kind === "countdown" || item.kind === "threads" || item.kind === "line") continue;
         upsertSchedule({
           ...item,
           caption: cleaned.caption,
