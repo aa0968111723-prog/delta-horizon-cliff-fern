@@ -57,7 +57,6 @@ export function CreateStudio() {
   const createProject = useStudio((s) => s.createProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const createCampaign = useStudio((s) => s.createCampaign);
-  const updateCampaign = useStudio((s) => s.updateCampaign);
   const upsertSchedule = useStudio((s) => s.upsertSchedule);
   const addAsset = useStudio((s) => s.addAsset);
   const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
@@ -260,9 +259,11 @@ export function CreateStudio() {
   function saveCampaignAndWaves() {
     const name = eventName || plan?.campaignName || idea.slice(0, 16);
     const date = parseEventDate(schedule);
+    const type = eventKindFromText(`${name} ${idea}`);
+    const waves = suggestWaves({ date, type, name });
     const created = createCampaign({
       name,
-      type: eventKindFromText(`${name} ${idea}`),
+      type,
       date,
       time: parseEventTime(schedule),
       location,
@@ -272,9 +273,8 @@ export function CreateStudio() {
       studentPain,
       cta: plan?.cta || "來坐一下",
       signupUrl,
+      waves,
     });
-    const waves = suggestWaves(created);
-    updateCampaign(created.id, { waves });
     for (const wave of waves) {
       if (!wave.scheduledAt) continue;
       upsertSchedule({

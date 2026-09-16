@@ -33,6 +33,8 @@ export function WaveList({
       }
       setDrafts((prev) => ({ ...prev, [kind]: result.draft }));
       toast.success(`${waveLabel(kind)}已重寫`);
+    } catch {
+      toast.error("這波暫時無法重寫，可再試一次。");
     } finally {
       setBusy(null);
     }
