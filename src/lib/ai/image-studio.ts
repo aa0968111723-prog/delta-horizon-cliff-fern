@@ -75,9 +75,9 @@ export type VisionResult =
   | { ok: true; adapter: "live" | "mock"; analysis: VisionAnalysis }
   | { ok: false; adapter: "live" | "mock"; error: string };
 
-export function mockDirections(idea: string, eventName = ""): VisualDirection[] {
+export function mockDirections(idea: string, eventName = "", memoryHint = ""): VisualDirection[] {
   const subject = eventName || idea;
-  const research = researchInspiration({ idea, eventName: subject });
+  const research = researchInspiration({ idea: `${idea} ${memoryHint}`, eventName: subject });
   return directionsFromResearch(research, { eventName: subject });
 }
 
@@ -92,7 +92,7 @@ function parseIdeaInput(input: unknown) {
 export const generateVisualDirections = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseIdeaInput(input))
   .handler(async ({ data }): Promise<DirectionResult> => {
-    const mock = labelDirections(mockDirections(data.idea, data.eventName));
+    const mock = labelDirections(mockDirections(data.idea, data.eventName, data.memoryHint));
     const apiKey = process.env.XAI_API_KEY;
     if (!apiKey || data.forceMock) return { ok: true, adapter: "mock", directions: mock };
     const res = await fetch("https://api.x.ai/v1/chat/completions", {
@@ -138,6 +138,7 @@ const ImageGenInput = z.object({
   name: z.string().max(80).optional(),
   variation: z.enum(["composition", "mood", "background", "style", "text"]).optional(),
   forceMock: z.boolean().optional(),
+  memoryHint: z.string().max(800).optional(),
 });
 
 function parseImageGen(input: unknown) {
@@ -183,7 +184,7 @@ export const generateStudioImage = createServerFn({ method: "POST" })
       },
       body: JSON.stringify({
         model: "grok-imagine-image",
-        prompt: `${data.prompt}. Aspect ${aspect}. Airy Tamkang student life, not temple, not luxury brand, not stock influencer.`,
+        prompt: `${data.prompt}. Aspect ${aspect}. ${data.memoryHint ? `Club memory: ${data.memoryHint.slice(0, 180)}.` : ""} Airy Tamkang student life, not temple, not luxury brand, not stock influencer.`,
         n: 1,
         resolution: "1k",
         response_format: "b64_json",

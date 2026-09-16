@@ -30,7 +30,7 @@ import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction"
 import { researchInspiration } from "@/lib/zen/inspiration";
 import { offsetDaysForConvertedKind, rhythmHint } from "@/lib/zen/rhythm";
 import { searchCreative, groupCreativeHits, type CreativeHit } from "@/lib/zen/search";
-import { pickSourceRefs, styleFromHits } from "@/lib/zen/source-style";
+import { pickSourceRefs, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import { suggestWaves, eventKindFromText, waveLabel, contentKindForWave } from "@/lib/zen/schedule";
 import type { CampaignPlan, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
@@ -104,10 +104,6 @@ export function CreateStudio() {
   const [oneLiner, setOneLiner] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
-  const research = useMemo(
-    () => researchInspiration({ idea: `${idea} ${eventName}`, eventName, beat: academicBeat(), learning }),
-    [idea, eventName, learning],
-  );
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [plan, setPlan] = useState<CampaignPlan | null>(null);
@@ -120,6 +116,17 @@ export function CreateStudio() {
   const [pickedDirection, setPickedDirection] = useState<VisualDirection | null>(null);
   const [campaign, setCampaign] = useState<ClubCampaign | null>(null);
   const [vision, setVision] = useState<VisionAnalysis | null>(null);
+  const research = useMemo(
+    () =>
+      researchInspiration({
+        idea: `${idea} ${eventName}`,
+        eventName,
+        beat: academicBeat(),
+        learning,
+        sources: (pinned.length ? pinned : found).map((hit) => ({ source: hit.source, title: hit.title })),
+      }),
+    [idea, eventName, learning, found, pinned],
+  );
   const [lastImage, setLastImage] = useState<{
     base64: string;
     mime: string;
@@ -264,7 +271,10 @@ export function CreateStudio() {
         deliverables: { post: true, story: true, carousel: true, reels: true },
       });
       const result = await generateCampaignPlan({
-        data: toBriefInput(brief, brand, { forceMock: !status?.available, memoryHint: `${memoryHint}\n${research.promptBlock}`.slice(0, 800) }),
+        data: toBriefInput(brief, brand, {
+          forceMock: !status?.available,
+          memoryHint: `${memoryHint}\n${learning.promptBlock}\n${research.promptBlock}\n參考來源：${sourceNotes(hits)}`.slice(0, 800),
+        }),
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -278,6 +288,7 @@ export function CreateStudio() {
       setPickedDirection(null);
       if (!silent) toast.success(result.adapter === "mock" ? "本機宣傳草案" : "已生成完整宣傳");
       if (dirs[0]) await saveGeneratedImage(dirs[0], { silent: true });
+      setVision((current) => current ?? visionFromHits(refs.length ? refs : hits));
     } finally {
       setBusy(false);
     }
@@ -438,6 +449,7 @@ export function CreateStudio() {
           palette: dir.palette,
           name: dir.name,
           variation: opts?.kind,
+          memoryHint: `${memoryHint}\n${research.promptBlock}`.slice(0, 800),
         },
       });
       if (result.ok) payload = { imageBase64: result.imageBase64, mime: result.mime };
@@ -789,6 +801,9 @@ export function CreateStudio() {
         <h2 className="text-sm font-medium">這次抽象自：{research.cards[0]?.title}</h2>
         <p className="mt-1 text-xs text-muted">
           研究構圖、配色、排版、Hook、形式，再轉成淡江禪學社。不是抄別人。{research.fromOwnIg}
+          {research.foundSources.length
+            ? ` 已參考 ${research.foundSources.map((row) => row.title).slice(0, 3).join("、")}。`
+            : ""}
         </p>
         <ul className="mt-3 grid gap-2">
           {research.cards.slice(0, 3).map((card) => (
@@ -1003,7 +1018,10 @@ export function CreateStudio() {
                 已建立 {campaign.name}，節奏含 {campaign.waves.map((w) => waveLabel(w.kind)).join("、") || "預熱到回顧"}。
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button size="sm" onClick={() => void navigate({ to: "/calendar" })}>
+                <Button size="sm" disabled={busy} data-testid="send-to-canva" onClick={() => void sendToCanva()}>
+                  送進 Canva
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/calendar" })}>
                   看月曆
                 </Button>
                 <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/ig" })}>

@@ -96,7 +96,13 @@ export function HomePage() {
               <Button
                 className="mt-6 min-h-11 bg-surface text-fg hover:bg-surface-2"
                 onClick={() => {
-                  void navigate({ to: "/create", search: { mode: "carousel", idea: upcoming.oneLiner } });
+                  void navigate({
+                    to: "/create",
+                    search: {
+                      mode: "campaign",
+                      idea: `${upcoming.name} ${upcoming.date} ${upcoming.oneLiner}`.trim(),
+                    },
+                  });
                 }}
               >
                 AI 幫我創作

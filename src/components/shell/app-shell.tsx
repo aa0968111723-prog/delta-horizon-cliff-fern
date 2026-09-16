@@ -82,7 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 pb-24 lg:pb-0">{children}</div>
+        <div className="min-h-0 flex-1 pb-32 lg:pb-0">{children}</div>
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
           <div className="relative grid grid-cols-5">
             <MobileLink to="/" label="首頁" icon={House} active={current === "home"} />

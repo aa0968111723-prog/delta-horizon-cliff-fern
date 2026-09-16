@@ -44,3 +44,24 @@ test("tea-party research ranks 空一個位子 first and abstracts, never copies
   assert.match(dirs[0]?.prompt ?? "", /Tamkang|Tamsui|turtle|tea/i);
   assert.match(dirs.map((d) => d.prompt).join(" "), /no temple|not religious/i);
 });
+
+test("Drive and Canva hits reshape tea-party directions instead of a generic template", () => {
+  const research = researchInspiration({
+    idea: "下週有一場茶會 Google Drive/2025 茶會現場 Canva/茶會 IG 主視覺",
+    eventName: "茶會",
+    beat: "ordinary",
+    sources: [
+      { source: "drive", title: "2025 茶會現場" },
+      { source: "canva", title: "茶會 IG 主視覺" },
+      { source: "instagram", title: "最近是不是很久沒有好好坐下來？" },
+    ],
+  });
+  assert.ok(research.foundSources.some((row) => row.source === "drive"));
+  assert.ok(research.foundSources.some((row) => row.source === "canva"));
+  assert.match(research.promptBlock, /Google Drive／2025 茶會現場/);
+  assert.match(research.promptBlock, /不要複製/);
+  assert.doesNotMatch(research.promptBlock, /Assignee|抄別人的貼文/);
+  const dirs = directionsFromResearch(research, { eventName: "茶會", hook: "可以自己來？" });
+  assert.match(dirs.map((dir) => dir.concept).join(" "), /Google Drive|Canva|Instagram/);
+  assert.match(dirs.map((dir) => dir.concept).join(" "), /不要複製/);
+});

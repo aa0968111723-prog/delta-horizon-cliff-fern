@@ -19,6 +19,8 @@ export type InspirationCard = {
   headlineHint: string;
 };
 
+export type SourceRef = { source: string; title: string };
+
 export type InspirationResearch = {
   beat: AcademicBeat;
   eventKind: EventKind;
@@ -31,6 +33,7 @@ export type InspirationResearch = {
   zenUse: string;
   fromOwnIg: string;
   promptBlock: string;
+  foundSources: SourceRef[];
 };
 
 export const INSPIRATION: InspirationCard[] = [
@@ -193,6 +196,43 @@ function igBoostIds(learning?: Pick<IgLearning, "bestHookShape" | "avoid" | "bes
   return ids;
 }
 
+export function sourcesFromText(text: string): SourceRef[] {
+  const out: SourceRef[] = [];
+  const re = /(Google Drive|Canva|Instagram|AI Generated)[/／]([^、,。\n]+)/g;
+  let match: RegExpExecArray | null = re.exec(text);
+  while (match) {
+    const label = match[1];
+    const source =
+      label === "Google Drive"
+        ? "drive"
+        : label === "Canva"
+          ? "canva"
+          : label === "Instagram"
+            ? "instagram"
+            : "generated";
+    out.push({ source, title: match[2]!.trim() });
+    match = re.exec(text);
+  }
+  return out;
+}
+
+function sourceBoostIds(blob: string) {
+  const ids: string[] = [];
+  if (/drive|Google Drive|現場/i.test(blob)) ids.push("friend-seat", "night-pause");
+  if (/canva/i.test(blob)) ids.push("carousel-breath");
+  if (/instagram/i.test(blob)) ids.push("night-pause", "carousel-breath");
+  if (/龜龜|turtle/i.test(blob)) ids.push("turtle");
+  return ids;
+}
+
+function sourceLabel(source: string) {
+  if (source === "drive") return "Google Drive";
+  if (source === "canva") return "Canva";
+  if (source === "instagram") return "Instagram";
+  if (source === "generated") return "AI Generated";
+  return "品牌記憶";
+}
+
 /** Rank inspiration for this week's 淡江節奏 — composition, not a swipe file. */
 export function inspirationForBeat(beat: AcademicBeat): InspirationCard[] {
   const ids = BEAT_ORDER[beat];
@@ -206,11 +246,26 @@ export function researchInspiration(opts: {
   beat?: AcademicBeat;
   now?: Date;
   learning?: Pick<IgLearning, "bestHookShape" | "avoid" | "bestKind" | "captionLengthBest">;
+  sources?: SourceRef[];
 }): InspirationResearch {
   const idea = `${opts.idea ?? ""} ${opts.eventName ?? ""}`.trim();
   const beat = opts.beat ?? academicBeat(opts.now);
   const eventKind = eventKindFromText(idea || opts.eventName || "");
-  const rankedIds = uniqueIds([EVENT_ORDER[eventKind], igBoostIds(opts.learning), BEAT_ORDER[beat]]);
+  const parsed = [...(opts.sources ?? []), ...sourcesFromText(idea)];
+  const seen = new Set<string>();
+  const foundSources = parsed.filter((row) => {
+    const key = `${row.source}:${row.title}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 8);
+  const sourceBlob = foundSources.map((row) => `${row.source} ${row.title}`).join(" ");
+  const rankedIds = uniqueIds([
+    sourceBoostIds(`${idea} ${sourceBlob}`),
+    EVENT_ORDER[eventKind],
+    igBoostIds(opts.learning),
+    BEAT_ORDER[beat],
+  ]);
   const cards = rankedIds.map((id) => cardById(id)).filter((card): card is InspirationCard => Boolean(card));
   const top = cards[0] ?? INSPIRATION[0]!;
   const fromOwnIg = opts.learning
@@ -218,10 +273,14 @@ export function researchInspiration(opts: {
         opts.learning.captionLengthBest ? ` Caption 約 ${opts.learning.captionLengthBest} 字。` : ""
       }`
     : "還沒有自己的成效時，先用問句與生活語氣。";
+  const fromOwnSources = foundSources.length
+    ? `找到的來源：${foundSources.map((row) => `${sourceLabel(row.source)}／${row.title}`).join("、")}。延續 DNA，不要複製舊作品。`
+    : "先用品牌記憶，連接 Drive／Canva／IG 後會換成真實素材。";
   const promptBlock = [
     `靈感研究（抽象，禁止抄其他社團）：構圖「${top.composition}」；排版「${top.layout}」；配色「${top.palette}」；Hook「${opts.learning?.bestHookShape || top.hookShape}」；形式「${top.form}」`,
     `轉成淡江禪學社：${top.zenUse}`,
     fromOwnIg,
+    fromOwnSources,
     "不要寺廟、不要宗教海報、不要勵志雞湯。",
   ].join("。");
   return {
@@ -236,6 +295,7 @@ export function researchInspiration(opts: {
     zenUse: top.zenUse,
     fromOwnIg,
     promptBlock,
+    foundSources,
   };
 }
 
@@ -247,10 +307,14 @@ export function directionsFromResearch(
   const fallbackHook = opts.hook || HOOK_EXAMPLES[subject.length % HOOK_EXAMPLES.length]!;
   return research.cards.slice(0, 3).map((card, index) => {
     const headline = index === 0 && /[？?]/.test(fallbackHook) ? fallbackHook : card.headlineHint;
+    const source = research.foundSources[index] ?? research.foundSources[0];
+    const concept = source
+      ? `${card.zenUse} 參考 ${sourceLabel(source.source)}「${source.title}」，不要複製舊作品。`
+      : card.zenUse;
     return {
       id: `dir_${card.id}`,
       name: card.title,
-      concept: card.zenUse,
+      concept,
       palette: card.palette,
       composition: card.composition,
       typeDirection: card.hookShape,

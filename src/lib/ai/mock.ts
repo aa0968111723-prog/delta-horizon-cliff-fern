@@ -164,7 +164,7 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
     ? labelDirections(
         directionsFromResearch(
           researchInspiration({
-            idea: `${name} ${features} ${data.notes}`,
+            idea: `${name} ${features} ${data.notes} ${data.memoryHint ?? ""}`,
             eventName: name,
             beat: academicBeat(),
           }),
