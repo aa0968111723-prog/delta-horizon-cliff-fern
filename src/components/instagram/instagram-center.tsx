@@ -693,49 +693,62 @@ export function InstagramCenter() {
                 <p className="py-16 text-center text-xs text-muted">還沒有這個尺寸的預覽，先去創作一則。</p>
               )}
               {filmstrip && filmstrip.assetIds.length > 1 ? (
-                <div className="mt-3 max-w-full overflow-x-auto overscroll-x-contain">
-                  <div className="flex w-max gap-2 pb-1">
-                    {filmstrip.assetIds.map((id, index) => {
-                      const seedSrc = assets.find((a) => a.id === id)?.seedSrc;
-                      const src = resolveAssetSrc(id, urls, seedSrc);
-                      return (
-                        <button
-                          key={id}
-                          type="button"
-                          onClick={() => {
-                            setIgPreview(id, previewFormat);
-                            if (filmstrip.projectId) setSlide(filmstrip.projectId, index);
-                          }}
-                          className={cn(
-                            "h-20 w-16 shrink-0 overflow-hidden rounded-xl bg-bg",
-                            lastVisualAssetId === id && "ring-2 ring-accent",
-                          )}
-                        >
-                          {src ? (
-                            <img src={src} alt="" className="size-full object-cover" />
-                          ) : (
-                            <span className="flex size-full items-center justify-center px-1 text-xs text-muted">
-                              {filmstrip.labels[index] ?? index + 1}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                <div className="mt-3 hidden max-w-full overflow-x-auto overscroll-x-contain lg:block">
+                  <SuiteFilmstrip
+                    filmstrip={filmstrip}
+                    urls={urls}
+                    assets={assets}
+                    activeId={lastVisualAssetId}
+                    onPick={(id, index) => {
+                      setIgPreview(id, previewFormat);
+                      if (filmstrip.projectId) setSlide(filmstrip.projectId, index);
+                    }}
+                  />
                 </div>
               ) : null}
             </div>
             <div className="order-first space-y-3 lg:order-none">
               {lastPack && lastVisualAssetId ? (
                 <div className="rounded-2xl bg-bg p-3" data-testid="preview-after-suite">
-                  <p className="text-sm font-medium">剛做成整套，已排進日曆</p>
-                  <p className="mt-1 text-xs text-muted">
-                    先改文案或畫面，需要時送到 Canva，再用目前畫面發到 IG。
-                  </p>
+                  <div className="flex gap-3">
+                    {previewImageSrc ? (
+                      <img
+                        src={previewImageSrc}
+                        alt=""
+                        data-testid="preview-suite-thumb"
+                        className="h-28 w-[5.6rem] shrink-0 rounded-xl object-cover lg:hidden"
+                      />
+                    ) : null}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">剛做成整套，已排進日曆</p>
+                      <p className="mt-1 text-xs text-muted">
+                        這張就是目前畫面。需要時送到 Canva，或直接發到 IG。
+                      </p>
+                    </div>
+                  </div>
+                  {filmstrip && filmstrip.assetIds.length > 1 ? (
+                    <div className="mt-3 max-w-full overflow-x-auto overscroll-x-contain lg:hidden">
+                      <SuiteFilmstrip
+                        filmstrip={filmstrip}
+                        urls={urls}
+                        assets={assets}
+                        activeId={lastVisualAssetId}
+                        onPick={(id, index) => {
+                          setIgPreview(id, previewFormat);
+                          if (filmstrip.projectId) setSlide(filmstrip.projectId, index);
+                        }}
+                      />
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
               <p className="text-sm font-medium">Caption</p>
-              <Textarea value={caption} onChange={(e) => setCaption(e.target.value)} rows={8} />
+              <Textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                rows={4}
+                className="md:min-h-40"
+              />
               <p className="text-xs text-muted">{IG_DNA.hashtags.join(" ")}</p>
               <Button size="sm" onClick={saveCaption} disabled={!previewProject}>
                 更新文案
@@ -834,5 +847,47 @@ export function InstagramCenter() {
         </section>
       ) : null}
     </main>
+  );
+}
+
+function SuiteFilmstrip({
+  filmstrip,
+  urls,
+  assets,
+  activeId,
+  onPick,
+}: {
+  filmstrip: { assetIds: string[]; labels: string[]; projectId: string };
+  urls: Record<string, string>;
+  assets: { id: string; seedSrc?: string }[];
+  activeId: string | null;
+  onPick: (id: string, index: number) => void;
+}) {
+  return (
+    <div className="flex w-max gap-2 pb-1">
+      {filmstrip.assetIds.map((id, index) => {
+        const seedSrc = assets.find((asset) => asset.id === id)?.seedSrc;
+        const src = resolveAssetSrc(id, urls, seedSrc);
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onPick(id, index)}
+            className={cn(
+              "h-20 w-16 shrink-0 overflow-hidden rounded-xl bg-bg",
+              activeId === id && "ring-2 ring-accent",
+            )}
+          >
+            {src ? (
+              <img src={src} alt="" className="size-full object-cover" />
+            ) : (
+              <span className="flex size-full items-center justify-center px-1 text-xs text-muted">
+                {filmstrip.labels[index] ?? index + 1}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
