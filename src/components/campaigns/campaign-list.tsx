@@ -17,12 +17,29 @@ export function CampaignList() {
   const [date, setDate] = useState("2026-09-24");
   const [type, setType] = useState<CampaignType>("tea");
   const [oneLiner, setOneLiner] = useState("");
+  const [fullIntro, setFullIntro] = useState("");
+  const [theme, setTheme] = useState("");
+  const [studentPain, setStudentPain] = useState("");
+  const [cta, setCta] = useState("晚上來坐一下");
+  const [signupUrl, setSignupUrl] = useState("");
   const [location, setLocation] = useState("淡江校園");
   const [time, setTime] = useState("19:30");
 
   function create() {
     if (!name.trim()) return;
-    const campaign = addCampaign({ name: name.trim(), date, type, oneLiner, location, time });
+    const campaign = addCampaign({
+      name: name.trim(),
+      date,
+      type,
+      oneLiner,
+      fullIntro,
+      theme,
+      studentPain,
+      cta,
+      signupUrl,
+      location,
+      time,
+    });
     toast.success("活動已建立，可生成完整宣傳");
     void navigate({ to: "/campaigns/$campaignId", params: { campaignId: campaign.id } });
   }
@@ -65,6 +82,16 @@ export function CampaignList() {
           <Input value={location} onChange={(e) => setLocation(e.target.value)} />
           <Label>一句介紹</Label>
           <Textarea value={oneLiner} onChange={(e) => setOneLiner(e.target.value)} placeholder="一個不用表演的晚上" />
+          <Label>完整介紹</Label>
+          <Textarea value={fullIntro} onChange={(e) => setFullIntro(e.target.value)} placeholder="燈光、熱茶、坐著就好。不用先懂禪。" />
+          <Label>活動主題</Label>
+          <Input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="坐下來" />
+          <Label>學生痛點</Label>
+          <Input value={studentPain} onChange={(e) => setStudentPain(e.target.value)} placeholder="連休息都有罪惡感" />
+          <Label>主要 CTA</Label>
+          <Input value={cta} onChange={(e) => setCta(e.target.value)} placeholder="晚上來坐一下" />
+          <Label>報名連結</Label>
+          <Input value={signupUrl} onChange={(e) => setSignupUrl(e.target.value)} placeholder="有的話再貼" />
           <div className="flex flex-wrap gap-1">
             {CAMPAIGN_TYPES.map((t) => (
               <Button key={t.id} size="sm" variant={type === t.id ? "default" : "secondary"} onClick={() => setType(t.id)}>

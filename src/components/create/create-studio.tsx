@@ -14,7 +14,9 @@ import { generateCreativePack, type CreativePack } from "@/lib/ai/pack";
 import { analyzeImage, type VisionReport } from "@/lib/ai/vision";
 import { clubDnaFromMemory, dnaPromptBlock } from "@/lib/club/dna";
 import { clubInsightsFromPosts, insightsPromptBlock } from "@/lib/club/insights";
-import { gatherCreativeMemory, createCanvaDesign } from "@/lib/connect/oauth";
+import { createCanvaDesign } from "@/lib/connect/oauth";
+import { gatherIntoStore } from "@/lib/creative/gather-client";
+import { varyImagePrompt } from "@/lib/creative/image-vary";
 import { inferCampaignType, inferEventDate } from "@/lib/creative/schedule";
 import { searchCreative } from "@/lib/creative/search";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
@@ -28,9 +30,9 @@ import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
 const ASPECTS = [
-  { id: "4:5" as const, label: "IG 4:5" },
+  { id: "4:5" as const, label: "IG 4:5 / Threads" },
   { id: "1:1" as const, label: "IG 1:1 / LINE" },
-  { id: "9:16" as const, label: "Story / Reels" },
+  { id: "9:16" as const, label: "Story / Reels Cover" },
 ];
 
 function starterQuery(mode: string, campaignName?: string) {
@@ -69,7 +71,6 @@ export function CreateStudio({
   const updateCampaign = useCreative((s) => s.updateCampaign);
   const addCampaign = useCreative((s) => s.addCampaign);
   const addMemory = useCreative((s) => s.addMemory);
-  const ingestIgPosts = useCreative((s) => s.ingestIgPosts);
   const setWaveStatus = useCreative((s) => s.setWaveStatus);
   const assets = useStudio((s) => s.assets);
   const projects = useStudio((s) => s.projects);
@@ -84,6 +85,13 @@ export function CreateStudio({
   const [vision, setVision] = useState<VisionReport | null>(null);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [reelsCoverSrc, setReelsCoverSrc] = useState<string | null>(null);
+  const [visionKit, setVisionKit] = useState<{
+    story: StoryFrame[];
+    reels: ReelsBeat[];
+    carousel: string;
+    threads: string;
+    line: string;
+  } | null>(null);
   const [directions, setDirections] = useState<CreativeDirection[]>([]);
   const [aspect, setAspect] = useState<(typeof ASPECTS)[number]["id"]>("4:5");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -97,20 +105,7 @@ export function CreateStudio({
   async function runPack() {
     setBusy(true);
     try {
-      try {
-        const gathered = await Promise.race([
-          gatherCreativeMemory({ data: { query: query.slice(0, 80) } }),
-          new Promise<never>((_, reject) => {
-            window.setTimeout(() => reject(new Error("gather-timeout")), 8000);
-          }),
-        ]);
-        if (gathered.ok) {
-          for (const item of gathered.items) addMemory(item);
-          if (gathered.posts?.length) ingestIgPosts(gathered.posts);
-        }
-      } catch {
-        /* 沒連上官方來源就用本機 Creative Memory */
-      }
+      await gatherIntoStore(query);
       const liveHits = searchCreative({
         query,
         memory: useCreative.getState().memory,
@@ -265,6 +260,41 @@ export function CreateStudio({
     reader.readAsDataURL(file);
   }
 
+  async function fromVision(kind: "style" | "similar" | "restyle" | "story" | "carousel" | "reels") {
+    if (!vision) return;
+    if (kind === "style") {
+      await runImage(vision.imagePrompt);
+      return;
+    }
+    if (kind === "similar") {
+      await runImage(varyImagePrompt(vision.imagePrompt, "similar"));
+      return;
+    }
+    if (kind === "restyle") {
+      setQuery((prev) => `${prev}。保留這張的內容，重新設計成淡江學生會停下來的 IG。`);
+      await runPack();
+      return;
+    }
+    if (kind === "story") await runImage(varyImagePrompt(vision.imagePrompt, "story"), "9:16");
+    if (kind === "reels") await runImage(varyImagePrompt(vision.imagePrompt, "reels"), "9:16");
+    const result = await convertContent({
+      data: {
+        title: query.slice(0, 40) || "淡江禪學社",
+        hook: vision.stay || vision.scene,
+        body: vision.studentFit,
+      },
+    });
+    if (!result.ok) return;
+    setVisionKit({
+      story: result.story,
+      reels: result.reels,
+      carousel: result.carousel.map((page, index) => `${index + 1}. ${page.title}\n${page.body}`).join("\n\n"),
+      threads: result.threads,
+      line: result.line,
+    });
+    toast.success(kind === "carousel" ? "已轉成 Carousel" : kind === "story" ? "已轉成限動" : "已轉成 Reels");
+  }
+
   function applyToStudio(andSchedule: boolean) {
     const brand = brands[0];
     if (!brand || !pack) return;
@@ -329,6 +359,12 @@ export function CreateStudio({
 
   async function sendCanva() {
     if (!pack) return;
+    const caption = copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook;
+    try {
+      await navigator.clipboard.writeText(`${caption}\n\n${pack.plan.cta}\n${pack.plan.hashtags.join(" ")}`);
+    } catch {
+      /* 沒剪貼簿也繼續開 Canva */
+    }
     const result = await createCanvaDesign({ data: { title: pack.plan.campaignName, kind: "carousel" } });
     if (!result.ok) {
       toast.message(result.message);
@@ -491,19 +527,19 @@ export function CreateStudio({
                   <Button size="sm" onClick={() => void runImage(activeDir.imagePrompt)}>
                     生成這個方向的圖
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void runImage(`${activeDir.imagePrompt}, different composition`)}>
+                  <Button size="sm" variant="secondary" onClick={() => void runImage(varyImagePrompt(activeDir.imagePrompt, "compose"))}>
                     換構圖
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void runImage(`${activeDir.imagePrompt}, dusk Tamsui mood`)}>
+                  <Button size="sm" variant="secondary" onClick={() => void runImage(varyImagePrompt(activeDir.imagePrompt, "mood"))}>
                     換氣氛
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void runImage(`${activeDir.imagePrompt}, new background campus path`)}>
+                  <Button size="sm" variant="secondary" onClick={() => void runImage(varyImagePrompt(activeDir.imagePrompt, "bg"))}>
                     換背景
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void runImage(`${activeDir.imagePrompt}, editorial film still, less illustration more photo`)}>
+                  <Button size="sm" variant="secondary" onClick={() => void runImage(varyImagePrompt(activeDir.imagePrompt, "style"))}>
                     換風格
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void runImage(`${activeDir.imagePrompt}, less text, bigger hook, more empty space`)}>
+                  <Button size="sm" variant="secondary" onClick={() => void runImage(varyImagePrompt(activeDir.imagePrompt, "type"))}>
                     換文字
                   </Button>
                   <Button size="sm" variant="secondary" onClick={() => void runDirections()}>
@@ -637,21 +673,50 @@ export function CreateStudio({
       ) : null}
       {vision ? (
         <section className="mt-4 rounded-2xl bg-surface p-4 text-sm shadow-[var(--shadow-border)]">
-          <p>{vision.scene}</p>
-          <p className="mt-1 text-muted">{vision.studentFit}</p>
+          <h2 className="text-sm font-medium">圖片理解</h2>
+          <p className="mt-2">{vision.scene}</p>
+          <ul className="mt-3 grid gap-1 text-xs text-muted sm:grid-cols-2">
+            <li>人物：{vision.people}</li>
+            <li>色彩：{vision.color}</li>
+            <li>光線：{vision.light}</li>
+            <li>構圖：{vision.composition}</li>
+            <li>文字比例：{vision.typeShare}</li>
+            <li>層級：{vision.hierarchy}</li>
+            <li>品牌感：{vision.brandFit}</li>
+            <li>停留感：{vision.stay}</li>
+          </ul>
+          <p className="mt-2 text-muted">{vision.studentFit}</p>
           <p className="mt-2 text-xs">
             太宗教 {vision.tooReligious ? "是" : "沒有"} · 太老氣 {vision.tooOld ? "是" : "沒有"} · 太 AI {vision.tooAi ? "是" : "沒有"}
           </p>
-          <div className="mt-3 flex flex-wrap gap-1">
-            {vision.next.map((n) => (
-              <span key={n} className="rounded-full bg-surface-2 px-2 py-1 text-xs">
-                {n}
-              </span>
-            ))}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" disabled={busy} onClick={() => void fromVision("style")}>
+              延續這個風格
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("restyle")}>
+              保留內容重新設計
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("story")}>
+              做成限動
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("carousel")}>
+              做成 Carousel
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("reels")}>
+              做成 Reels Cover
+            </Button>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void fromVision("similar")}>
+              生成相似視覺
+            </Button>
           </div>
-          <Button className="mt-3" size="sm" onClick={() => void runImage(vision.imagePrompt)}>
-            延續這個風格
-          </Button>
+          {visionKit ? (
+            <div className="mt-4 space-y-3">
+              <pre className="whitespace-pre-wrap rounded-2xl bg-bg p-3 font-sans text-xs leading-relaxed">{visionKit.carousel}</pre>
+              <StoryStrip frames={visionKit.story} />
+              <ReelsDesk beats={visionKit.reels} coverSrc={reelsCoverSrc} />
+              <pre className="whitespace-pre-wrap font-sans text-xs text-muted">{visionKit.threads}</pre>
+            </div>
+          ) : null}
         </section>
       ) : null}
     </main>
@@ -740,6 +805,7 @@ function ConvertPreview({ title, hook, when, where }: { title: string; hook: str
   const [story, setStory] = useState<StoryFrame[] | null>(null);
   const [reels, setReels] = useState<ReelsBeat[] | null>(null);
   const labels: Record<string, string> = {
+    ig: "轉 IG 貼文",
     carousel: "轉 Carousel",
     story: "轉 Story",
     threads: "轉 Threads",
@@ -755,6 +821,7 @@ function ConvertPreview({ title, hook, when, where }: { title: string; hook: str
     if (kind === "carousel") setText(result.carousel.map((p, i) => `${i + 1}. ${p.title}\n${p.body}`).join("\n\n"));
     else if (kind === "threads") setText(result.threads);
     else if (kind === "line") setText(result.line);
+    else if (kind === "ig") setText(`${hook}\n${title}\n${[when, where].filter(Boolean).join(" · ")}\n晚上來坐一下`);
     else setText("");
   }
   return (

@@ -44,6 +44,7 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
       </p>
       <p className="mt-4 font-display text-xl">{campaign.oneLiner}</p>
       <p className="mt-2 text-sm leading-relaxed">{campaign.fullIntro}</p>
+      {campaign.signupUrl ? <p className="mt-2 text-xs text-muted">報名：{campaign.signupUrl}</p> : null}
       <dl className="mt-6 grid gap-3 text-sm md:grid-cols-2">
         <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
           <dt className="text-xs text-muted">學生痛點</dt>
@@ -80,18 +81,60 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
                   打開作品
                 </Link>
               ) : (
-                <button
-                  type="button"
-                  className="mt-1 text-xs underline"
-                  onClick={() =>
-                    void navigate({
-                      to: "/create",
-                      search: { q: `${campaign.name} ${wave.topic}`, campaign: campaign.id, auto: "1" },
-                    })
-                  }
-                >
-                  生成這一波
-                </button>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      void navigate({
+                        to: "/create",
+                        search: { q: `${campaign.name} ${wave.topic}`, campaign: campaign.id, auto: "1" },
+                      })
+                    }
+                  >
+                    生成這一波
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      void navigate({
+                        to: "/create",
+                        search: { q: `${campaign.name} ${wave.topic}`, campaign: campaign.id, auto: "1", mode: "post" },
+                      })
+                    }
+                  >
+                    改寫
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      void navigate({
+                        to: "/create",
+                        search: { q: `${campaign.name} ${wave.topic} 主視覺`, campaign: campaign.id, auto: "1", mode: "image" },
+                      })
+                    }
+                  >
+                    換視覺
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      void navigate({
+                        to: "/create",
+                        search: {
+                          q: `${campaign.name} ${wave.topic}。換一個生活角度，不要招生腔。`,
+                          campaign: campaign.id,
+                          auto: "1",
+                        },
+                      })
+                    }
+                  >
+                    換角度
+                  </Button>
+                </div>
               )}
               {wave.status !== "published" ? (
                 <div className="mt-2">

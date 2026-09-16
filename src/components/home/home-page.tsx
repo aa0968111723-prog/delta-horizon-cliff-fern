@@ -2,7 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { CreativeHits } from "@/components/search/creative-hits";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { daysUntil, academicMoment } from "@/lib/club/season";
 import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { clubDnaFromMemory } from "@/lib/club/dna";
 import { clubInsightsFromPosts } from "@/lib/club/insights";
+import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { searchCreative } from "@/lib/creative/search";
 import { calendarFrom, useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -42,6 +43,7 @@ export function HomePage() {
   const inspirations = useCreative((s) => s.inspirations);
   const setLastQuery = useCreative((s) => s.setLastQuery);
   const [q, setQ] = useState("");
+  const [searching, setSearching] = useState(false);
   const featured = campaigns[0];
   const remain = featured ? daysUntil(featured.date) : 0;
   const brand = brands[0];
@@ -51,6 +53,16 @@ export function HomePage() {
     () => (q.trim().length < 2 ? [] : searchCreative({ query: q, memory, assets, campaigns, igPosts, projects })),
     [q, memory, assets, campaigns, igPosts, projects],
   );
+
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) return;
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      void gatherIntoStore(term).finally(() => setSearching(false));
+    }, 480);
+    return () => window.clearTimeout(timer);
+  }, [q]);
 
   const scheduled = calendarFrom(campaigns, projects).filter(
     (item) => item.date >= format(new Date(), "yyyy-MM-dd") && item.status !== "published",
@@ -104,10 +116,21 @@ export function HomePage() {
           AI 創作
         </Button>
       </form>
-      {hits.length ? (
+      {searching || hits.length ? (
         <div>
-          <p className="mt-3 text-sm text-muted">找到 {hits.length} 個相關素材</p>
-          <CreativeHits hits={hits} />
+          <p className="mt-3 text-sm text-muted">
+            {searching ? "正在找 Drive、Canva、IG…" : `找到 ${hits.length} 個相關素材`}
+          </p>
+          <CreativeHits
+            hits={hits}
+            onPick={(hit) => {
+              setLastQuery(q.trim() || hit.title);
+              void navigate({
+                to: "/create",
+                search: { q: `${q.trim() || hit.title}（參考 ${hit.sourceLabel}）`, auto: "1" },
+              });
+            }}
+          />
         </div>
       ) : null}
 
