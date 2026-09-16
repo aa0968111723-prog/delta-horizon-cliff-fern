@@ -184,18 +184,22 @@ function GridCell({
 }) {
   const src = slot.assetIds[0] ? urls[slot.assetIds[0]] : slot.mediaUrl ?? "";
   const board = project?.artboards[project.activeFormatId];
+  const generated = project?.sourceRefs.find((ref) => ref.id?.startsWith("https:") || ref.id?.startsWith("data:"))?.id;
+  const cover = src || generated;
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={cn("relative aspect-square bg-surface-2", active && "ring-2 ring-accent")}
+      className={cn("relative aspect-square overflow-hidden bg-surface-2", active && "ring-2 ring-accent")}
     >
-      {slot.origin === "upcoming" && board && brand ? (
-        <span className="flex size-full items-center justify-center bg-bg">
-          <ArtboardView artboard={board} brand={brand} urls={urls} width={120} />
+      {cover ? (
+        <img src={cover} alt="" className="size-full object-cover" />
+      ) : board && brand ? (
+        <span className="absolute inset-0 overflow-hidden bg-bg">
+          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            <ArtboardView artboard={board} brand={brand} urls={urls} width={360} />
+          </span>
         </span>
-      ) : src ? (
-        <img src={src} alt="" className="size-full object-cover" />
       ) : (
         <span className="flex size-full items-end bg-linear-to-br from-surface-2 to-bg p-2 text-left">
           <span className="line-clamp-3 text-[11px] leading-snug">{slot.title}</span>
