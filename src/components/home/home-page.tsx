@@ -187,7 +187,9 @@ export function HomePage() {
           {eventCampaigns.map((c) => (
             <li key={c.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
               <p className="text-xs text-muted">{c.date} · {c.time}</p>
-              <p className="mt-1 font-medium">{c.name}</p>
+              <p className="mt-1 font-medium" data-testid="home-event-name">
+                {c.name}
+              </p>
               <p className="mt-1 text-sm text-muted">{c.oneLiner}</p>
               <Button
                 className="mt-3"
