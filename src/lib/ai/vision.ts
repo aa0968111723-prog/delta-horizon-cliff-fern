@@ -5,10 +5,13 @@ import { academicMoment } from "@/lib/club/season";
 import { extractJson, hasXai, xaiChat } from "./xai";
 import { parseFnInput } from "./parse";
 
-const VisionInput = z.object({
-  imageDataUrl: z.string().min(20).max(4_500_000),
-  note: z.string().max(200).optional(),
-});
+const VisionInput = z
+  .object({
+    imageDataUrl: z.string().min(20).max(4_500_000).optional(),
+    imageUrl: z.string().url().max(500).optional(),
+    note: z.string().max(200).optional(),
+  })
+  .refine((value) => Boolean(value.imageDataUrl || value.imageUrl), { message: "需要圖片" });
 
 export type VisionReport = {
   scene: string;
@@ -60,7 +63,7 @@ export const analyzeImage = createServerFn({ method: "POST" })
 輸出 JSON：scene,people,color,light,composition,typeShare,hierarchy,brandFit,studentFit,stay,tooReligious,tooOld,tooAi,next[5],imagePrompt。
 用生活語言。`,
         },
-        { type: "image_url", image_url: { url: data.imageDataUrl } },
+        { type: "image_url", image_url: { url: data.imageUrl ?? data.imageDataUrl ?? "" } },
       ];
       const text = await xaiChat(
         [

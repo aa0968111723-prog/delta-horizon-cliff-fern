@@ -4,9 +4,11 @@ import type { SearchHit } from "@/lib/creative/types";
 export function CreativeHits({
   hits,
   onPick,
+  onAnalyze,
 }: {
   hits: SearchHit[];
   onPick?: (hit: SearchHit) => void;
+  onAnalyze?: (hit: SearchHit) => void;
 }) {
   const groups = groupHits(hits);
   if (!groups.length) return null;
@@ -17,20 +19,29 @@ export function CreativeHits({
           <p className="text-xs tracking-[0.12em] text-muted uppercase">{sourceGroupLabel(group.source)}</p>
           <ul className="mt-1 space-y-1">
             {group.items.slice(0, 4).map((hit) => (
-              <li key={hit.id}>
+              <li key={hit.id} className="flex items-start gap-2">
                 {hit.href && !onPick ? (
-                  <a href={hit.href} className="block rounded-xl px-2 py-1.5 hover:bg-surface-2">
+                  <a href={hit.href} className="min-w-0 flex-1 rounded-xl px-2 py-1.5 hover:bg-surface-2">
                     <HitBody hit={hit} />
                   </a>
                 ) : (
                   <button
                     type="button"
-                    className="block w-full rounded-xl px-2 py-1.5 text-left hover:bg-surface-2"
+                    className="min-w-0 flex-1 rounded-xl px-2 py-1.5 text-left hover:bg-surface-2"
                     onClick={() => onPick?.(hit)}
                   >
                     <HitBody hit={hit} />
                   </button>
                 )}
+                {onAnalyze && hit.thumbUrl ? (
+                  <button
+                    type="button"
+                    className="mt-2 shrink-0 text-xs text-accent"
+                    onClick={() => onAnalyze(hit)}
+                  >
+                    風格
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>

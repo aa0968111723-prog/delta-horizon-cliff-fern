@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { analyzeImage } from "@/lib/ai/vision";
+import { getAssetStorage } from "@/lib/studio/asset-storage";
 import {
   Select,
   SelectContent,
@@ -183,11 +185,36 @@ export function AssetDetailSheet({
           <Button
             variant="secondary"
             onClick={() => {
-              void navigate({
-                to: "/create",
-                search: { q: `分析「${asset.name}」並做成限動與 Carousel`, mode: "vision" },
-              });
-              onOpenChange(false);
+              void (async () => {
+                try {
+                  const blob = await getAssetStorage().get(current.id);
+                  let imageDataUrl = url?.startsWith("data:") ? url : undefined;
+                  let imageUrl = url?.startsWith("https:") ? url : undefined;
+                  if (!imageDataUrl && blob) {
+                    imageDataUrl = await new Promise<string>((resolve, reject) => {
+                      const reader = new FileReader();
+                      reader.onload = () => resolve(String(reader.result));
+                      reader.onerror = () => reject(new Error("read"));
+                      reader.readAsDataURL(blob);
+                    });
+                  }
+                  const result = await analyzeImage({
+                    data: imageUrl ? { imageUrl, note: current.name } : { imageDataUrl: imageDataUrl ?? "", note: current.name },
+                  });
+                  if (!result.ok) return;
+                  const tags = Array.from(
+                    new Set(
+                      [...current.tags, ...result.report.next.slice(0, 3), result.report.tooReligious ? "偏宗教" : "生活感"].filter(
+                        Boolean,
+                      ),
+                    ),
+                  );
+                  updateAsset(current.id, { tags, licenseNotes: `${current.licenseNotes}\n${result.report.studentFit}`.trim() });
+                  toast.success(result.report.studentFit);
+                } catch {
+                  toast.error("分析失敗");
+                }
+              })();
             }}
           >
             AI 分析

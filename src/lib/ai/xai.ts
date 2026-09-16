@@ -60,14 +60,14 @@ export async function xaiImage(prompt: string, aspect: "1:1" | "4:5" | "9:16" = 
         prompt,
         n: 1,
         aspect_ratio: aspect,
-        response_format: "b64_json",
+        response_format: "url",
       }),
     });
     if (!res.ok) return null;
     const body = (await res.json()) as { data?: { b64_json?: string; url?: string }[] };
     const first = body.data?.[0];
-    if (first?.b64_json) return `data:image/png;base64,${first.b64_json}`;
     if (first?.url) return first.url;
+    if (first?.b64_json) return `data:image/png;base64,${first.b64_json}`;
     return null;
   } catch {
     return null;

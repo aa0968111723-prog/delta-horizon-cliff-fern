@@ -2,7 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { parseFnInput } from "@/lib/ai/parse";
 import type { IgMemoryPost, MemoryItem } from "@/lib/creative/types";
+import { canvaSearchQuery, driveFileQuery, driveQueryFromNl } from "@/lib/creative/drive-query";
 import { envReady, oauthPath } from "./providers";
+import { captionForInstagram, publicImageUrl } from "./ig-publish";
 
 const Provider = z.enum(["google-drive", "canva", "instagram"]);
 
@@ -163,35 +165,49 @@ function driveKind(mime: string): MemoryItem["kind"] {
 }
 
 async function listDrive(access: string, query?: string, folderId?: string): Promise<MemoryItem[]> {
-  const parts = ["trashed = false"];
-  if (folderId) parts.push(`'${folderId}' in parents`);
-  if (query?.trim()) parts.push(`fullText contains '${query.replace(/'/g, "\\'")}'`);
-  const url = new URL("https://www.googleapis.com/drive/v3/files");
-  url.searchParams.set("pageSize", "18");
-  url.searchParams.set("q", parts.join(" and "));
-  url.searchParams.set("fields", "files(id,name,mimeType,modifiedTime,thumbnailLink)");
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${access}` } });
-  if (!res.ok) return [];
-  const body = (await res.json()) as {
-    files?: { id: string; name: string; mimeType: string; modifiedTime?: string; thumbnailLink?: string }[];
-  };
-  return (body.files ?? []).map((file) => ({
-    id: `drive_${file.id}`,
-    source: "drive" as const,
-    sourceLabel: `Google Drive / ${file.name}`,
-    title: file.name,
-    kind: driveKind(file.mimeType),
-    tags: [file.mimeType.split("/").pop() ?? "file"],
-    summary: folderId ? "來自指定的禪學社資料夾。" : "來自 Google Drive。",
-    thumbUrl: file.thumbnailLink,
-    createdAt: file.modifiedTime ? Date.parse(file.modifiedTime) : Date.now(),
-  }));
+  const terms = query?.trim() ? driveQueryFromNl(query) : [""];
+  if (!terms.length) terms.push("");
+  const byId = new Map<string, MemoryItem>();
+  for (const term of terms.slice(0, 3)) {
+    const url = new URL("https://www.googleapis.com/drive/v3/files");
+    url.searchParams.set("pageSize", "18");
+    url.searchParams.set("q", driveFileQuery(term, folderId));
+    url.searchParams.set("fields", "files(id,name,mimeType,modifiedTime,thumbnailLink,webContentLink,webViewLink)");
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${access}` } });
+    if (!res.ok) continue;
+    const body = (await res.json()) as {
+      files?: {
+        id: string;
+        name: string;
+        mimeType: string;
+        modifiedTime?: string;
+        thumbnailLink?: string;
+        webContentLink?: string;
+        webViewLink?: string;
+      }[];
+    };
+    for (const file of body.files ?? []) {
+      byId.set(file.id, {
+        id: `drive_${file.id}`,
+        source: "drive",
+        sourceLabel: `Google Drive / ${file.name}`,
+        title: file.name,
+        kind: driveKind(file.mimeType),
+        tags: [file.mimeType.split("/").pop() ?? "file", term].filter(Boolean),
+        summary: folderId ? "來自指定的禪學社資料夾。" : "來自 Google Drive。",
+        thumbUrl: file.thumbnailLink || file.webContentLink,
+        createdAt: file.modifiedTime ? Date.parse(file.modifiedTime) : Date.now(),
+      });
+    }
+  }
+  return [...byId.values()];
 }
 
 async function listCanva(access: string, query?: string): Promise<MemoryItem[]> {
   const url = new URL("https://api.canva.com/rest/v1/designs");
   url.searchParams.set("limit", "18");
-  if (query?.trim()) url.searchParams.set("query", query.trim());
+  const q = query?.trim() ? canvaSearchQuery(query) : "";
+  if (q) url.searchParams.set("query", q);
   const res = await fetch(url, { headers: { Authorization: `Bearer ${access}` } });
   if (!res.ok) return [];
   const body = (await res.json()) as {
@@ -323,3 +339,111 @@ async function listInstagram(access: string): Promise<{ items: MemoryItem[]; pos
   const username = page.instagram_business_account.username;
   return { ...viaPage, account: username ? `@${username}` : "Instagram" };
 }
+
+async function resolveIgPublisher(access: string): Promise<{ id: string; token: string; host: string; username?: string } | null> {
+  const direct = await fetchJson(`https://graph.instagram.com/me?fields=user_id,id,username&access_token=${encodeURIComponent(access)}`);
+  const directId = typeof direct?.user_id === "string" ? direct.user_id : typeof direct?.id === "string" ? direct.id : null;
+  if (directId) {
+    return {
+      id: directId,
+      token: access,
+      host: "https://graph.instagram.com",
+      username: typeof direct?.username === "string" ? direct.username : undefined,
+    };
+  }
+  const pages = await fetchJson(
+    `https://graph.facebook.com/v21.0/me/accounts?fields=access_token,instagram_business_account{id,username}&access_token=${encodeURIComponent(access)}`,
+  );
+  const page = (
+    pages?.data as Array<{ access_token?: string; instagram_business_account?: { id: string; username?: string } }>
+  )?.find((item) => item.instagram_business_account?.id);
+  if (!page?.instagram_business_account?.id) return null;
+  return {
+    id: page.instagram_business_account.id,
+    token: page.access_token || access,
+    host: "https://graph.facebook.com/v21.0",
+    username: page.instagram_business_account.username,
+  };
+}
+
+export const publishToInstagram = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    parseFnInput(
+      z.object({
+        caption: z.string().min(1).max(2200),
+        imageUrl: z.string().max(500).optional(),
+      }),
+      input,
+    ),
+  )
+  .handler(async ({ data }) => {
+    const { readFreshTokens } = await import("./tokens.server");
+    const tokens = await readFreshTokens("instagram");
+    if (!tokens) {
+      return {
+        ok: false as const,
+        reason: "connect" as const,
+        message: "先連接 Instagram 官方帳號。沒連上也能先標記進 Content Memory。",
+      };
+    }
+    const imageUrl = publicImageUrl(data.imageUrl);
+    if (!imageUrl) {
+      return {
+        ok: false as const,
+        reason: "need_public_url" as const,
+        message: "IG 官方發布需要公開 https 圖片。本機圖先標記進記憶，下次 Insights 會回來。",
+      };
+    }
+    const publisher = await resolveIgPublisher(tokens.access);
+    if (!publisher) {
+      return { ok: false as const, reason: "account" as const, message: "讀不到可發布的 IG 帳號。" };
+    }
+    const caption = captionForInstagram(data.caption);
+    try {
+      const createUrl = new URL(`${publisher.host.replace(/\/$/, "")}/${publisher.id}/media`);
+      const created = await fetch(createUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          image_url: imageUrl,
+          caption,
+          access_token: publisher.token,
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const createdBody = (await created.json()) as { id?: string; error?: { message?: string } };
+      if (!created.ok || !createdBody.id) {
+        return {
+          ok: false as const,
+          reason: "api" as const,
+          message: createdBody.error?.message || "IG 還沒收下這張圖。",
+        };
+      }
+      const publishUrl = new URL(`${publisher.host.replace(/\/$/, "")}/${publisher.id}/media_publish`);
+      const published = await fetch(publishUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          creation_id: createdBody.id,
+          access_token: publisher.token,
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const publishedBody = (await published.json()) as { id?: string; error?: { message?: string } };
+      if (!published.ok || !publishedBody.id) {
+        return {
+          ok: false as const,
+          reason: "api" as const,
+          message: publishedBody.error?.message || "圖已建好，但還沒發出去。",
+        };
+      }
+      return {
+        ok: true as const,
+        mediaId: publishedBody.id,
+        account: publisher.username ? `@${publisher.username}` : "Instagram",
+      };
+    } catch {
+      return { ok: false as const, reason: "api" as const, message: "IG 暫時發不出去，先標記進記憶。" };
+    }
+  });
+

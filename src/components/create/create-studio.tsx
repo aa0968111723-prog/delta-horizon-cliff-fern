@@ -229,6 +229,20 @@ export function CreateStudio({
           category: "poster",
         }),
       );
+      if (result.src.startsWith("https:")) {
+        addMemory({
+          id: `gen_${id}`,
+          source: "generated",
+          sourceLabel: "AI Generated",
+          title: query.slice(0, 18) || "AI 主視覺",
+          kind: "poster",
+          tags: ["generated", "ig"],
+          summary: "剛才生成的主視覺，可發到 IG。",
+          thumbUrl: result.src,
+          assetId: id,
+          createdAt: Date.now(),
+        });
+      }
       toast.success(ratio === "9:16" ? "Reels 封面已進素材庫" : "主視覺已進素材庫");
     } finally {
       setBusy(false);
@@ -291,7 +305,10 @@ export function CreateStudio({
     useStudio.getState().updateProject(project.id, {
       contentKind: "carousel",
       campaignId: camp?.id ?? null,
-      sourceRefs: pack.sources,
+      sourceRefs: [
+        ...pack.sources,
+        ...(imageSrc?.startsWith("https:") ? [{ source: "generated" as const, label: "AI 主視覺", id: imageSrc }] : []),
+      ],
       status: andSchedule ? "scheduled" : "creating",
       scheduledAt: andSchedule ? scheduledAt : null,
     });
@@ -394,6 +411,26 @@ export function CreateStudio({
             hits={hits}
             onPick={(hit) => {
               setQuery((prev) => `${prev}（參考 ${hit.sourceLabel}）`);
+            }}
+            onAnalyze={(hit) => {
+              const thumb = hit.thumbUrl;
+              if (!thumb) return;
+              void (async () => {
+                setBusy(true);
+                try {
+                  const result = await analyzeImage({
+                    data: thumb.startsWith("https:")
+                      ? { imageUrl: thumb, note: `延續 ${hit.sourceLabel} 的品牌 DNA，做新活動` }
+                      : { imageDataUrl: thumb, note: hit.title },
+                  });
+                  if (result.ok) {
+                    setVision(result.report);
+                    toast.success("已分析風格，可延續生成");
+                  }
+                } finally {
+                  setBusy(false);
+                }
+              })();
             }}
           />
         </div>
@@ -576,11 +613,21 @@ export function CreateStudio({
                 campaignId={campaign.id}
                 title={pack.plan.campaignName}
                 caption={copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook}
+                imageUrl={imageSrc}
                 variant="secondary"
                 size="default"
                 className="rounded-full"
               />
-            ) : null}
+            ) : (
+              <PublishButton
+                title={pack.plan.campaignName}
+                caption={copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook}
+                imageUrl={imageSrc}
+                variant="secondary"
+                size="default"
+                className="rounded-full"
+              />
+            )}
           </div>
         </section>
       ) : null}

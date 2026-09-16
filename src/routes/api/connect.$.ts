@@ -78,7 +78,7 @@ function startOAuth(provider: ConnectionId, request: Request) {
   auth.searchParams.set("client_id", process.env.META_APP_ID ?? "");
   auth.searchParams.set("redirect_uri", redirectUri);
   auth.searchParams.set("response_type", "code");
-  auth.searchParams.set("scope", "instagram_basic,pages_show_list,instagram_manage_insights");
+  auth.searchParams.set("scope", "instagram_basic,pages_show_list,instagram_manage_insights,instagram_content_publish");
   auth.searchParams.set("state", state);
   return redirect(auth.toString(), [setStateCookie(state)]);
 }
