@@ -3,10 +3,10 @@ import { format as formatDate } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { ArrowRight, Images, Plus, Search, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { CreateLaunchSheet } from "@/components/create/create-sheet";
 import { applyPickedDirection } from "@/components/create/apply-picked";
 import { createFromHit } from "@/components/create/from-hit";
+import { runIdeaPack } from "@/components/create/run-idea";
 import { PackResult } from "@/components/create/pack-result";
 import { NewProjectDialog } from "@/components/dashboard/new-project-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -15,17 +15,14 @@ import { ProjectCard } from "@/components/shared/project-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAssetUrls, resolveAssetSrc } from "@/hooks/use-asset-urls";
-import { generateCreativePack } from "@/lib/ai/pack";
 import { searchCreativeWorld } from "@/lib/ai/oauth";
-import { toBriefInput } from "@/lib/ai/payload";
-import { migrateBrief } from "@/lib/studio/brief";
 import { APP_NAME, APP_TAGLINE, CLUB_SHORT } from "@/lib/zen/club";
 import { hitFromIgPost } from "@/lib/zen/from-hit";
-import { clientMemoryLines, composeMemoryNotes } from "@/lib/zen/ingest";
-import { igDnaBlock, learnFromPosts, nextCreateHint, whyPostWorked } from "@/lib/zen/insights";
+import { isCreateQuery } from "@/lib/zen/from-idea";
+import { composeMemoryNotes } from "@/lib/zen/ingest";
+import { learnFromPosts, nextCreateHint, whyPostWorked } from "@/lib/zen/insights";
 import { inspirationCreateNotes, inspirationFeed, kindFromInspiration } from "@/lib/zen/inspiration";
-import { creativeSearch, groupSearchHits, searchCreativeKnowledge, type SearchHit } from "@/lib/zen/search";
-import { applyPackToWaves } from "@/lib/zen/schedule";
+import { creativeSearch, groupSearchHits, type SearchHit } from "@/lib/zen/search";
 import { daysUntil, formatMd, seasonContext } from "@/lib/zen/season";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
 import { useCreative } from "@/stores/creative-store";
@@ -36,16 +33,11 @@ export function HomePage() {
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
-  const createProject = useStudio((s) => s.createProject);
-  const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const campaigns = useCreative((s) => s.campaigns);
   const schedule = useCreative((s) => s.schedule);
   const igPosts = useCreative((s) => s.igPosts);
   const memory = useCreative((s) => s.memory);
-  const setLastPack = useCreative((s) => s.setLastPack);
   const lastPack = useCreative((s) => s.lastPack);
-  const upsertCampaign = useCreative((s) => s.upsertCampaign);
-  const attachProject = useCreative((s) => s.attachProject);
   const setCreateIntent = useCreative((s) => s.setCreateIntent);
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -57,9 +49,9 @@ export function HomePage() {
   const season = seasonContext();
   const featured = campaigns.find((c) => c.id === "camp_floating_light") ?? campaigns[0];
   const remain = featured ? daysUntil(featured.date) : null;
-  const brand = brands[0];
   const learned = useMemo(() => learnFromPosts(igPosts), [igPosts]);
   const createHint = useMemo(() => nextCreateHint(igPosts), [igPosts]);
+  const wantsCreate = isCreateQuery(q);
 
   const urls = useAssetUrls(useMemo(() => assets.map((a) => a.id), [assets]));
   const localHits = useMemo(
@@ -98,64 +90,29 @@ export function HomePage() {
   const recentGen = [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
 
   async function createFromFeatured() {
-    if (!featured || !brand) return;
+    if (!featured) return;
     setBusy(true);
     try {
-      const brief = migrateBrief({
-        eventName: featured.name,
-        schedule: `${formatMd(featured.date)} ${featured.time}`,
-        location: featured.location,
-        product: featured.name,
-        offer: featured.cta,
-        audience: "淡江大學學生",
-        goal: "traffic",
-        features: featured.theme,
-        style: "生活、空氣、淡水夜晚",
-        notes: featured.studentPain,
-        deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
-      });
-      const world = searchCreativeKnowledge(`${featured.name} ${featured.tagline} ${featured.theme}`, {
-        assets,
-        campaigns,
-        igPosts,
-        memory,
-      });
-      const result = await generateCreativePack({
-        data: toBriefInput(brief, brand, {
-          dnaNotes: igDnaBlock(igPosts),
-          memoryNotes: composeMemoryNotes([
+      await runIdeaPack({
+        idea: `${featured.name} ${featured.tagline}`,
+        notes: composeMemoryNotes([
+          featured.studentPain,
           `成效回饋：${createHint.line}`,
           `避開：${createHint.avoid}`,
-          world.memoryNotes,
-          clientMemoryLines(memory),
         ]),
-          foundCount: world.foundCount,
-          citedSources: world.sources,
-        }),
+        campaign: featured,
       });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      setLastPack(result.pack);
-      upsertCampaign(applyPackToWaves(featured, result.pack));
-      const project = createProject({
-        name: result.pack.campaignName,
-        brandId: brand.id,
-        formatId: "feed-portrait",
-        brief,
-        templateId: result.pack.plan.templateId,
-      });
-      applyCampaignPlan(project.id, result.pack.plan, brief);
-      attachProject(featured.id, project.id);
-      toast.success(
-        result.adapter === "mock"
-          ? `已生成本機草案，並排進「${featured.name}」日曆節奏`
-          : `AI 已完成一組宣傳，並排進「${featured.name}」日曆節奏`,
-      );
-      void navigate({ to: "/create" });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "生成失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createFromSearch() {
+    const idea = q.trim();
+    if (!idea) return;
+    setBusy(true);
+    try {
+      await runIdeaPack({ idea });
     } finally {
       setBusy(false);
     }
@@ -218,8 +175,25 @@ export function HomePage() {
         <p className="mt-3 text-sm text-muted">
           {hits.length > 0
             ? `找到 ${hits.length} 個相關素材 · 依 Drive、Canva、IG、AI 生成分類`
-            : "本機還沒對上這句。試試「找以前晚上的茶會照片」或「找有龜龜的素材」。"}
+            : wantsCreate
+              ? "會用品牌記憶、過去內容與淡江學生情境生成。"
+              : "本機還沒對上這句。試試「找以前晚上的茶會照片」或「找有龜龜的素材」。"}
         </p>
+      ) : null}
+      {wantsCreate ? (
+        <Button
+          className="mt-3 min-h-11 w-full sm:w-auto"
+          data-testid="home-idea-pack"
+          disabled={busy}
+          onClick={() => void createFromSearch()}
+        >
+          <Sparkles className="size-4" />
+          {busy
+            ? "正在找素材、想方向…"
+            : hits.length > 0
+              ? `根據 ${hits.length} 個相關素材生成 3 個方向`
+              : "AI 生成完整宣傳"}
+        </Button>
       ) : null}
       {hits.length > 0 ? (
         <div className="mt-3 space-y-4">
@@ -248,43 +222,8 @@ export function HomePage() {
         </div>
       ) : null}
 
-      <section className="mt-8">
-        <div className="mb-3 flex items-end justify-between">
-          <h2 className="text-sm font-medium">今日靈感</h2>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/inspire">全部</Link>
-          </Button>
-        </div>
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {inspirationFeed().slice(0, 2).map((seed) => (
-            <li key={seed.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-              <p className="text-xs text-muted">{seed.watch}</p>
-              <p className="mt-2 text-sm font-medium">{seed.zenClub.hook}</p>
-              <p className="mt-1 text-xs text-muted">{seed.zenClub.why}</p>
-              <Button
-                className="mt-3"
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  setCreateIntent({
-                    idea: seed.zenClub.hook,
-                    kind: kindFromInspiration(seed),
-                    autoGenerate: true,
-                    pack: true,
-                    notes: inspirationCreateNotes(seed),
-                  });
-                  void navigate({ to: "/create" });
-                }}
-              >
-                用這個 Hook 創作
-              </Button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
       {lastPack ? (
-        <section className="mt-8">
+        <section className="mt-8" data-testid="home-last-pack">
           <div className="mb-3 flex items-end justify-between">
             <h2 className="text-sm font-medium">剛才 AI 生成</h2>
             <div className="flex gap-1">
@@ -324,13 +263,48 @@ export function HomePage() {
         </section>
       ) : null}
 
+      <section className="mt-8">
+        <div className="mb-3 flex items-end justify-between">
+          <h2 className="text-sm font-medium">今日靈感</h2>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/inspire">全部</Link>
+          </Button>
+        </div>
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {inspirationFeed().slice(0, 2).map((seed) => (
+            <li key={seed.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <p className="text-xs text-muted">{seed.watch}</p>
+              <p className="mt-2 text-sm font-medium">{seed.zenClub.hook}</p>
+              <p className="mt-1 text-xs text-muted">{seed.zenClub.why}</p>
+              <Button
+                className="mt-3"
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setCreateIntent({
+                    idea: seed.zenClub.hook,
+                    kind: kindFromInspiration(seed),
+                    autoGenerate: true,
+                    pack: true,
+                    notes: inspirationCreateNotes(seed),
+                  });
+                  void navigate({ to: "/create" });
+                }}
+              >
+                用這個 Hook 創作
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section className="mt-10">
         <h2 className="text-sm font-medium">快速開始</h2>
         <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
           {(
             [
-              { label: "從一句想法開始", to: "/create", intent: { idea: "最近是不是連休息都覺得有罪惡感？", kind: "emotion", autoGenerate: true } },
-              { label: "生成 IG 貼文", to: "/create", intent: { idea: "下週有一場茶會", kind: "event", autoGenerate: false } },
+              { label: "從一句想法開始", to: "/create", intent: { idea: "最近是不是連休息都覺得有罪惡感？", kind: "emotion", autoGenerate: true, pack: true } },
+              { label: "生成 IG 貼文", to: "/create", intent: { idea: "下週有一場茶會", kind: "event", autoGenerate: true, pack: true } },
               { label: "生成圖片", to: "/create/image" },
               { label: "從一張圖片開始", to: "/create/image" },
               { label: "生成 Story", to: "/create", intent: { idea: "把活動做成 3 到 5 張限動", kind: "story", autoGenerate: true } },

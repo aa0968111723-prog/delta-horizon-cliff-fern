@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildMockPlan } from "../ai/mock.ts";
-import { convertStaggerDays, formatSuitePlan, materializeCampaignFromPack, parseEventIdea } from "./from-idea.ts";
+import { convertStaggerDays, formatSuitePlan, isCreateQuery, materializeCampaignFromPack, parseEventIdea } from "./from-idea.ts";
 
 const now = new Date("2026-09-16T12:00:00+08:00");
 
@@ -18,6 +18,14 @@ test("parseEventIdea strips I-want filler from tea promo", () => {
   const parsed = parseEventIdea("我要宣傳茶會", now);
   assert.equal(parsed.type, "tea");
   assert.equal(parsed.name, "茶會");
+});
+
+test("isCreateQuery treats a tea brief as create and a find query as search", () => {
+  assert.equal(isCreateQuery("下週有一場茶會"), true);
+  assert.equal(isCreateQuery("幫我做新的茶會宣傳"), true);
+  assert.equal(isCreateQuery("我要宣傳茶會"), true);
+  assert.equal(isCreateQuery("找以前晚上的茶會照片"), false);
+  assert.equal(isCreateQuery("找有龜龜的素材"), false);
 });
 
 test("parseEventIdea keeps floating light date", () => {

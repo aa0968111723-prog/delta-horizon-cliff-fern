@@ -1,4 +1,5 @@
 import { applyPickedDirection } from "@/components/create/apply-picked";
+import { runIdeaPack } from "@/components/create/run-idea";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -10,15 +11,10 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { generateCopyPack } from "@/lib/ai/copy";
-import { generateCreativePack } from "@/lib/ai/pack";
-import { toBriefInput } from "@/lib/ai/payload";
-import { migrateBrief } from "@/lib/studio/brief";
 import type { CopyPack } from "@/lib/zen/types";
 import { igDnaBlock } from "@/lib/zen/insights";
 import { clientMemoryLines, composeMemoryNotes } from "@/lib/zen/ingest";
-import { materializeCampaignFromPack, parseEventIdea } from "@/lib/zen/from-idea";
 import { groupSearchHits, searchCreativeKnowledge } from "@/lib/zen/search";
-import { seasonContext } from "@/lib/zen/season";
 import { applyStudentRewrite } from "@/lib/zen/review";
 import { COPY_KIND_OPTIONS, type CopyKindId } from "@/lib/zen/voice";
 import { useCreative } from "@/stores/creative-store";
@@ -30,11 +26,8 @@ function isCopyKind(value: string): value is CopyKindId {
 
 export function CreateHub() {
   const navigate = useNavigate();
-  const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
   const lastPack = useCreative((s) => s.lastPack);
-  const setLastPack = useCreative((s) => s.setLastPack);
-  const upsertCampaign = useCreative((s) => s.upsertCampaign);
   const memory = useCreative((s) => s.memory);
   const igPosts = useCreative((s) => s.igPosts);
   const campaigns = useCreative((s) => s.campaigns);
@@ -47,7 +40,6 @@ export function CreateHub() {
   const [copyPack, setCopyPack] = useState<CopyPack | null>(null);
   const [copyStyle, setCopyStyle] = useState("一般版");
   const extraNotesRef = useRef("");
-  const brand = brands[0];
   const knowledge = useMemo(
     () => searchCreativeKnowledge(idea, { assets, campaigns, igPosts, memory }),
     [idea, assets, campaigns, igPosts, memory],
@@ -86,52 +78,12 @@ export function CreateHub() {
   }, [lastPack, campaigns, ideaCampaignId]);
 
   async function runPack(nextIdea = idea) {
-    if (!brand) return;
     setBusy(true);
     try {
-      const parsed = parseEventIdea(nextIdea);
-      const season = seasonContext();
       const extraNotes = extraNotesRef.current;
       extraNotesRef.current = "";
-      const brief = migrateBrief({
-        eventName: parsed.name,
-        schedule: `${parsed.date} ${parsed.time}`,
-        location: parsed.location,
-        product: nextIdea,
-        audience: "淡江大學學生",
-        goal: "awareness",
-        notes: `${nextIdea}\n${season.label}：${season.studentNow}\n${season.contentHint}`.slice(0, 400),
-        deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
-      });
-      const world = searchCreativeKnowledge(nextIdea, {
-        assets: useStudio.getState().assets,
-        campaigns,
-        igPosts,
-        memory,
-      });
-      const result = await generateCreativePack({
-        data: {
-          ...toBriefInput(brief, brand, {
-            dnaNotes: igDnaBlock(igPosts),
-            memoryNotes: composeMemoryNotes([extraNotes, world.memoryNotes, clientMemoryLines(memory)]),
-            foundCount: world.foundCount,
-            citedSources: world.sources,
-          }),
-        },
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      setLastPack(result.pack);
-      const campaign = materializeCampaignFromPack({
-        idea: nextIdea,
-        pack: result.pack,
-        campaigns,
-      });
-      upsertCampaign(campaign);
-      setIdeaCampaignId(campaign.id);
-      toast.success(`已生成 3 個方向，並排進「${campaign.name}」日曆節奏`);
+      const result = await runIdeaPack({ idea: nextIdea, notes: extraNotes });
+      if (result.ok) setIdeaCampaignId(result.campaignId);
     } finally {
       setBusy(false);
     }

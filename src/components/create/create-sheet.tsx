@@ -19,7 +19,7 @@ import { useCreative } from "@/stores/creative-store";
 import { useUi } from "@/stores/ui-store";
 
 const ACTIONS = [
-  { id: "post", label: "生成 IG 貼文", hint: "Hook + 文案 + 主視覺方向", to: "/create", kind: "event", idea: "下週有一場茶會", auto: false },
+  { id: "post", label: "生成 IG 貼文", hint: "Hook + 文案 + 主視覺方向", to: "/create", kind: "event", idea: "下週有一場茶會", auto: true },
   { id: "image", label: "生成圖片", hint: "文字 → 圖片，含三種方向", to: "/create/image" },
   { id: "story", label: "生成 Story", hint: "3–5 張限動", to: "/create", kind: "story", idea: "把下週茶會做成 3 到 5 張限動", auto: true },
   { id: "carousel", label: "生成 Carousel", hint: "Hook 到 CTA 六頁", to: "/create", kind: "carousel", idea: "下週茶會 Carousel，第一頁先講生活", auto: true },
@@ -87,6 +87,7 @@ export function CreateLaunchSheet({
                         idea: action.idea,
                         kind: action.kind,
                         autoGenerate: action.auto,
+                        pack: action.kind === "event" || action.kind === "carousel" || action.kind === "story" || action.kind === "reels",
                       });
                     } else {
                       setCreateIntent(null);

@@ -73,6 +73,13 @@ export function parseEventIdea(idea: string, now = new Date()): ParsedEventIdea 
   };
 }
 
+export function isCreateQuery(query: string) {
+  const q = query.trim();
+  if (!q) return false;
+  if (/^找/.test(q) && !/幫我做|生成|宣傳/.test(q)) return false;
+  return /幫我做|生成完整|宣傳|有一場|下週有|下周有|我要|做成新的|新的茶會|新的活動/.test(q);
+}
+
 export function materializeCampaignFromPack(input: {
   idea: string;
   pack: CreativePack;
