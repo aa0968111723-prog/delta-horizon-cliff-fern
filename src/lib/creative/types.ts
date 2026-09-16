@@ -56,4 +56,17 @@ export type ContentItem = {
   updatedAt: number;
 };
 
+export type PostOutcome = {
+  id: string;
+  contentItemId: string | null;
+  campaignId: string | null;
+  title: string;
+  whoShowedUp: string;
+  hookThatFeltTamkang: string;
+  remember: string;
+  createdAt: number;
+};
+
+export type OutcomeInput = Omit<PostOutcome, "id" | "createdAt">;
+
 export type CampaignInput = Omit<Campaign, "id" | "assetIds" | "createdAt" | "updatedAt">;

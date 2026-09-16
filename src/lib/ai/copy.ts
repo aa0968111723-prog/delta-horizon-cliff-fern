@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { CopyPack, CopyTone, CopyVariant } from "@/lib/studio/types";
+import type { AiStatus } from "./campaign";
 
 const ToneSchema = z.enum(["短版", "一般版", "感性版", "學生版", "生活版", "幽默版"]);
 
@@ -168,6 +169,27 @@ Hook 不可用「淡江大學禪學社誠摯邀請您」。必須使用 brandMem
   const parsed = CopyPackJsonSchema.parse(extractJson(body.choices?.[0]?.message?.content ?? ""));
   return { ...parsed, generatedAt: Date.now(), source: "live" };
 }
+
+export function describeCopyAdapter(available: boolean): AiStatus {
+  if (available) {
+    return {
+      available: true,
+      adapter: "live",
+      label: "已連線 AI 文案",
+      detail: "按下生成才會呼叫 Grok。不會自動發文。",
+    };
+  }
+  return {
+    available: false,
+    adapter: "mock",
+    label: "本機文案草案",
+    detail: "這個環境尚未開放 AI 文案。按下生成會用本機規則寫一版可編輯草案，不是 Grok 寫的。",
+  };
+}
+
+export const getCopyAiStatus = createServerFn({ method: "POST" }).handler(async (): Promise<AiStatus> => {
+  return describeCopyAdapter(Boolean(process.env.XAI_API_KEY));
+});
 
 export const generateCopyPack = createServerFn({ method: "POST" })
   .validator((input: unknown) => CopyRequestSchema.parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input))

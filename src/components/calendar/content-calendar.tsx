@@ -5,6 +5,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Sparkles } from "lucide-react"
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreationLoop } from "@/components/shared/creation-loop";
+import { OutcomeJournal } from "@/components/learning/outcome-journal";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,7 +78,7 @@ export function ContentCalendar() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="一人節奏，沒有負責人"
+        kicker="一人節奏"
         title="排程"
         description="用月曆或週覽看內容節奏。拖到另一天只改本機排程，不會發到 Instagram。"
         actions={
@@ -264,9 +265,13 @@ export function ContentCalendar() {
               </div>
             ))}
           </div>
-          <p className="mt-3 hidden text-xs text-muted md:block">把卡片拖到另一天即可改期。手機請改用議程檢視的日期。沒有指派對象。</p>
+          <p className="mt-3 hidden text-xs text-muted md:block">把卡片拖到另一天即可改期。手機請改用議程檢視的日期。只改這台裝置的節奏。</p>
         </div>
       )}
+
+      <div className="mt-6 min-w-0">
+        <OutcomeJournal />
+      </div>
 
       <p className="mt-4 flex items-center gap-2 text-xs text-muted">
         <CalendarDays className="size-4 text-accent" />
@@ -326,6 +331,11 @@ function AgendaRow({
         {item.projectId ? (
           <Button size="sm" className="min-h-11" variant="secondary" asChild>
             <Link to="/instagram" hash="preview">IG 預覽</Link>
+          </Button>
+        ) : null}
+        {(item.status === "complete" || item.status === "published" || item.status === "scheduled") ? (
+          <Button size="sm" className="min-h-11" variant="ghost" asChild>
+            <Link to="/instagram" hash="learn">現場筆記</Link>
           </Button>
         ) : null}
       </div>

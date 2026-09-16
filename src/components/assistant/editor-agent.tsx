@@ -205,7 +205,7 @@ export function EditorAgent({ projectId, compact }: Props) {
   const selected = scene.layers.find((l) => l.id === scene.selectedId);
 
   return (
-    <div className="space-y-3" data-testid="editor-agent">
+    <div className="space-y-3" data-testid="canvas-editor">
       <div>
         <h2 className="text-sm font-medium">操作畫布</h2>
         <p className="mt-1 text-xs text-muted">
@@ -319,7 +319,7 @@ export function EditorAgent({ projectId, compact }: Props) {
                   setCompare("after");
                 }}
               >
-                看 AI 結果
+                看本次結果
               </Button>
               <Button
                 size="sm"
@@ -329,7 +329,7 @@ export function EditorAgent({ projectId, compact }: Props) {
                   if (last.beforeId) restoreSnapshot(project.id, last.beforeId);
                   else undo(project.id);
                   setCompare("before");
-                  toast.message("已撤銷此次 AI 操作");
+                  toast.message("已撤銷此次操作");
                 }}
               >
                 撤銷此次
@@ -342,7 +342,7 @@ export function EditorAgent({ projectId, compact }: Props) {
                   if (last.afterId) restoreSnapshot(project.id, last.afterId);
                   else redo(project.id);
                   setCompare("after");
-                  toast.message("已重做此次 AI 操作");
+                  toast.message("已重做此次操作");
                 }}
               >
                 重做此次

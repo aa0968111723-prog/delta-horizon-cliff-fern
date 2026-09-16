@@ -85,6 +85,13 @@ export function CreationLoop({
         {next.label}
         <ChevronRight className="ml-1 size-4" />
       </Link>
+      {compact ? null : (
+        <p className="mt-2 text-xs leading-5 text-muted">
+          貼出去或活動結束後，用現場筆記記下誰來了、哪句像淡江。
+          {" "}
+          <Link to="/instagram" hash="learn" className="text-accent">打開現場筆記</Link>
+        </p>
+      )}
     </nav>
   );
 }

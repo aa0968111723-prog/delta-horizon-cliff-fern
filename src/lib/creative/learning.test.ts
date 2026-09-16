@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createEmptyBrand } from "../studio/brand.ts";
-import { lessonsFromInsights, lessonsFromLocalWork, mergeLearnedPatterns } from "./learning.ts";
-import type { Campaign, ContentItem } from "./types.ts";
+import { lessonsFromInsights, lessonsFromLocalWork, lessonsFromOutcomes, mergeLearnedPatterns } from "./learning.ts";
+import type { Campaign, ContentItem, PostOutcome } from "./types.ts";
 
 const campaign: Campaign = {
   id: "c1",
@@ -60,6 +60,60 @@ test("local learning records student context and completed story types without i
   });
   assert.equal(lessons.some((item) => /課表很滿/.test(item)), true);
   assert.equal(lessons.some((item) => /社員故事/.test(item)), true);
+  assert.equal(lessons.some((item) => /Insights/.test(item)), false);
+});
+
+test("outcome lessons write what actually happened, never fake Insights", () => {
+  const outcome: PostOutcome = {
+    id: "o1",
+    contentItemId: "i1",
+    campaignId: "c1",
+    title: "浮游禪光主視覺",
+    whoShowedUp: "住宿生比較多，有兩個新生問要不要帶坐墊",
+    hookThatFeltTamkang: "最近是不是連休息都覺得有罪惡感？",
+    remember: "時間放 Caption 最上面，宿舍同學才找得到",
+    createdAt: 1,
+  };
+  const lessons = lessonsFromOutcomes([outcome]);
+  assert.equal(lessons.every((item) => item.startsWith("現場：")), true);
+  assert.equal(lessons.some((item) => /罪惡感/.test(item)), true);
+  assert.equal(lessons.some((item) => /住宿生/.test(item)), true);
+  assert.equal(lessons.some((item) => /Insights|觸及|觀看次數|假讚/.test(item)), false);
+});
+
+test("empty outcome fields do not invent attendance or reach", () => {
+  assert.deepEqual(lessonsFromOutcomes([{
+    id: "o2",
+    contentItemId: null,
+    campaignId: null,
+    title: " ",
+    whoShowedUp: "   ",
+    hookThatFeltTamkang: "",
+    remember: "",
+    createdAt: 1,
+  }]), []);
+});
+
+test("local learning prefers field notes over inferred copy lessons", () => {
+  const brand = createEmptyBrand("淡江大學禪學社");
+  const lessons = lessonsFromLocalWork({
+    brand,
+    assets: [],
+    campaigns: [campaign],
+    contentItems: [story],
+    outcomes: [{
+      id: "o1",
+      contentItemId: "i1",
+      campaignId: "c1",
+      title: "浮游禪光",
+      whoShowedUp: "商管的同學來了幾位",
+      hookThatFeltTamkang: "下課後先不要急著回完所有訊息",
+      remember: "別把報名連結藏在最後一行",
+      createdAt: 1,
+    }],
+    insights: null,
+  });
+  assert.equal(lessons[0]?.startsWith("現場："), true);
   assert.equal(lessons.some((item) => /Insights/.test(item)), false);
 });
 

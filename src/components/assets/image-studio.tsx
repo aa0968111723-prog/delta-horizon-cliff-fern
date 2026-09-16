@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { generateCreativeImage, getMultimodalStatus } from "@/lib/ai/multimodal";
+import { describeImageAdapter, type ImageAiStatus } from "@/lib/ai/image-status";
 import { campaignImageIdea } from "@/lib/creative/brief-from-campaign";
 import { buildCreativeMemoryContext, memoryInjectionHints } from "@/lib/creative/memory";
 import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
@@ -64,7 +65,7 @@ export function ImageStudio() {
   const [ideaTouched, setIdeaTouched] = useState(false);
   const [directionId, setDirectionId] = useState<(typeof DIRECTIONS)[number]["id"]>("campus");
   const [aspectRatio, setAspectRatio] = useState<(typeof FORMATS)[number]["id"]>("4:5");
-  const [available, setAvailable] = useState<boolean | null>(null);
+  const [available, setAvailable] = useState<ImageAiStatus | null>(null);
   const [busy, setBusy] = useState(false);
 
   const direction = useMemo(
@@ -89,10 +90,10 @@ export function ImageStudio() {
     let alive = true;
     getMultimodalStatus()
       .then((result) => {
-        if (alive) setAvailable(result.available);
+        if (alive) setAvailable(result);
       })
       .catch(() => {
-        if (alive) setAvailable(false);
+        if (alive) setAvailable(describeImageAdapter(false));
       });
     return () => {
       alive = false;
@@ -102,6 +103,10 @@ export function ImageStudio() {
   async function generate() {
     if (idea.trim().length < 3) {
       toast.error("先寫下活動或想傳達的感覺");
+      return;
+    }
+    if (available && !available.available) {
+      toast.error(available.generateBlockedMessage);
       return;
     }
     setBusy(true);
@@ -211,15 +216,17 @@ export function ImageStudio() {
             </Select>
             <Button
               className="min-h-11 flex-1 bg-accent-fg text-accent hover:bg-accent-fg/90"
-              disabled={busy || available !== true}
+              disabled={busy}
               onClick={() => void generate()}
             >
               <WandSparkles className="size-4" />
-              {busy ? "正在生成一張…" : "生成並加入素材庫"}
+              {busy ? "正在生成一張…" : available && !available.available ? "確認圖片服務" : "生成並加入素材庫"}
             </Button>
           </div>
-          {available === false ? (
-            <p className="mt-3 text-xs text-accent-fg/60">AI 圖片服務目前未開放；既有素材上傳、畫布與模板仍可使用。</p>
+          {available && !available.available ? (
+            <p className="mt-3 rounded-xl bg-accent-fg/10 px-3 py-3 text-xs leading-5 text-accent-fg/80" role="status">
+              {available.detail}
+            </p>
           ) : null}
         </div>
 

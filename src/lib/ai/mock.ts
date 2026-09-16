@@ -167,7 +167,7 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
     visualDirection,
     templateId,
     colorMood: visualTheme,
-    eyebrow: data.goal === "conversion" ? "LIMITED" : "EVENT",
+    eyebrow: data.goal === "conversion" ? "今晚" : "活動",
     headline,
     subhead,
     body,

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { StyleMemoryPanel } from "@/components/brand/style-memory";
+import { OutcomeJournal } from "@/components/learning/outcome-journal";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { StorageNotice } from "@/components/shared/storage-notice";
@@ -61,6 +62,7 @@ export function BrandEditor() {
   const projects = useStudio((s) => s.projects);
   const campaigns = useCreative((s) => s.campaigns);
   const contentItems = useCreative((s) => s.contentItems);
+  const outcomes = useCreative((s) => s.outcomes);
   const styleReferences = useConnectionStore((s) => s.styleReferences);
   const [activeId, setActiveId] = useState(brands[0]?.id ?? "");
   const locationHash = useRouterState({ select: (state) => state.location.hash });
@@ -309,6 +311,7 @@ export function BrandEditor() {
                 contentItems,
                 copyPacks: projects.flatMap((item) => item.plan?.copyPack ? [item.plan.copyPack] : []),
                 styleNotes: styleReferences.map((item) => `${item.provider}／${item.collection}「${item.title}」${item.notes}`),
+                outcomes,
                 insights: null,
               }),
               updatedAt: Date.now(),
@@ -318,6 +321,7 @@ export function BrandEditor() {
         >
           從本機工作學習
         </Button>
+        <OutcomeJournal />
         <StyleMemoryPanel />
       </section>
 

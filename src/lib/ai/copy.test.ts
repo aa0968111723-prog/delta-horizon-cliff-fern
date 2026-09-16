@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildMockCopyPack, type CopyRequest } from "./copy.ts";
+import { buildMockCopyPack, describeCopyAdapter, type CopyRequest } from "./copy.ts";
 
 const request: CopyRequest = {
   campaignName: "期中喘口氣茶會",
@@ -64,4 +64,11 @@ test("copy avoids a formal invitation hook and includes club-specific hashtags",
   const pack = buildMockCopyPack({ ...request, hook: "淡江大學禪學社誠摯邀請您" });
   assert.doesNotMatch(pack.variants[0].hook, /誠摯邀請/);
   assert.ok(pack.variants.every((item) => item.hashtags.includes("#淡江禪學社")));
+});
+
+test("unavailable copy adapter never pretends Grok wrote the draft", () => {
+  const status = describeCopyAdapter(false);
+  assert.equal(status.available, false);
+  assert.equal(status.adapter, "mock");
+  assert.match(status.detail, /不是 Grok 寫的/);
 });

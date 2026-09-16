@@ -271,6 +271,7 @@ export function memoryInjectionHints(input: {
   if (input.campaigns?.length) hints.push("近期活動");
   if (input.assets?.some((asset) => asset.analysis)) hints.push("已分析素材");
   if (input.styleReferences?.length) hints.push("Canva 風格");
+  if (input.brand.memory?.learnedPatterns?.some((item) => item.startsWith("現場："))) hints.push("現場筆記");
   if (input.instagramHashtags?.length) hints.push("IG hashtags");
   return hints;
 }

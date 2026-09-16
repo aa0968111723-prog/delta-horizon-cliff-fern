@@ -212,8 +212,8 @@ export function HomePage() {
         <section className="min-w-0">
           <div className="flex items-end justify-between gap-3">
             <div>
-              <p className="text-xs text-muted">RECENTLY GENERATED</p>
-              <h2 className="mt-1 font-display text-xl">最近 AI 生成</h2>
+            <p className="text-xs text-muted">RECENT WORK</p>
+            <h2 className="mt-1 font-display text-xl">最近作品</h2>
             </div>
             <Button
               variant="ghost"
@@ -259,6 +259,19 @@ export function HomePage() {
                 <li className="text-sm text-muted">還沒有節奏。到排程依活動生成一版。</li>
               )}
             </ol>
+          </Link>
+          <Link
+            to="/instagram"
+            hash="learn"
+            className="block rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-border-hover)]"
+          >
+            <div className="flex items-center gap-2">
+              <MessageCircleMore className="size-5 text-accent" />
+              <h2 className="font-display text-lg">現場筆記</h2>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-muted">
+              貼出去之後記下誰來了、哪句 Hook 像淡江。寫進 Brand Memory，不是模擬讚數。
+            </p>
           </Link>
         </aside>
       </div>

@@ -291,7 +291,7 @@ export function buildLayout(
         y: frameTop,
         w: W - S.left - S.right,
         h: 40,
-        text: copy.eyebrow || "LIMITED",
+        text: copy.eyebrow || "活動",
         fontFamily: body,
         fontWeight: 500,
         fontSize: 20,

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Buffer } from "node:buffer";
 import { z } from "zod";
 import type { AssetAnalysis } from "@/lib/studio/types";
+import { createImageQuota, describeImageAdapter } from "./image-status";
 
 const AspectRatioSchema = z.enum(["4:5", "1:1", "9:16"]);
 
@@ -93,14 +94,22 @@ function extractJson(text: string) {
   return JSON.parse(raw.slice(start, end + 1));
 }
 
-export const getMultimodalStatus = createServerFn({ method: "GET" }).handler(async () => ({
-  available: Boolean(process.env.XAI_API_KEY),
-}));
+export { describeImageAdapter } from "./image-status";
+
+const imageQuota = createImageQuota(4);
+
+export const getMultimodalStatus = createServerFn({ method: "GET" }).handler(async () => (
+  describeImageAdapter(Boolean(process.env.XAI_API_KEY))
+));
 
 export const generateCreativeImage = createServerFn({ method: "POST" })
   .validator((input: unknown) => GenerateRequestSchema.parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input))
   .handler(async ({ data }) => {
-    if (!process.env.XAI_API_KEY) return { ok: false as const, error: "這個環境尚未開放 AI 圖片服務" };
+    if (!process.env.XAI_API_KEY) {
+      return { ok: false as const, error: describeImageAdapter(false).generateBlockedMessage };
+    }
+    const quota = imageQuota.consume();
+    if (!quota.ok) return { ok: false as const, error: quota.error };
     try {
       const prompt = creativePrompt(data.idea, data.direction, data.brandMemory);
       const response = await fetch("https://api.x.ai/v1/images/generations", {
@@ -118,12 +127,15 @@ export const generateCreativeImage = createServerFn({ method: "POST" })
       });
       return { ok: true as const, image: await imageResult(response), prompt };
     } catch (error) {
+      imageQuota.refund();
       return { ok: false as const, error: error instanceof Error ? error.message : "圖片生成失敗" };
     }
   });
 
 export async function runVisionAnalysis(dataUrl: string) {
-  if (!process.env.XAI_API_KEY) return { ok: false as const, error: "這個環境尚未開放 AI 圖片分析" };
+  if (!process.env.XAI_API_KEY) {
+    return { ok: false as const, error: "這個環境尚未開放 AI 圖片分析。沒有寫入模擬標籤，也不會假裝 Grok 看過這張圖。" };
+  }
   try {
     const response = await fetch("https://api.x.ai/v1/responses", {
       method: "POST",
@@ -163,7 +175,11 @@ export const analyzeCreativeImage = createServerFn({ method: "POST" })
 export const editCreativeImage = createServerFn({ method: "POST" })
   .validator((input: unknown) => EditRequestSchema.parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input))
   .handler(async ({ data }) => {
-    if (!process.env.XAI_API_KEY) return { ok: false as const, error: "這個環境尚未開放 AI 圖片改版" };
+    if (!process.env.XAI_API_KEY) {
+      return { ok: false as const, error: describeImageAdapter(false).generateBlockedMessage };
+    }
+    const quota = imageQuota.consume();
+    if (!quota.ok) return { ok: false as const, error: quota.error };
     try {
       const response = await fetch("https://api.x.ai/v1/images/edits", {
         method: "POST",
@@ -179,6 +195,7 @@ export const editCreativeImage = createServerFn({ method: "POST" })
       });
       return { ok: true as const, image: await imageResult(response) };
     } catch (error) {
+      imageQuota.refund();
       return { ok: false as const, error: error instanceof Error ? error.message : "圖片改版失敗" };
     }
   });

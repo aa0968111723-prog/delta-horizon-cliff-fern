@@ -1,6 +1,6 @@
 import type { InstagramInsightRow } from "../connections/types.ts";
 import type { AssetMeta, BrandKit, CopyPack, StudentReviewItem } from "../studio/types.ts";
-import type { Campaign, ContentItem } from "./types.ts";
+import type { Campaign, ContentItem, PostOutcome } from "./types.ts";
 
 export function mergeLearnedPatterns(existing: string[] | undefined, incoming: string[], limit = 12) {
   const next: string[] = [];
@@ -54,6 +54,27 @@ export function lessonsFromInsights(rows: InstagramInsightRow[] | undefined) {
   ));
 }
 
+export function lessonsFromOutcomes(outcomes: PostOutcome[] | undefined) {
+  if (!outcomes?.length) return [];
+  return outcomes.flatMap(formatOutcomeLesson).slice(0, 8);
+}
+
+export function formatOutcomeLesson(outcome: PostOutcome) {
+  const title = outcome.title.trim() || "這則內容";
+  const lines: string[] = [];
+  const hook = outcome.hookThatFeltTamkang.trim();
+  const who = outcome.whoShowedUp.trim();
+  const remember = outcome.remember.trim();
+  if (hook) lines.push(`現場：「${title}」覺得像淡江的 Hook「${hook}」`);
+  if (who) lines.push(`現場：「${title}」實際來的人／反應：${who}`);
+  if (remember) lines.push(`現場：「${title}」下次要記得：${remember}`);
+  return lines;
+}
+
+export function applyOutcomeToPatterns(existing: string[] | undefined, outcome: PostOutcome) {
+  return mergeLearnedPatterns(existing, formatOutcomeLesson(outcome));
+}
+
 export function lessonsFromLocalWork(input: {
   brand: BrandKit;
   assets: AssetMeta[];
@@ -61,6 +82,7 @@ export function lessonsFromLocalWork(input: {
   contentItems: ContentItem[];
   copyPacks?: CopyPack[];
   styleNotes?: string[];
+  outcomes?: PostOutcome[];
   insights?: InstagramInsightRow[] | null;
 }) {
   const copyLessons = (input.copyPacks ?? []).flatMap((pack) => reviewLessons(pack.studentReview));
@@ -69,6 +91,7 @@ export function lessonsFromLocalWork(input: {
     ? `最近活動「${input.campaigns[0].name}」先回應：${input.campaigns[0].studentPain}`
     : "";
   return mergeLearnedPatterns(input.brand.memory?.learnedPatterns, [
+    ...lessonsFromOutcomes(input.outcomes),
     ...copyLessons,
     ...assetLessons(input.assets),
     ...rhythmLessons(input.contentItems),

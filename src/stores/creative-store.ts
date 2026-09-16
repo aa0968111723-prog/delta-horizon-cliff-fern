@@ -6,6 +6,8 @@ import type {
   CampaignInput,
   ContentItem,
   ContentStatus,
+  OutcomeInput,
+  PostOutcome,
 } from "@/lib/creative/types";
 
 const SEED_CAMPAIGN: Campaign = {
@@ -30,6 +32,7 @@ type CreativeState = {
   hydrated: boolean;
   campaigns: Campaign[];
   contentItems: ContentItem[];
+  outcomes: PostOutcome[];
   activeCampaignId: string;
   setHydrated: (hydrated: boolean) => void;
   setActiveCampaignId: (id: string) => void;
@@ -39,6 +42,8 @@ type CreativeState = {
   setContentStatus: (id: string, status: ContentStatus) => void;
   rescheduleContent: (id: string, plannedAt: string) => void;
   linkProject: (id: string, projectId: string) => void;
+  addOutcome: (input: OutcomeInput) => PostOutcome;
+  removeOutcome: (id: string) => void;
 };
 
 function uid(prefix: string) {
@@ -56,6 +61,7 @@ export const useCreative = create<CreativeState>()(
       hydrated: false,
       campaigns: [SEED_CAMPAIGN],
       contentItems: seedItems,
+      outcomes: [],
       activeCampaignId: SEED_CAMPAIGN.id,
       setHydrated: (hydrated) => set({ hydrated }),
       setActiveCampaignId: (id) => set({ activeCampaignId: id }),
@@ -132,26 +138,42 @@ export const useCreative = create<CreativeState>()(
               : item,
           ),
         })),
+      addOutcome: (input) => {
+        const outcome: PostOutcome = {
+          ...input,
+          id: uid("outcome"),
+          createdAt: Date.now(),
+        };
+        set((state) => ({ outcomes: [outcome, ...state.outcomes].slice(0, 40) }));
+        return outcome;
+      },
+      removeOutcome: (id) =>
+        set((state) => ({
+          outcomes: state.outcomes.filter((item) => item.id !== id),
+        })),
     }),
     {
       name: "zen-creative-brain-v1",
-      version: 2,
+      version: 3,
       skipHydration: true,
       migrate: (persisted) => {
         const state = persisted as {
           campaigns?: Campaign[];
           contentItems?: ContentItem[];
+          outcomes?: PostOutcome[];
           activeCampaignId?: string;
         };
         return {
           campaigns: state.campaigns ?? [SEED_CAMPAIGN],
           contentItems: state.contentItems ?? seedItems,
+          outcomes: state.outcomes ?? [],
           activeCampaignId: state.activeCampaignId ?? state.campaigns?.[0]?.id ?? SEED_CAMPAIGN.id,
         };
       },
       partialize: (state) => ({
         campaigns: state.campaigns,
         contentItems: state.contentItems,
+        outcomes: state.outcomes,
         activeCampaignId: state.activeCampaignId,
       }),
     },

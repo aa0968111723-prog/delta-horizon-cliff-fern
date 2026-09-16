@@ -1,10 +1,11 @@
 import { AlertCircle, CheckCircle2, Copy, Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { generateCopyPack } from "@/lib/ai/copy";
+import { generateCopyPack, describeCopyAdapter, getCopyAiStatus } from "@/lib/ai/copy";
+import type { AiStatus } from "@/lib/ai/campaign";
 import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
 import { lessonsFromLocalWork } from "@/lib/creative/learning";
 import { buildCreativeMemoryContext, memoryInjectionHints } from "@/lib/creative/memory";
@@ -23,6 +24,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
   const updateBrand = useStudio((state) => state.updateBrand);
   const campaigns = useCreative((state) => state.campaigns);
   const contentItems = useCreative((state) => state.contentItems);
+  const outcomes = useCreative((state) => state.outcomes);
   const assets = useStudio((state) => state.assets);
   const instagramItems = useConnectionStore((state) => state.instagramItems);
   const styleReferences = useConnectionStore((state) => state.styleReferences);
@@ -37,12 +39,28 @@ export function CopyStudio({ projectId }: { projectId: string }) {
       })
     : [];
   const [busy, setBusy] = useState(false);
+  const [liveFailed, setLiveFailed] = useState(false);
+  const [status, setStatus] = useState<AiStatus | null>(null);
   const [activeTone, setActiveTone] = useState<CopyTone>("學生版");
   const pack = project?.plan?.copyPack;
 
+  useEffect(() => {
+    let alive = true;
+    getCopyAiStatus()
+      .then((next) => {
+        if (alive) setStatus(next);
+      })
+      .catch(() => {
+        if (alive) setStatus(describeCopyAdapter(false));
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   if (!project || !project.plan || !brand) return null;
 
-  async function generate() {
+  async function generate(forceMock = false) {
     if (!project || !project.plan || !brand) return;
     setBusy(true);
     try {
@@ -67,16 +85,18 @@ export function CopyStudio({ projectId }: { projectId: string }) {
             instagramHashtags: memoryHashtags,
           }),
           hashtags: [...new Set([...(project.plan.hashtags ?? []), ...memoryHashtags])].slice(0, 20),
-          forceMock: false,
+          forceMock,
         },
       });
       if (!result.ok) {
         toast.error(result.error);
+        setLiveFailed(true);
         return;
       }
+      setLiveFailed(false);
       patchPlan(projectId, { copyPack: result.pack });
       setActiveTone("學生版");
-      toast.success(result.pack.source === "live" ? "AI Copy Pack 已生成" : "本機 Copy Pack 草案已生成");
+      toast.success(result.pack.source === "live" ? "AI Copy Pack 已生成" : "本機 Copy Pack 草案已生成，不是 Grok 寫的");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "文案生成失敗");
     } finally {
@@ -117,24 +137,36 @@ export function CopyStudio({ projectId }: { projectId: string }) {
       ]
     : [];
 
+  const mockMode = status ? !status.available || liveFailed : false;
+  const banner = status ?? describeCopyAdapter(false);
+
   return (
     <section className="rounded-xl bg-bg p-4" data-testid="copy-studio">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-display text-lg">IG Copy Studio</h3>
             {pack ? <Badge variant={pack.source === "live" ? "success" : "warn"}>{pack.source === "live" ? "AI" : "本機草案"}</Badge> : null}
           </div>
           <p className="mt-1 text-xs leading-5 text-muted">
-            一次產生六種語氣、學生視角檢查與跨平台版本。只有按下按鈕才會呼叫 AI。
+            {status
+              ? banner.detail
+              : "先確認有沒有連到 AI 文案，不會假裝 Grok 已寫好。"}
             {memoryHints.length ? ` 本次會帶入 Creative Memory：${memoryHints.join("、")}。` : " Brand Memory 尚未寫入校園情境時，會用預設的淡江生活場景。"}
             {memoryHashtags.length ? ` 已帶入 IG 內容記憶 hashtags：${memoryHashtags.slice(0, 5).join(" ")}` : ""}
           </p>
         </div>
-        <Button size="sm" className="min-h-11" disabled={busy} onClick={() => void generate()}>
-          <Sparkles className="size-4" />
-          {busy ? "生成中…" : pack ? "重新生成" : "生成 Copy Pack"}
-        </Button>
+        <div className="flex min-h-11 flex-wrap gap-2">
+          {liveFailed ? (
+            <Button size="sm" className="min-h-11" variant="secondary" disabled={busy} onClick={() => void generate(true)}>
+              改用本機草案
+            </Button>
+          ) : null}
+          <Button size="sm" className="min-h-11" disabled={busy || !status} onClick={() => void generate(mockMode)}>
+            <Sparkles className="size-4" />
+            {busy ? "生成中…" : mockMode ? (pack ? "重新生成本機草案" : "生成本機草案") : pack ? "重新生成" : "生成 Copy Pack"}
+          </Button>
+        </div>
       </div>
 
       {pack && variant ? (
@@ -203,6 +235,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
                       campaigns,
                       contentItems,
                       copyPacks: [pack],
+                      outcomes,
                     }),
                     updatedAt: Date.now(),
                   },
@@ -256,7 +289,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
             </div>
           </div>
           <Button asChild variant="ghost" className="mt-3 min-h-11">
-            <Link to="/instagram" hash="preview">打開 Reels 工作流與 IG 預覽</Link>
+            <Link to="/instagram" hash="preview">打開 Reels 腳本與 IG 預覽</Link>
           </Button>
           <CreationLoop current="copy" compact />
         </div>

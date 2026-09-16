@@ -14,6 +14,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { NewCampaignDialog } from "@/components/campaigns/new-campaign-dialog";
 import { CreationLoop } from "@/components/shared/creation-loop";
+import { OutcomeJournal } from "@/components/learning/outcome-journal";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,7 +105,7 @@ export function CampaignCenter() {
       <PageHeader
         kicker="一人完成整套淡江禪學社網宣"
         title="Campaign"
-        description="活動資訊、學生情境與每一波內容放在一起。沒有負責人、審核人或多人工單。"
+        description="活動資訊、學生情境與每一波內容放在一起。一人完成淡江禪學社網宣。"
         actions={
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="size-4" />
@@ -246,6 +247,11 @@ export function CampaignCenter() {
                         </Button>
                       </>
                     ) : null}
+                    {(item.status === "complete" || item.status === "published" || item.status === "scheduled") ? (
+                      <Button size="sm" className="min-h-11" variant="ghost" asChild>
+                        <Link to="/instagram" hash="learn">現場筆記</Link>
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               </li>
@@ -253,6 +259,10 @@ export function CampaignCenter() {
           })}
         </ol>
       </section>
+
+      <div className="mt-8 min-w-0">
+        <OutcomeJournal />
+      </div>
 
       <NewCampaignDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={onCreated} />
     </main>

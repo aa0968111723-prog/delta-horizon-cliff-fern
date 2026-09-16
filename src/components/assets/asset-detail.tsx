@@ -1,6 +1,6 @@
 import { BrainCircuit, WandSparkles } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -13,7 +13,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { analyzeCreativeImage, editCreativeImage } from "@/lib/ai/multimodal";
+import { analyzeCreativeImage, editCreativeImage, getMultimodalStatus } from "@/lib/ai/multimodal";
+import { describeImageAdapter, type ImageAiStatus } from "@/lib/ai/image-status";
+import { ImageServiceNotice } from "@/components/shared/image-service-notice";
 import { base64ImageToBlob, prepareImageForAi, sourceBlob } from "@/lib/studio/ai-image-client";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { ASSET_CATEGORIES, sourceLabel, usageLabel } from "@/lib/studio/assets";
@@ -48,6 +50,21 @@ export function AssetDetailSheet({
   const [aiBusy, setAiBusy] = useState<"analyze" | "edit" | null>(null);
   const [editInstruction, setEditInstruction] = useState("延伸成有夜晚校園感的 IG 主視覺，保留人物與自然互動，增加標題留白");
   const [editRatio, setEditRatio] = useState<"4:5" | "1:1" | "9:16">("4:5");
+  const [imageStatus, setImageStatus] = useState<ImageAiStatus | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getMultimodalStatus()
+      .then((result) => {
+        if (alive) setImageStatus(result);
+      })
+      .catch(() => {
+        if (alive) setImageStatus(describeImageAdapter(false));
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   if (!asset) return null;
   const current = asset;
@@ -77,6 +94,10 @@ export function AssetDetailSheet({
   }
 
   async function analyze() {
+    if (imageStatus && !imageStatus.available) {
+      toast.error("這個環境尚未開放 AI 圖片分析。沒有寫入模擬標籤，也不會假裝 Grok 看過這張圖。");
+      return;
+    }
     setAiBusy("analyze");
     try {
       const prepared = await preparedSource();
@@ -100,6 +121,10 @@ export function AssetDetailSheet({
   async function edit() {
     if (editInstruction.trim().length < 3) {
       toast.error("先描述想怎麼延伸這張素材");
+      return;
+    }
+    if (imageStatus && !imageStatus.available) {
+      toast.error(imageStatus.generateBlockedMessage);
       return;
     }
     setAiBusy("edit");
@@ -234,6 +259,7 @@ export function AssetDetailSheet({
               {aiBusy === "analyze" ? "分析中…" : current.analysis ? "重新分析" : "AI 分析"}
             </Button>
           </div>
+          <ImageServiceNotice status={imageStatus} className="mt-3" />
           {current.analysis ? (
             <div className="mt-4 space-y-3 text-xs leading-5">
               <p className="text-sm text-fg">{current.analysis.summary}</p>

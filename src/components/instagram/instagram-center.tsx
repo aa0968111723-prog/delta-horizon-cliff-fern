@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { IgPreview } from "@/components/instagram/ig-preview";
 import { ReelsStudio } from "@/components/instagram/reels-studio";
+import { OutcomeJournal } from "@/components/learning/outcome-journal";
 import { CreationLoop } from "@/components/shared/creation-loop";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +83,7 @@ export function InstagramCenter() {
 
   useEffect(() => {
     const hash = locationHash.replace("#", "");
-    if (["memory", "preview", "reels", "insights"].includes(hash)) setTab(hash);
+    if (["memory", "preview", "reels", "insights", "learn"].includes(hash)) setTab(hash);
   }, [locationHash]);
 
   const visible = useMemo(() => {
@@ -116,6 +117,7 @@ export function InstagramCenter() {
           <TabsTrigger value="memory" className="min-h-11">內容記憶</TabsTrigger>
           <TabsTrigger value="preview" className="min-h-11">IG 預覽</TabsTrigger>
           <TabsTrigger value="reels" className="min-h-11">Reels</TabsTrigger>
+          <TabsTrigger value="learn" className="min-h-11">現場筆記</TabsTrigger>
           <TabsTrigger value="insights" className="min-h-11">Insights</TabsTrigger>
         </TabsList>
 
@@ -179,6 +181,10 @@ export function InstagramCenter() {
           <ReelsStudio projectId={lastProjectId ?? undefined} />
         </TabsContent>
 
+        <TabsContent value="learn" className="mt-5">
+          <OutcomeJournal />
+        </TabsContent>
+
         <TabsContent value="insights" className="mt-5">
           {insights?.rows.length ? (
             <div className="rounded-3xl bg-surface p-6 shadow-[var(--shadow-border)] md:p-10">
@@ -221,8 +227,11 @@ export function InstagramCenter() {
               <h2 className="mt-3 font-display text-2xl">不會顯示模擬成效</h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-muted">{insightsNote}</p>
               <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
-                沒有官方 Insights 時，不會用模擬讚數或觀看次數來教你下次怎麼寫。
+                沒有官方 Insights 時，不會用模擬讚數或觀看次數來教你下次怎麼寫。改用社團自己的現場筆記。
               </p>
+              <Button className="mt-5 min-h-11" variant="secondary" onClick={() => setTab("learn")}>
+                打開現場筆記
+              </Button>
               {canRequestInsights ? (
                 <Button
                   className="mt-5"

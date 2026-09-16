@@ -2,7 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BriefFields } from "@/components/assistant/brief-fields";
-import { EditorAgent } from "@/components/assistant/editor-agent";
+import { EditorAgent as CanvasEditor } from "@/components/assistant/editor-agent";
 import { PlanResult } from "@/components/assistant/plan-result";
 import { ErrorState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -232,7 +232,7 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
         </p>
       </div>
 
-      {targetId !== "new" ? <EditorAgent projectId={targetId} compact={variant === "sheet"} /> : null}
+      {targetId !== "new" ? <CanvasEditor projectId={targetId} compact={variant === "sheet"} /> : null}
 
       <div className={variant === "page" ? "hidden" : undefined}>
         <h2 className="text-sm font-medium">活動需求</h2>

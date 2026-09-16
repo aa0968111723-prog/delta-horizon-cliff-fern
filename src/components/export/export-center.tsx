@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { format as formatDate } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { Download, FolderKanban } from "lucide-react";
+import { Download, Images } from "lucide-react";
 import { CreationLoop } from "@/components/shared/creation-loop";
 import { EmptyState, LoadingState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
@@ -58,7 +58,7 @@ export function ExportCenter() {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-16">
         <EmptyState
-          icon={FolderKanban}
+          icon={Images}
           title="還沒有可輸出的作品"
           description="先完成一則網宣，再回來檢查與下載。"
           action={
@@ -96,6 +96,11 @@ export function ExportCenter() {
       <div className="mt-4">
         <CreationLoop current="export" />
       </div>
+      <p className="mt-3 text-xs leading-5 text-muted">
+        下載後若已貼出去，用現場筆記記下誰來了。
+        {" "}
+        <Link to="/instagram" hash="learn" className="text-accent">打開現場筆記</Link>
+      </p>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Select

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BriefFields } from "@/components/assistant/brief-fields";
-import { EditorAgent } from "@/components/assistant/editor-agent";
+import { EditorAgent as CanvasEditor } from "@/components/assistant/editor-agent";
 import { PlanResult } from "@/components/assistant/plan-result";
 import { Button } from "@/components/ui/button";
 import { CreationLoop } from "@/components/shared/creation-loop";
@@ -86,7 +86,7 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
 
   return (
     <div className="space-y-6 p-4 pb-8">
-      <EditorAgent projectId={project.id} compact />
+      <CanvasEditor projectId={project.id} compact />
       <div className="border-t border-border pt-5">
         <h2 className="text-sm font-medium">宣傳企劃</h2>
         <p className="mt-1 text-xs text-muted">活動條件會帶入 Brand Memory 與校園情境。生成後會變成頁面與畫布。</p>

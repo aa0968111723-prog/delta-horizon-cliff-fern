@@ -288,6 +288,15 @@ test("creative memory prompt injects campus, Canva style, and hashtags for AI co
   }), ["校園情境", "近期活動", "已分析素材", "Canva 風格", "IG hashtags"]);
 });
 
+test("memoryInjectionHints includes 現場筆記 when Brand Memory has field notes", () => {
+  const noted = createEmptyBrand("淡江大學禪學社");
+  noted.memory = {
+    ...brand.memory!,
+    learnedPatterns: ["現場：「浮游禪光」覺得像淡江的 Hook「最近是不是連休息都覺得有罪惡感？」"],
+  };
+  assert.equal(memoryInjectionHints({ brand: noted }).includes("現場筆記"), true);
+});
+
 test("clipMemoryPrompt keeps campus prompts within the AI payload limit", () => {
   assert.equal(clipMemoryPrompt("淡水雨天", 8), "淡水雨天");
   assert.equal(clipMemoryPrompt("a".repeat(20), 8).length, 8);

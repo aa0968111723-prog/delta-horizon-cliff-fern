@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { generateCreativeImage, getMultimodalStatus } from "@/lib/ai/multimodal";
+import { describeImageAdapter, type ImageAiStatus } from "@/lib/ai/image-status";
+import { ImageServiceNotice } from "@/components/shared/image-service-notice";
 import { hashtagsFromInstagramMemory } from "@/lib/connections/instagram-normalize";
 import { buildCreativeMemoryContext } from "@/lib/creative/memory";
 import { useCreative } from "@/stores/creative-store";
@@ -27,22 +29,22 @@ export function ReelsStudio({ projectId }: { projectId?: string }) {
   const setStylePrompt = useUi((state) => state.setStylePrompt);
   const beats = project?.plan?.copyPack?.reelsScript ?? [];
   const [busy, setBusy] = useState(false);
-  const [available, setAvailable] = useState<boolean | null>(null);
+  const [available, setAvailable] = useState<ImageAiStatus | null>(null);
 
   useEffect(() => {
     void getMultimodalStatus()
-      .then((result) => setAvailable(result.available))
-      .catch(() => setAvailable(false));
+      .then((result) => setAvailable(result))
+      .catch(() => setAvailable(describeImageAdapter(false)));
   }, []);
 
   async function generateCover() {
     if (!project) return;
+    if (available && !available.available) {
+      toast.error(available.generateBlockedMessage);
+      return;
+    }
     setBusy(true);
     try {
-      if (available === false) {
-        toast.error("這個環境尚未開放 AI 圖片服務");
-        return;
-      }
       const idea = `${project.name} 的 Reels 封面，夜晚校園、三色光、大標題安全區`;
       const result = await generateCreativeImage({
         data: {
@@ -118,7 +120,7 @@ export function ReelsStudio({ projectId }: { projectId?: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="font-display text-xl">Reels 工作流</h2>
+            <h2 className="font-display text-xl">Reels 腳本</h2>
             <Badge variant={beats.length ? "success" : "default"}>{beats.length ? "有腳本" : "尚未生成"}</Badge>
           </div>
           <p className="mt-1 text-sm leading-6 text-muted">
@@ -145,8 +147,8 @@ export function ReelsStudio({ projectId }: { projectId?: string }) {
         </div>
       </div>
 
-      {available === false ? (
-        <p className="rounded-xl bg-bg px-4 py-3 text-sm text-muted">這個環境尚未開放 AI 圖片服務，封面生成會停用，腳本仍可複製。</p>
+      {available && !available.available ? (
+        <ImageServiceNotice status={available} />
       ) : null}
 
       {beats.length ? (

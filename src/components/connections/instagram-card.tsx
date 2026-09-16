@@ -155,7 +155,7 @@ export function InstagramCard() {
       ) : status === "connected" ? (
         <div className="p-5 md:p-6">
           <p className="text-sm leading-6 text-muted">
-            已同步 {savedItems.length} 則貼文到 IG 內容記憶。到 IG 中心看格狀預覽、文案與 Reels 工作流。
+            已同步 {savedItems.length} 則貼文到 IG 內容記憶。到 IG 中心看格狀預覽、文案與 Reels 腳本。
           </p>
           {savedItems.length ? (
             <ul className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3">
