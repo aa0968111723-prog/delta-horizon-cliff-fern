@@ -47,9 +47,13 @@ try {
   await expectText("可以發了", "可以發了");
   await expectText("首頁帶走文案", "複製並下載");
   await expectText("今日靈感", "今日靈感");
+  await page.getByText("今天可以發", { exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${prefix}-today-posts.png` });
 
   // 2. AI 幫我創作
-  await page.getByRole("button", { name: /AI 幫我創作/ }).click();
+  await page.getByRole("button", { name: /AI 幫我創作/ }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
   await page.waitForURL(/\/create/, { timeout: 15000 });
   await page.waitForLoadState("networkidle");
   await expectText("創作頁", "一句想法");
@@ -236,6 +240,7 @@ try {
     el instanceof HTMLElement ? el.click() : undefined,
   );
   await expectText("IG 動態預覽", "動態預覽");
+  await page.screenshot({ path: `${prefix}-ig-feed.png` });
   await page.getByRole("button", { name: "IG DNA" }).evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );
