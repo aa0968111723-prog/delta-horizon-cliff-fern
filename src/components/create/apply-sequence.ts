@@ -72,6 +72,13 @@ export async function applyFormatSequence(input: {
   }
 
   const sequence: VisualSequence = { kind: input.kind, labels, assetIds, projectId };
+  const caption = [input.pack.copy.hook, "", input.pack.copy.body, "", input.pack.copy.cta, input.pack.copy.hashtags.join(" ")]
+    .join("\n")
+    .trim();
+  useStudio.getState().setCopy(projectId, {
+    headline: input.pack.copy.hook.slice(0, 80),
+    caption,
+  });
 
   if (persist) {
     const campaignId =

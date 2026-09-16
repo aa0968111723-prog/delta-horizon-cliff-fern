@@ -112,6 +112,12 @@ export async function applyFormatSuite(input: {
   if (preferred) {
     useStudio.getState().setLastProjectId(preferred.projectId);
     useStudio.getState().setSlide(preferred.projectId, 0);
+    useStudio.getState().setCopy(preferred.projectId, {
+      headline: input.pack.copy.hook.slice(0, 80),
+      caption: [input.pack.copy.hook, "", input.pack.copy.body, "", input.pack.copy.cta, input.pack.copy.hashtags.join(" ")]
+        .join("\n")
+        .trim(),
+    });
     useCreative.getState().setLastSequence(preferred);
   }
 
