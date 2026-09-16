@@ -102,6 +102,17 @@ export type BrandRules = {
   notes: string;
 };
 
+/** AI 讀過這個帳號過去內容之後留下的整理，生成時會優先延續。 */
+export type IgHistoryReading = {
+  voice: string;
+  continueWith: string[];
+  avoid: string[];
+  nextPost: string;
+  analyzedAt: number;
+  sampleCount: number;
+  adapter: "live" | "local";
+};
+
 /**
  * 品牌記憶裡「不是規範、而是社團自己的東西」：理念、固定介紹、龜龜、三色光的意義、
  * 喜歡與不喜歡的風格、歷屆文宣。AI 每次生成前都會先讀這一段。
@@ -119,6 +130,8 @@ export type BrandMemory = {
   dislikedStyles: string;
   /** 歷屆海報／文宣，AI 參考品牌 DNA 時會看 */
   legacyAssetIds: string[];
+  /** 讀過過去 IG／本機內容後的整理。沒讀過就沒有。 */
+  igReading?: IgHistoryReading;
 };
 
 export type BrandKit = {

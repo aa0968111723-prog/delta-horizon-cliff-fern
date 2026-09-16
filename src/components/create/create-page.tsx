@@ -57,6 +57,7 @@ const TEXTAREA =
 export function CreatePage({ search }: { search: CreateSearch }) {
   const navigate = useNavigate();
   const brands = useStudio((s) => s.brands);
+  const assets = useStudio((s) => s.assets);
   const campaigns = useStudio((s) => s.campaigns);
   const projects = useStudio((s) => s.projects);
   const createProject = useStudio((s) => s.createProject);
@@ -75,6 +76,10 @@ export function CreatePage({ search }: { search: CreateSearch }) {
   const insightsText = useIgInsightsText();
 
   const brand = brands[0];
+  const memoryText = useMemo(
+    () => (brand ? formatBrandMemory(brand.memory, assets) : undefined),
+    [brand, assets],
+  );
   const phase = semesterPhaseAt();
 
   const linkedProject = useMemo(
@@ -154,11 +159,11 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       brandVoice: brand?.voice,
       brandDontSay: brand?.dontSay,
       forbiddenWords: brand?.forbiddenWords ?? [],
-      brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+      brandMemoryText: memoryText,
       igDnaText: igDnaText || undefined,
       insightsText: insightsText || undefined,
     }),
-    [topic, eventName, schedule, location, idea, painPoint, signupUrl, audienceIds, brand, campaign, igDnaText, insightsText],
+    [topic, eventName, schedule, location, idea, painPoint, signupUrl, audienceIds, brand, campaign, igDnaText, insightsText, memoryText],
   );
 
   async function runCopy() {
@@ -199,7 +204,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           imageStyle: brand
             ? `${brand.imageStyle.mood}｜${brand.imageStyle.lighting}｜${brand.imageStyle.composition}`
             : undefined,
-          brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+          brandMemoryText: memoryText,
           igDnaText: igDnaText || undefined,
           insightsText: insightsText || undefined,
         },
@@ -226,7 +231,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           signupUrl: signupUrl.trim(),
           painPoint: painPoint.trim(),
           audienceIds,
-          brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+          brandMemoryText: memoryText,
           igDnaText: igDnaText || undefined,
           insightsText: insightsText || undefined,
         },
@@ -431,7 +436,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
           painPoint: painPoint.trim(),
           cta: draft?.cta ?? "",
           audienceIds,
-          brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+          brandMemoryText: memoryText,
           igDnaText: igDnaText || undefined,
           insightsText: insightsText || undefined,
         },

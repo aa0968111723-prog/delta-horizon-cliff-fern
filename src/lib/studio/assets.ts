@@ -90,6 +90,16 @@ export function isDisplayableImageBlob(blob: Blob | undefined | null): boolean {
   return false;
 }
 
+/** 匯出畫布時：IndexedDB 裡有可用圖就用 blob，否則退回示範素材的 public 路徑。 */
+export function pickExportImageSource(
+  blob: Blob | undefined | null,
+  seedSrc?: string,
+): { kind: "blob"; blob: Blob } | { kind: "url"; url: string } | null {
+  if (blob && isDisplayableImageBlob(blob)) return { kind: "blob", blob };
+  if (seedSrc) return { kind: "url", url: seedSrc };
+  return null;
+}
+
 /** SVG 用 object-cover 在 Chromium 會變成空白（intrinsic size 0）。 */
 export function isSvgPreviewSrc(src?: string | null, mime?: string) {
   if ((mime || "").includes("svg")) return true;

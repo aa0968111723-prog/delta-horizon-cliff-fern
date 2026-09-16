@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { analyzeImage, generateImage } from "@/lib/ai/image-ai";
-import { formatBrandMemory } from "@/lib/studio/brand";
+import { formatBrandMemory, toggleLegacyAssetId } from "@/lib/studio/brand";
 import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
 import { ASSET_CATEGORIES, assetPreviewFitClass, kindFromCategory, similarAssets, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import { saveGeneratedImage, urlToDataUrl } from "@/lib/studio/generated-image";
@@ -46,6 +46,7 @@ export function AssetDetailSheet({
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
   const assets = useStudio((s) => s.assets);
   const brand = useStudio((s) => s.brands[0]);
+  const updateBrand = useStudio((s) => s.updateBrand);
   const igDnaText = useIgDnaText();
   const insightsText = useIgInsightsText();
   const [busy, setBusy] = useState<"analyze" | "extend" | null>(null);
@@ -90,7 +91,7 @@ export function AssetDetailSheet({
         data: {
           imageUrl,
           question: "這張圖適不適合禪學社網宣？可以怎麼延續？",
-          brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+          brandMemoryText: brand ? formatBrandMemory(brand.memory, assets) : undefined,
           igDnaText: igDnaText || undefined,
           insightsText: insightsText || undefined,
         },
@@ -232,6 +233,27 @@ export function AssetDetailSheet({
             <Button size="sm" variant="secondary" onClick={() => void useCaption()}>
               用這張寫文案
             </Button>
+            {brand ? (
+              <Button
+                size="sm"
+                variant={brand.memory.legacyAssetIds.includes(current.id) ? "default" : "secondary"}
+                onClick={() => {
+                  updateBrand(brand.id, {
+                    memory: {
+                      ...brand.memory,
+                      legacyAssetIds: toggleLegacyAssetId(brand.memory.legacyAssetIds, current.id),
+                    },
+                  });
+                  toast.success(
+                    brand.memory.legacyAssetIds.includes(current.id)
+                      ? "已從歷屆文宣拿掉"
+                      : "已標成歷屆文宣，生成時會讀這張",
+                  );
+                }}
+              >
+                {brand.memory.legacyAssetIds.includes(current.id) ? "已是歷屆文宣" : "標成歷屆文宣"}
+              </Button>
+            ) : null}
           </div>
         </div>
 

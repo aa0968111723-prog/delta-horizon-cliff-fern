@@ -100,7 +100,7 @@ try {
     ["搜尋", "/search", "找素材與過去的內容"],
     ["連接", "/connections", "尚未設定憑證"],
     ["素材庫", "/assets", "用這張創作"],
-    ["品牌", "/brand", "品牌記憶"],
+    ["品牌", "/brand", "歷屆文宣"],
   ]) {
     await page.goto(`${base}${path}`, { waitUntil: "networkidle" });
     await expectText(name, needle);
@@ -114,6 +114,14 @@ try {
   const seedImages = await page.locator("article img").count();
   record("示範素材圖檔", seedImages >= 5, `只有 ${seedImages} 張圖`);
   await page.screenshot({ path: `${prefix}-assets.png` });
+
+  await page.goto(`${base}/brand`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "品牌記憶" }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForTimeout(400);
+  await expectText("歷屆文宣挑選", "歷屆文宣");
+  await page.screenshot({ path: `${prefix}-brand-legacy.png` });
 
   await page.goto(`${base}/calendar`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "依宣傳節奏排程" }).click();
@@ -169,6 +177,18 @@ try {
     el instanceof HTMLElement ? el.click() : undefined,
   );
   await expectText("IG DNA 寫新的一篇", "用這個習慣寫新的一篇");
+  await expectText("IG DNA 讀過去內容", "用 AI 讀這些過去內容");
+  await page.getByRole("button", { name: "用 AI 讀這些過去內容" }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
+  await page.waitForTimeout(2500);
+  const dnaBody = await text();
+  record(
+    "IG 讀過過去內容",
+    dnaBody.includes("帳號自己的語氣") || dnaBody.includes("本機整理") || dnaBody.includes("語氣"),
+    "讀完後 DNA 沒有整理結果",
+  );
+  await page.screenshot({ path: `${prefix}-ig-reading.png` });
   await page.getByRole("button", { name: "過去 IG" }).evaluate((el) =>
     el instanceof HTMLElement ? el.click() : undefined,
   );

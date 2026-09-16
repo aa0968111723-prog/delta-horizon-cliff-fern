@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 
 export function PlannerPanel({ project, brand }: { project: Project; brand: BrandKit }) {
+  const assets = useStudio((s) => s.assets);
   const updateProject = useStudio((s) => s.updateProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const igDnaText = useIgDnaText();
@@ -56,7 +57,7 @@ export function PlannerPanel({ project, brand }: { project: Project; brand: Bran
           forceMock: forceMock || !connected,
           igDnaText: igDnaText || undefined,
           insightsText: insightsText || undefined,
-          brandMemoryText: formatBrandMemory(brand.memory),
+          brandMemoryText: formatBrandMemory(brand.memory, assets),
         }),
       });
       if (!result.ok) {

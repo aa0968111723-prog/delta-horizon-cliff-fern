@@ -18,6 +18,7 @@ export function TodayIdeas() {
   const projects = useStudio((s) => s.projects);
   const campaigns = useStudio((s) => s.campaigns);
   const brand = useStudio((s) => s.brands[0]);
+  const assets = useStudio((s) => s.assets);
   const igDnaText = useIgDnaText();
   const insightsText = useIgInsightsText();
   const [ideas, setIdeas] = useState<TodayIdea[]>(() => localTodayIdeas());
@@ -39,7 +40,7 @@ export function TodayIdeas() {
         audienceIds: DEFAULT_AUDIENCE_IDS,
         recentTopics,
         upcoming,
-        brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+        brandMemoryText: brand ? formatBrandMemory(brand.memory, assets) : undefined,
         igDnaText: igDnaText || undefined,
         insightsText: insightsText || undefined,
       },
@@ -53,7 +54,7 @@ export function TodayIdeas() {
     return () => {
       alive = false;
     };
-  }, [brand, campaigns, igDnaText, insightsText, projects]);
+  }, [assets, brand, campaigns, igDnaText, insightsText, projects]);
 
   return (
     <section className="mt-10">

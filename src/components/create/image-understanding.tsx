@@ -119,7 +119,7 @@ export function ImageUnderstanding({
         data: {
           imageUrl: preview,
           audienceIds,
-          brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+          brandMemoryText: brand ? formatBrandMemory(brand.memory, assets) : undefined,
           igDnaText: igDnaText || undefined,
           insightsText: insightsText || undefined,
         },

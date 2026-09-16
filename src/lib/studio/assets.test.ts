@@ -10,6 +10,7 @@ import {
   assetPreviewFitClass,
   migrateAsset,
   mimeForAssetSrc,
+  pickExportImageSource,
   previewUrlForAsset,
 } from "./assets.ts";
 
@@ -64,4 +65,12 @@ test("seed SVGs in public/ are valid UTF-8 so Chromium can paint them", () => {
     assert.match(text, /<svg /);
     assert.doesNotMatch(text, /\uFFFD/);
   }
+});
+
+test("export falls back to seedSrc when IndexedDB has no displayable image", () => {
+  const html = new Blob(["<html>error</html>"], { type: "text/html" });
+  assert.deepEqual(pickExportImageSource(html, "/seed/gugu.svg"), { kind: "url", url: "/seed/gugu.svg" });
+  const png = new Blob([new Uint8Array(32)], { type: "image/png" });
+  assert.equal(pickExportImageSource(png)?.kind, "blob");
+  assert.equal(pickExportImageSource(undefined), null);
 });

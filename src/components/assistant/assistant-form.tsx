@@ -35,6 +35,7 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
   const navigate = useNavigate();
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
+  const assets = useStudio((s) => s.assets);
   const createProject = useStudio((s) => s.createProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const setLastProjectId = useStudio((s) => s.setLastProjectId);
@@ -112,7 +113,7 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
         forceMock: forceMock || !connected,
         igDnaText: igDnaText || undefined,
         insightsText: insightsText || undefined,
-        brandMemoryText: formatBrandMemory(brand.memory),
+        brandMemoryText: brand ? formatBrandMemory(brand.memory, assets) : undefined,
       });
       const result = await generateCampaignPlan({ data: payload });
       if (!result.ok) {

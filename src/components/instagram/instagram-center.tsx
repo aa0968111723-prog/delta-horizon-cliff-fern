@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Grid3x3, Instagram, Link2, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { BringRemoteButton } from "@/components/search/bring-remote-button";
 import { PageHeader, SectionHeader } from "@/components/shared/page-header";
 import { ArtboardView } from "@/components/studio/artboard-view";
@@ -9,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { getConnections } from "@/lib/connections/status";
 import type { ConnectionStatus } from "@/lib/connections/providers";
-import { buildIgDna, buildIgInsights } from "@/lib/studio/ig-dna";
+import { analyzeIgHistory } from "@/lib/ai/ig-ai";
+import { formatBrandMemory } from "@/lib/studio/brand";
+import { buildIgDna, buildIgInsights, formatIgInsights, formatIgReading, igHistoryCaptions } from "@/lib/studio/ig-dna";
 import { clipSeed } from "@/lib/studio/sources";
 import { contentKindLabel } from "@/lib/studio/status";
 import { cn } from "@/lib/utils";
@@ -29,12 +32,14 @@ export function InstagramCenter() {
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
+  const updateBrand = useStudio((s) => s.updateBrand);
   const remoteItems = useRemote((s) => s.items);
   const igPosts = useMemo(() => remoteItems.filter((item) => item.provider === "instagram"), [remoteItems]);
   const urls = useAssetUrls(assets.map((a) => a.id));
   const [tab, setTab] = useState<Tab>("grid");
   const [connection, setConnection] = useState<ConnectionStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [readingBusy, setReadingBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -62,6 +67,36 @@ export function InstagramCenter() {
   const dna = useMemo(() => buildIgDna(projects, brand, igPosts), [projects, brand, igPosts]);
   const insights = useMemo(() => buildIgInsights(igPosts), [igPosts]);
   const connected = connection?.state === "connected";
+  const reading = brand?.memory.igReading;
+  const readingText = formatIgReading(reading);
+
+  async function runHistoryReading() {
+    if (!brand) return;
+    setReadingBusy(true);
+    try {
+      const res = await analyzeIgHistory({
+        data: {
+          captions: igHistoryCaptions(projects, igPosts),
+          hooks: dna.hookStarts,
+          hashtags: dna.topHashtags.map((row) => row.tag),
+          ctas: dna.topCtas.map((row) => row.cta),
+          kinds: dna.kinds.map((row) => row.kind),
+          captionAvg: dna.captionLength.avg,
+          sampleCount: dna.sampleCount,
+          insightsText: formatIgInsights(insights) || undefined,
+          brandMemoryText: formatBrandMemory(brand.memory, assets),
+        },
+      });
+      updateBrand(brand.id, { memory: { ...brand.memory, igReading: res.reading } });
+      if (!res.ok) toast.warning(`${res.error}已放上本機整理。`);
+      else if (res.adapter === "local") toast.info("目前是本機整理，不是線上模型的回覆。");
+      else toast.success("已讀完過去內容，之後生成會先看這段。");
+    } catch {
+      toast.error("讀過去內容時出錯了。");
+    } finally {
+      setReadingBusy(false);
+    }
+  }
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-10">
@@ -260,22 +295,58 @@ export function InstagramCenter() {
             title="IG DNA"
             hint={`從 ${dna.sampleCount} 則自己的內容抽出來的習慣。生成新內容時會優先參考這些。`}
             action={
-              <Button asChild size="sm">
-                <Link
-                  to="/create"
-                  search={
-                    dna.hookStarts[0]
-                      ? { from: "idea", seed: dna.hookStarts[0] }
-                      : { from: "idea" }
-                  }
-                  aria-label="用這個習慣寫新的一篇"
-                >
-                  <Sparkles className="size-4" />
-                  用這個習慣寫新的一篇
-                </Link>
-              </Button>
+              <div className="flex flex-wrap gap-1.5">
+                <Button size="sm" variant="secondary" disabled={readingBusy} onClick={() => void runHistoryReading()}>
+                  {readingBusy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  用 AI 讀這些過去內容
+                </Button>
+                <Button asChild size="sm">
+                  <Link
+                    to="/create"
+                    search={
+                      dna.hookStarts[0]
+                        ? { from: "idea", seed: dna.hookStarts[0] }
+                        : { from: "idea" }
+                    }
+                    aria-label="用這個習慣寫新的一篇"
+                  >
+                    <Sparkles className="size-4" />
+                    用這個習慣寫新的一篇
+                  </Link>
+                </Button>
+              </div>
             }
           />
+          {readingText ? (
+            <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-medium">帳號自己的語氣</p>
+                <Badge variant={reading?.adapter === "live" ? "accent" : "default"}>
+                  {reading?.adapter === "live" ? "AI 讀過" : "本機整理"}
+                </Badge>
+              </div>
+              <p className="mt-2 text-sm text-muted">{reading?.voice}</p>
+              {reading?.continueWith.length ? (
+                <ul className="mt-2 space-y-1 text-xs text-muted">
+                  {reading.continueWith.map((item) => (
+                    <li key={item}>值得延續：{item}</li>
+                  ))}
+                </ul>
+              ) : null}
+              {reading?.avoid.length ? (
+                <ul className="mt-2 space-y-1 text-xs text-muted">
+                  {reading.avoid.map((item) => (
+                    <li key={item}>不要再做：{item}</li>
+                  ))}
+                </ul>
+              ) : null}
+              {reading?.nextPost ? <p className="mt-2 text-xs text-subtle">下一篇可以：{reading.nextPost}</p> : null}
+            </div>
+          ) : (
+            <p className="text-xs text-subtle">
+              按「用 AI 讀這些過去內容」之後，生成文案與視覺會先看這段整理。沒連上 AI 時會用本機統計整理，不會編造成效。
+            </p>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             <Card title="Caption 長度">
               <p className="text-sm text-muted">

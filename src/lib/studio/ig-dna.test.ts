@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildIgInsights, engagementScore, formatIgDna, formatIgInsights } from "./ig-dna.ts";
+import { buildIgInsights, engagementScore, formatIgDna, formatIgInsights, formatIgReading, igHistoryCaptions, localIgReading } from "./ig-dna.ts";
 import type { RemoteItem } from "../connections/remote.ts";
 
 test("engagementScore weights save and share above likes", () => {
@@ -100,4 +100,46 @@ test("formatIgInsights only speaks when there are real metrics", () => {
   assert.match(filled, /真實成效/);
   assert.match(filled, /提問/);
   assert.doesNotMatch(filled, /假數據|mock/i);
+});
+
+test("local IG reading is derived from samples and never invents metrics", () => {
+  const reading = localIgReading({
+    captionLength: { min: 40, max: 90, avg: 60 },
+    topHashtags: [{ tag: "#淡江大學", count: 3 }],
+    topCtas: [{ cta: "來坐一下", count: 2 }],
+    kinds: [{ kind: "ig-post", count: 2 }],
+    colors: [],
+    hookStarts: ["最近是不是連休息都覺得有罪惡感？"],
+    sampleCount: 2,
+  });
+  assert.equal(reading.adapter, "local");
+  assert.match(reading.voice, /休息/);
+  assert.ok(reading.continueWith.some((item) => item.includes("來坐一下")));
+  assert.doesNotMatch(reading.voice, /讚|觸及|收藏/);
+  const text = formatIgReading(reading);
+  assert.match(text, /本機從過去內容整理/);
+  assert.doesNotMatch(text, /假數據|mock/i);
+  assert.equal(formatIgReading(undefined), "");
+});
+
+test("igHistoryCaptions prefers remote posts then local captions", () => {
+  const captions = igHistoryCaptions(
+    [
+      {
+        copy: { caption: "本機文案", headline: "本機標題" },
+      } as never,
+    ],
+    [
+      {
+        provider: "instagram",
+        id: "1",
+        title: "遠端標題",
+        kind: "image",
+        detail: "遠端內文",
+        capturedAt: 1,
+      },
+    ],
+  );
+  assert.equal(captions[0], "遠端標題\n遠端內文");
+  assert.ok(captions.some((row) => row.includes("本機文案")));
 });

@@ -5,29 +5,45 @@ import { Label } from "@/components/ui/label";
 import { canvasToBlob, collectArtboardAssetIds, downloadBlob, renderArtboardToCanvas } from "@/lib/studio/export-png";
 import { convertCopy } from "@/lib/studio/convert-copy";
 import { formatById } from "@/lib/studio/formats";
-import { getAssetBlob } from "@/lib/studio/assets-idb";
+import { getAssetBlob, hydrateSeedAsset } from "@/lib/studio/assets-idb";
+import { isDisplayableImageBlob, pickExportImageSource } from "@/lib/studio/assets";
 import { uid } from "@/lib/studio/ids";
 import { pagesOf } from "@/lib/studio/layers";
-import type { Artboard, BrandKit, Project } from "@/lib/studio/types";
+import type { Artboard, AssetMeta, BrandKit, Project } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
 
-async function loadImages(ids: string[]): Promise<Record<string, HTMLImageElement>> {
+function loadHtmlImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error("圖片載入失敗"));
+    el.src = src;
+  });
+}
+
+async function loadImages(ids: string[], assets: AssetMeta[]): Promise<Record<string, HTMLImageElement>> {
   const map: Record<string, HTMLImageElement> = {};
   await Promise.all(
     [...new Set(ids)].map(async (id) => {
-      const blob = await getAssetBlob(id);
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
+      const asset = assets.find((item) => item.id === id);
+      let blob = await getAssetBlob(id);
+      if ((!blob || !isDisplayableImageBlob(blob)) && asset?.seedSrc) {
+        try {
+          await hydrateSeedAsset(id, asset.seedSrc);
+          blob = await getAssetBlob(id);
+        } catch {
+          /* 還是可以退回 public 路徑 */
+        }
+      }
+      const source = pickExportImageSource(blob, asset?.seedSrc);
+      if (!source) return;
+      const url = source.kind === "blob" ? URL.createObjectURL(source.blob) : source.url;
       try {
-        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const el = new Image();
-          el.onload = () => resolve(el);
-          el.onerror = () => reject(new Error("圖片載入失敗"));
-          el.src = url;
-        });
-        map[id] = img;
+        map[id] = await loadHtmlImage(url);
+      } catch {
+        /* 單張失敗不擋整張畫布匯出 */
       } finally {
-        URL.revokeObjectURL(url);
+        if (source.kind === "blob") URL.revokeObjectURL(url);
       }
     }),
   );
@@ -44,6 +60,7 @@ export function ExportPanel({
   artboard: Artboard;
 }) {
   const recordExport = useStudio((s) => s.recordExport);
+  const assets = useStudio((s) => s.assets);
   const [scale, setScale] = useState<1 | 2 | 3>(2);
   const [type, setType] = useState<"image/png" | "image/jpeg">("image/png");
   const [busy, setBusy] = useState(false);
@@ -54,7 +71,7 @@ export function ExportPanel({
   const pages = pagesOf(project, artboard.formatId);
 
   async function exportArtboard(target: Artboard, suffix: string) {
-    const images = await loadImages(collectArtboardAssetIds(target, brand));
+    const images = await loadImages(collectArtboardAssetIds(target, brand), assets);
     const canvas = await renderArtboardToCanvas(target, brand, images, scale);
     const blob = await canvasToBlob(canvas, type, 0.95);
     const ext = type === "image/png" ? "png" : "jpg";

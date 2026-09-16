@@ -1,6 +1,6 @@
 import type { RemoteItem } from "@/lib/connections/remote";
 import { hookKind } from "./reels-cover.ts";
-import type { BrandKit, Project } from "./types.ts";
+import type { BrandKit, IgHistoryReading, Project } from "./types.ts";
 
 /**
  * Zen Club IG DNA：從社團自己做過的內容抽出習慣，
@@ -137,6 +137,64 @@ export function formatIgInsights(insights: IgInsightSummary): string {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function clip(text: string, max: number) {
+  const trimmed = text.trim();
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, Math.max(1, max - 1))}…`;
+}
+
+/** 從統計結果整理一版可讀的帳號習慣。沒有金鑰時用這個，不編造成效。 */
+export function localIgReading(dna: IgDna): IgHistoryReading {
+  const continueWith: string[] = [];
+  if (dna.hookStarts[0]) continueWith.push(`開頭延續「${clip(dna.hookStarts[0], 28)}」這種生活感`);
+  if (dna.topCtas[0]) continueWith.push(`行動句用「${dna.topCtas[0].cta}」`);
+  if (dna.topHashtags.length) {
+    continueWith.push(`標籤保留 ${dna.topHashtags.slice(0, 3).map((row) => row.tag).join(" ")}`);
+  }
+  if (dna.captionLength.avg) continueWith.push(`文案長度大約 ${dna.captionLength.avg} 字`);
+  if (!continueWith.length) {
+    continueWith.push("時間地點寫清楚", "對淡江學生講話，不要講抽象的青年");
+  }
+
+  return {
+    voice: dna.hookStarts[0]
+      ? `像社團學長姐在說話，常用「${clip(dna.hookStarts[0], 24)}」這種開頭。`
+      : "像社團學長姐在說話，短、具體、對淡江學生講話。",
+    continueWith: continueWith.slice(0, 4),
+    avoid: ["不要寫成像行銷公司的稿", "不要講抽象的青年或世代", "沒有真實成效就不要編造數字"],
+    nextPost: dna.sampleCount
+      ? "下一篇延續這個語氣，但換成現在學期正在發生的事。"
+      : "先寫一篇有時間地點的社課邀請，開頭用學生正在經歷的事。",
+    analyzedAt: Date.now(),
+    sampleCount: dna.sampleCount,
+    adapter: "local",
+  };
+}
+
+export function formatIgReading(reading?: IgHistoryReading | null): string {
+  if (!reading?.voice) return "";
+  return [
+    reading.adapter === "live" ? "AI 讀過這個帳號的過去內容" : "本機從過去內容整理的帳號習慣",
+    `語氣：${reading.voice}`,
+    reading.continueWith.length ? `值得延續：${reading.continueWith.join("、")}` : "",
+    reading.avoid.length ? `不要再做：${reading.avoid.join("、")}` : "",
+    reading.nextPost ? `下一篇可以：${reading.nextPost}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** 給模型讀的過去內文。遠端貼文優先，再補本機做過的內容。 */
+export function igHistoryCaptions(projects: Project[], remotePosts: RemoteItem[], limit = 12): string[] {
+  const fromRemote = remotePosts
+    .map((post) => [post.title, post.detail].filter(Boolean).join("\n").trim())
+    .filter(Boolean);
+  const fromProjects = projects
+    .map((project) => [project.copy.caption, project.copy.headline].filter(Boolean).join("\n").trim())
+    .filter(Boolean);
+  return [...fromRemote, ...fromProjects].slice(0, limit);
 }
 
 export function buildIgInsights(remotePosts: RemoteItem[]): IgInsightSummary {

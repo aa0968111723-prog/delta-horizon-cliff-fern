@@ -111,7 +111,7 @@ export function CampaignDetailPage({ campaignId }: { campaignId: string }) {
           audienceIds: campaign!.audienceIds,
           daysUntil: daysUntil(campaign!) ?? 14,
           availableAssets,
-          brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
+          brandMemoryText: brand ? formatBrandMemory(brand.memory, assets) : undefined,
           igDnaText: igDnaText || undefined,
           insightsText: insightsText || undefined,
         },

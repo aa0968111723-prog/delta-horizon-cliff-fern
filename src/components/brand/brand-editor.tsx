@@ -1,4 +1,4 @@
-import { Plus, Star, Trash2, Upload } from "lucide-react";
+import { Check, Plus, Star, Trash2, Upload } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
@@ -20,10 +20,11 @@ import { Switch } from "@/components/ui/switch";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { AssetUploadError, decodeAssetImage } from "@/lib/studio/asset-upload";
-import { LOGO_USAGE, logoUsageLabel } from "@/lib/studio/brand";
+import { assetPreviewFitClass } from "@/lib/studio/assets";
+import { LOGO_USAGE, logoUsageLabel, toggleLegacyAssetId } from "@/lib/studio/brand";
 import { STUDIO_FONTS } from "@/lib/studio/fonts";
 import { uid } from "@/lib/studio/ids";
-import type { BrandColor, BrandKit, BrandMemory, ColorRole, LogoUsage, LogoVariant } from "@/lib/studio/types";
+import type { AssetMeta, BrandColor, BrandKit, BrandMemory, ColorRole, LogoUsage, LogoVariant } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 import { SwatchBook } from "lucide-react";
@@ -53,6 +54,7 @@ export function BrandEditor() {
   const createBrand = useStudio((s) => s.createBrand);
   const deleteBrand = useStudio((s) => s.deleteBrand);
   const addAsset = useStudio((s) => s.addAsset);
+  const assets = useStudio((s) => s.assets);
   const [activeId, setActiveId] = useState(brands[0]?.id ?? "");
   const [section, setSection] = useState<(typeof SECTIONS)[number]["id"]>("identity");
   const brand = brands.find((b) => b.id === activeId) ?? brands[0];
@@ -337,7 +339,12 @@ export function BrandEditor() {
             onChange={(e) => patchMemory("dislikedStyles", e.target.value)}
           />
         </Field>
-        <p className="text-xs text-muted">歷屆文宣可以到素材庫標記分類「海報／文宣」，再從那裡被 AI 讀進來。</p>
+        <p className="text-xs text-muted">點選素材，讓 AI 生成時把這些畫面當成社團自己的視覺記憶。</p>
+        <LegacyAssetPicker
+          selectedIds={brand.memory.legacyAssetIds}
+          assets={assets}
+          onToggle={(id) => patchMemory("legacyAssetIds", toggleLegacyAssetId(brand.memory.legacyAssetIds, id))}
+        />
       </section>
 
       <section id="brand-logo" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
@@ -742,6 +749,72 @@ function ToggleRow({
         <p className="text-xs text-muted">{hint}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
+
+function LegacyAssetPicker({
+  selectedIds,
+  assets,
+  onToggle,
+}: {
+  selectedIds: string[];
+  assets: AssetMeta[];
+  onToggle: (id: string) => void;
+}) {
+  const selected = selectedIds
+    .map((id) => assets.find((asset) => asset.id === id))
+    .filter((asset): asset is AssetMeta => Boolean(asset));
+  const rest = assets.filter((asset) => !selectedIds.includes(asset.id)).slice(0, 16);
+  const visible = [...selected, ...rest];
+  const urls = useAssetUrls(visible.map((asset) => asset.id));
+
+  if (!assets.length) {
+    return <p className="text-xs text-subtle">素材庫還沒有圖。上傳一張海報或活動照片之後就可以標成歷屆文宣。</p>;
+  }
+
+  return (
+    <div>
+      <p className="mb-2 text-sm">歷屆文宣</p>
+      <p className="mb-2 text-xs text-subtle">
+        已選 {selected.length} 張。生成時會讀這些名字與分類，延續社團自己的畫面。
+      </p>
+      <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        {visible.map((asset) => {
+          const on = selectedIds.includes(asset.id);
+          const src = asset.seedSrc || urls[asset.id];
+          return (
+            <li key={asset.id}>
+              <button
+                type="button"
+                onClick={() => onToggle(asset.id)}
+                aria-pressed={on}
+                aria-label={on ? `移出歷屆文宣 ${asset.name}` : `加入歷屆文宣 ${asset.name}`}
+                className={cn(
+                  "relative w-full overflow-hidden rounded-2xl bg-bg text-left shadow-[var(--shadow-border)]",
+                  on ? "ring-2 ring-accent" : "",
+                )}
+              >
+                <span className="block aspect-square">
+                  {src ? (
+                    <img src={src} alt="" className={cn("size-full", assetPreviewFitClass(asset, src))} />
+                  ) : (
+                    <span className="flex size-full items-center justify-center px-2 text-center text-xs text-muted">
+                      {asset.name}
+                    </span>
+                  )}
+                </span>
+                {on ? (
+                  <span className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-accent text-accent-fg">
+                    <Check className="size-3.5" />
+                  </span>
+                ) : null}
+                <span className="block truncate px-2 py-1.5 text-xs">{asset.name}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
