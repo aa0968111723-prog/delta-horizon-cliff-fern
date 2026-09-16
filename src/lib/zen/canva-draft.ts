@@ -12,7 +12,8 @@ export function canvaPresetForKind(kind: string): CanvaPreset {
 }
 
 export function canvaPresetForAspect(aspect: string): CanvaPreset {
-  if (aspect === "9:16") return "instagramStory";
+  if (aspect === "reels-cover" || aspect === "reels") return "instagramReel";
+  if (aspect === "9:16" || aspect === "story") return "instagramStory";
   return "instagramPost";
 }
 

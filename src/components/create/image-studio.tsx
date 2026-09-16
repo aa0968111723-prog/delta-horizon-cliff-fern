@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
@@ -22,19 +22,109 @@ import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { uid } from "@/lib/studio/ids";
-import type { VisualDirection } from "@/lib/studio/types";
+import type { AssetCategory, VisualDirection } from "@/lib/studio/types";
 import type { VisionAnalysis } from "@/lib/ai/image";
 import { canvaDraftNotes, canvaPresetForAspect } from "@/lib/zen/canva-draft";
+import { materializeCampaignFromPack, parseEventIdea } from "@/lib/zen/from-idea";
 import { clientMemoryLines, parseDataUrl } from "@/lib/zen/ingest";
 import { igDnaBlock } from "@/lib/zen/insights";
+import { seasonContext } from "@/lib/zen/season";
+import {
+  isStubVision,
+  visionFromDirection,
+  visionFromPixels,
+  type PixelStats,
+} from "@/lib/zen/vision-local";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
-const ASPECTS: { id: ImageAspect; label: string }[] = [
-  { id: "4:5", label: "IG 4:5" },
-  { id: "1:1", label: "IG 1:1 / Threads / LINE" },
-  { id: "9:16", label: "Story / Reels Cover" },
+type StudioFormat = "ig-45" | "ig-11" | "story" | "reels-cover" | "threads" | "line";
+
+const STUDIO_FORMATS: { id: StudioFormat; label: string; aspect: ImageAspect }[] = [
+  { id: "ig-45", label: "IG 4:5", aspect: "4:5" },
+  { id: "ig-11", label: "IG 1:1", aspect: "1:1" },
+  { id: "story", label: "Story 9:16", aspect: "9:16" },
+  { id: "reels-cover", label: "Reels Cover", aspect: "9:16" },
+  { id: "threads", label: "Threads", aspect: "1:1" },
+  { id: "line", label: "LINE", aspect: "1:1" },
 ];
+
+function aspectOf(format: StudioFormat): ImageAspect {
+  return STUDIO_FORMATS.find((item) => item.id === format)?.aspect ?? "4:5";
+}
+
+function categoryOf(format: StudioFormat): AssetCategory {
+  if (format === "story") return "story";
+  if (format === "reels-cover") return "reels";
+  if (format === "ig-45" || format === "ig-11") return "ig";
+  return "generated";
+}
+
+function samplePixels(dataUrl: string): Promise<PixelStats> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 48;
+      canvas.height = 48;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("no canvas"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, 48, 48);
+      const { data } = ctx.getImageData(0, 0, 48, 48);
+      const n = data.length / 4;
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let gold = 0;
+      let cool = 0;
+      let top = 0;
+      let bot = 0;
+      let topN = 0;
+      let botN = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const pr = data[i] ?? 0;
+        const pg = data[i + 1] ?? 0;
+        const pb = data[i + 2] ?? 0;
+        r += pr;
+        g += pg;
+        b += pb;
+        const pixel = i / 4;
+        const y = Math.floor(pixel / 48);
+        const bri = (pr + pg + pb) / 765;
+        if (pr > 170 && pg > 130 && pb < 110) gold += 1;
+        if (pb > pr && pb > 90) cool += 1;
+        if (y < 24) {
+          top += bri;
+          topN += 1;
+        } else {
+          bot += bri;
+          botN += 1;
+        }
+      }
+      const avgR = r / n;
+      const avgG = g / n;
+      const avgB = b / n;
+      const maxc = Math.max(avgR, avgG, avgB) / 255;
+      const minc = Math.min(avgR, avgG, avgB) / 255;
+      resolve({
+        avgR,
+        avgG,
+        avgB,
+        brightness: (avgR + avgG + avgB) / 765,
+        saturation: maxc === 0 ? 0 : (maxc - minc) / maxc,
+        goldShare: gold / n,
+        coolShare: cool / n,
+        topBrightness: top / Math.max(topN, 1),
+        bottomBrightness: bot / Math.max(botN, 1),
+      });
+    };
+    img.onerror = () => reject(new Error("image"));
+    img.src = dataUrl;
+  });
+}
 
 export function ImageStudio() {
   const navigate = useNavigate();
@@ -43,15 +133,19 @@ export function ImageStudio() {
   const createProject = useStudio((s) => s.createProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const setLastPack = useCreative((s) => s.setLastPack);
+  const upsertCampaign = useCreative((s) => s.upsertCampaign);
+  const campaigns = useCreative((s) => s.campaigns);
   const igPosts = useCreative((s) => s.igPosts);
   const memory = useCreative((s) => s.memory);
   const [prompt, setPrompt] = useState("我要宣傳茶會");
-  const [aspect, setAspect] = useState<ImageAspect>("4:5");
+  const [format, setFormat] = useState<StudioFormat>("ig-45");
+  const aspect = aspectOf(format);
   const [busy, setBusy] = useState<string | null>(null);
   const [directions, setDirections] = useState<VisualDirection[]>(() => proposeVisualDirections("我要宣傳茶會", "4:5"));
   const [picked, setPicked] = useState<string>("dir_a");
   const [preview, setPreview] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<VisionAnalysis | null>(null);
+  const [ideaCampaignId, setIdeaCampaignId] = useState<string | null>(null);
 
   const current = directions.find((d) => d.id === picked) ?? directions[0];
 
@@ -70,9 +164,14 @@ export function ImageStudio() {
     }
   }
 
-  async function generate(fromPrompt?: string, nextAspect?: ImageAspect) {
-    const useAspect = nextAspect ?? aspect;
-    if (nextAspect) setAspect(nextAspect);
+  async function generate(fromPrompt?: string, nextAspect?: ImageAspect, nextFormat?: StudioFormat) {
+    const useFormat = nextFormat ?? format;
+    const useAspect = nextAspect ?? aspectOf(useFormat);
+    if (nextFormat) setFormat(nextFormat);
+    else if (nextAspect && nextAspect !== aspect) {
+      const match = STUDIO_FORMATS.find((item) => item.aspect === nextAspect && (nextAspect !== "9:16" || item.id === "reels-cover"));
+      if (match) setFormat(match.id);
+    }
     const imagePrompt = fromPrompt ?? current?.imagePrompt ?? prompt;
     setBusy("gen");
     setAnalysis(null);
@@ -81,6 +180,8 @@ export function ImageStudio() {
         data: {
           prompt: imagePrompt,
           aspect: useAspect,
+          headline: current?.headline.slice(0, 80),
+          subhead: current?.subhead.slice(0, 80),
         },
       });
       if (!result.ok) {
@@ -97,21 +198,22 @@ export function ImageStudio() {
         id,
         name: (current?.headline.replace(/\n/g, " ") || prompt).slice(0, 24) || "AI 圖像",
         kind: "image",
-        category: useAspect === "9:16" ? "story" : "generated",
+        category: categoryOf(useFormat),
         mime: result.mime,
         width: 1080,
         height: useAspect === "9:16" ? 1920 : useAspect === "4:5" ? 1350 : 1080,
-        tags: ["AI 生成", prompt, current?.title ?? "方向"],
+        tags: ["AI 生成", prompt, current?.title ?? "方向", useFormat],
         createdAt: Date.now(),
         updatedAt: Date.now(),
         source: "generated",
-        licenseNotes: "AI 生成，可再進畫布或 Canva。",
+        licenseNotes: result.adapter === "mock" ? "本機主視覺，可再進畫布或 Canva。" : "AI 生成，可再進畫布或 Canva。",
         licenseOwner: "禪光",
         favorite: false,
         lastUsedAt: Date.now(),
         useCount: 1,
       });
-      toast.success("已存進素材庫");
+      if (current) setAnalysis(visionFromDirection(current, prompt));
+      toast.success(result.adapter === "mock" ? "已生成本機主視覺，並存進素材庫" : "已存進素材庫");
     } finally {
       setBusy(null);
     }
@@ -130,14 +232,22 @@ export function ImageStudio() {
       setPreview(dataUrl);
       setBusy("vision");
       try {
+        try {
+          const stats = await samplePixels(dataUrl);
+          setAnalysis(visionFromPixels(stats, prompt || file.name));
+        } catch {
+          /* canvas sample optional */
+        }
         const result = await analyzeStudioImage({
-          data: { imageDataUrl: dataUrl, question: "這張適不適合淡江學生 IG？" },
+          data: { imageDataUrl: dataUrl, question: `${prompt || file.name}。這張適不適合淡江學生 IG？` },
         });
         if (!result.ok) {
           toast.error(result.error);
           return;
         }
-        setAnalysis(result.analysis);
+        if (!isStubVision(result.analysis.content)) {
+          setAnalysis(result.analysis);
+        }
       } finally {
         setBusy(null);
       }
@@ -145,55 +255,76 @@ export function ImageStudio() {
     reader.readAsDataURL(file);
   }
 
+  async function packIntoCampaign(kind?: "story" | "carousel") {
+    const brand = brands[0];
+    if (!brand) return;
+    setBusy("pack");
+    try {
+      const parsed = parseEventIdea(prompt);
+      const season = seasonContext();
+      const brief = migrateBrief({
+        eventName: parsed.name,
+        schedule: `${parsed.date} ${parsed.time}`,
+        location: parsed.location,
+        product: prompt,
+        audience: "淡江大學學生",
+        goal: "awareness",
+        notes: [prompt, analysis?.content, analysis?.student, `${season.label}：${season.studentNow}`]
+          .filter(Boolean)
+          .join("\n")
+          .slice(0, 400),
+        deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
+      });
+      const result = await generateCreativePack({
+        data: {
+          ...toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
+          memoryNotes: clientMemoryLines(memory),
+        },
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setLastPack(result.pack);
+      const campaign = materializeCampaignFromPack({
+        idea: prompt,
+        pack: result.pack,
+        campaigns,
+      });
+      upsertCampaign(campaign);
+      setIdeaCampaignId(campaign.id);
+      toast.success(
+        kind === "story"
+          ? `已做成限動，並排進「${campaign.name}」日曆`
+          : kind === "carousel"
+            ? `已做成 Carousel，並排進「${campaign.name}」日曆`
+            : `已用這張圖生成完整宣傳，並排進「${campaign.name}」`,
+      );
+      void navigate({ to: "/create" });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function runVisionAction(action: VisionActionId) {
     if (!analysis) return;
     if (action === "story" || action === "carousel") {
-      const brand = brands[0];
-      if (!brand) return;
-      setBusy("pack");
-      try {
-        const brief = migrateBrief({
-          eventName: prompt.slice(0, 40),
-          product: analysis.content,
-          audience: "淡江大學學生",
-          location: "淡江大學淡水校園",
-          notes: `${analysis.content}\n${analysis.student}`,
-          deliverables: {
-            post: true,
-            story: action === "story",
-            carousel: action === "carousel",
-            reels: false,
-            threads: true,
-            line: true,
-          },
-        });
-        const result = await generateCreativePack({
-          data: {
-            ...toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
-            memoryNotes: clientMemoryLines(memory),
-          },
-        });
-        if (!result.ok) {
-          toast.error(result.error);
-          return;
-        }
-        setLastPack(result.pack);
-        toast.success(action === "story" ? "已做成限動節奏" : "已做成 Carousel");
-        void navigate({ to: "/create" });
-      } finally {
-        setBusy(null);
-      }
+      await packIntoCampaign(action === "story" ? "story" : "carousel");
       return;
     }
     const nextAspect: ImageAspect = action === "reels-cover" ? "9:16" : aspect;
-    await generate(promptFromVisionAction(action, analysis), nextAspect);
+    await generate(promptFromVisionAction(action, analysis), nextAspect, action === "reels-cover" ? "reels-cover" : undefined);
   }
 
   async function extendCopy() {
     setBusy("copy");
     try {
       const result = await generateCopyPack({
-        data: { idea: prompt, kind: "event", dnaNotes: igDnaBlock(igPosts) },
+        data: {
+          idea: analysis ? `${prompt}\n畫面：${analysis.content}` : prompt,
+          kind: "event",
+          dnaNotes: igDnaBlock(igPosts),
+        },
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -223,7 +354,7 @@ export function ImageStudio() {
           title: current?.headline.replace(/\n/g, " ") || prompt,
           hook: current?.headline.replace(/\n/g, " "),
           notes,
-          preset: canvaPresetForAspect(aspect),
+                  preset: canvaPresetForAspect(format === "reels-cover" ? "reels-cover" : aspect),
           imageB64: parts?.b64,
           mime: parts?.mime,
         },
@@ -304,12 +435,12 @@ export function ImageStudio() {
       <div className="mt-6 space-y-3 rounded-[1.5rem] bg-surface p-4 shadow-[var(--shadow-border)] md:p-6">
         <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} />
         <div className="flex flex-wrap gap-2">
-          {ASPECTS.map((item) => (
+          {STUDIO_FORMATS.map((item) => (
             <button
               key={item.id}
               type="button"
-              onClick={() => setAspect(item.id)}
-              className={`min-h-11 rounded-full px-3 py-2 text-xs ${aspect === item.id ? "bg-accent text-accent-fg" : "bg-bg"}`}
+              onClick={() => setFormat(item.id)}
+              className={`min-h-11 rounded-full px-3 py-2 text-xs ${format === item.id ? "bg-accent text-accent-fg" : "bg-bg"}`}
             >
               {item.label}
             </button>
@@ -367,6 +498,21 @@ export function ImageStudio() {
               {item.label}
             </Button>
           ))}
+          <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => void packIntoCampaign()}>
+            用這張做完整宣傳
+          </Button>
+          {ideaCampaignId ? (
+            <>
+              <Button size="sm" variant="ghost" asChild>
+                <Link to="/campaigns/$campaignId" params={{ campaignId: ideaCampaignId }}>
+                  打開這檔活動
+                </Link>
+              </Button>
+              <Button size="sm" variant="ghost" asChild>
+                <Link to="/calendar">看日曆節奏</Link>
+              </Button>
+            </>
+          ) : null}
           <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => void extendCopy()}>
             配一文案
           </Button>

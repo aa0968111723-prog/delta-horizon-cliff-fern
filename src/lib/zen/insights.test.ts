@@ -30,3 +30,10 @@ test("systemPrompt injects IG DNA for copy campaign and image", () => {
 test("dnaPromptIdea asks for a new post not a copy", () => {
   assert.match(dnaPromptIdea(), /不要複製舊文/);
 });
+
+test("learnFromPosts compares question hooks against announcements", () => {
+  const learned = learnFromPosts(SEED_IG_POSTS);
+  assert.ok(learned.questionSaveRate > learned.announceSaveRate);
+  assert.match(learned.whatWorks, /問句 Hook/);
+  assert.match(learned.whatFails, /本週社課/);
+});

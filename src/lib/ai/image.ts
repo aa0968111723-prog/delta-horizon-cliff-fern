@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { mockStudioSvg } from "@/lib/zen/mock-image";
+import { visionFromHint } from "@/lib/zen/vision-local";
 import { systemPrompt } from "@/lib/zen/voice";
 import { proposeVisualDirections, type ImageAspect } from "./image-directions";
 import type { VisualDirection } from "@/lib/studio/types";
@@ -8,6 +10,8 @@ const ImageInput = z.object({
   prompt: z.string().min(1).max(800),
   aspect: z.enum(["4:5", "1:1", "9:16"]).default("4:5"),
   mood: z.string().max(120).optional(),
+  headline: z.string().max(80).optional(),
+  subhead: z.string().max(80).optional(),
 });
 
 function unwrap(input: unknown) {
@@ -17,7 +21,7 @@ function unwrap(input: unknown) {
 }
 
 export type ImageGenResult =
-  | { ok: true; b64: string; prompt: string; mime: "image/png" }
+  | { ok: true; b64: string; prompt: string; mime: "image/png" | "image/svg+xml"; adapter: "live" | "mock" }
   | { ok: false; error: string; adapter: "live" | "none" };
 
 const ASPECT: Record<"4:5" | "1:1" | "9:16", string> = {
@@ -75,13 +79,27 @@ export const proposeStudioDirections = createServerFn({ method: "POST" })
     return { ok: true, directions: local, adapter: "mock" };
   });
 
+function mockImage(data: z.infer<typeof ImageInput>): Extract<ImageGenResult, { ok: true }> {
+  const svg = mockStudioSvg({
+    prompt: data.prompt,
+    aspect: data.aspect,
+    headline: data.headline,
+    subhead: data.subhead,
+  });
+  return {
+    ok: true,
+    b64: Buffer.from(svg, "utf8").toString("base64"),
+    prompt: data.prompt,
+    mime: "image/svg+xml",
+    adapter: "mock",
+  };
+}
+
 export const generateStudioImage = createServerFn({ method: "POST" })
   .validator((input: unknown) => ImageInput.parse(unwrap(input)))
   .handler(async ({ data }): Promise<ImageGenResult> => {
     const apiKey = process.env.XAI_API_KEY;
-    if (!apiKey) {
-      return { ok: false, error: "目前沒有連到圖像服務。可先用文案與視覺方向，稍後再生成。", adapter: "none" };
-    }
+    if (!apiKey) return mockImage(data);
     const prompt = `${data.prompt}. ${ASPECT[data.aspect]}. Tamkang University Tamsui campus mood, airy, photographic, soft night lights cyan amber rose, students, not a temple, not incense, not golden Buddha, not plastic AI skin, not gothic. ${data.mood ?? ""}`;
     const res = await fetch("https://api.x.ai/v1/images/generations", {
       method: "POST",
@@ -96,15 +114,11 @@ export const generateStudioImage = createServerFn({ method: "POST" })
         response_format: "b64_json",
       }),
     });
-    if (!res.ok) {
-      return { ok: false, error: `圖像生成暫時無法使用（${res.status}）。`, adapter: "live" };
-    }
+    if (!res.ok) return mockImage(data);
     const body = (await res.json()) as { data?: { b64_json?: string; url?: string }[] };
     const b64 = body.data?.[0]?.b64_json;
-    if (!b64) {
-      return { ok: false, error: "沒有收到圖像。", adapter: "live" };
-    }
-    return { ok: true, b64, prompt, mime: "image/png" };
+    if (!b64) return mockImage(data);
+    return { ok: true, b64, prompt, mime: "image/png", adapter: "live" };
   });
 
 const VisionInput = z.object({
@@ -137,24 +151,7 @@ export const analyzeStudioImage = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<VisionResult> => {
     const apiKey = process.env.XAI_API_KEY;
     if (!apiKey) {
-      return {
-        ok: true,
-        analysis: {
-          content: "本機無法看圖。請在已連線環境再試。",
-          people: "—",
-          color: "可對照品牌苔綠、沙色、暖光。",
-          light: "—",
-          composition: "—",
-          typeRatio: "—",
-          brand: "未知",
-          student: "未知",
-          stay: "未知",
-          tooReligious: "請人工看一次是否像寺廟。",
-          tooOld: "—",
-          tooAi: "—",
-          next: ["延續這個風格", "做成限動", "做成 Carousel", "生成相似視覺"],
-        },
-      };
+      return { ok: true, analysis: visionFromHint(data.question) };
     }
     const res = await fetch("https://api.x.ai/v1/chat/completions", {
       method: "POST",

@@ -201,6 +201,11 @@ export function InstagramCenter() {
           CTA {IG_DNA.cta.join("／")} · {IG_DNA.hashtags.join(" ")}
         </p>
         <p className="mt-3 text-xs text-muted">有效 Hook：{learned.winningHooks.join("／")}</p>
+        <p className="mt-1 text-xs text-muted">
+          問句收藏率 {(learned.questionSaveRate * 100).toFixed(1)}% · 公告 {(learned.announceSaveRate * 100).toFixed(1)}%
+          {learned.reelsSaveRate ? ` · Reels ${(learned.reelsSaveRate * 100).toFixed(1)}%` : ""}
+          {learned.carouselSaveRate ? ` · Carousel ${(learned.carouselSaveRate * 100).toFixed(1)}%` : ""}
+        </p>
         <p className="mt-2 text-sm">{learned.whatWorks}</p>
         <p className="mt-1 text-xs text-muted">{learned.whatFails}</p>
         <div className="mt-3 flex flex-wrap gap-2">
