@@ -22,7 +22,11 @@ import { createSearchFromHit } from "@/lib/studio/create-search";
 import { useStudio } from "@/stores/studio-store";
 import type { ScheduleItem } from "@/lib/studio/types";
 import { previewMediaId } from "@/lib/ai/reels-asset";
+import { VisionCard } from "@/components/create/vision-card";
 import { AssetMedia } from "@/components/shared/asset-media";
+import { analyzeClubStill } from "@/lib/zen/analyze-still";
+import { igStillHref } from "@/lib/zen/source-style";
+import type { VisionAnalysis } from "@/lib/ai/image-studio";
 
 export function InstagramCenter() {
   const navigate = useNavigate();
@@ -45,6 +49,8 @@ export function InstagramCenter() {
   const schedule = useMemo(() => scheduleForCampaign(scheduleAll, campaignId), [scheduleAll, campaignId]);
   const [selected, setSelected] = useState<string | null>(postedId ?? igMemory[0]?.id ?? null);
   const [analysis, setAnalysis] = useState<ReturnType<typeof igHookAnalysis> | null>(null);
+  const [vision, setVision] = useState<VisionAnalysis | null>(null);
+  const [looking, setLooking] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const urls = useAssetUrls(assets.map((a) => a.id));
@@ -56,6 +62,8 @@ export function InstagramCenter() {
   const reels = igNextReels(schedule);
   const videoIds = assets.filter((asset) => asset.kind === "video" || asset.mime.startsWith("video/")).map((asset) => asset.id);
   const post = igMemory.find((p) => p.id === selected);
+  const postAsset = post?.assetId ? assets.find((asset) => asset.id === post.assetId) : undefined;
+  const postStill = post ? igStillHref(post, urls, postAsset?.seedSrc) : undefined;
 
   const dna = useMemo(
     () => clubCreativeDna({ brand, igMemory, campaigns, assets }),
@@ -95,6 +103,21 @@ export function InstagramCenter() {
   function rate(id: string, feel: PostFeel) {
     rateIgMemory(id, feel);
     toast.success(`已記成「${feelLabel(feel)}」，下次生成會參考`);
+  }
+
+  async function analyzeSelected() {
+    if (!post) return;
+    setAnalysis(igHookAnalysis(post.caption));
+    setLooking(true);
+    try {
+      const look = await analyzeClubStill({
+        href: postStill,
+        sourceNote: `Instagram / ${post.date}`,
+      });
+      setVision(look);
+    } finally {
+      setLooking(false);
+    }
   }
 
   async function pullInsights() {
@@ -175,6 +198,7 @@ export function InstagramCenter() {
         onSelect={(id) => {
           setSelected(id);
           setAnalysis(null);
+          setVision(null);
         }}
       />
 
@@ -218,35 +242,52 @@ export function InstagramCenter() {
 
       <section className="mt-8">
         <h2 className="text-sm font-medium">過去 IG</h2>
-        <ul className="mt-3 grid grid-cols-3 gap-1">
-          {igMemory.map((postItem) => (
-            <li key={postItem.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelected(postItem.id);
-                  setAnalysis(null);
-                }}
-                className="aspect-square w-full overflow-hidden bg-surface-2"
-              >
-                {postItem.assetId && urls[postItem.assetId] ? (
-                  <AssetMedia
-                    src={urls[postItem.assetId]}
-                    video={videoIds.includes(postItem.assetId)}
-                    alt=""
-                    className="size-full object-cover"
-                  />
-                ) : postItem.mediaUrl ? (
-                  <img src={postItem.mediaUrl} alt="" className="size-full object-cover" />
-                ) : (
-                  <span className="flex size-full items-center p-2 text-left text-xs">{postItem.caption}</span>
-                )}
-              </button>
-            </li>
-          ))}
+        <ul className="mt-3 grid grid-cols-3 gap-1" data-testid="ig-memory-grid">
+          {igMemory.map((postItem) => {
+            const selectedCell = postItem.id === selected;
+            return (
+              <li key={postItem.id}>
+                <button
+                  type="button"
+                  data-testid={`ig-mem-${postItem.id}`}
+                  aria-pressed={selectedCell}
+                  onClick={() => {
+                    setSelected(postItem.id);
+                    setAnalysis(null);
+                    setVision(null);
+                  }}
+                  className={`aspect-square w-full overflow-hidden bg-surface-2 ${selectedCell ? "ring-2 ring-accent" : ""}`}
+                >
+                  {postItem.assetId && urls[postItem.assetId] ? (
+                    <AssetMedia
+                      src={urls[postItem.assetId]}
+                      video={videoIds.includes(postItem.assetId)}
+                      alt=""
+                      className="size-full object-cover"
+                    />
+                  ) : postItem.mediaUrl ? (
+                    <img src={postItem.mediaUrl} alt="" className="size-full object-cover" />
+                  ) : (
+                    <span className="flex size-full items-center p-2 text-left text-xs">{postItem.caption}</span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
         {post ? (
           <article className="mt-4 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+            {postStill ? (
+              <div className="mb-3 overflow-hidden rounded-2xl bg-surface-2">
+                <AssetMedia
+                  src={postStill}
+                  video={Boolean(post.assetId && videoIds.includes(post.assetId))}
+                  alt=""
+                  testId="ig-memory-visual"
+                  className="aspect-[4/5] w-full object-cover"
+                />
+              </div>
+            ) : null}
             <p className="text-xs text-muted">
               Instagram / {post.date} · {post.kind}
               {post.feel ? ` · ${feelLabel(post.feel)}` : ""}
@@ -258,8 +299,8 @@ export function InstagramCenter() {
             </p>
             <p className="mt-3 text-sm">{post.analysis || "問句 Hook、生活語氣，時間地點要更靠近第一屏。"}</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button size="sm" variant="secondary" onClick={() => setAnalysis(igHookAnalysis(post.caption))}>
-                AI 分析
+              <Button size="sm" variant="secondary" disabled={looking} data-testid="ig-analyze" onClick={() => void analyzeSelected()}>
+                {looking ? "看畫面中…" : "AI 分析"}
               </Button>
               <Button
                 size="sm"
@@ -295,9 +336,9 @@ export function InstagramCenter() {
               ))}
             </div>
             {analysis ? (
-              <ul className="mt-3 space-y-1 text-sm text-muted">
+              <ul className="mt-3 space-y-1 text-sm text-muted" data-testid="ig-caption-look">
                 <li>Hook：{analysis.hook}</li>
-                <li>視覺：{analysis.visual}</li>
+                <li>視覺：{vision?.dwell ?? analysis.visual}</li>
                 <li>主題：{analysis.theme}</li>
                 <li>Caption 長度：{analysis.length}</li>
                 <li>CTA：{analysis.cta}</li>
@@ -305,9 +346,41 @@ export function InstagramCenter() {
                 {analysis.improve.map((note) => (
                   <li key={note}>可改善：{note}</li>
                 ))}
-                <li>太宗教？{analysis.review.tooReligious}</li>
-                <li>太 AI？{analysis.review.tooAi}</li>
+                <li>太宗教？{vision ? (vision.tooReligious ? "是" : "否") : analysis.review.tooReligious}</li>
+                <li>
+                  太 AI？
+                  {vision ? (vision.tooAi ? "可能" : "還好") : analysis.review.tooAi}
+                </li>
               </ul>
+            ) : null}
+            {vision ? (
+              <VisionCard vision={vision}>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {vision.suggestions.map((item) => (
+                    <Button
+                      key={item}
+                      size="sm"
+                      variant="secondary"
+                      onClick={() =>
+                        void navigate({
+                          to: "/create",
+                          search: createSearchFromHit({
+                            id: post.id,
+                            source: "instagram",
+                            title: post.caption,
+                            subtitle: post.date,
+                            kind: "過去 IG",
+                            score: 1,
+                            assetId: post.assetId,
+                          }),
+                        })
+                      }
+                    >
+                      {item}
+                    </Button>
+                  ))}
+                </div>
+              </VisionCard>
             ) : null}
           </article>
         ) : null}

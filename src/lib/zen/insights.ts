@@ -68,6 +68,19 @@ function hasMetrics(post: IgMemoryPost) {
   return post.saves != null || post.likes != null || post.reach != null || post.comments != null;
 }
 
+/** Cite the winning post's still — do not hardcode a temple line that never ran. */
+export function visualLesson(top?: IgMemoryPost): string {
+  if (!top) return "夜晚、座位、光點比寺廟或資訊海報更容易被存。主視覺不要一開始就堆活動全名。";
+  const hook = firstLine(top.caption);
+  const saves = top.saves ?? 0;
+  const scene = /夜|晚上|淡水|坐|光|茶|燈/.test(top.caption)
+    ? "畫面是晚上、座位或淡水空氣，比寺廟或資訊海報更容易被存。"
+    : /報名|活動開始|誠摯|大學禪學社/.test(top.caption)
+      ? "資訊堆疊的主視覺比較難停。主視覺不要一開始就堆活動全名。"
+      : "主視覺不要一開始就堆活動全名。";
+  return `「${hook}」收藏 ${saves}。${scene}`;
+}
+
 export function learnFromIg(posts: IgMemoryPost[]): IgLearning {
   const measured = posts.filter(hasMetrics);
   const ranked = [...(measured.length ? measured : posts)].sort((a, b) => score(b) - score(a));
@@ -91,7 +104,7 @@ export function learnFromIg(posts: IgMemoryPost[]): IgLearning {
   lessons.push({
     id: "visual",
     title: "哪種圖片學生比較停留？",
-    detail: "夜晚、座位、光點比寺廟或資訊海報更容易被存。主視覺不要一開始就堆活動全名。",
+    detail: visualLesson(top),
   });
   lessons.push({
     id: "copy",

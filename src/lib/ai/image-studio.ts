@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { mockPosterImage } from "@/lib/ai/poster";
+import { mockVisionFromLook } from "@/lib/ai/vision-look";
 import { formatById } from "@/lib/studio/formats";
 import { studentSituation, zenSystemPrompt } from "@/lib/zen/context";
 import { labelDirections } from "@/lib/zen/direction";
@@ -239,7 +240,11 @@ export const generateStudioImage = createServerFn({ method: "POST" })
   });
 
 function parseVisionInput(input: unknown) {
-  const schema = z.object({ imageBase64: z.string().min(20).max(2_000_000), mime: z.string().max(40).optional() });
+  const schema = z.object({
+    imageBase64: z.string().min(20).max(2_000_000),
+    mime: z.string().max(40).optional(),
+    sourceNote: z.string().max(200).optional(),
+  });
   if (input && typeof input === "object" && "data" in input) {
     const inner = (input as { data: unknown }).data;
     if (inner && typeof inner === "object" && "imageBase64" in inner) return schema.parse(inner);
@@ -251,23 +256,11 @@ export const analyzeStudioImage = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseVisionInput(input))
   .handler(async ({ data }): Promise<VisionResult> => {
     const apiKey = process.env.XAI_API_KEY;
-    const mock = {
-      content: "畫面偏抽象或海報感，需對照是否太宗教或太 AI。",
-      people: "人物不明顯。",
-      colors: "需核對霧園／靜水／琥珀。",
-      lighting: "光線層級待看。",
-      composition: "文字與圖像比例待調。",
-      textRatio: "未知",
-      hierarchy: "未知",
-      brandFeel: "待對品牌記憶。",
-      studentFeel: "是否像淡江學生會停？",
-      dwell: "問句與光點較容易停留。",
-      tooReligious: false,
-      tooOld: false,
-      tooAi: true,
-      fitsTamkang: true,
-      suggestions: ["延續這個風格", "做成限動", "做成 Carousel 封面"],
-    };
+    const mock = mockVisionFromLook({
+      imageBase64: data.imageBase64,
+      mime: data.mime,
+      sourceNote: data.sourceNote,
+    });
     if (!apiKey) return { ok: true, adapter: "mock", analysis: mock };
     const mime = data.mime || "image/jpeg";
     const res = await fetch("https://api.x.ai/v1/chat/completions", {
@@ -287,7 +280,7 @@ export const analyzeStudioImage = createServerFn({ method: "POST" })
             content: [
               {
                 type: "text",
-                text: "分析這張給淡江禪學社 IG 的圖。JSON:{content,people,colors,lighting,composition,textRatio,hierarchy,brandFeel,studentFeel,dwell,tooReligious,tooOld,tooAi,fitsTamkang,suggestions[]}",
+                text: `分析這張給淡江禪學社 IG 的圖。${data.sourceNote ? `來源：${data.sourceNote}。` : ""}不要一開始就當成宗教海報。JSON:{content,people,colors,lighting,composition,textRatio,hierarchy,brandFeel,studentFeel,dwell,tooReligious,tooOld,tooAi,fitsTamkang,suggestions[]}`,
               },
               { type: "image_url", image_url: { url: `data:${mime};base64,${data.imageBase64}` } },
             ],

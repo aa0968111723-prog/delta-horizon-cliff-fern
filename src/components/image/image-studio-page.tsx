@@ -33,6 +33,7 @@ import { learnFromIg } from "@/lib/zen/insights";
 import { ideaStudioHook } from "@/lib/zen/studio-hook";
 import { composeMemoryHint } from "@/lib/zen/memory-hook";
 import { groupCreativeHits, sourceLabelOf, type CreativeHit } from "@/lib/zen/search";
+import { analyzeClubStill } from "@/lib/zen/analyze-still";
 import { loadSourceEmbed, pickSourceRefs, sourceCreditFromHits, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import type { CopyPack, FormatId, StudentReview, VisualDirection } from "@/lib/studio/types";
@@ -133,8 +134,12 @@ export function ImageStudioPage() {
     photoEmbedRef.current = embed;
     setSourceEmbed(embed);
     setSourceCredit(credit);
-    const fromHits = visionFromHits(nextPins);
-    if (fromHits) setVision((current) => current ?? fromHits);
+    const looked = embed ? await analyzeClubStill({ embed, sourceNote: credit }) : null;
+    if (looked) setVision(looked);
+    else {
+      const fromHits = visionFromHits(nextPins);
+      if (fromHits) setVision((current) => current ?? fromHits);
+    }
     return nextPins;
   }
 
@@ -383,7 +388,9 @@ export function ImageStudioPage() {
         lastUsedAt: null,
         useCount: 0,
       });
-      const result = await analyzeStudioImage({ data: { imageBase64: b64, mime: file.type } });
+      const result = await analyzeStudioImage({
+        data: { imageBase64: b64, mime: file.type, sourceNote: `本機上傳 / ${file.name}` },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;

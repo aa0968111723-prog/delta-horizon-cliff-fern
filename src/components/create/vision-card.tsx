@@ -2,7 +2,7 @@ import type { VisionAnalysis } from "@/lib/ai/image-studio";
 
 export function VisionCard({ vision, children }: { vision: VisionAnalysis; children?: React.ReactNode }) {
   return (
-    <section className="mt-8 rounded-2xl bg-surface p-4 text-sm shadow-[var(--shadow-border)]">
+    <section className="mt-8 rounded-2xl bg-surface p-4 text-sm shadow-[var(--shadow-border)]" data-testid="vision-card">
       <h2 className="text-sm font-medium">圖片理解</h2>
       <p className="mt-2">{vision.content}</p>
       <ul className="mt-3 space-y-1 text-xs text-muted">
@@ -15,9 +15,9 @@ export function VisionCard({ vision, children }: { vision: VisionAnalysis; child
         <li>品牌感：{vision.brandFeel}</li>
         <li>學生感：{vision.studentFeel}</li>
         <li>停留感：{vision.dwell}</li>
-        <li>
+        <li data-testid="vision-flags">
           太宗教？{vision.tooReligious ? "是" : "否"} · 太老氣？{vision.tooOld ? "是" : "否"} · 太 AI？
-          {vision.tooAi ? "可能" : "還好"}
+          <span data-testid="vision-too-ai">{vision.tooAi ? "可能" : "還好"}</span>
         </li>
         <li>符合淡江學生？{vision.fitsTamkang ? "接近" : "還要再生活一點"}</li>
       </ul>

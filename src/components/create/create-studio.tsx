@@ -37,6 +37,7 @@ import { applyDirectionToPlan, ensureRewriteDiffers } from "@/lib/zen/direction"
 import { researchInspiration } from "@/lib/zen/inspiration";
 import { convertedScheduledAt, skipConvertedIgPost, rhythmHint } from "@/lib/zen/rhythm";
 import { groupCreativeHits, igSearchHookBlock, sourceLabelOf, type CreativeHit } from "@/lib/zen/search";
+import { analyzeClubStill } from "@/lib/zen/analyze-still";
 import { loadSourceEmbed, pickSourceRefs, sourceCreditFromHits, styleFromHits, visionFromHits } from "@/lib/zen/source-style";
 import { ideaFromVision, tagsFromVision } from "@/lib/zen/vision-tags";
 import {
@@ -377,6 +378,8 @@ export function CreateStudio() {
       sourcePhotoRef.current = { embed, credit };
       setSourceCredit(credit);
       setSourceEmbed(embed);
+      const looked = embed ? await analyzeClubStill({ embed, sourceNote: credit }) : null;
+      if (looked) setVision(looked);
       await refreshDirections(next);
     })();
   }
@@ -571,6 +574,8 @@ export function CreateStudio() {
       sourcePhotoRef.current = { embed: embed || "", credit };
       setSourceCredit(credit);
       setSourceEmbed(embed || "");
+      const looked = embed ? await analyzeClubStill({ embed, sourceNote: credit }) : null;
+      if (looked) setVision(looked);
       setSourcePreview({
         id: previewHit.remoteId || previewHit.assetId || previewHit.id,
         name: previewHit.title,
@@ -676,7 +681,9 @@ export function CreateStudio() {
       };
       setFound((rows) => (rows.some((row) => row.id === hit.id) ? rows : [hit, ...rows]));
       setPinned((rows) => (rows.some((row) => row.id === hit.id) ? rows : [hit, ...rows]));
-      const result = await analyzeStudioImage({ data: { imageBase64: b64, mime } });
+      const result = await analyzeStudioImage({
+        data: { imageBase64: b64, mime, sourceNote: `本機／品牌記憶 / ${meta.name}` },
+      });
       if (!result.ok) {
         toast.error(result.error);
         await runKit(search.idea || idea, true);
@@ -723,7 +730,9 @@ export function CreateStudio() {
         return;
       }
       setSourcePreview({ id, name: file.name.replace(/\.[^.]+$/, "") || "上傳圖片", mime: file.type || "image/jpeg", base64: b64 });
-      const result = await analyzeStudioImage({ data: { imageBase64: b64, mime: file.type } });
+      const result = await analyzeStudioImage({
+        data: { imageBase64: b64, mime: file.type, sourceNote: `本機上傳 / ${file.name}` },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;

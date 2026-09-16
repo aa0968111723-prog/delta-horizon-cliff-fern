@@ -9,7 +9,11 @@ export function InsightLessons({ posts }: { posts: IgMemoryPost[] }) {
       <p className="mt-1 text-xs text-muted">不是報表牆。是給下一次創作用的記憶。</p>
       <ul className="mt-3 space-y-2">
         {learning.lessons.map((lesson) => (
-          <li key={lesson.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <li
+            key={lesson.id}
+            className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]"
+            data-testid={`ig-lesson-${lesson.id}`}
+          >
             <p className="text-sm font-medium">{lesson.title}</p>
             <p className="mt-1 text-sm text-muted">{lesson.detail}</p>
           </li>

@@ -39,6 +39,9 @@ test("learnFromIg prefers question hooks with higher saves", () => {
   assert.match(learning.promptBlock, /觸及/);
   assert.ok(learning.lessons.some((l) => l.id === "hook"));
   assert.ok(learning.lessons.some((l) => l.id === "length" || l.id === "kind"));
+  const visual = learning.lessons.find((l) => l.id === "visual");
+  assert.match(visual?.detail ?? "", /坐下來/);
+  assert.match(visual?.detail ?? "", /收藏 21/);
   assert.doesNotMatch(learning.promptBlock, /Assignee|Reviewer/);
 });
 
@@ -91,6 +94,34 @@ test("one-person 學生會停 beats a seed post with higher saves", () => {
   assert.match(learning.bestHookShape, /快樂/);
   assert.match(learning.promptBlock, /快樂/);
   assert.ok(learning.lessons.some((l) => l.detail.includes("學生會停")));
+});
+
+test("visual lesson cites the winning post instead of a generic temple line", () => {
+  const learning = learnFromIg([
+    {
+      id: "ig_mem_tea",
+      caption: "有時候我們需要的不是答案，只是一個安靜的晚上。",
+      date: "2025-12-04",
+      kind: "post",
+      saves: 33,
+      likes: 124,
+      comments: 14,
+      source: "local",
+    },
+    {
+      id: "info",
+      caption: "淡江大學禪學社 9/24 浮游禪光活動開始報名，地點在社團教室。",
+      date: "2025-09-10",
+      kind: "post",
+      saves: 4,
+      likes: 22,
+      source: "local",
+    },
+  ]);
+  const visual = learning.lessons.find((l) => l.id === "visual");
+  assert.match(visual?.detail ?? "", /有時候/);
+  assert.match(visual?.detail ?? "", /收藏 33/);
+  assert.match(visual?.detail ?? "", /晚上|淡水|座位/);
 });
 
 test("hookLine keeps the student question and drops hashtags", () => {

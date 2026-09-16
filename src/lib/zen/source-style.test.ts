@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { pickSourceRefs, sourceCreditFromHits, styleFromHits, visionFromHits } from "./source-style.ts";
+import {
+  igStillHref,
+  pickSourceRefs,
+  sourceCreditFromHits,
+  stillPayloadFromEmbed,
+  styleFromHits,
+  visionFromHits,
+} from "./source-style.ts";
 import type { CreativeHit } from "./search.ts";
 
 function hit(source: CreativeHit["source"], title: string): CreativeHit {
@@ -40,6 +47,22 @@ test("styleFromHits continues DNA and never says copy the old poster", () => {
   assert.match(text, /不要/);
   assert.doesNotMatch(text, /整張沿用舊海報檔/);
   assert.doesNotMatch(text, /Assignee/);
+});
+
+test("stillPayloadFromEmbed reads SVG markup and data URIs", () => {
+  const svg = stillPayloadFromEmbed('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
+  assert.ok(svg);
+  assert.equal(svg.mime, "image/svg+xml");
+  assert.ok(svg.imageBase64.length > 8);
+  const data = stillPayloadFromEmbed("data:image/jpeg;base64,abcd");
+  assert.deepEqual(data, { imageBase64: "abcd", mime: "image/jpeg" });
+  assert.equal(stillPayloadFromEmbed(""), null);
+});
+
+test("igStillHref prefers the hydrated blob then the seed file", () => {
+  assert.equal(igStillHref({ assetId: "asset_tamsui" }, { asset_tamsui: "blob:tea" }, "/seed/tamsui.svg"), "blob:tea");
+  assert.equal(igStillHref({ assetId: "asset_tamsui" }, {}, "/seed/tamsui.svg"), "/seed/tamsui.svg");
+  assert.equal(igStillHref({ mediaUrl: "https://ig/x.jpg" }, {}), "https://ig/x.jpg");
 });
 
 test("visionFromHits reads Drive/Canva/IG as style DNA, not a copy", () => {

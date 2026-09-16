@@ -80,6 +80,42 @@ export async function loadSourceEmbed(href: string): Promise<string | undefined>
   }
 }
 
+/** Turn a nestable SVG or data URI into the payload Vision AI expects. */
+export function stillPayloadFromEmbed(embed: string): { imageBase64: string; mime: string } | null {
+  if (!embed) return null;
+  if (embed.startsWith("data:")) {
+    const comma = embed.indexOf(",");
+    if (comma < 0) return null;
+    const header = embed.slice(5, comma);
+    const mime = header.split(";")[0] || "image/jpeg";
+    const imageBase64 = embed.slice(comma + 1);
+    if (!imageBase64 || imageBase64.length > 1_800_000) return null;
+    return { imageBase64, mime };
+  }
+  if (embed.includes("<svg")) {
+    const imageBase64 = bytesToBase64(new TextEncoder().encode(embed));
+    if (imageBase64.length > 1_800_000) return null;
+    return { imageBase64, mime: "image/svg+xml" };
+  }
+  return null;
+}
+
+export async function stillPayloadFromHref(href: string): Promise<{ imageBase64: string; mime: string } | null> {
+  const embed = await loadSourceEmbed(href);
+  return embed ? stillPayloadFromEmbed(embed) : null;
+}
+
+/** Prefer the hydrated blob, then the seed file, then a remote media URL. */
+export function igStillHref(
+  post: { assetId?: string; mediaUrl?: string },
+  urls: Record<string, string>,
+  seedSrc?: string,
+): string | undefined {
+  if (post.assetId && urls[post.assetId]) return urls[post.assetId];
+  if (seedSrc) return seedSrc;
+  return post.mediaUrl;
+}
+
 export function styleFromHits(hits: CreativeHit[]): string {
   if (!hits.length) return "延續淡江禪學社 DNA，不要複製舊作品。";
   const bits = hits.slice(0, 6).map((hit) => `${sourceLabel(hit.source)}「${hit.title}」：${abstract(hit)}`);
