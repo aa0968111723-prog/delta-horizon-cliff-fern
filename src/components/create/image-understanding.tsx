@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2, Eye, Loader2, Repeat2, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ImageRevisionBar } from "@/components/create/image-revision";
 import { Button } from "@/components/ui/button";
 import { analyzeImage, type ImageAnalysis } from "@/lib/ai/image-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
@@ -15,13 +16,21 @@ const MAKE_KINDS: { id: ContentKind; label: string }[] = [
   { id: "reels", label: "做成 Reels 封面" },
 ];
 
+function stripAssets<T extends { id: string }>(assets: T[], initialId?: string, limit = 12): T[] {
+  const head = assets.slice(0, limit);
+  if (!initialId) return head;
+  if (head.some((item) => item.id === initialId)) return head;
+  const extra = assets.find((item) => item.id === initialId);
+  return extra ? [extra, ...head.slice(0, limit - 1)] : head;
+}
+
 export type ImageMakePayload = {
   kind: ContentKind;
   caption: string;
   stylePrompt: string;
   preview: string;
   assetId: string | null;
-  analysis: ImageAnalysis;
+  summary: string;
 };
 
 /**
@@ -30,11 +39,13 @@ export type ImageMakePayload = {
  */
 export function ImageUnderstanding({
   audienceIds,
+  initialAssetId,
   onUseCaption,
   onUseStylePrompt,
   onMakeKind,
 }: {
   audienceIds: string[];
+  initialAssetId?: string;
   onUseCaption?: (caption: string) => void;
   onUseStylePrompt?: (prompt: string) => void;
   onMakeKind?: (payload: ImageMakePayload) => void | Promise<void>;
@@ -49,6 +60,14 @@ export function ImageUnderstanding({
   const [busy, setBusy] = useState(false);
   const [making, setMaking] = useState<ContentKind | null>(null);
   const [analysis, setAnalysis] = useState<ImageAnalysis | null>(null);
+  const primed = useRef(false);
+
+  useEffect(() => {
+    if (primed.current || !initialAssetId) return;
+    if (!urls[initialAssetId]) return;
+    primed.current = true;
+    void pickAsset(initialAssetId);
+  }, [initialAssetId, urls]);
 
   async function pickFile(file: File) {
     const reader = new FileReader();
@@ -119,16 +138,16 @@ export function ImageUnderstanding({
   }
 
   async function make(kind: ContentKind) {
-    if (!preview || !analysis || !onMakeKind) return;
+    if (!preview || !onMakeKind) return;
     setMaking(kind);
     try {
       await onMakeKind({
         kind,
-        caption: analysis.captionIdea,
-        stylePrompt: analysis.stylePrompt,
+        caption: analysis?.captionIdea ?? "",
+        stylePrompt: analysis?.stylePrompt ?? "",
         preview,
         assetId: pickedAssetId,
-        analysis,
+        summary: analysis?.summary ?? "",
       });
     } finally {
       setMaking(null);
@@ -169,7 +188,7 @@ export function ImageUnderstanding({
         <div className="mt-3">
           <p className="text-xs text-muted">或從素材庫挑一張</p>
           <ul className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1">
-            {assets.slice(0, 12).map((asset) => (
+            {stripAssets(assets, initialAssetId).map((asset) => (
               <li key={asset.id}>
                 <button
                   type="button"
@@ -240,34 +259,45 @@ export function ImageUnderstanding({
                   </Button>
                 ) : null}
               </div>
-
-              {onMakeKind ? (
-                <div>
-                  <p className="text-xs text-muted">用這張圖直接開始</p>
-                  <div className="mt-1.5 flex flex-wrap gap-2">
-                    {MAKE_KINDS.map((item) => (
-                      <Button
-                        key={item.id}
-                        size="sm"
-                        aria-label={item.label}
-                        disabled={making !== null}
-                        onClick={() => void make(item.id)}
-                      >
-                        {making === item.id ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <Repeat2 className="size-4" />
-                        )}
-                        {item.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
             </div>
           ) : (
-            <p className="text-sm text-muted">按「AI 分析」讀這張圖：畫面、色彩、構圖、品牌感，還有它適不適合淡江學生。</p>
+            <p className="text-sm text-muted">選好圖就可以直接做成限動、輪播或 Reels 封面。想知道適不適合淡江學生，再按「AI 分析」。</p>
           )}
+        </div>
+      ) : null}
+
+      {preview && onMakeKind ? (
+        <div className="mt-4 space-y-4">
+          <div>
+            <p className="text-xs text-muted">用這張圖直接開始</p>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {MAKE_KINDS.map((item) => (
+                <Button
+                  key={item.id}
+                  size="sm"
+                  aria-label={item.label}
+                  disabled={making !== null}
+                  onClick={() => void make(item.id)}
+                >
+                  {making === item.id ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Repeat2 className="size-4" />
+                  )}
+                  {item.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <ImageRevisionBar
+            imageUrl={preview}
+            sourceLabel={assets.find((item) => item.id === pickedAssetId)?.name ?? "圖片理解"}
+            onSaved={(meta, dataUrl) => {
+              setPreview(dataUrl);
+              setPickedAssetId(meta.id);
+              setAnalysis(null);
+            }}
+          />
         </div>
       ) : null}
     </section>

@@ -9,6 +9,7 @@ export const Route = createFileRoute("/create")({
     contentId: typeof search.contentId === "string" ? search.contentId : undefined,
     campaignId: typeof search.campaignId === "string" ? search.campaignId : undefined,
     step: typeof search.step === "string" ? search.step : undefined,
+    asset: typeof search.asset === "string" ? search.asset : undefined,
   }),
   component: CreateRoute,
 });

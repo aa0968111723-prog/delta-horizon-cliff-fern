@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { uid } from "@/lib/studio/ids";
 import { VISUAL_ANCHORS } from "@/lib/zen/club";
 import { z } from "zod";
+import { buildEditPayload, buildGeneratePayload, hitToDataUrl, imagineResultFromBody } from "./imagine-request";
 import { aiAvailable, buildZenContext, extractJson, zenChat } from "./zen-context";
 
 /** 主視覺方向：一個方向包含概念、配色、構圖、字體與可直接送生成的圖片 prompt。 */
@@ -178,12 +179,28 @@ export type ImageGenResult =
   | { ok: true; dataUrl: string; revisedPrompt?: string }
   | { ok: false; error: string };
 
-const RATIO_HINT: Record<string, string> = {
-  "4:5": "vertical 4:5 Instagram feed composition",
-  "1:1": "square 1:1 Instagram feed composition",
-  "9:16": "tall 9:16 vertical composition for Instagram story, keep the middle third clear for text",
-  "1.91:1": "wide 1.91:1 landscape composition",
-};
+async function imagineFromResponse(res: Response): Promise<ImageGenResult> {
+  if (!res.ok) {
+    return { ok: false, error: `圖片生成失敗（${res.status}）。稍後再試一次。` };
+  }
+  const body: unknown = await res.json();
+  const hit = imagineResultFromBody(body);
+  if (!hit) return { ok: false, error: "圖片生成沒有回傳結果。" };
+  const dataUrl = hitToDataUrl(hit);
+  if (dataUrl) return { ok: true, dataUrl, revisedPrompt: hit.revisedPrompt };
+  if (hit.url) {
+    const fetched = await fetch(hit.url);
+    if (!fetched.ok) return { ok: false, error: "圖片下載失敗。" };
+    const buffer = Buffer.from(await fetched.arrayBuffer());
+    const mime = fetched.headers.get("content-type") ?? "image/png";
+    return {
+      ok: true,
+      dataUrl: `data:${mime};base64,${buffer.toString("base64")}`,
+      revisedPrompt: hit.revisedPrompt,
+    };
+  }
+  return { ok: false, error: "圖片生成沒有回傳結果。" };
+}
 
 /**
  * 真的呼叫 xAI Imagine 生圖。金鑰是社團擁有者的，所以只在使用者按下按鈕時呼叫，
@@ -196,12 +213,6 @@ export const generateImage = createServerFn({ method: "POST" })
     if (!apiKey) {
       return { ok: false, error: "這個環境沒有連上圖片生成服務。可以先用素材庫的圖，或之後再生成。" };
     }
-    const prompt = [
-      data.prompt,
-      RATIO_HINT[data.ratio],
-      "soft natural light, airy negative space, muted warm neutral palette with one accent light, documentary photo feel, no text, no watermark, no religious iconography",
-    ].join(", ");
-
     try {
       const res = await fetch("https://api.x.ai/v1/images/generations", {
         method: "POST",
@@ -209,42 +220,49 @@ export const generateImage = createServerFn({ method: "POST" })
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({
-          model: "grok-imagine-image-quality",
-          prompt,
-          n: 1,
-          response_format: "b64_json",
-        }),
+        body: JSON.stringify(buildGeneratePayload(data.prompt, data.ratio)),
       });
-      if (!res.ok) {
-        return { ok: false, error: `圖片生成失敗（${res.status}）。稍後再試一次。` };
-      }
-      const body = (await res.json()) as {
-        data?: { b64_json?: string; url?: string; revised_prompt?: string }[];
-      };
-      const first = body.data?.[0];
-      // b64 直接轉 data URL，才能存進素材庫並在畫布上使用。
-      if (first?.b64_json) {
-        return {
-          ok: true,
-          dataUrl: `data:image/png;base64,${first.b64_json}`,
-          revisedPrompt: first.revised_prompt,
-        };
-      }
-      if (first?.url) {
-        const fetched = await fetch(first.url);
-        if (!fetched.ok) return { ok: false, error: "圖片下載失敗。" };
-        const buffer = Buffer.from(await fetched.arrayBuffer());
-        const mime = fetched.headers.get("content-type") ?? "image/png";
-        return {
-          ok: true,
-          dataUrl: `data:${mime};base64,${buffer.toString("base64")}`,
-          revisedPrompt: first.revised_prompt,
-        };
-      }
-      return { ok: false, error: "圖片生成沒有回傳結果。" };
+      return imagineFromResponse(res);
     } catch {
       return { ok: false, error: "無法連上圖片生成服務。" };
+    }
+  });
+
+const ImageEditSchema = z.object({
+  imageUrl: z.string().min(8).max(4_000_000),
+  instruction: z.string().min(1).max(600),
+  ratio: z.enum(["4:5", "1:1", "9:16", "1.91:1"]).catch("4:5"),
+});
+
+/**
+ * 圖片改版：拿現有照片／海報／IG 截圖，用自然語言改一版。
+ * 走官方 Imagine edits，沒有金鑰就誠實說，不拿假圖充數。
+ */
+export const editImage = createServerFn({ method: "POST" })
+  .validator((input: unknown) => unwrap(input, ImageEditSchema))
+  .handler(async ({ data }): Promise<ImageGenResult> => {
+    const apiKey = process.env.XAI_API_KEY;
+    if (!apiKey) {
+      return { ok: false, error: "這個環境沒有連上圖片改版服務。不會用假圖代替。" };
+    }
+    try {
+      const res = await fetch("https://api.x.ai/v1/images/edits", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(
+          buildEditPayload({
+            imageUrl: data.imageUrl,
+            instruction: data.instruction,
+            ratio: data.ratio,
+          }),
+        ),
+      });
+      return imagineFromResponse(res);
+    } catch {
+      return { ok: false, error: "無法連上圖片改版服務。" };
     }
   });
 

@@ -157,16 +157,7 @@ export function CreativeSearchPage({ initialQuery }: { initialQuery?: string }) 
         {libraryHits.length ? (
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
             {libraryHits.slice(0, 15).map((asset) => (
-              <li key={asset.id} className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
-                <Link to="/assets" className="block">
-                  <span className="block aspect-square bg-surface-2">
-                    {urls[asset.id] ? (
-                      <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" />
-                    ) : null}
-                  </span>
-                  <span className="block truncate px-2 py-1.5 text-xs">{asset.name}</span>
-                </Link>
-              </li>
+              <AssetSearchHit key={asset.id} asset={asset} url={urls[asset.id]} />
             ))}
           </ul>
         ) : (
@@ -178,16 +169,7 @@ export function CreativeSearchPage({ initialQuery }: { initialQuery?: string }) 
         {generatedHits.length ? (
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
             {generatedHits.slice(0, 10).map((asset) => (
-              <li key={asset.id} className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
-                <Link to="/assets" className="block">
-                  <span className="block aspect-square bg-surface-2">
-                    {urls[asset.id] ? (
-                      <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" />
-                    ) : null}
-                  </span>
-                  <span className="block truncate px-2 py-1.5 text-xs">{asset.name}</span>
-                </Link>
-              </li>
+              <AssetSearchHit key={asset.id} asset={asset} url={urls[asset.id]} />
             ))}
           </ul>
         ) : (
@@ -311,6 +293,33 @@ function Group({
 
 function Empty({ text }: { text: string }) {
   return <p className="rounded-2xl bg-surface px-4 py-5 text-center text-xs text-subtle shadow-[var(--shadow-border)]">{text}</p>;
+}
+
+function AssetSearchHit({
+  asset,
+  url,
+}: {
+  asset: { id: string; name: string };
+  url?: string;
+}) {
+  return (
+    <li className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
+      <Link to="/assets" className="block">
+        <span className="block aspect-square bg-surface-2">
+          {url ? <img src={url} alt={asset.name} className="size-full object-cover" /> : null}
+        </span>
+        <span className="block truncate px-2 pt-1.5 text-xs">{asset.name}</span>
+      </Link>
+      <Link
+        to="/create"
+        search={{ from: "image", asset: asset.id }}
+        aria-label={`用這張創作 ${asset.name}`}
+        className="block px-2 pb-1.5 text-[0.68rem] text-muted hover:text-fg"
+      >
+        用這張創作
+      </Link>
+    </li>
+  );
 }
 
 function RemoteList({ items }: { items: RemoteItem[] }) {

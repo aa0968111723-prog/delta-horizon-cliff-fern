@@ -47,6 +47,7 @@ export type CreateSearch = {
   contentId?: string;
   campaignId?: string;
   step?: string;
+  asset?: string;
 };
 
 const TEXTAREA =
@@ -81,7 +82,9 @@ export function CreatePage({ search }: { search: CreateSearch }) {
     return campaigns.find((c) => c.id === id) ?? null;
   }, [campaigns, search.campaignId, linkedProject]);
 
-  const [from, setFrom] = useState<StartFrom>(search.from === "image" ? "image" : "idea");
+  const [from, setFrom] = useState<StartFrom>(
+    search.from === "image" || Boolean(search.asset) ? "image" : "idea",
+  );
   const [kind, setKind] = useState<ContentKind>(
     (search.kind && search.kind in CONTENT_KIND_META ? (search.kind as ContentKind) : null) ??
       linkedProject?.contentKind ??
@@ -281,21 +284,22 @@ export function CreatePage({ search }: { search: CreateSearch }) {
 
   async function makeFromImage(payload: ImageMakePayload) {
     if (!brand) return;
+    const summary = payload.summary || payload.caption || "從一張圖片開始";
     let assetId = payload.assetId;
     if (!assetId) {
       const meta = await saveDataUrlAsAsset({
         dataUrl: payload.preview,
-        name: payload.caption.slice(0, 18) || "圖片理解",
+        name: (payload.caption || summary).slice(0, 18) || "圖片理解",
         tags: ["圖片理解"],
         source: "upload",
-        notes: payload.analysis.summary,
+        notes: summary,
       });
       addAsset(meta);
       assetId = meta.id;
     }
     const asset = useStudio.getState().assets.find((item) => item.id === assetId);
     const meta = CONTENT_KIND_META[payload.kind];
-    const name = (payload.caption || payload.analysis.summary).slice(0, 18) || "從圖片開始";
+    const name = (payload.caption || summary).slice(0, 18) || "從圖片開始";
     const project = createProject({
       name,
       brandId: brand.id,
@@ -311,9 +315,9 @@ export function CreatePage({ search }: { search: CreateSearch }) {
         offer: campaign?.oneLiner ?? "",
         audience: audienceIds.join("、"),
         goal: "awareness",
-        features: payload.analysis.summary,
+        features: summary,
         style: payload.stylePrompt,
-        notes: payload.analysis.summary,
+        notes: summary,
         deliverables: {
           post: false,
           story: payload.kind === "story",
@@ -325,7 +329,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
         ...(campaign ? [{ kind: "local" as const, label: `活動 / ${campaign.name}`, detail: "活動資訊" }] : []),
         asset
           ? sourceFromAsset(asset, "圖片理解")
-          : { kind: "local" as const, label: "圖片理解", detail: payload.analysis.summary },
+          : { kind: "local" as const, label: "圖片理解", detail: summary },
       ],
     });
     if (payload.kind === "reels") applyCoverAsset(project.id, assetId);
@@ -442,6 +446,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
         <div className="mt-4">
           <ImageUnderstanding
             audienceIds={audienceIds}
+            initialAssetId={search.asset}
             onUseCaption={(caption) => {
               setIdea(caption);
               setFrom("idea");

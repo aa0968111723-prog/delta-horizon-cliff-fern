@@ -3,6 +3,20 @@ import { createGeneratedAsset, migrateAsset } from "./assets";
 import { uid } from "./ids";
 import type { AssetMeta } from "./types";
 
+/** blob: 預覽網址不能送到伺服器，改版／讀圖前先轉成 data URL。 */
+export async function urlToDataUrl(url: string): Promise<string> {
+  if (url.startsWith("data:")) return url;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("讀不到這張圖");
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("讀不到這張圖"));
+    reader.readAsDataURL(blob);
+  });
+}
+
 /** 把 data URL 存進素材庫。上傳與 AI 生成共用。 */
 export async function saveDataUrlAsAsset(input: {
   dataUrl: string;

@@ -5,7 +5,7 @@
  *
  * 用法：node scripts/qa-flow.mjs [baseUrl] [screenshotPrefix]
  */
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 
 const base = process.argv[2] ?? "http://127.0.0.1:8080";
@@ -128,6 +128,29 @@ try {
   const waves = await page.locator("ol > li").count();
   record("宣傳節奏波次", waves >= 4, `只有 ${waves} 波`);
   await page.screenshot({ path: `${prefix}-campaign.png`, fullPage: false });
+
+  // 8b. 從一張圖片 → 不用先分析就能做成限動；改這張圖要看得到
+  await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });
+  await expectText("從一張圖片", "圖片理解");
+  const tinyPng = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mP8z8BQz0AEYBxVSF+FAP5FDvcfRYWgAAAAAElFTkSuQmCC",
+    "base64",
+  );
+  writeFileSync("/tmp/qa-image.png", tinyPng);
+  await page.locator('input[type="file"][accept="image/*"]').setInputFiles("/tmp/qa-image.png");
+  await page.waitForSelector('img[alt="待分析的圖片"]', { timeout: 10000 });
+  await expectText("做成限動入口", "做成限動");
+  await expectText("改這張圖", "改這張圖");
+  await expectText("改版預設", "更像淡江生活");
+  await page.getByRole("button", { name: "做成限動" }).click();
+  await page.waitForURL(/\/studio\//, { timeout: 15000 });
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("tab", { name: "文字" }).click();
+  await expectText("做成限動來源", "這則用到的來源");
+  await page.screenshot({ path: `${prefix}-from-image.png` });
+
+  await page.goto(`${base}/search`, { waitUntil: "networkidle" });
+  await expectText("搜尋用這張創作", "用這張創作");
 
   // 9. 手機視窗檢查橫向溢出
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } });

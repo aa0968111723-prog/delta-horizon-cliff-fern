@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Loader2, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { ImageRevisionBar } from "@/components/create/image-revision";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +17,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { analyzeImage, generateImage } from "@/lib/ai/image-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
 import { ASSET_CATEGORIES, kindFromCategory, similarAssets, sourceLabel, usageLabel } from "@/lib/studio/assets";
-import { saveGeneratedImage } from "@/lib/studio/generated-image";
+import { saveGeneratedImage, urlToDataUrl } from "@/lib/studio/generated-image";
 import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
 
@@ -79,9 +80,10 @@ export function AssetDetailSheet({
     }
     setBusy("analyze");
     try {
+      const imageUrl = await urlToDataUrl(url);
       const res = await analyzeImage({
         data: {
-          imageUrl: url,
+          imageUrl,
           question: "這張圖適不適合禪學社網宣？可以怎麼延續？",
           brandMemoryText: brand ? formatBrandMemory(brand.memory) : undefined,
         },
@@ -202,11 +204,27 @@ export function AssetDetailSheet({
               {busy === "extend" ? <Loader2 className="size-4 animate-spin" /> : null}
               延續這個風格
             </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                onOpenChange(false);
+                void navigate({ to: "/create", search: { from: "image", asset: current.id } });
+              }}
+            >
+              用這張創作
+            </Button>
             <Button size="sm" variant="secondary" onClick={() => void useCaption()}>
               用這張寫文案
             </Button>
           </div>
         </div>
+
+        {url ? (
+          <div className="rounded-2xl bg-surface-2/70 p-3">
+            <ImageRevisionBar imageUrl={url} sourceLabel={asset.name} />
+          </div>
+        ) : null}
 
         {similar.length ? (
           <div>
