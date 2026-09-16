@@ -134,6 +134,12 @@ export function AssetDetailSheet({
         lastUsedAt: null,
         useCount: 0,
         generationPrompt: editInstruction,
+        provenance: {
+          provider: "generated",
+          label: `AI 延伸自 ${current.name}`,
+          parentAssetId: current.id,
+          importedAt: Date.now(),
+        },
       });
       toast.success("延伸視覺已加入 Creative Library");
       onCreated?.(id);
@@ -161,6 +167,13 @@ export function AssetDetailSheet({
               {asset.width}×{asset.height} · {asset.mime}
             </p>
             <p className="mt-1">來源：{sourceLabel(asset.source)}</p>
+            {asset.provenance ? (
+              <p className="mt-1">
+                {asset.provenance.label}
+                {asset.provenance.collection ? `／${asset.provenance.collection}` : ""}
+                {asset.provenance.sourceDate ? `／${asset.provenance.sourceDate}` : ""}
+              </p>
+            ) : null}
             <p className="mt-1">狀態：{usageLabel(usage)}</p>
             <p className="mt-1">使用 {asset.useCount} 次</p>
             {asset.lastUsedAt ? (

@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { generateCreativeImage, getMultimodalStatus } from "@/lib/ai/multimodal";
+import { buildBrandMemoryPrompt } from "@/lib/creative/memory";
 import { base64ImageToBlob, prepareImageForAi } from "@/lib/studio/ai-image-client";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { uid } from "@/lib/studio/ids";
@@ -79,7 +80,12 @@ export function ImageStudio() {
     setBusy(true);
     try {
       const result = await generateCreativeImage({
-        data: { idea, direction: direction.detail, aspectRatio },
+        data: {
+          idea,
+          direction: direction.detail,
+          aspectRatio,
+          brandMemory: brand ? buildBrandMemoryPrompt(brand) : undefined,
+        },
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -107,6 +113,12 @@ export function ImageStudio() {
         lastUsedAt: null,
         useCount: 0,
         generationPrompt: result.prompt,
+        provenance: {
+          provider: "generated",
+          label: "AI Generated／Grok Imagine",
+          collection: direction.label,
+          importedAt: Date.now(),
+        },
       };
       addAsset(meta);
       toast.success("主視覺已加入 Creative Library");

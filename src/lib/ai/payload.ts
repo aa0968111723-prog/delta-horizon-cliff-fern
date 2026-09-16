@@ -1,5 +1,6 @@
 import { migrateBrief } from "@/lib/studio/brief";
 import type { BrandKit, Brief } from "@/lib/studio/types";
+import { buildBrandMemoryPrompt } from "@/lib/creative/memory";
 import type { BriefInput } from "./schema";
 
 export function toBriefInput(
@@ -37,6 +38,7 @@ export function toBriefInput(
     imageStyle: [brand.imageStyle?.mood, brand.imageStyle?.lighting, brand.imageStyle?.paletteHint]
       .filter(Boolean)
       .join("；"),
+    brandMemory: buildBrandMemoryPrompt(brand),
     ...(extra?.forceMock ? { forceMock: true } : {}),
   };
 }

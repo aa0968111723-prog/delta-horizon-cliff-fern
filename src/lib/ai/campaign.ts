@@ -125,6 +125,8 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
 固定標語：${data.slogans || "無"}
 常用 CTA：${data.preferredCtas || "無"}
 圖片風格：${data.imageStyle || "無"}
+Creative Brain 記憶：
+${data.brandMemory || "先說學生生活，再介紹活動；使用三色光與真實社員互動"}
 
 活動名稱：${data.eventName}
 時間：${data.schedule || "未填"}

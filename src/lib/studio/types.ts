@@ -104,6 +104,18 @@ export type BrandKit = {
   imageStyle: ImageStyle;
   rules: BrandRules;
   boilerplate: BrandBoilerplate;
+  memory?: BrandMemory;
+  updatedAt: number;
+};
+
+export type BrandMemory = {
+  mission: string;
+  audienceSegments: string[];
+  campusContexts: string[];
+  seasonalMoments: string[];
+  contentPillars: string[];
+  signatureElements: string[];
+  learnedPatterns: string[];
   updatedAt: number;
 };
 
@@ -119,7 +131,18 @@ export type AssetCategory =
   | "template"
   | "history";
 
-export type AssetSourceKind = "upload" | "seed" | "generated";
+export type AssetSourceKind = "upload" | "seed" | "generated" | "google-drive" | "canva" | "instagram";
+
+export type AssetProvenance = {
+  provider: AssetSourceKind;
+  label: string;
+  externalId?: string;
+  externalUrl?: string;
+  collection?: string;
+  sourceDate?: string;
+  importedAt: number;
+  parentAssetId?: string;
+};
 
 export type AssetUsageStatus = "in-use" | "used" | "unused";
 
@@ -160,6 +183,7 @@ export type AssetMeta = {
   useCount: number;
   analysis?: AssetAnalysis;
   generationPrompt?: string;
+  provenance?: AssetProvenance;
 };
 
 export type Background = {

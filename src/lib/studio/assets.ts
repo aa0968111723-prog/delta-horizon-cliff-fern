@@ -30,8 +30,13 @@ export const ASSET_CATEGORIES: {
 export const ASSET_SOURCES: { id: AssetSourceKind; label: string }[] = [
   { id: "upload", label: "本機上傳" },
   { id: "seed", label: "示範素材" },
-  { id: "generated", label: "生成" },
+  { id: "generated", label: "AI Generated" },
+  { id: "google-drive", label: "Google Drive" },
+  { id: "canva", label: "Canva" },
+  { id: "instagram", label: "Instagram" },
 ];
+
+const SOURCE_IDS = new Set<AssetSourceKind>(ASSET_SOURCES.map((item) => item.id));
 
 export function categoryLabel(id: AssetCategory) {
   return ASSET_CATEGORIES.find((item) => item.id === id)?.label ?? id;
@@ -72,6 +77,7 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
 
 export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: string }): AssetMeta {
   const category = inferCategory(raw);
+  const source = raw.source && SOURCE_IDS.has(raw.source) ? raw.source : "upload";
   return {
     id: raw.id,
     name: raw.name,
@@ -84,7 +90,7 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
     createdAt: raw.createdAt ?? Date.now(),
     updatedAt: raw.updatedAt ?? raw.createdAt ?? Date.now(),
     seedSrc: raw.seedSrc,
-    source: raw.source === "seed" || raw.source === "generated" || raw.source === "upload" ? raw.source : "upload",
+    source,
     licenseNotes: raw.licenseNotes ?? "",
     licenseOwner: raw.licenseOwner ?? "",
     favorite: Boolean(raw.favorite),
@@ -92,6 +98,11 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
     useCount: raw.useCount ?? 0,
     analysis: raw.analysis,
     generationPrompt: raw.generationPrompt,
+    provenance: raw.provenance ?? {
+      provider: source,
+      label: source === "generated" ? "AI Generated" : source === "seed" ? "內建品牌素材" : raw.name,
+      importedAt: raw.createdAt ?? Date.now(),
+    },
   };
 }
 
@@ -124,7 +135,17 @@ export function createGeneratedAsset(input: {
 export function matchesAssetQuery(asset: AssetMeta, query: string) {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  const blob = [asset.name, asset.category, categoryLabel(asset.category), asset.licenseNotes, ...(asset.tags ?? [])]
+  const blob = [
+    asset.name,
+    asset.category,
+    categoryLabel(asset.category),
+    asset.licenseNotes,
+    asset.provenance?.label,
+    asset.provenance?.collection,
+    asset.analysis?.summary,
+    ...(asset.analysis?.subjects ?? []),
+    ...(asset.tags ?? []),
+  ]
     .join(" ")
     .toLowerCase();
   return q.split(/\s+/).every((part) => blob.includes(part));

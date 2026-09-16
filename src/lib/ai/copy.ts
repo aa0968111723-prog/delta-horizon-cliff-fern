@@ -15,6 +15,7 @@ const CopyRequestSchema = z.object({
   cta: z.string().max(80),
   registrationUrl: z.string().max(500),
   brandVoice: z.string().max(500),
+  brandMemory: z.string().max(2400).optional(),
   hashtags: z.array(z.string().max(60)).max(20),
   forceMock: z.boolean().optional(),
 });

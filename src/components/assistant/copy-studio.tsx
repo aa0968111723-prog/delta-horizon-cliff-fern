@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { generateCopyPack } from "@/lib/ai/copy";
+import { buildBrandMemoryPrompt } from "@/lib/creative/memory";
 import type { CopyTone } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
@@ -35,6 +36,7 @@ export function CopyStudio({ projectId }: { projectId: string }) {
           cta: project.plan.cta,
           registrationUrl,
           brandVoice: brand.voice,
+          brandMemory: buildBrandMemoryPrompt(brand),
           hashtags: project.plan.hashtags,
           forceMock: false,
         },

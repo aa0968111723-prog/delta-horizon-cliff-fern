@@ -1,12 +1,26 @@
 import { emptyBoilerplate } from "./boilerplate.ts";
 import { uid } from "./ids.ts";
 import type {
+  BrandMemory,
   BrandKit,
   BrandRules,
   ImageStyle,
   LogoUsage,
   LogoVariant,
 } from "./types.ts";
+
+export function emptyBrandMemory(): BrandMemory {
+  return {
+    mission: "",
+    audienceSegments: [],
+    campusContexts: [],
+    seasonalMoments: [],
+    contentPillars: [],
+    signatureElements: [],
+    learnedPatterns: [],
+    updatedAt: Date.now(),
+  };
+}
 
 export function emptyImageStyle(): ImageStyle {
   return {
@@ -70,6 +84,7 @@ export function createEmptyBrand(name: string): BrandKit {
     imageStyle: emptyImageStyle(),
     rules: emptyBrandRules(),
     boilerplate: emptyBoilerplate(),
+    memory: emptyBrandMemory(),
     updatedAt: Date.now(),
   };
 }
@@ -130,6 +145,17 @@ export function migrateBrand(raw: Partial<BrandKit> & { id: string; name: string
     imageStyle: { ...emptyImageStyle(), ...(raw.imageStyle ?? {}) },
     rules: { ...emptyBrandRules(), ...(raw.rules ?? {}) },
     boilerplate: raw.boilerplate ?? emptyBoilerplate(),
+    memory: {
+      ...emptyBrandMemory(),
+      ...(raw.memory ?? {}),
+      audienceSegments: asStringArray(raw.memory?.audienceSegments),
+      campusContexts: asStringArray(raw.memory?.campusContexts),
+      seasonalMoments: asStringArray(raw.memory?.seasonalMoments),
+      contentPillars: asStringArray(raw.memory?.contentPillars),
+      signatureElements: asStringArray(raw.memory?.signatureElements),
+      learnedPatterns: asStringArray(raw.memory?.learnedPatterns),
+      updatedAt: raw.memory?.updatedAt ?? raw.updatedAt ?? Date.now(),
+    },
     updatedAt: raw.updatedAt ?? Date.now(),
   };
 }

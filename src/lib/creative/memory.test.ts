@@ -1,0 +1,100 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { createEmptyBrand } from "../studio/brand.ts";
+import { migrateAsset } from "../studio/assets.ts";
+import { buildCreativeMemoryContext, creativeMemoryStats, searchCreativeMemory } from "./memory.ts";
+import type { Campaign, ContentItem } from "./types.ts";
+
+const brand = createEmptyBrand("淡江大學禪學社");
+brand.memory = {
+  mission: "讓淡江學生在忙亂裡找到空間",
+  audienceSegments: ["住宿生", "通勤生"],
+  campusContexts: ["淡水雨天", "期中報告"],
+  seasonalMoments: ["期中"],
+  contentPillars: ["生活共鳴", "活動宣傳"],
+  signatureElements: ["三色光", "龜龜"],
+  learnedPatterns: ["先寫學生生活"],
+  updatedAt: 1,
+};
+
+const asset = migrateAsset({
+  id: "asset-tea",
+  name: "夜間茶會社員照片",
+  source: "google-drive",
+  category: "people",
+  tags: ["茶會", "社員互動"],
+  analysis: {
+    summary: "同學在暖光下自然聊天，適合晚間茶會宣傳。",
+    subjects: ["三位學生", "茶杯"],
+    colors: ["暖金"],
+    lighting: "暖光",
+    composition: "橫向群像",
+    textHierarchy: "無文字",
+    brandFit: "符合",
+    studentFit: "有真實社團生活感",
+    stopPower: "人物互動清楚",
+    risks: [],
+    recommendations: ["裁成 Story"],
+    suggestedTags: ["夜間"],
+    analyzedAt: 2,
+  },
+  createdAt: 1,
+});
+
+const campaign: Campaign = {
+  id: "campaign-tea",
+  name: "浮游禪光茶會",
+  type: "茶會",
+  eventDate: "2026-09-24",
+  eventTime: "19:00",
+  location: "淡江校園",
+  oneLiner: "下課後喘口氣",
+  description: "一起坐坐",
+  theme: "忙亂裡留空間",
+  studentPain: "期中報告很多",
+  cta: "找朋友一起來",
+  registrationUrl: "",
+  assetIds: [],
+  createdAt: 1,
+  updatedAt: 3,
+};
+
+const content: ContentItem = {
+  id: "content-tea",
+  campaignId: campaign.id,
+  title: "期中情緒共鳴",
+  angle: "通勤後先喘口氣",
+  type: "Carousel",
+  status: "complete",
+  plannedAt: "2026-09-20",
+  publishedAt: null,
+  projectId: null,
+  createdAt: 1,
+  updatedAt: 1,
+};
+
+test("searchCreativeMemory searches assets, campaigns and content together", () => {
+  const results = searchCreativeMemory("期中 茶會", {
+    assets: [asset],
+    campaigns: [campaign],
+    contentItems: [content],
+  });
+  assert.deepEqual(new Set(results.map((item) => item.kind)), new Set(["asset", "campaign", "content"]));
+  assert.equal(results[0]?.matchedBy.length, 2);
+  assert.equal(results.find((item) => item.kind === "asset")?.provider, "Google Drive");
+});
+
+test("buildCreativeMemoryContext includes brand lessons and attributable assets", () => {
+  const context = buildCreativeMemoryContext({ brand, assets: [asset], campaigns: [campaign] });
+  assert.match(context, /住宿生、通勤生/);
+  assert.match(context, /先寫學生生活/);
+  assert.match(context, /夜間茶會社員照片［Google Drive］/);
+  assert.match(context, /浮游禪光茶會/);
+});
+
+test("creativeMemoryStats counts analyzed and reusable memory", () => {
+  assert.deepEqual(
+    creativeMemoryStats({ assets: [asset], campaigns: [campaign], contentItems: [content] }),
+    { sources: 1, assets: 1, analyzedAssets: 1, campaigns: 1, reusableContent: 1 },
+  );
+});

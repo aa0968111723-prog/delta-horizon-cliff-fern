@@ -20,7 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { AssetUploadError, decodeAssetImage } from "@/lib/studio/asset-upload";
-import { LOGO_USAGE, logoUsageLabel } from "@/lib/studio/brand";
+import { emptyBrandMemory, LOGO_USAGE, logoUsageLabel } from "@/lib/studio/brand";
 import { STUDIO_FONTS } from "@/lib/studio/fonts";
 import { uid } from "@/lib/studio/ids";
 import type { BrandColor, BrandKit, ColorRole, LogoUsage, LogoVariant } from "@/lib/studio/types";
@@ -38,6 +38,7 @@ const ROLES: { id: ColorRole; label: string }[] = [
 
 const SECTIONS = [
   { id: "identity", label: "識別" },
+  { id: "memory", label: "創作記憶" },
   { id: "logo", label: "Logo" },
   { id: "colors", label: "色彩" },
   { id: "fonts", label: "字體" },
@@ -59,6 +60,7 @@ export function BrandEditor() {
   const logoIds = (brand?.logos ?? []).map((item) => item.assetId);
   if (brand?.logoAssetId) logoIds.push(brand.logoAssetId);
   const urls = useAssetUrls(logoIds);
+  const memory = brand?.memory ?? emptyBrandMemory();
 
   if (!brand) {
     return (
@@ -203,6 +205,64 @@ export function BrandEditor() {
         <Field label="品牌聲音">
           <Textarea value={brand.voice} onChange={(e) => patch("voice", e.target.value)} placeholder="語氣、節奏、像誰在說話" />
         </Field>
+      </section>
+
+      <section id="brand-memory" className="space-y-4 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+        <div>
+          <h2 className="text-sm font-medium">Creative Brain 記得什麼</h2>
+          <p className="mt-1 text-xs leading-5 text-muted">
+            這些不是對外的漂亮文案，而是每次 AI 企劃、文案與圖片生成前會讀取的淡江情境與已學到規律。
+          </p>
+        </div>
+        <Field label="社團使命">
+          <Textarea
+            value={memory.mission}
+            onChange={(event) => patch("memory", { ...memory, mission: event.target.value, updatedAt: Date.now() })}
+            placeholder="我們希望為淡江學生帶來什麼？"
+          />
+        </Field>
+        <ChipList
+          label="核心學生"
+          hint="不要只寫大學生，記錄真正要理解的生活群體。"
+          values={memory.audienceSegments}
+          placeholder="例如：通勤生"
+          onChange={(audienceSegments) => patch("memory", { ...memory, audienceSegments, updatedAt: Date.now() })}
+        />
+        <ChipList
+          label="淡江生活情境"
+          hint="生成 Hook 時優先連結的真實場景。"
+          values={memory.campusContexts}
+          placeholder="例如：淡水雨天"
+          onChange={(campusContexts) => patch("memory", { ...memory, campusContexts, updatedAt: Date.now() })}
+        />
+        <ChipList
+          label="重要時機"
+          hint="讓排程與內容角度理解校園季節。"
+          values={memory.seasonalMoments}
+          placeholder="例如：期中前"
+          onChange={(seasonalMoments) => patch("memory", { ...memory, seasonalMoments, updatedAt: Date.now() })}
+        />
+        <ChipList
+          label="內容支柱"
+          hint="避免整個 IG 只剩連續活動廣告。"
+          values={memory.contentPillars}
+          placeholder="例如：社員故事"
+          onChange={(contentPillars) => patch("memory", { ...memory, contentPillars, updatedAt: Date.now() })}
+        />
+        <ChipList
+          label="辨識元素"
+          hint="AI 視覺優先參考，不代表每張都要全部放入。"
+          values={memory.signatureElements}
+          placeholder="例如：龜龜"
+          onChange={(signatureElements) => patch("memory", { ...memory, signatureElements, updatedAt: Date.now() })}
+        />
+        <ChipList
+          label="已學到的規律"
+          hint="把有效或踩雷經驗留下，供下一次生成使用。"
+          values={memory.learnedPatterns}
+          placeholder="例如：先說學生生活，再介紹活動"
+          onChange={(learnedPatterns) => patch("memory", { ...memory, learnedPatterns, updatedAt: Date.now() })}
+        />
       </section>
 
       <section id="brand-logo" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">

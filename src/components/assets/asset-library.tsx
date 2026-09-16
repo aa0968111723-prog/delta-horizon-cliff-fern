@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AssetCard } from "@/components/assets/asset-card";
 import { AssetDetailSheet } from "@/components/assets/asset-detail";
+import { CreativeBrainPanel } from "@/components/assets/creative-brain-panel";
 import { ImageStudio } from "@/components/assets/image-studio";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { EmptyState, ErrorState } from "@/components/shared/empty-state";
@@ -190,6 +191,7 @@ export function AssetLibrary() {
       />
 
       <ImageStudio />
+      <CreativeBrainPanel onOpenAsset={setActiveId} />
       <StorageNotice className="mt-4" />
 
       <input
