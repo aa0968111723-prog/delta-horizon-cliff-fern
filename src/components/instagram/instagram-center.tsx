@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { useAssetUrls, resolveAssetSrc } from "@/hooks/use-asset-urls";
 import { generateCopyPack } from "@/lib/ai/copy";
+import { syncInstagramMemory } from "@/lib/ai/oauth";
 import { FORMATS } from "@/lib/studio/formats";
 import { pagesOf } from "@/lib/studio/layers";
 import { SEED_ASSETS } from "@/lib/studio/seed";
@@ -31,6 +32,8 @@ export function InstagramCenter() {
   const igPosts = useCreative((s) => s.igPosts);
   const schedule = useCreative((s) => s.schedule);
   const addIgPost = useCreative((s) => s.addIgPost);
+  const setConnection = useCreative((s) => s.setConnection);
+  const igStatus = useCreative((s) => s.connections.find((c) => c.id === "instagram")?.status);
   const upsertSchedule = useCreative((s) => s.upsertSchedule);
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
@@ -43,6 +46,7 @@ export function InstagramCenter() {
   const [active, setActive] = useState(igPosts[0]?.id ?? null);
   const [busy, setBusy] = useState(false);
   const [dnaBusy, setDnaBusy] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false);
   const [previewFormat, setPreviewFormat] = useState<FormatId>("feed-portrait");
   const [caption, setCaption] = useState("");
   const post = igPosts.find((p) => p.id === active);
@@ -85,6 +89,36 @@ export function InstagramCenter() {
       toast.success("已寫入 IG 記憶");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function syncOfficial() {
+    setSyncBusy(true);
+    try {
+      const result = await syncInstagramMemory();
+      if (!result.ok) {
+        toast.message(result.error);
+        setConnection("instagram", {
+          status: result.connected ? "connected" : "disconnected",
+          detail: result.error,
+        });
+        return;
+      }
+      for (const live of result.posts) {
+        addIgPost({
+          ...live,
+          assetId: live.mediaUrl ? "" : "asset_tamsui",
+        });
+      }
+      if (result.posts[0]) setActive(result.posts[0].id);
+      setConnection("instagram", {
+        status: "connected",
+        lastSyncAt: Date.now(),
+        detail: `已讀取 ${result.posts.length} 則官方貼文`,
+      });
+      toast.success(`已同步 ${result.posts.length} 則 IG 進記憶`);
+    } finally {
+      setSyncBusy(false);
     }
   }
 
@@ -153,9 +187,17 @@ export function InstagramCenter() {
           CTA {IG_DNA.cta.join("／")} · {IG_DNA.hashtags.join(" ")}
         </p>
         <p className="mt-3 text-xs text-muted">有效 Hook：{learned.winningHooks.join("／")}</p>
-        <Button className="mt-3" size="sm" disabled={dnaBusy} onClick={() => void writeFromDna()}>
-          {dnaBusy ? "寫作中…" : "用這個 DNA 寫新文案"}
-        </Button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button size="sm" disabled={dnaBusy} onClick={() => void writeFromDna()}>
+            {dnaBusy ? "寫作中…" : "用這個 DNA 寫新文案"}
+          </Button>
+          <Button size="sm" variant="secondary" disabled={syncBusy} onClick={() => void syncOfficial()}>
+            {syncBusy ? "同步中…" : "同步官方內容"}
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-muted">
+          {igStatus === "connected" ? "只讀 Meta 官方授權範圍內的貼文。" : "還沒連接時會提示，不會爬蟲或存帳密。"}
+        </p>
       </section>
 
       {tab === "grid" ? (
@@ -164,9 +206,9 @@ export function InstagramCenter() {
             <div className="grid grid-cols-3 gap-1">
               {igPosts.map((item) => {
                 const seedSrc =
-                assets.find((a) => a.id === item.assetId)?.seedSrc ??
-                SEED_ASSETS.find((a) => a.id === item.assetId)?.seedSrc;
-              const src = resolveAssetSrc(item.assetId, urls, seedSrc);
+                  assets.find((a) => a.id === item.assetId)?.seedSrc ??
+                  SEED_ASSETS.find((a) => a.id === item.assetId)?.seedSrc;
+                const src = item.mediaUrl || resolveAssetSrc(item.assetId, urls, seedSrc);
                 return (
                   <button
                     key={item.id}
@@ -190,7 +232,7 @@ export function InstagramCenter() {
                 </p>
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{post.caption}</p>
                 <p className="mt-3 text-xs text-muted">
-                  收藏 {post.saves} · 留言 {post.comments} · 觸及 {post.reach}
+                  讚 {post.likes} · 收藏 {post.saves} · 留言 {post.comments} · 觸及 {post.reach}
                 </p>
                 <p className="mt-3 whitespace-pre-wrap text-sm">{post.analysis}</p>
                 <Button className="mt-4" variant="secondary" size="sm" disabled={busy} onClick={() => void analyze()}>

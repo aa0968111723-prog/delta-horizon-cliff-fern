@@ -101,6 +101,8 @@ export type IgMediaHit = {
   permalink?: string;
   timestamp?: string;
   thumbnail?: string;
+  likes?: number;
+  comments?: number;
 };
 
 export async function searchInstagramMedia(query: string): Promise<IgMediaHit[]> {
@@ -124,6 +126,8 @@ export async function searchInstagramMedia(query: string): Promise<IgMediaHit[]>
       permalink?: string;
       timestamp?: string;
       thumbnail_url?: string;
+      like_count?: number;
+      comments_count?: number;
     }[];
   };
   const q = query.trim().toLowerCase();
@@ -137,6 +141,8 @@ export async function searchInstagramMedia(query: string): Promise<IgMediaHit[]>
       permalink: item.permalink,
       timestamp: item.timestamp,
       thumbnail: item.thumbnail_url ?? item.media_url,
+      likes: item.like_count ?? 0,
+      comments: item.comments_count ?? 0,
     }));
 }
 

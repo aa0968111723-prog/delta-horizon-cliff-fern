@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { createFromHit } from "@/components/create/from-hit";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -141,6 +142,25 @@ export function AssetDetailSheet({
         </div>
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
         <div className="flex flex-wrap gap-2 pb-4">
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              const ok = await createFromHit({
+                id: current.id,
+                source: current.source === "generated" ? "generated" : current.source === "drive" || current.source === "canva" || current.source === "instagram" ? current.source : "asset",
+                title: current.name,
+                subtitle: current.tags.join(" · ") || current.category,
+                thumbAssetId: current.id,
+                tags: current.tags,
+              });
+              if (ok) {
+                onOpenChange(false);
+                void navigate({ to: "/create" });
+              }
+            }}
+          >
+            加入創作
+          </Button>
           <Button onClick={place} disabled={!lastProjectId}>
             放到目前畫布
           </Button>

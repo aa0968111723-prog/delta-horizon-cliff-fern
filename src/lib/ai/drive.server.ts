@@ -28,7 +28,15 @@ export async function executeDriveSearch(query: string, folderHint?: string): Pr
   return { ok: true, items: normalizeDrive(result.data) };
 }
 
-function normalizeDrive(raw: unknown): { id: string; name: string; mime?: string; snippet?: string }[] {
+function pickUrl(row: Record<string, unknown>) {
+  for (const key of ["webViewLink", "webContentLink", "url", "link", "alternateLink"]) {
+    const value = row[key];
+    if (typeof value === "string" && value.startsWith("http")) return value;
+  }
+  return undefined;
+}
+
+function normalizeDrive(raw: unknown): { id: string; name: string; mime?: string; snippet?: string; url?: string }[] {
   if (!raw) return [];
   const list = Array.isArray(raw)
     ? raw
@@ -44,6 +52,7 @@ function normalizeDrive(raw: unknown): { id: string; name: string; mime?: string
       name: String(row.name ?? row.title ?? "未命名"),
       mime: typeof row.mimeType === "string" ? row.mimeType : undefined,
       snippet: typeof row.snippet === "string" ? row.snippet : typeof row.description === "string" ? row.description : undefined,
+      url: pickUrl(row),
     };
   });
 }

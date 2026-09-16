@@ -155,6 +155,29 @@ export function CreateHub() {
             學生視角：停下？{copyPack.studentReview.wouldStop} 宗教？{copyPack.studentReview.tooReligious} AI？
             {copyPack.studentReview.tooAi}
           </p>
+          {copyPack.studentReview.rewriteHook ? (
+            <Button
+              className="mt-3"
+              size="sm"
+              variant="secondary"
+              onClick={() =>
+                setCopyPack((current) =>
+                  current
+                    ? {
+                        ...current,
+                        hook: current.studentReview.rewriteHook,
+                        variants: current.variants.map((row) => ({
+                          ...row,
+                          text: row.text.replace(current.hook, current.studentReview.rewriteHook),
+                        })),
+                      }
+                    : current,
+                )
+              }
+            >
+              用學生視角改第一句
+            </Button>
+          ) : null}
         </section>
       ) : null}
 

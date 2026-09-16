@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { uid } from "@/lib/studio/ids";
 import { SEED_CAMPUS_ID, SEED_CUP_ID, SEED_DRAFT_ID, SEED_LIGHT_ID, SEED_PROJECT_ID } from "@/lib/studio/seed";
 import { SEED_CAMPAIGN_ID, SEED_CONNECTIONS, SEED_IG_POSTS, SEED_MEMORY, SEED_TEA_ID } from "@/lib/zen/memory";
-import { emptyCampaign, suggestWaves } from "@/lib/zen/schedule";
+import { emptyCampaign, scheduleItemsFromCampaign, suggestWaves } from "@/lib/zen/schedule";
 import type {
   CampaignWave,
   ClubCampaign,
@@ -65,24 +65,7 @@ function seedCampaigns(): ClubCampaign[] {
 }
 
 function seedSchedule(campaigns: ClubCampaign[]): ScheduleItem[] {
-  const items: ScheduleItem[] = [];
-  for (const camp of campaigns) {
-    for (const wave of camp.waves) {
-      items.push({
-        id: uid("sch"),
-        title: wave.title,
-        contentKind:
-          wave.kind === "day-of" ? "story" : wave.kind === "key-visual" ? "carousel" : wave.kind === "recap" ? "recap" : "ig-post",
-        status: wave.status,
-        scheduledAt: wave.scheduledAt,
-        publishedAt: null,
-        projectId: wave.projectId,
-        campaignId: camp.id,
-        captionPreview: camp.tagline,
-      });
-    }
-  }
-  return items;
+  return campaigns.flatMap((camp) => scheduleItemsFromCampaign(camp));
 }
 
 type CreativeState = {
@@ -138,28 +121,8 @@ export const useCreative = create<CreativeState>()(
           const campaigns = exists
             ? s.campaigns.map((c) => (c.id === campaign.id ? campaign : c))
             : [campaign, ...s.campaigns];
-          const extra = campaign.waves.map((wave) => ({
-            id: `sch_${wave.id}`,
-            title: wave.title,
-            contentKind:
-              wave.kind === "day-of"
-                ? ("story" as const)
-                : wave.kind === "key-visual"
-                  ? ("carousel" as const)
-                  : wave.kind === "recap"
-                    ? ("recap" as const)
-                    : ("ig-post" as const),
-            status: wave.status,
-            scheduledAt: wave.scheduledAt,
-            publishedAt: null,
-            projectId: wave.projectId,
-            campaignId: campaign.id,
-            captionPreview: campaign.tagline,
-          }));
-          const schedule = [
-            ...extra,
-            ...s.schedule.filter((item) => item.campaignId !== campaign.id),
-          ];
+          const extra = scheduleItemsFromCampaign(campaign);
+          const schedule = [...extra, ...s.schedule.filter((item) => item.campaignId !== campaign.id)];
           return { campaigns, schedule };
         }),
       patchCampaign: (id, patch) => {
@@ -226,6 +189,18 @@ export const useCreative = create<CreativeState>()(
                   waves: c.waves.map((w) => (w.id === waveId ? { ...w, ...patch } : w)),
                 }
               : c,
+          ),
+          schedule: s.schedule.map((item) =>
+            item.id === `sch_${waveId}`
+              ? {
+                  ...item,
+                  title: patch.title ?? item.title,
+                  status: patch.status ?? item.status,
+                  scheduledAt: patch.scheduledAt ?? item.scheduledAt,
+                  projectId: patch.projectId === undefined ? item.projectId : patch.projectId,
+                  captionPreview: patch.copyPreview ?? item.captionPreview,
+                }
+              : item,
           ),
         })),
     }),

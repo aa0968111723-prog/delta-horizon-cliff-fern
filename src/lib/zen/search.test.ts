@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { creativeSearch, expandCreativeQuery, groupSearchHits } from "./search.ts";
-import { suggestWaves } from "./schedule.ts";
+import { scheduleItemsFromCampaign, suggestWaves } from "./schedule.ts";
 import { convertFromPlan, CONVERT_TARGETS, briefFlagsForTarget, captionForTarget } from "./convert.ts";
+import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
 import { migrateStatus } from "../studio/status.ts";
 
 test("migrateStatus maps old studio statuses", () => {
@@ -185,4 +186,64 @@ test("expandCreativeQuery adds tea night terms", () => {
     { id: "2", source: "canva", title: "b", subtitle: "", tags: [] },
   ]);
   assert.equal(grouped[0]?.source, "drive");
+});
+
+test("ideaFromHit turns each source into a creation brief", () => {
+  assert.match(
+    ideaFromHit({ id: "1", source: "instagram", title: "坐好", subtitle: "2025-09-18", tags: [] }),
+    /延續這則 IG/,
+  );
+  assert.match(
+    ideaFromHit({ id: "2", source: "canva", title: "茶會", subtitle: "Canva", tags: [] }),
+    /品牌 DNA/,
+  );
+  assert.match(
+    ideaFromHit({ id: "3", source: "drive", title: "晚上茶會", subtitle: "Drive", tags: [] }),
+    /Drive 素材/,
+  );
+  assert.match(
+    ideaFromHit({ id: "4", source: "campaign", title: "浮游禪光", subtitle: "9/24", tags: [] }),
+    /完整宣傳/,
+  );
+  assert.equal(
+    hitActionLabel({ id: "2", source: "canva", title: "茶會", subtitle: "", tags: [] }),
+    "用這個設計生成",
+  );
+  assert.equal(memorySourceFromHit({ id: "4", source: "campaign", title: "x", subtitle: "", tags: [] }), "brand");
+  assert.equal(memorySourceFromHit({ id: "3", source: "drive", title: "x", subtitle: "", tags: [] }), "drive");
+});
+
+test("scheduleItemsFromCampaign maps waves without owners", () => {
+  const waves = suggestWaves({ date: "2026-09-24", type: "light", name: "浮游禪光" });
+  waves[0] = { ...waves[0], copyPreview: "最近是不是很久沒坐好？" };
+  const items = scheduleItemsFromCampaign(
+    {
+      id: "camp_x",
+      name: "浮游禪光",
+      type: "light",
+      date: "2026-09-24",
+      time: "19:30",
+      location: "淡江",
+      tagline: "坐好",
+      description: "",
+      theme: "",
+      studentPain: "",
+      cta: "晚上見",
+      signupUrl: "",
+      coverAssetId: null,
+      relatedAssetIds: [],
+      projectIds: [],
+      waves,
+      createdAt: 1,
+      updatedAt: 1,
+    },
+    "scheduled",
+  );
+  assert.equal(items.length, 8);
+  assert.equal(items[0]?.id, `sch_${waves[0].id}`);
+  assert.equal(items[0]?.status, "scheduled");
+  assert.equal(items[0]?.captionPreview, "最近是不是很久沒坐好？");
+  assert.equal(items.find((row) => row.title.startsWith("今晚"))?.contentKind, "story");
+  assert.ok(items.every((row) => row.campaignId === "camp_x"));
+  assert.ok(items.every((row) => !("assignee" in row) && !("reviewer" in row)));
 });

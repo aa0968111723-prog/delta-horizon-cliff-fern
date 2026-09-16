@@ -8,6 +8,7 @@ export type SearchHit = {
   subtitle: string;
   thumbAssetId?: string;
   tags: string[];
+  url?: string;
 };
 
 function blob(...parts: Array<string | undefined | null>) {
@@ -72,6 +73,7 @@ export function creativeSearch(query: string, input: {
         subtitle: `${camp.date} · ${camp.location}`,
         thumbAssetId: camp.coverAssetId ?? undefined,
         tags: [camp.type, camp.theme].filter(Boolean),
+        url: `/campaigns/${camp.id}`,
       });
     }
   }
@@ -85,6 +87,7 @@ export function creativeSearch(query: string, input: {
         subtitle: new Date(post.postedAt).toISOString().slice(0, 10),
         thumbAssetId: post.assetId,
         tags: [post.mediaType],
+        url: post.permalink,
       });
     }
   }
@@ -98,6 +101,7 @@ export function creativeSearch(query: string, input: {
         subtitle: item.subtitle,
         thumbAssetId: item.thumbAssetId,
         tags: item.tags,
+        url: item.url,
       });
     }
   }

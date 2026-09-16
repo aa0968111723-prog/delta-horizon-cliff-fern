@@ -72,7 +72,10 @@ function mockCopy(data: z.infer<typeof CopyInput>): CopyPack {
       wouldBringFriend: "可以。",
       knowsSignup: "還沒寫怎麼報名。",
       notes: when ? [] : ["補時間地點。"],
-      rewriteHook: "",
+      rewriteHook:
+        data.kind === "emotion"
+          ? "大學生活很自由，但你最近真的有比較快樂嗎？"
+          : "最近是不是連休息都覺得有罪惡感？",
     },
   };
 }

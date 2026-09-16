@@ -77,6 +77,7 @@ export type IgMemoryPost = {
   permalink?: string;
   hook?: string;
   analysis?: string;
+  mediaUrl?: string;
 };
 
 export type MemoryItem = {

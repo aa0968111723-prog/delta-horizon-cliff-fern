@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -128,6 +129,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const attach = useCreative((s) => s.attachProject);
   const patchWave = useCreative((s) => s.patchWave);
+  const upsertCampaign = useCreative((s) => s.upsertCampaign);
   const igPosts = useCreative((s) => s.igPosts);
   const [busy, setBusy] = useState(false);
 
@@ -151,8 +153,8 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
       <p className="mt-3 text-lg">{campaign.tagline}</p>
       <p className="mt-2 text-sm text-muted">{campaign.description}</p>
       <p className="mt-2 text-sm">學生痛點：{campaign.studentPain || "—"}</p>
+      <div className="mt-6 flex flex-wrap gap-2">
       <Button
-        className="mt-6"
         disabled={busy}
         onClick={async () => {
           const brand = brands[0];
@@ -192,6 +194,23 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
       >
         {busy ? "生成中…" : "AI 生成完整宣傳"}
       </Button>
+      <Button
+        variant="secondary"
+        onClick={() => {
+          upsertCampaign({
+            ...campaign,
+            updatedAt: Date.now(),
+            waves: campaign.waves.map((wave) =>
+              wave.status === "published" || wave.status === "done" ? wave : { ...wave, status: "scheduled" },
+            ),
+          });
+          toast.success("已把這檔活動排進日曆");
+          void navigate({ to: "/calendar" });
+        }}
+      >
+        排進日曆
+      </Button>
+      </div>
       <ol className="mt-8 space-y-2">
         {campaign.waves.map((wave) => (
           <li key={wave.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">

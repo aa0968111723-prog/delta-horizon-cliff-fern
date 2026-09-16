@@ -1,10 +1,13 @@
+import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { createFromHit } from "@/components/create/from-hit";
+import { SearchHitCard } from "@/components/search/hit-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getConnectionCapabilities, searchClubDrive } from "@/lib/ai/drive";
-import { disconnectOAuth, searchCanvaWorld, searchInstagramWorld } from "@/lib/ai/oauth";
+import { disconnectOAuth, searchCanvaWorld, syncInstagramMemory } from "@/lib/ai/oauth";
 import { redirectToLoginIfRequired } from "@/lib/app-data/login";
 import { useCreative } from "@/stores/creative-store";
 
@@ -19,13 +22,17 @@ type Caps = {
 };
 
 export function ConnectionCenter() {
+  const navigate = useNavigate();
   const connections = useCreative((s) => s.connections);
   const setConnection = useCreative((s) => s.setConnection);
   const addMemory = useCreative((s) => s.addMemory);
+  const addIgPost = useCreative((s) => s.addIgPost);
+  const memory = useCreative((s) => s.memory);
   const driveFolderQuery = useCreative((s) => s.driveFolderQuery);
   const setDriveFolderQuery = useCreative((s) => s.setDriveFolderQuery);
   const [caps, setCaps] = useState<Caps | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [hitBusy, setHitBusy] = useState(false);
 
   useEffect(() => {
     void getConnectionCapabilities()
@@ -108,6 +115,7 @@ export function ConnectionCenter() {
             subtitle: "Google Drive",
             tags: ["Drive"],
             kind: item.mime ?? "file",
+            url: item.url,
           });
         }
         toast.success("Drive 已同步（官方連接）");
@@ -138,6 +146,7 @@ export function ConnectionCenter() {
               subtitle: item.subtitle,
               tags: item.tags,
               kind: "Canva",
+              url: item.url,
             });
           }
           toast.success("Canva 已同步");
@@ -156,24 +165,39 @@ export function ConnectionCenter() {
           return;
         }
         if (caps.instagramConnected) {
-          const found = await searchInstagramWorld({ data: { query: "茶會 坐好 淡水" } });
+          const found = await syncInstagramMemory();
+          if (!found.ok) {
+            toast.message(found.error);
+            setConnection("instagram", {
+              status: found.connected ? "connected" : "disconnected",
+              detail: found.error,
+            });
+            return;
+          }
           setConnection("instagram", {
             status: "connected",
             lastSyncAt: Date.now(),
             accountName: caps.instagramAccount ?? "Instagram",
-            detail: `已讀取 ${found.items.length} 則貼文`,
+            detail: `已讀取 ${found.posts.length} 則貼文`,
           });
-          for (const item of found.items.slice(0, 8)) {
+          for (const post of found.posts.slice(0, 12)) {
+            addIgPost({
+              ...post,
+              assetId: post.mediaUrl ? "" : "asset_tamsui",
+            });
             addMemory({
-              id: item.id,
+              id: post.id,
               source: "instagram",
-              title: item.title,
-              subtitle: item.subtitle,
-              tags: item.tags,
+              title: post.hook || post.caption.slice(0, 24),
+              subtitle: post.permalink
+                ? `Instagram / ${new Date(post.postedAt).toISOString().slice(0, 10)}`
+                : "Instagram",
+              tags: [post.mediaType],
               kind: "IG",
+              url: post.permalink,
             });
           }
-          toast.success("Instagram 已同步");
+          toast.success("Instagram 已同步進記憶");
           return;
         }
         window.location.assign("/api/oauth/instagram/start");
@@ -238,6 +262,37 @@ export function ConnectionCenter() {
           </li>
         ))}
       </ul>
+      {memory.length ? (
+        <section className="mt-8">
+          <h2 className="text-sm font-medium">最近同步，可直接創作</h2>
+          <ul className="mt-3 space-y-2">
+            {memory.slice(0, 8).map((item) => (
+              <SearchHitCard
+                key={item.id}
+                hit={{
+                  id: item.id,
+                  source: item.source,
+                  title: item.title,
+                  subtitle: item.subtitle,
+                  tags: item.tags,
+                  url: item.url,
+                  thumbAssetId: item.thumbAssetId,
+                }}
+                busy={hitBusy}
+                onCreate={async (hit) => {
+                  setHitBusy(true);
+                  try {
+                    const ok = await createFromHit(hit);
+                    if (ok) void navigate({ to: "/create" });
+                  } finally {
+                    setHitBusy(false);
+                  }
+                }}
+              />
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </main>
   );
 }

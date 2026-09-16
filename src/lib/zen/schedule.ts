@@ -1,6 +1,6 @@
 import { uid } from "../studio/ids.ts";
-import type { ProjectStatus } from "../studio/types.ts";
-import type { ClubCampaign, CampaignType, CampaignWave, WaveKind } from "./types.ts";
+import type { ContentKind, ProjectStatus } from "../studio/types.ts";
+import type { ClubCampaign, CampaignType, CampaignWave, ScheduleItem, WaveKind } from "./types.ts";
 
 const DEFAULT_OFFSETS: Record<WaveKind, number> = {
   tease: -14,
@@ -64,6 +64,31 @@ export function rhythmHint(items: { contentKind: string }[]) {
     return "連續活動廣告會讓帳號看起來一直在招生。下一則改生活、互動或社員故事。";
   }
   return "宣傳 → 生活 → 互動 → 活動 → 知識 → 故事 → 倒數，讓節奏自然。";
+}
+
+export function contentKindForWave(kind: WaveKind): ContentKind {
+  if (kind === "day-of") return "story";
+  if (kind === "key-visual") return "carousel";
+  if (kind === "recap") return "recap";
+  if (kind === "countdown") return "countdown";
+  return "ig-post";
+}
+
+export function scheduleItemsFromCampaign(
+  campaign: ClubCampaign,
+  statusOverride?: ProjectStatus,
+): ScheduleItem[] {
+  return campaign.waves.map((wave) => ({
+    id: `sch_${wave.id}`,
+    title: wave.title,
+    contentKind: contentKindForWave(wave.kind),
+    status: statusOverride ?? wave.status,
+    scheduledAt: wave.scheduledAt,
+    publishedAt: null,
+    projectId: wave.projectId,
+    campaignId: campaign.id,
+    captionPreview: wave.copyPreview || campaign.tagline,
+  }));
 }
 
 export function emptyCampaign(partial?: Partial<ClubCampaign>): ClubCampaign {

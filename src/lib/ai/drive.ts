@@ -4,7 +4,7 @@ import { z } from "zod";
 export type DriveSearchResult =
   | {
       ok: true;
-      items: { id: string; name: string; mime?: string; snippet?: string }[];
+      items: { id: string; name: string; mime?: string; snippet?: string; url?: string }[];
     }
   | { ok: false; error: string; loginRequired?: boolean; loginUrl?: string };
 

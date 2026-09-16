@@ -5,9 +5,11 @@ import { ArrowRight, Images, Plus, Search, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreateLaunchSheet } from "@/components/create/create-sheet";
+import { createFromHit } from "@/components/create/from-hit";
 import { PackResult } from "@/components/create/pack-result";
 import { NewProjectDialog } from "@/components/dashboard/new-project-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SearchHitCard } from "@/components/search/hit-card";
 import { ProjectCard } from "@/components/shared/project-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +44,7 @@ export function HomePage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
+  const [hitBusy, setHitBusy] = useState(false);
   const [remoteHits, setRemoteHits] = useState<SearchHit[]>([]);
   const season = seasonContext();
   const featured = campaigns.find((c) => c.id === "camp_floating_light") ?? campaigns[0];
@@ -189,10 +192,19 @@ export function HomePage() {
               <p className="text-[11px] tracking-wide text-muted uppercase">{sourceLabel(group.source)}</p>
               <ul className="mt-2 grid gap-2 sm:grid-cols-2">
                 {group.items.slice(0, 4).map((hit) => (
-                  <li key={`${hit.source}-${hit.id}`} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
-                    <p className="mt-1 text-sm font-medium">{hit.title}</p>
-                    <p className="text-xs text-muted">{hit.subtitle}</p>
-                  </li>
+                  <SearchHitCard
+                    key={`${hit.source}-${hit.id}`}
+                    hit={hit}
+                    busy={hitBusy}
+                    onCreate={(item) => {
+                      setHitBusy(true);
+                      void createFromHit(item)
+                        .then((ok) => {
+                          if (ok) void navigate({ to: "/create" });
+                        })
+                        .finally(() => setHitBusy(false));
+                    }}
+                  />
                 ))}
               </ul>
             </div>
@@ -237,11 +249,13 @@ export function HomePage() {
             [
               ["生成 IG 貼文", "/create"],
               ["生成圖片", "/create/image"],
+              ["從一張圖片開始", "/create/image"],
               ["生成 Story", "/create"],
               ["生成 Carousel", "/create"],
               ["生成 Reels", "/create"],
               ["建立活動", "/campaigns"],
               ["從 Drive 素材", "/connect"],
+              ["從 Canva 設計", "/connect"],
               ["從以前 IG", "/instagram"],
               ["靈感研究", "/inspire"],
             ] as const
