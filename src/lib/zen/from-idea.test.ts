@@ -14,6 +14,12 @@ test("parseEventIdea understands next-week tea night", () => {
   assert.equal(parsed.location, "淡江大學淡水校園");
 });
 
+test("parseEventIdea strips I-want filler from tea promo", () => {
+  const parsed = parseEventIdea("我要宣傳茶會", now);
+  assert.equal(parsed.type, "tea");
+  assert.equal(parsed.name, "茶會");
+});
+
 test("parseEventIdea keeps floating light date", () => {
   const parsed = parseEventIdea("09/24 浮游禪光", now);
   assert.equal(parsed.type, "light");

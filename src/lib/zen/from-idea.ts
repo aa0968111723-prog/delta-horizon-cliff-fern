@@ -48,16 +48,19 @@ export function parseEventIdea(idea: string, now = new Date()): ParsedEventIdea 
 
   let name = text
     .replace(/下週|下周|下星期|今晚|今天|明天/g, " ")
-    .replace(/有一場|幫我做|新的|宣傳|完整/g, " ")
+    .replace(/有一場|幫我做|請幫我|我要|我想|新的|宣傳|完整/g, " ")
     .replace(/(\d{1,2})\s*[\/月.]\s*(\d{1,2})日?/g, " ")
     .replace(/[，。,.!?！？]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (/浮游禪光/.test(text)) name = "浮游禪光";
-  else if (!name || name.length > 24) {
+  else if (type === "tea" && /茶會/.test(text)) {
+    const leftover = name.replace(/茶會/g, "").trim();
+    name = leftover.length > 6 ? name : "茶會";
+  } else if (!name || name.length > 24) {
     name = type === "tea" ? "茶會" : type === "light" ? "浮游禪光" : name.slice(0, 16) || "活動";
   }
-  if (type === "tea" && /茶會/.test(name) === false && name.length <= 2) name = "茶會";
+  if (type === "tea" && /茶會/.test(name) === false && name.length <= 6) name = "茶會";
 
   return {
     name,

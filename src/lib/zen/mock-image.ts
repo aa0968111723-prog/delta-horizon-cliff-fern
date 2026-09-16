@@ -27,7 +27,7 @@ export function mockStudioSvg(input: {
   const headline = (input.headline || (tea ? "來坐一下\n不用先懂禪" : "最近是不是\n很久沒坐好")).slice(0, 40);
   const lines = headline.split(/\n/).filter(Boolean).slice(0, 3);
   const sub = esc((input.subhead || (tea ? "茶會 · 淡水校園" : light ? "浮游禪光" : "淡江禪學社")).slice(0, 28));
-  const y0 = Math.round(h * 0.62);
+  const y0 = Math.round(h * 0.48);
   const text = lines
     .map((line, i) => `<tspan x="96" dy="${i === 0 ? 0 : 92}">${esc(line)}</tspan>`)
     .join("");
