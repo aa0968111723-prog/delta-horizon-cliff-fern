@@ -703,8 +703,8 @@ export function CreateStudio({
             <p className="mt-1 text-sm">{pack.studentContext}</p>
             <p className="mt-3 font-display text-2xl">「{pack.plan.hook}」</p>
             <div className="mt-3 flex flex-wrap gap-1">
-              {pack.sources.map((s) => (
-                <span key={`${s.source}-${s.label}`} className="rounded-full bg-surface-2 px-2 py-1 text-xs text-muted">
+              {pack.sources.map((s, index) => (
+                <span key={`${s.source}-${s.id ?? s.label}-${index}`} className="rounded-full bg-surface-2 px-2 py-1 text-xs text-muted">
                   {s.label}
                 </span>
               ))}

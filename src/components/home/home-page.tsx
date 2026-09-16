@@ -272,14 +272,28 @@ export function HomePage() {
         </div>
         <ul className="mt-3 space-y-2">
           {scheduled.slice(0, 5).map((item) => (
-            <li key={item.id} className="flex items-center justify-between rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
-              <div>
-                <p className="text-sm">{item.title}</p>
-                <p className="text-xs text-muted">
-                  {item.date} · {item.kind === "event" ? "活動" : contentKindLabel(item.kind)}
-                </p>
-              </div>
-              <span className="text-xs text-subtle">{STATUS_META[item.status].label}</span>
+            <li key={item.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+              {item.projectId ? (
+                <Link to="/ig" search={{ item: item.projectId }} className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm">{item.title}</p>
+                    <p className="text-xs text-muted">
+                      {item.date} · {item.kind === "event" ? "活動" : contentKindLabel(item.kind)}
+                    </p>
+                  </div>
+                  <span className="text-xs text-subtle">{STATUS_META[item.status].label}</span>
+                </Link>
+              ) : (
+                <Link to="/calendar" search={{ day: item.date }} className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm">{item.title}</p>
+                    <p className="text-xs text-muted">
+                      {item.date} · {item.kind === "event" ? "活動" : contentKindLabel(item.kind)}
+                    </p>
+                  </div>
+                  <span className="text-xs text-subtle">{STATUS_META[item.status].label}</span>
+                </Link>
+              )}
             </li>
           ))}
           {scheduled.length === 0 ? <p className="text-sm text-muted">還沒有排程。生成後可以丟進月曆。</p> : null}

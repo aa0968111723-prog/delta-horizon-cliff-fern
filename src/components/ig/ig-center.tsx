@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { useMemo, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { PublishButton } from "@/components/create/publish-button";
@@ -10,12 +10,15 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { clubDnaFromMemory } from "@/lib/club/dna";
 import { clubInsightsFromPosts } from "@/lib/club/insights";
 import { analyzeIgMemoryPost } from "@/lib/club/ig-analyze";
+import { igGridSlots, upcomingSlotId, type IgGridSlot } from "@/lib/creative/ig-feed";
+import { isoFromMs } from "@/lib/creative/schedule";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { ArtboardView } from "@/components/studio/artboard-view";
 import { cn } from "@/lib/utils";
+import type { BrandKit, Project } from "@/lib/studio/types";
 
-export function IgCenter() {
+export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
   const igPosts = useCreative((s) => s.igPosts);
   const analyzeIg = useCreative((s) => s.analyzeIg);
   const projects = useStudio((s) => s.projects);
@@ -24,20 +27,25 @@ export function IgCenter() {
   const urls = useAssetUrls(assets.map((a) => a.id));
   const brand = brands[0];
   const navigate = useNavigate();
-  const [activeId, setActiveId] = useState<string | null>(igPosts[0]?.id ?? null);
-  const active = igPosts.find((p) => p.id === activeId);
-  const gridProjects = useMemo(() => projects.filter((p) => p.status !== "idea").slice(0, 5), [projects]);
-  const queue = useMemo(
-    () => projects.filter((p) => p.status === "scheduled" || p.status === "done"),
-    [projects],
+  const slots = useMemo(() => igGridSlots({ projects, posts: igPosts }), [projects, igPosts]);
+  const [activeId, setActiveId] = useState<string | null>(
+    focusProjectId ? upcomingSlotId(focusProjectId) : slots[0]?.id ?? null,
   );
+  const active = slots.find((slot) => slot.id === activeId) ?? slots[0];
+  const activeProject = active?.projectId ? projects.find((item) => item.id === active.projectId) : undefined;
   const memory = useCreative((s) => s.memory);
   const dna = clubDnaFromMemory({ igPosts, memory });
   const insights = clubInsightsFromPosts(igPosts);
 
+  useEffect(() => {
+    if (focusProjectId) setActiveId(upcomingSlotId(focusProjectId));
+  }, [focusProjectId]);
+
   function analyze() {
-    if (!active) return;
-    analyzeIg(active.id, analyzeIgMemoryPost(active));
+    if (!active?.postId) return;
+    const post = igPosts.find((item) => item.id === active.postId);
+    if (!post) return;
+    analyzeIg(post.id, analyzeIgMemoryPost(post));
     toast.success("已用淡江學生視角看過這篇");
   }
 
@@ -45,73 +53,66 @@ export function IgCenter() {
     <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
       <p className="text-xs tracking-[0.18em] text-muted uppercase">Instagram Center</p>
       <h1 className="mt-1 font-display text-3xl">貼文長得像自己的帳號</h1>
-      <p className="mt-2 text-sm text-muted">Grid、Caption、歷史、DNA。連接官方 API 後會讀真實貼文；現在先用社團 Content Memory。</p>
+      <p className="mt-2 text-sm text-muted">
+        即將發的排在 Grid 最前面。連接官方 API 後會讀真實貼文；現在先用社團 Content Memory。
+      </p>
 
       <DuePublishBar compact />
 
-      {queue.length ? (
-        <section className="mt-8 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
-          <h2 className="text-sm font-medium">準備發布</h2>
-          <p className="mt-1 text-xs text-muted">下載檔案不算發布。標記後會進 Content Memory，下次生成會參考。</p>
-          <ul className="mt-3 space-y-3">
-            {queue.map((project) => (
-              <li key={project.id} className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm">{project.name}</p>
-                  <p className="text-xs text-muted">{project.contentKind}</p>
-                </div>
-                <PublishButton
-                  projectId={project.id}
-                  campaignId={project.campaignId ?? undefined}
-                  title={project.name}
-                  variant="secondary"
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
       <h2 className="mt-8 text-sm font-medium">Feed Preview</h2>
+      <p className="mt-1 text-xs text-muted">點即將發的格子可以發到 IG，或先標記進記憶。下載檔案不算發布。</p>
       <div className="mt-3 grid grid-cols-3 gap-1 overflow-hidden rounded-2xl">
-        {igPosts.map((post) => {
-          const src = post.assetIds[0] ? urls[post.assetIds[0]] : post.mediaUrl ?? "";
-          return (
-            <button
-              key={post.id}
-              type="button"
-              onClick={() => setActiveId(post.id)}
-              className={cn("aspect-square bg-surface-2", activeId === post.id && "ring-2 ring-accent")}
-            >
-              {src ? <img src={src} alt="" className="size-full object-cover" /> : <span className="block size-full bg-linear-to-br from-surface-2 to-bg" />}
-            </button>
-          );
-        })}
-        {gridProjects.map((project) => {
-          const board = project.artboards[project.activeFormatId];
-          if (!board || !brand) return null;
-          return (
-            <div key={project.id} className="flex aspect-square items-center justify-center bg-bg">
-              <ArtboardView artboard={board} brand={brand} urls={urls} width={120} />
-            </div>
-          );
-        })}
+        {slots.slice(0, 18).map((slot) => (
+          <GridCell
+            key={slot.id}
+            slot={slot}
+            active={active?.id === slot.id}
+            brand={brand}
+            project={slot.projectId ? projects.find((item) => item.id === slot.projectId) : undefined}
+            urls={urls}
+            onSelect={() => setActiveId(slot.id)}
+          />
+        ))}
       </div>
 
       {active ? (
         <section className="mt-8 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
           <p className="text-xs text-muted">
+            {active.origin === "upcoming" ? "即將 · " : ""}
             {format(active.takenAt, "yyyy.MM.dd", { locale: zhTW })} · {active.mediaType}
           </p>
           <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed">{active.caption}</pre>
-          <p className="mt-3 text-xs text-muted">
-            收藏 {active.saves ?? "—"} · 留言 {active.comments ?? "—"} · 觸及 {active.reach ?? "—"}
-            {active.shares != null ? ` · 分享 ${active.shares}` : ""}
-          </p>
+          {active.origin === "published" ? (
+            <p className="mt-3 text-xs text-muted">
+              收藏 {active.saves ?? "—"} · 留言 {active.comments ?? "—"} · 觸及 {active.reach ?? "—"}
+              {active.shares != null ? ` · 分享 ${active.shares}` : ""}
+            </p>
+          ) : (
+            <p className="mt-3 text-xs text-muted">排在 {isoFromMs(active.takenAt).slice(5).replace("-", "/")} · 還沒進帳號</p>
+          )}
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button className="min-h-11" onClick={analyze}>
-              AI 分析
-            </Button>
+            {active.origin === "published" ? (
+              <Button className="min-h-11" onClick={analyze}>
+                AI 分析
+              </Button>
+            ) : (
+              <PublishButton
+                projectId={active.projectId}
+                campaignId={activeProject?.campaignId ?? undefined}
+                title={active.title}
+                caption={active.caption}
+                variant="secondary"
+                size="default"
+                className="rounded-full"
+              />
+            )}
+            {active.projectId ? (
+              <Button asChild variant="secondary" className="min-h-11">
+                <Link to="/studio/$projectId" params={{ projectId: active.projectId }}>
+                  編輯
+                </Link>
+              </Button>
+            ) : null}
             <Button
               variant="secondary"
               className="min-h-11"
@@ -163,5 +164,46 @@ export function IgCenter() {
         </ul>
       </section>
     </main>
+  );
+}
+
+function GridCell({
+  slot,
+  active,
+  brand,
+  project,
+  urls,
+  onSelect,
+}: {
+  slot: IgGridSlot;
+  active: boolean;
+  brand: BrandKit | undefined;
+  project: Project | undefined;
+  urls: Record<string, string>;
+  onSelect: () => void;
+}) {
+  const src = slot.assetIds[0] ? urls[slot.assetIds[0]] : slot.mediaUrl ?? "";
+  const board = project?.artboards[project.activeFormatId];
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn("relative aspect-square bg-surface-2", active && "ring-2 ring-accent")}
+    >
+      {slot.origin === "upcoming" && board && brand ? (
+        <span className="flex size-full items-center justify-center bg-bg">
+          <ArtboardView artboard={board} brand={brand} urls={urls} width={120} />
+        </span>
+      ) : src ? (
+        <img src={src} alt="" className="size-full object-cover" />
+      ) : (
+        <span className="flex size-full items-end bg-linear-to-br from-surface-2 to-bg p-2 text-left">
+          <span className="line-clamp-3 text-[11px] leading-snug">{slot.title}</span>
+        </span>
+      )}
+      {slot.origin === "upcoming" ? (
+        <span className="absolute bottom-1 left-1 rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-accent-fg">即將</span>
+      ) : null}
+    </button>
   );
 }

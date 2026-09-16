@@ -19,7 +19,7 @@ export function CreativeHits({
           <p className="text-xs tracking-[0.12em] text-muted uppercase">{sourceGroupLabel(group.source)}</p>
           <ul className="mt-1 space-y-1">
             {group.items.slice(0, 4).map((hit) => (
-              <li key={hit.id} className="flex items-start gap-2">
+              <li key={`${hit.source}-${hit.id}`} className="flex items-start gap-2">
                 {hit.href && !onPick ? (
                   <a href={hit.href} className="min-w-0 flex-1 rounded-xl px-2 py-1.5 hover:bg-surface-2">
                     <HitBody hit={hit} />

@@ -21,6 +21,9 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
   const [cursor, setCursor] = useState(() => (focusDay ? new Date(`${focusDay}T12:00:00+08:00`) : new Date()));
   const [view, setView] = useState<"month" | "week" | "agenda">("agenda");
   const items = calendarFrom(campaigns, projects);
+  const focusProjectId = focusDay
+    ? items.find((item) => item.date === focusDay && item.kind !== "event" && item.projectId)?.projectId
+    : undefined;
 
   useEffect(() => {
     if (!focusDay) return;
@@ -77,6 +80,18 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
       {focusDay ? (
         <p className="mt-3 rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]">
           這次排在 {focusDay.slice(5).replace("-", "/")}。Agenda 會亮出來，週視圖從這週看。
+          {focusProjectId ? (
+            <>
+              {" "}
+              <Link
+                to="/ig"
+                search={{ item: focusProjectId }}
+                className="text-accent underline-offset-2 hover:underline"
+              >
+                去 IG 看 Grid
+              </Link>
+            </>
+          ) : null}
         </p>
       ) : null}
       <div className="mt-4 flex flex-wrap gap-2">
@@ -223,6 +238,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
                         <Button size="sm" variant="ghost" onClick={() => extend(item)}>
                           AI 延伸
                         </Button>
+                        <IgPreviewLink projectId={item.projectId} />
                         {item.kind !== "event" && item.status !== "published" ? (
                           <PublishButton
                             campaignId={item.campaignId}
@@ -272,6 +288,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
                             複製
                           </Button>
                         ) : null}
+                        <IgPreviewLink projectId={item.projectId} />
                         {item.kind !== "event" && item.status !== "published" ? (
                           <PublishButton
                             campaignId={item.campaignId}
@@ -334,6 +351,7 @@ function AgendaRow({
             </Link>
           </Button>
         ) : null}
+        <IgPreviewLink projectId={item.projectId} />
         {item.kind !== "event" && item.status !== "published" ? (
           <PublishButton
             campaignId={item.campaignId}
@@ -344,5 +362,19 @@ function AgendaRow({
         ) : null}
       </div>
     </li>
+  );
+}
+
+function IgPreviewLink({ projectId }: { projectId?: string }) {
+  return (
+    <Button asChild size="sm" variant="ghost">
+      {projectId ? (
+        <Link to="/ig" search={{ item: projectId }}>
+          IG Preview
+        </Link>
+      ) : (
+        <Link to="/ig">IG Preview</Link>
+      )}
+    </Button>
   );
 }
