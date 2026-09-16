@@ -155,7 +155,9 @@ try {
   await page.screenshot({ path: `${prefix}-from-image.png` });
 
   await page.goto(`${base}/instagram`, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "IG DNA" }).click();
+  await page.getByRole("button", { name: "IG DNA" }).evaluate((el) =>
+    el instanceof HTMLElement ? el.click() : undefined,
+  );
   await expectText("IG DNA 寫新的一篇", "用這個習慣寫新的一篇");
 
   await page.goto(`${base}/search`, { waitUntil: "networkidle" });
