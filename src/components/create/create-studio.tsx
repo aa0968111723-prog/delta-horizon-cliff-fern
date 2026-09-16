@@ -13,7 +13,7 @@ import { applyStudentRevisions } from "@/lib/ai/pack-mock";
 import { generateCreativePack, type CreativePack } from "@/lib/ai/pack";
 import { analyzeImage, type VisionReport } from "@/lib/ai/vision";
 import { clubDnaFromMemory, dnaPromptBlock } from "@/lib/club/dna";
-import { clubInsightsFromPosts } from "@/lib/club/insights";
+import { clubInsightsFromPosts, insightsPromptBlock } from "@/lib/club/insights";
 import { gatherCreativeMemory, createCanvaDesign } from "@/lib/connect/oauth";
 import { inferCampaignType, inferEventDate } from "@/lib/creative/schedule";
 import { searchCreative } from "@/lib/creative/search";
@@ -136,7 +136,7 @@ export function CreateStudio({
           location: campaign?.location,
           oneLiner: campaign?.oneLiner,
           sources,
-          dnaNotes: dnaPromptBlock(dna).slice(0, 2400),
+          dnaNotes: `${dnaPromptBlock(dna)}\n${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}`.slice(0, 2400),
           inspirationNotes: useCreative
             .getState()
             .inspirations.slice(0, 4)
@@ -178,12 +178,12 @@ export function CreateStudio({
           kind: mode,
           when: campaign ? `${campaign.date} ${campaign.time}` : undefined,
           where: campaign?.location,
-          insightNotes: dnaPromptBlock(
+          insightNotes: `${insightsPromptBlock(clubInsightsFromPosts(useCreative.getState().igPosts))}\n${dnaPromptBlock(
             clubDnaFromMemory({
               igPosts: useCreative.getState().igPosts,
               memory: useCreative.getState().memory,
             }),
-          ).slice(0, 1500),
+          )}`.slice(0, 1500),
         },
       });
       if (result.ok) setCopies(result.copies);

@@ -3,6 +3,7 @@ import { zhTW } from "date-fns/locale";
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
@@ -61,6 +62,10 @@ export function IgCenter() {
       <p className="text-xs tracking-[0.18em] text-muted uppercase">Instagram Center</p>
       <h1 className="mt-1 font-display text-3xl">貼文長得像自己的帳號</h1>
       <p className="mt-2 text-sm text-muted">Grid、Caption、歷史、DNA。連接官方 API 後會讀真實貼文；現在先用社團 Content Memory。</p>
+
+      <div className="mt-6">
+        <DuePublishBar compact />
+      </div>
 
       {queue.length ? (
         <section className="mt-8 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">

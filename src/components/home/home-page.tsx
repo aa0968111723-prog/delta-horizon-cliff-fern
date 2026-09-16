@@ -8,7 +8,9 @@ import { CreativeHits } from "@/components/search/creative-hits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { daysUntil, academicMoment } from "@/lib/club/season";
+import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { clubDnaFromMemory } from "@/lib/club/dna";
+import { clubInsightsFromPosts } from "@/lib/club/insights";
 import { searchCreative } from "@/lib/creative/search";
 import { calendarFrom, useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -56,7 +58,9 @@ export function HomePage() {
   const recent = [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6);
   const strong = [...igPosts].sort((a, b) => (b.saves ?? 0) - (a.saves ?? 0)).slice(0, 3);
   const dna = clubDnaFromMemory({ igPosts, memory });
+  const insights = clubInsightsFromPosts(igPosts);
   const featuredHook = dna.winningHooks[0] || "最近是不是很久沒有好好坐下來？";
+  const latestPublished = [...igPosts].sort((a, b) => b.takenAt - a.takenAt)[0];
 
   const featuredProject = projects.find((p) => p.id === featured?.projectIds[0]);
   const featuredBoard = featuredProject?.artboards[featuredProject.activeFormatId];
@@ -106,6 +110,10 @@ export function HomePage() {
           <CreativeHits hits={hits} />
         </div>
       ) : null}
+
+      <div className="mt-6">
+        <DuePublishBar />
+      </div>
 
       {featured ? (
         <section className="mt-8 overflow-hidden rounded-3xl bg-surface shadow-[var(--shadow-artboard)]">
@@ -180,6 +188,10 @@ export function HomePage() {
             <p className="mt-3 text-xs text-muted">
               研究抽象：{inspirations[0].hookShape} → {inspirations[0].clubTurn}
             </p>
+          ) : null}
+          <p className="mt-3 text-xs text-muted">下次生成會記得：{insights.mixLesson}</p>
+          {latestPublished ? (
+            <p className="mt-1 text-xs text-subtle">最近一篇：{latestPublished.caption.split("\n")[0]}</p>
           ) : null}
         </div>
         <div className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">

@@ -2,6 +2,7 @@ import { addDays, format, startOfMonth, startOfWeek } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { contentKindLabel } from "@/lib/studio/content";
@@ -77,6 +78,10 @@ export function CalendarPage() {
         <Button asChild size="sm" variant="secondary">
           <Link to="/create">快速新增</Link>
         </Button>
+      </div>
+
+      <div className="mt-6">
+        <DuePublishBar />
       </div>
 
       {view === "agenda" ? (
@@ -249,6 +254,9 @@ function AgendaRow({
       <p className="text-xs text-subtle">
         {item.kind === "event" ? "活動" : contentKindLabel(item.kind)} · {STATUS_META[item.status].label}
         {item.publishedAt ? ` · 實際發布 ${format(item.publishedAt, "M/d HH:mm", { locale: zhTW })}` : ""}
+        {item.kind !== "event" && item.status !== "published" && item.date <= format(new Date(), "yyyy-MM-dd")
+          ? " · 該發了"
+          : ""}
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
         <Button size="sm" variant="ghost" onClick={onExtend}>

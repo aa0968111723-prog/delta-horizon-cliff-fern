@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { suggestWaves, isoFromMs } from "@/lib/creative/schedule";
+import { mergeIgPosts } from "@/lib/creative/ig-memory";
 import { applyMarkPublished } from "@/lib/creative/publish-flow";
 import {
   SEED_CAMPAIGNS,
@@ -200,14 +201,9 @@ export const useCreative = create<CreativeState>()(
         })),
       addMemory: (item) => set((s) => ({ memory: [item, ...s.memory.filter((m) => m.id !== item.id)] })),
       ingestIgPosts: (posts) =>
-        set((s) => {
-          const byId = new Map(s.igPosts.map((post) => [post.id, post]));
-          for (const post of posts) {
-            const prev = byId.get(post.id);
-            byId.set(post.id, prev ? { ...prev, ...post, analysis: post.analysis ?? prev.analysis } : post);
-          }
-          return { igPosts: [...byId.values()].sort((a, b) => b.takenAt - a.takenAt) };
-        }),
+        set((s) => ({
+          igPosts: mergeIgPosts(s.igPosts, posts),
+        })),
       analyzeIg: (id, analysis) =>
         set((s) => ({
           igPosts: s.igPosts.map((p) => (p.id === id ? { ...p, analysis } : p)),
