@@ -37,7 +37,7 @@ function mockCopy(data: z.infer<typeof CopyInput>): CopyPack {
                   : "最近是不是很久沒有好好坐下來？";
   const when = data.schedule || "";
   const where = data.location || "淡江大學淡水校園";
-  const event = data.eventName || data.idea;
+  const event = data.eventName?.trim() || (data.idea.trim() === hook ? "今晚" : data.idea.trim());
   const signup = data.signupUrl?.trim();
   const angleLine = data.angle ? `${data.angle}\n\n` : "";
   const body = `${angleLine}${data.idea.trim()}\n\n不是要你突然變得很懂禪。${when ? `\n${when}，${where}。` : `\n${where}。`}\n找一個朋友一起來也行。${signup ? `\n報名：${signup}` : ""}`;
