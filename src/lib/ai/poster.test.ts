@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { directionPosterSvg, encodeUtf8Base64, mockPosterImage, wrapCjk, xmlEscape } from "./poster.ts";
+import { atmospherePosterSvg, directionPosterSvg, encodeUtf8Base64, mockPosterImage, reelsAtmosphereInput, wrapCjk, xmlEscape } from "./poster.ts";
 
 test("directionPosterSvg keeps the student headline and IG 4:5 size", () => {
   const svg = directionPosterSvg({
@@ -73,6 +73,37 @@ test("mockPosterImage is a usable SVG data payload", () => {
   assert.match(svg, /先坐下來/);
   assert.match(svg, /height="1920"/);
   assert.doesNotMatch(svg, /禪風海報/);
+});
+
+test("atmosphere poster keeps turtle and light, and does not burn the student headline", () => {
+  const svg = directionPosterSvg({
+    headline: "可以自己來？",
+    subhead: "浮游禪光",
+    name: "方向 A · 淡水夜",
+    palette: "靜水、琥珀點",
+    width: 1080,
+    height: 1920,
+    atmosphere: true,
+    variation: "mood",
+  });
+  assert.match(svg, /width="1080"/);
+  assert.match(svg, /height="1920"/);
+  assert.match(svg, /data-turtle="龜龜"/);
+  assert.match(svg, /氣氛畫面/);
+  assert.doesNotMatch(svg, /<text[\s>]/);
+  assert.doesNotMatch(svg, /可以自己來/);
+  assert.doesNotMatch(svg, /浮游禪光/);
+  assert.doesNotMatch(svg, /方向 A/);
+  assert.doesNotMatch(svg, /淡江禪學社/);
+  const still = atmospherePosterSvg({
+    headline: "最近是不是很久沒有好好坐下來？",
+    width: 1080,
+    height: 1920,
+  });
+  assert.doesNotMatch(still, /<text[\s>]/);
+  assert.equal(reelsAtmosphereInput().atmosphere, true);
+  assert.equal(reelsAtmosphereInput().width, 1080);
+  assert.equal(reelsAtmosphereInput().height, 1920);
 });
 
 test("encodeUtf8Base64 round-trips a student hook without Node-only callers", () => {

@@ -98,3 +98,13 @@ test("captionFromCopyPack does not leak brief form labels into the calendar", ()
   assert.equal(caption.match(/可以自己來？/g)?.length, 1);
   assert.doesNotMatch(caption, /一句介紹|學生痛點|主題：|這次看點/);
 });
+
+test("convertPlan threads and line stay copy-to-app posts, not a campaign dump", () => {
+  const plan = buildMockPlan(zenBrief);
+  const threads = convertPlan(plan, "threads");
+  const line = convertPlan(plan, "line");
+  assert.match(threads.items[0] ?? "", /[？?]|坐下來|晚上/);
+  assert.doesNotMatch(threads.items[0] ?? "", /誠摯邀請|負責人|審核|Assignee/);
+  assert.match(line.items[0] ?? "", /浮游禪光/);
+  assert.doesNotMatch(line.items[0] ?? "", /誠摯邀請|審核人/);
+});

@@ -136,17 +136,19 @@ export function ImageStudioPage() {
       const nextFormat = formatOverride ?? format;
       const spec = formatById(nextFormat);
       const prompt = kind ? varyImagePrompt(dir.prompt, kind) : dir.prompt;
+      const atmosphere = nextFormat === "reels-cover";
       let payload = {
         imageBase64: encodeUtf8Base64(
           directionPosterSvg({
-            headline: dir.headline,
-            subhead: dir.subhead,
-            concept: dir.concept,
+            headline: atmosphere ? "" : dir.headline,
+            subhead: atmosphere ? undefined : dir.subhead,
+            concept: atmosphere ? undefined : dir.concept,
             palette: dir.palette,
-            name: dir.name,
+            name: atmosphere ? undefined : dir.name,
             width: spec.width,
             height: spec.height,
             variation: kind,
+            atmosphere,
           }),
         ),
         mime: "image/svg+xml",
@@ -156,12 +158,13 @@ export function ImageStudioPage() {
           data: {
             prompt,
             format: toImageFormat(nextFormat),
-            headline: dir.headline,
-            subhead: dir.subhead,
+            headline: atmosphere ? undefined : dir.headline,
+            subhead: atmosphere ? undefined : dir.subhead,
             palette: dir.palette,
             name: dir.name,
             variation: kind,
             memoryHint: composeMemoryHint([learning.promptBlock, dna.promptBlock]),
+            atmosphere,
           },
         });
         if (result.ok) payload = { imageBase64: result.imageBase64, mime: result.mime };

@@ -139,6 +139,7 @@ const ImageGenInput = z.object({
   variation: z.enum(["composition", "mood", "background", "style", "text"]).optional(),
   forceMock: z.boolean().optional(),
   memoryHint: z.string().max(1200).optional(),
+  atmosphere: z.boolean().optional(),
 });
 
 function parseImageGen(input: unknown) {
@@ -152,15 +153,17 @@ function parseImageGen(input: unknown) {
 export function mockStudioImage(data: z.infer<typeof ImageGenInput>): ImageGenResult {
   const format = data.format ?? "feed-portrait";
   const spec = formatById(format);
+  const atmosphere = data.atmosphere === true || format === "reels-cover";
   const poster = mockPosterImage({
     prompt: data.prompt,
-    headline: data.headline || "最近是不是很久沒坐好",
-    subhead: data.subhead,
+    headline: atmosphere ? "" : data.headline || "最近是不是很久沒坐好",
+    subhead: atmosphere ? undefined : data.subhead,
     palette: data.palette,
-    name: data.name,
+    name: atmosphere ? undefined : data.name,
     width: spec.width,
     height: spec.height,
-    variation: data.variation,
+    variation: data.variation ?? (atmosphere ? "mood" : undefined),
+    atmosphere,
   });
   return { ok: true, adapter: "mock", ...poster };
 }
@@ -184,7 +187,7 @@ export const generateStudioImage = createServerFn({ method: "POST" })
       },
       body: JSON.stringify({
         model: "grok-imagine-image",
-        prompt: `${data.prompt}. Aspect ${aspect}. ${data.memoryHint ? `Club memory: ${data.memoryHint.slice(0, 180)}.` : ""} Airy Tamkang student life, not temple, not luxury brand, not stock influencer.`,
+        prompt: `${data.prompt}. Aspect ${aspect}. ${data.memoryHint ? `Club memory: ${data.memoryHint.slice(0, 180)}.` : ""}${data.format === "reels-cover" || data.atmosphere ? " Absolutely no Chinese or English words, logos, or captions in the image; empty lower third." : ""} Airy Tamkang student life, not temple, not luxury brand, not stock influencer.`,
         n: 1,
         resolution: "1k",
         response_format: "b64_json",

@@ -1,6 +1,6 @@
 import { encodeReelsFromPng } from "@/lib/ai/reels-encode";
 import { saveReelsFilm, videoBase64FromAsset } from "@/lib/ai/reels-persist";
-import { directionPosterSvg, encodeUtf8Base64 } from "@/lib/ai/poster";
+import { directionPosterSvg, encodeUtf8Base64, reelsAtmosphereInput } from "@/lib/ai/poster";
 import { pullCanvaDesign } from "@/lib/connect/canva";
 import { canvaSize } from "@/lib/connect/canva-format";
 import { extraFromIgMemory, insightsLearnPatch } from "@/lib/connect/insights-learn";
@@ -155,13 +155,18 @@ export async function runPublishItem(item: ScheduleItem): Promise<PublishItemRes
   if (format === "reels") {
     videoBase64 = await videoBase64FromAsset(item.videoAssetId);
     if (!videoBase64) {
-      if (!slides[0]) {
+      const atmosphere = await pngFromBase64(
+        encodeUtf8Base64(directionPosterSvg(reelsAtmosphereInput())),
+        "image/svg+xml",
+        "reels",
+      );
+      if (!atmosphere) {
         return persistMarkedPublish(
           item,
           await withInsights({ note: "這則 Reels 還沒有畫面。腳本已複製，可在 IG App 發。", marked: true }),
         );
       }
-      const encoded = await encodeReelsFromPng(slides[0], pickReelsScript(item), item.caption || item.title);
+      const encoded = await encodeReelsFromPng(atmosphere, pickReelsScript(item), item.caption || item.title);
       if (!encoded) {
         return persistMarkedPublish(
           item,

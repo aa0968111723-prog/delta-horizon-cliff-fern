@@ -1,9 +1,8 @@
 import { encodeReelsFromPng } from "@/lib/ai/reels-encode";
 import { saveReelsFilm } from "@/lib/ai/reels-persist";
 import { generateStudioImage, toImageFormat } from "@/lib/ai/image-studio";
-import { getAssetBlob, putAssetBlob } from "@/lib/studio/assets-idb";
+import { putAssetBlob } from "@/lib/studio/assets-idb";
 import { persistGeneratedImage } from "@/lib/studio/raster";
-import { bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import type { ReelsScript } from "@/lib/studio/types";
@@ -20,13 +19,11 @@ export function ReelsBoard({
   script,
   eventName,
   campaignId,
-  posterAssetId,
   onSchedule,
 }: {
   script: ReelsScript;
   eventName?: string;
   campaignId?: string | null;
-  posterAssetId?: string;
   onSchedule?: () => void;
 }) {
   const addAsset = useStudio((s) => s.addAsset);
@@ -43,10 +40,9 @@ export function ReelsBoard({
   async function makeCover() {
     const result = await generateStudioImage({
       data: {
-        prompt: `Reels cover, 9:16, quiet Tamsui night, three soft colored lights, almost no text, Tamkang student life, ${eventName || script.hook}, not temple`,
+        prompt: `Reels cover, 9:16, quiet Tamsui night, three soft colored lights, no headline, no Chinese text, Tamkang student life, ${eventName || "茶會"}, not temple`,
         format: toImageFormat("reels-cover"),
-        headline: script.hook,
-        subhead: eventName,
+        atmosphere: true,
         name: "Reels 封面",
         palette: "靜水、琥珀點",
       },
@@ -83,34 +79,28 @@ export function ReelsBoard({
       useCount: 0,
     });
     setLastCover({ base64: png.base64, mime: png.mime });
-    toast.success("Reels 封面已進素材庫（AI Generated）");
+    toast.success("Reels 封面已進素材庫（AI Generated，畫面不燒字）");
     return png.base64;
   }
 
-  async function posterPng() {
+  async function atmospherePng() {
     if (lastCover?.base64) return lastCover.base64;
-    if (posterAssetId) {
-      const blob = await getAssetBlob(posterAssetId);
-      if (blob && !blob.type.startsWith("video/")) {
-        return bytesToBase64(new Uint8Array(await blob.arrayBuffer()));
-      }
-    }
     return makeCover();
   }
 
   async function film() {
     setBusy(true);
     try {
-      const poster = await posterPng();
-      if (!poster) return;
-      const encoded = await encodeReelsFromPng(poster, script, script.hook);
+      const still = await atmospherePng();
+      if (!still) return;
+      const encoded = await encodeReelsFromPng(still, script, script.hook);
       if (!encoded) {
         toast.error("這台瀏覽器還不能編成 Reels 影片。");
         return;
       }
       const id = await saveReelsFilm(encoded, { eventName, campaignId });
       setLocalVideoId(id);
-      toast.success("短影音已編成，可在 IG Preview 看 9:16 影片。來源：AI Generated");
+      toast.success("短影音已編成。畫面是氣氛，Hook 只在字幕。來源：AI Generated");
     } finally {
       setBusy(false);
     }
@@ -120,7 +110,9 @@ export function ReelsBoard({
     <section className="mt-8" data-testid="reels-board">
       <h2 className="text-sm font-medium">Reels 0–20 秒</h2>
       <p className="mt-1 text-sm text-muted">Hook：{script.hook}</p>
-      <p className="mt-1 text-xs text-muted">編成短影音後，先在 IG Preview 看 9:16，再排入 Calendar。到期發布會走官方 Reels。</p>
+      <p className="mt-1 text-xs text-muted">
+        片頭是氣氛畫面，不燒主標。字幕才是學生 Hook。編成後先在 IG Preview 看 9:16，到期發布走官方 Reels。
+      </p>
       {urls[videoId ?? ""] ? (
         <div className="mx-auto mt-4 w-full max-w-[14rem] overflow-hidden rounded-[1.6rem] bg-surface shadow-[var(--shadow-artboard)]">
           <AssetMedia

@@ -50,6 +50,7 @@ import type { WaveDraft } from "@/lib/ai/wave";
 import type { CampaignPlan, CampaignWaveKind, ClubCampaign, ContentKind, CopyPack, StudentReview, VisualDirection } from "@/lib/studio/types";
 import { HeroVisual } from "@/components/create/hero-visual";
 import { ReelsBoard } from "@/components/create/reels-board";
+import { ShareBoard } from "@/components/create/share-board";
 import { WaveList } from "@/components/create/wave-list";
 import { StudentReviewCard } from "@/components/create/student-review-card";
 import { VisionCard } from "@/components/create/vision-card";
@@ -658,23 +659,26 @@ export function CreateStudio() {
     const format = toImageFormat(opts?.format ?? toCreateImageFormat(mode));
     const spec = formatById(format);
     const prompt = opts?.kind ? varyImagePrompt(dir.prompt, opts.kind) : dir.prompt;
+    const atmosphere = format === "reels-cover";
     let payload: { imageBase64: string; mime: string } = posterPayloadFromDirection(
       dir,
       spec,
       opts?.kind,
       prompt,
+      atmosphere,
     );
     try {
       const result = await generateStudioImage({
         data: {
           prompt,
           format,
-          headline: dir.headline,
-          subhead: dir.subhead,
+          headline: atmosphere ? undefined : dir.headline,
+          subhead: atmosphere ? undefined : dir.subhead,
           palette: dir.palette,
           name: dir.name,
           variation: opts?.kind,
           memoryHint: kitMemoryHint(found),
+          atmosphere,
         },
       });
       if (result.ok) payload = { imageBase64: result.imageBase64, mime: result.mime };
@@ -1466,8 +1470,14 @@ export function CreateStudio() {
           script={plan.reelsScript}
           eventName={eventName || plan.campaignName}
           campaignId={campaign?.id}
-          posterAssetId={lastImage?.assetId ?? campaign?.imageAssetId ?? undefined}
           onSchedule={() => saveCampaignAndWaves()}
+        />
+      ) : null}
+
+      {plan ? (
+        <ShareBoard
+          plan={plan}
+          onSchedule={(kind) => schedulePack(convertPlan(plan, kind))}
         />
       ) : null}
 
@@ -1573,16 +1583,18 @@ function posterPayloadFromDirection(
   spec: { width: number; height: number },
   variation?: "composition" | "mood" | "background" | "style" | "text",
   prompt = dir.prompt,
+  atmosphere = false,
 ) {
   const svg = directionPosterSvg({
-    headline: dir.headline,
-    subhead: dir.subhead,
-    concept: dir.concept,
+    headline: atmosphere ? "" : dir.headline,
+    subhead: atmosphere ? undefined : dir.subhead,
+    concept: atmosphere ? undefined : dir.concept,
     palette: dir.palette,
-    name: dir.name,
+    name: atmosphere ? undefined : dir.name,
     width: spec.width,
     height: spec.height,
     variation,
+    atmosphere,
   });
   return {
     imageBase64: encodeUtf8Base64(svg),
