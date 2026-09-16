@@ -113,7 +113,7 @@ export function IdeaFlow({
   }, [seedAutoRun, seedIdea]);
 
   useEffect(() => {
-    if (seedAutoRun || seedIdea) return;
+if (seedAutoRun) return;
     if (!hydrated || restoredRef.current || phase !== "idea") return;
     const restored = ideaFlowRestore(useCreative.getState().lastPack);
     if (!restored) return;
@@ -409,14 +409,15 @@ export function IdeaFlow({
     try {
       const result = await runPackPublish(current, previewSrc);
       if (result.needsConnect) {
-        toast.message("正在連接 Instagram，回來後會接著發布。");
         const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
-        if (!started.ok) {
-          ingestIg([result.post]);
-          rememberStyle(styleBriefFromPublish(current));
-          toast.message(started.error);
-          void navigate({ to: "/connections" });
+        if (started.ok) {
+          toast.message("正在連接 Instagram，回來後會接著發布。");
+          return;
         }
+        ingestIg([result.post]);
+        rememberStyle(styleBriefFromPublish(current));
+        toast.message(started.error);
+        void navigate({ to: "/connections" });
         return;
       }
       ingestIg([result.post]);
@@ -563,12 +564,13 @@ export function IdeaFlow({
         return;
       }
       if (result.needsConnect) {
-        toast.message("正在連接 Canva，回來後會自動把主視覺送進去。");
         const started = await beginOAuth({ provider: "canva", next: "create", resume: "canva-push" });
-        if (!started.ok) {
-          toast.message(started.error);
-          void navigate({ to: "/connections" });
+        if (started.ok) {
+          toast.message("正在連接 Canva，回來後會自動把主視覺送進去。");
+          return;
         }
+        toast.message(started.error);
+        void navigate({ to: "/connections" });
         return;
       }
       toast.message(canvaPushMessage(result));

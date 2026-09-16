@@ -674,12 +674,13 @@ function ConvertStudio({
                 return;
               }
               if (result.needsConnect) {
-                toast.message("正在連接 Canva，回來後會自動把主視覺送進去。");
                 const started = await beginOAuth({ provider: "canva", next: "create", resume: "canva-push" });
-                if (!started.ok) {
-                  toast.message(started.error);
-                  void navigate({ to: "/connections" });
+                if (started.ok) {
+                  toast.message("正在連接 Canva，回來後會自動把主視覺送進去。");
+                  return;
                 }
+                toast.message(started.error);
+                void navigate({ to: "/connections" });
                 return;
               }
               toast.message(canvaPushMessage(result));

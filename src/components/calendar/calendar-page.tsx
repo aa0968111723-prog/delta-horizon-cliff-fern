@@ -61,15 +61,16 @@ function ScheduleActions({
     try {
       const result = await publishScheduleRow({ row, lastPack, assetUrls: urls });
       if (result.needsConnect) {
-        toast.message("正在連接 Instagram，回來後會接著發布。");
         const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
-        if (!started.ok) {
-          ingestIg([result.post]);
-          const packed = lastPack ? withPackKind(lastPack, row.contentKind) : null;
-          if (packed) rememberStyle(styleBriefFromPublish(packed));
-          toast.message(started.error);
-          void navigate({ to: "/connections" });
+        if (started.ok) {
+          toast.message("正在連接 Instagram，回來後會接著發布。");
+          return;
         }
+        ingestIg([result.post]);
+        const packed = lastPack ? withPackKind(lastPack, row.contentKind) : null;
+        if (packed) rememberStyle(styleBriefFromPublish(packed));
+        toast.message(started.error);
+        void navigate({ to: "/connections" });
         return;
       }
       ingestIg([result.post]);

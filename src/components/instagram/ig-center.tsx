@@ -44,14 +44,15 @@ export function InstagramCenter() {
     try {
       const result = await runPackPublish(pack, lastPackPreviewSrc(pack, urls));
       if (result.needsConnect) {
-        toast.message("正在連接 Instagram，回來後會接著發布。");
         const started = await beginOAuth({ provider: "instagram", next: "instagram", resume: "ig-publish" });
-        if (!started.ok) {
-          ingestIg([result.post]);
-          rememberStyle(styleBriefFromPublish(pack));
-          toast.message(started.error);
-          void navigate({ to: "/connections" });
+        if (started.ok) {
+          toast.message("正在連接 Instagram，回來後會接著發布。");
+          return;
         }
+        ingestIg([result.post]);
+        rememberStyle(styleBriefFromPublish(pack));
+        toast.message(started.error);
+        void navigate({ to: "/connections" });
         return;
       }
       ingestIg([result.post]);
