@@ -122,24 +122,27 @@ export function OutcomeJournal({
             </SelectContent>
           </Select>
         </div>
-        <Field label="誰來了／誰有反應">
+        <Field label="誰來了／誰有反應" htmlFor="outcome-who">
           <Textarea
+            id="outcome-who"
             value={whoShowedUp}
             onChange={(event) => setWhoShowedUp(event.target.value)}
             placeholder="例如：住宿生比較多，有兩個新生問要不要帶坐墊。不知道就留空，不要填假人數。"
             className="min-h-20"
           />
         </Field>
-        <Field label="哪句 Hook 真的像淡江">
+        <Field label="哪句 Hook 真的像淡江" htmlFor="outcome-hook">
           <Input
+            id="outcome-hook"
             value={hookThatFeltTamkang}
             onChange={(event) => setHookThatFeltTamkang(event.target.value)}
             placeholder="貼出去之後，同學真的會停下來的那句"
             className="min-h-11"
           />
         </Field>
-        <Field label="下次要記得">
+        <Field label="下次要記得" htmlFor="outcome-remember">
           <Textarea
+            id="outcome-remember"
             value={remember}
             onChange={(event) => setRemember(event.target.value)}
             placeholder="例如：時間放 Caption 最上面，宿舍同學才找得到"
@@ -173,10 +176,18 @@ export function OutcomeJournal({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="min-w-0">
-      <Label className="mb-1.5 block">{label}</Label>
+      <Label htmlFor={htmlFor} className="mb-1.5 block">{label}</Label>
       {children}
     </div>
   );
