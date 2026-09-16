@@ -35,6 +35,7 @@ import {
   SEED_BRAND,
   SEED_BRAND_ID,
   SEED_CAMPAIGN,
+  SEED_CAMPAIGN_ID,
   SEED_CONTENTS,
   SEED_PROJECT_ID,
   createSeedDraft,
@@ -1182,11 +1183,25 @@ export const useStudio = create<StudioState>()(
         const brands = (p.brands ?? current.brands).map(migrateBrandRecord);
         const assets = (p.assets ?? current.assets).map(migrateAssetRecord);
         const projects = (p.projects ?? current.projects).map(migrateProject);
-        const campaigns = (p.campaigns ?? current.campaigns).map((c) => migrateCampaign(c));
+        const campaigns = (p.campaigns ?? current.campaigns).map((c) => {
+          const next = migrateCampaign(c);
+          if (next.id === SEED_CAMPAIGN_ID && !next.strategy && SEED_CAMPAIGN.strategy) {
+            return { ...next, strategy: SEED_CAMPAIGN.strategy };
+          }
+          return next;
+        });
         const contents = (p.contents ?? current.contents).map((c) => migrateContent(c));
-        const have = new Set(contents.map((c) => c.id));
+        const have = new Set(contents.map((row) => row.id));
         for (const seed of SEED_CONTENTS) {
           if (!have.has(seed.id)) contents.push(migrateContent(seed));
+        }
+        for (const row of contents) {
+          if (row.id !== "content_floating_kv") continue;
+          const seed = SEED_CONTENTS.find((s) => s.id === row.id);
+          if (!seed) continue;
+          if (!row.carousel.length && seed.carousel.length) row.carousel = seed.carousel;
+          if (!row.threads && seed.threads) row.threads = seed.threads;
+          if (!row.line && seed.line) row.line = seed.line;
         }
         return {
           ...current,

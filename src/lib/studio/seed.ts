@@ -1,7 +1,8 @@
 import { emptyBoilerplate } from "./boilerplate";
 import { migrateBrief, migratePlan, migratePlanVersions } from "./brief";
 import { buildLayout } from "./layout";
-import type { AssetMeta, BrandKit, Campaign, ContentItem, Layer, Project } from "./types";
+import { localCarousel, localLine, localStrategy, localThreads } from "../ai/zen-local";
+import type { AssetMeta, BrandKit, Campaign, CampaignStrategy, ContentItem, CopyDraft, Layer, Project } from "./types";
 
 /**
  * 淡江大學禪學社 seed：品牌記憶、示範素材、一個示範活動（浮游禪光）與對應內容。
@@ -180,6 +181,58 @@ export const SEED_BRAND: BrandKit = {
 /* 示範活動：浮游禪光                                                     */
 /* ------------------------------------------------------------------ */
 
+const copy = {
+  eyebrow: "9/24（三）19:00 · B302",
+  headline: "最近是不是\n很久沒有好好坐下來？",
+  subhead: "浮游禪光｜一個晚上，一杯茶，什麼都不用做。",
+  body: "不用會打坐，不用信什麼。一個人來也可以。",
+  cta: "直接來就好",
+  handle: "@tku.zen",
+  caption:
+    "最近是不是很久沒有好好坐下來？\n\n開學第二週，課表排滿了，人也認識了一些，但好像還沒有一個地方可以什麼都不做。\n\n浮游禪光\n9/24（三）19:00–21:00｜B302\n燈調暗，坐墊放好，我們泡茶。中間有十分鐘靜坐體驗，第一次也可以。\n\n不用報名，直接來就好。一個人來、找室友一起來都可以。",
+  hashtags: ["#淡江大學禪學社", "#淡江", "#浮游禪光", "#茶會", "#淡水", "#慢下來", "#大學生活"],
+  altText: "夜晚的宮燈大道，燈亮著；下方標題：最近是不是很久沒有好好坐下來？",
+};
+
+const seedCopyDraft: CopyDraft = {
+  tone: "normal",
+  hook: copy.headline.replace("\n", ""),
+  body: copy.caption.split("\n").slice(2).join("\n"),
+  cta: copy.cta,
+  hashtags: copy.hashtags,
+};
+
+const SEED_CAMPAIGN_CTX = {
+  name: "浮游禪光" as const,
+  type: "tea" as const,
+  date: "2026-09-24",
+  time: "19:00–21:00",
+  location: "淡江大學 B302 教室",
+  oneLiner: "一個晚上，一杯茶，什麼都不用做。",
+  description:
+    "開學第二週，很多人還在適應。浮游禪光是一場給淡江學生的夜晚茶會：燈調暗，坐墊放好，我們泡茶，你可以說話也可以不說話。中間有十分鐘的靜坐體驗，第一次也可以。",
+  theme: "在新學期的浮動裡，找一個可以停下來的晚上",
+  painPoints: ["belonging", "lonely", "stress"] as ("belonging" | "lonely" | "stress")[],
+  cta: "直接來就好",
+  signupUrl: "",
+  brandContext: "龜龜、三色光、不要宗教詞、第一句不出現社團名",
+  studentContext: "開學 / 新生週。大一剛到淡水。",
+};
+
+function seedCampaignStrategy(): CampaignStrategy {
+  const strategy = localStrategy(SEED_CAMPAIGN_CTX);
+  return {
+    ...strategy,
+    generatedAt: SEED_TIME,
+    chosenDirectionId: "dir_a",
+    waves: strategy.waves.map((w) => ({
+      ...w,
+      contentType: w.role === "keyvisual" ? "carousel" : w.contentType,
+      contentId: w.role === "keyvisual" ? "content_floating_kv" : w.role === "reason" ? "content_floating_reels" : null,
+    })),
+  };
+}
+
 export const SEED_CAMPAIGN: Campaign = {
   id: SEED_CAMPAIGN_ID,
   name: "浮游禪光",
@@ -196,22 +249,9 @@ export const SEED_CAMPAIGN: Campaign = {
   signupUrl: "",
   coverAssetId: SEED_CAMPUS_ID,
   assetIds: [SEED_CAMPUS_ID, SEED_GLOW_ID, SEED_MASCOT_ID],
-  strategy: null,
+  strategy: seedCampaignStrategy(),
   createdAt: SEED_TIME,
   updatedAt: SEED_TIME,
-};
-
-const copy = {
-  eyebrow: "9/24（三）19:00 · B302",
-  headline: "最近是不是\n很久沒有好好坐下來？",
-  subhead: "浮游禪光｜一個晚上，一杯茶，什麼都不用做。",
-  body: "不用會打坐，不用信什麼。一個人來也可以。",
-  cta: "直接來就好",
-  handle: "@tku.zen",
-  caption:
-    "最近是不是很久沒有好好坐下來？\n\n開學第二週，課表排滿了，人也認識了一些，但好像還沒有一個地方可以什麼都不做。\n\n浮游禪光\n9/24（三）19:00–21:00｜B302\n燈調暗，坐墊放好，我們泡茶。中間有十分鐘靜坐體驗，第一次也可以。\n\n不用報名，直接來就好。一個人來、找室友一起來都可以。",
-  hashtags: ["#淡江大學禪學社", "#淡江", "#浮游禪光", "#茶會", "#淡水", "#慢下來", "#大學生活"],
-  altText: "夜晚的宮燈大道，燈亮著；下方標題：最近是不是很久沒有好好坐下來？",
 };
 
 function stabilize(layers: Layer[], prefix: string): Layer[] {
@@ -407,11 +447,11 @@ export const SEED_CONTENTS: ContentItem[] = [
     imagePrompt:
       "Tamkang University lantern-lined path at night, one warm lamp glowing, soft three-color glow (amber, teal, lavender), empty space in the lower third for text, photographic, film grain, no text, no religious symbols, Instagram 4:5",
     visualDirection: "夜晚宮燈大道的一盞燈，三色光暈，下方留白。",
-    carousel: [],
+    carousel: localCarousel(SEED_CAMPAIGN_CTX, seedCopyDraft),
     storyFrames: [],
     reels: [],
-    threads: "",
-    line: "",
+    threads: localThreads(SEED_CAMPAIGN_CTX, seedCopyDraft),
+    line: localLine(SEED_CAMPAIGN_CTX, seedCopyDraft),
     review: null,
     sources: [
       { kind: "library", label: "素材庫 / 淡江 宮燈大道 夜", refId: SEED_CAMPUS_ID },

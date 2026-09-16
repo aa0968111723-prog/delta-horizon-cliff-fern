@@ -67,4 +67,6 @@ test("localStrategy mixes life/interactive into the wave rhythm", () => {
   assert.ok(roles.some((r) => r === "life" || r === "interactive" || r === "knowledge" || r === "story"));
   const promoRun = roles.filter((r) => r === "teaser" || r === "keyvisual" || r === "info" || r === "reason").length;
   assert.ok(promoRun < s.waves.length);
+  assert.equal(s.directions.length, 3);
+  assert.equal(s.waves.find((w) => w.role === "reason")?.contentType, "reels");
 });
