@@ -41,6 +41,13 @@ test("lesson idea still parses as 浮游禪光 on the event date", () => {
   assert.match(idea, /安靜的晚上/);
 });
 
+test("night tea NL keeps tea and night in the search query", () => {
+  const parsed = parseIdea("找以前晚上的茶會照片", FROM);
+  assert.match(parsed.searchQuery, /茶會/);
+  assert.match(parsed.searchQuery, /晚上/);
+  assert.equal(parsed.eventName, "茶會");
+});
+
 test("tea idea search query finds Drive, Canva, and IG memory", () => {
   const parsed = parseIdea("下週有一場茶會", FROM);
   const hits = searchMemory(parsed.searchQuery);

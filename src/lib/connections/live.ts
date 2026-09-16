@@ -3,6 +3,7 @@ import { classifyCallToolError } from "@/lib/app-data/errors";
 import type { MemoryItem } from "@/lib/club/memory";
 import type { OAuthBlob } from "./vault.server";
 import { graphImageUrl } from "@/lib/club/publish";
+import { clubTagsFromText } from "@/lib/club/rank";
 import {
   canvaDesignTypeFor,
   canvaDesignsUrl,
@@ -107,7 +108,7 @@ export async function fetchCanvaDesigns(blob: OAuthBlob | null, query?: string):
         source: "canva" as const,
         title,
         subtitle: `Canva / ${title}`,
-        tags: ["canva", "設計", ...(/茶/.test(title) ? ["茶會"] : []), ...(/浮游|三色/.test(title) ? ["浮游禪光"] : [])],
+        tags: ["canva", "設計", ...clubTagsFromText(title)],
         kind: "poster" as const,
         date: item.updated_at ? new Date(item.updated_at * 1000).toISOString().slice(0, 10) : "",
         thumb: item.thumbnail?.url || "/seed/tea.svg",
@@ -170,7 +171,7 @@ export async function fetchInstagramMedia(blob: OAuthBlob | null): Promise<LiveH
       source: "instagram" as const,
       title: (item.caption || "無文案").split("\n")[0]?.slice(0, 40) || "IG 貼文",
       subtitle: `Instagram / ${(item.timestamp || "").slice(0, 10)}`,
-      tags: ["instagram", item.media_type || "IMAGE"],
+      tags: ["instagram", item.media_type || "IMAGE", ...clubTagsFromText(`${item.caption || ""} ${item.media_type || ""}`)],
       kind:
         item.media_type === "VIDEO" || item.media_type === "REELS"
           ? ("reels" as const)

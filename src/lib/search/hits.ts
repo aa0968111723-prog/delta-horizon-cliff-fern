@@ -1,5 +1,5 @@
 import type { MemoryItem } from "../club/memory.ts";
-import { matchHit, rankHits } from "../club/rank.ts";
+import { matchHit, rankHits, clubTagsFromText } from "../club/rank.ts";
 import { inferCategory, migrateAsset, sourceLabel as assetSourceLabel } from "../studio/assets.ts";
 import type { AssetMeta, AssetSourceKind } from "../studio/types.ts";
 import { styleBriefFromReport, styleReportFromHit } from "../vision/from-hit.ts";
@@ -32,7 +32,7 @@ export function driveHitFromFile(item: FileLike, index = 0): MemoryItem {
     source: "drive",
     title,
     subtitle: folder ? `Google Drive / ${title}` : `Google Drive / ${title}`,
-    tags: ["drive", ...(/茶/.test(title) ? ["茶會"] : []), ...(/龜/.test(title) ? ["龜龜"] : []), ...(/浮游|三色/.test(title) ? ["浮游禪光"] : [])],
+    tags: ["drive", ...clubTagsFromText(title)],
     kind: folder ? "asset" : /海報|文宣/.test(title) ? "poster" : "asset",
     date: (item.modifiedTime || "").slice(0, 10),
     thumb: driveThumb(item),
@@ -143,4 +143,64 @@ export function adoptIdeaFromAsset(asset: Pick<AssetMeta, "name" | "licenseNotes
     source: creativeSourceFromAsset(asset.source),
     tags: asset.tags,
   });
+}
+
+export function hitFromAsset(asset: AssetMeta): MemoryItem {
+  const source = creativeSourceFromAsset(asset.source);
+  const kind =
+    asset.category === "story-asset"
+      ? ("story" as const)
+      : asset.category === "reels-asset"
+        ? ("reels" as const)
+        : asset.category === "poster"
+          ? ("poster" as const)
+          : ("asset" as const);
+  return {
+    id: asset.id,
+    source,
+    title: asset.name,
+    subtitle: `${assetSourceLabel(asset.source)} / ${asset.name}`,
+    tags: [...new Set([...(asset.tags ?? []), ...clubTagsFromText(`${asset.name} ${asset.licenseNotes}`)])],
+    kind,
+    date: new Date(asset.createdAt || Date.now()).toISOString().slice(0, 10),
+    thumb: asset.seedSrc || "",
+    notes: asset.licenseNotes,
+  };
+}
+
+export function hitFromPack(pack: {
+  projectId: string;
+  eventName: string;
+  hook: string;
+  kind: MemoryItem["kind"];
+  heroThumb?: string;
+}): MemoryItem {
+  return {
+    id: `gen_pack_${pack.projectId}`,
+    source: "generated",
+    title: pack.eventName,
+    subtitle: "AI Generated",
+    tags: ["AI生成", pack.eventName, ...clubTagsFromText(`${pack.eventName} ${pack.hook}`)],
+    kind: pack.kind === "asset" ? "ig-post" : pack.kind,
+    date: "",
+    thumb: pack.heroThumb || "/seed/tea.svg",
+    notes: pack.hook,
+  };
+}
+
+export function mergeLocalHits<T extends MemoryItem>(
+  query: string,
+  groups: Record<string, T[]>,
+  extras: T[],
+): Record<string, T[]> {
+  const next: Record<string, T[]> = { ...groups };
+  for (const item of extras) {
+    const key = item.source;
+    next[key] = mergeRanked(query, next[key] ?? [], [item]);
+  }
+  return next;
+}
+
+export function countHits(groups: Record<string, MemoryItem[] | undefined>) {
+  return Object.values(groups).reduce((n, list) => n + (list?.length ?? 0), 0);
 }

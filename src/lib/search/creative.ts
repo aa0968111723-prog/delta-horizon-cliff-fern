@@ -32,15 +32,16 @@ export const searchCreative = createServerFn({ method: "POST" })
     driveDetail: string;
   }> => {
     const parsed = parseIdea(data.query);
-    const query = parsed.searchQuery || data.query;
-    const driveQuery = driveSearchQuery(query || "淡江 禪學社", data.folderName);
-    const local = searchMemory(query);
+    const rankQuery = data.query.trim() || parsed.searchQuery;
+    const connectorQuery = parsed.searchQuery || rankQuery || "淡江 禪學社";
+    const driveQuery = driveSearchQuery(connectorQuery, data.folderName);
+    const local = searchMemory(rankQuery);
     const { getRequest } = await import("@tanstack/react-start/server");
     const { readBlobFromCookie } = await import("@/lib/connections/vault.server");
     const { fetchCanvaDesigns, fetchInstagramMedia } = await import("@/lib/connections/live");
     const req = getRequest();
     const blob = await readBlobFromCookie(req?.headers.get("cookie") ?? null);
-    const [liveCanva, liveIg] = await Promise.all([fetchCanvaDesigns(blob, query), fetchInstagramMedia(blob)]);
+    const [liveCanva, liveIg] = await Promise.all([fetchCanvaDesigns(blob, connectorQuery), fetchInstagramMedia(blob)]);
     let drive: SearchHit[] = [];
     let loginRequired = false;
     let loginUrl: string | undefined;
@@ -90,11 +91,11 @@ export const searchCreative = createServerFn({ method: "POST" })
     }
 
     const groups: Record<string, SearchHit[]> = {
-      drive: mergeRanked(query, drive, local.filter((item) => item.source === "drive")),
-      canva: mergeRanked(query, liveCanva, local.filter((item) => item.source === "canva")),
-      instagram: mergeRanked(query, liveIg, local.filter((item) => item.source === "instagram")),
+      drive: mergeRanked(rankQuery, drive, local.filter((item) => item.source === "drive")),
+      canva: mergeRanked(rankQuery, liveCanva, local.filter((item) => item.source === "canva")),
+      instagram: mergeRanked(rankQuery, liveIg, local.filter((item) => item.source === "instagram")),
       generated: mergeRanked(
-        query,
+        rankQuery,
         [],
         local.filter((item) => item.source === "generated"),
       ),

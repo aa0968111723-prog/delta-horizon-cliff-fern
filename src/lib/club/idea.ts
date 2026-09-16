@@ -19,7 +19,7 @@ const NAMED_EVENTS = [
   { keys: ["靜坐"], name: "夜間靜坐體驗", type: "靜坐體驗", search: "靜坐" },
 ] as const;
 
-const SEARCH_HINTS = ["龜龜", "三色光", "主視覺", "招生", "互動", "淡水", "校園", "晚上", "海報"];
+const SEARCH_HINTS = ["龜龜", "三色光", "主視覺", "招生", "互動", "淡水", "校園", "晚上", "夜間", "海報", "同學"];
 
 const WEEKDAYS: Record<string, number> = {
   日: 0,
@@ -54,12 +54,17 @@ function nextWeekday(from: Date, weekday: number, weeksAhead: number) {
   return addDays(from, delta + extra);
 }
 
+export function ideaSearchTerms(text: string) {
+  const named = NAMED_EVENTS.filter((event) => event.keys.some((key) => text.includes(key))).map((event) => event.search);
+  const hints = SEARCH_HINTS.filter((item) => text.includes(item) && !named.some((term) => term === item));
+  return [...new Set([...named, ...hints])];
+}
+
 export function parseIdea(raw: string, from: Date = new Date()): ParsedIdea {
   const text = raw.trim() || "下週有一場茶會";
   const local = taipei(from);
   const named = NAMED_EVENTS.find((event) => event.keys.some((key) => text.includes(key)));
-  const hint = SEARCH_HINTS.find((item) => text.includes(item));
-  const searchQuery = named?.search || hint || text.slice(0, 24);
+  const searchQuery = ideaSearchTerms(text).join(" ") || text.slice(0, 24);
 
   let date = addDays(local, 7);
   const iso = text.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);

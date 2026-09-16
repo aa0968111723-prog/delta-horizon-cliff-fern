@@ -7,11 +7,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { writeHandoff } from "@/lib/create/handoff";
 import { searchCreative } from "@/lib/search/creative";
-import { adoptIdeaFromHit } from "@/lib/search/hits";
+import { adoptIdeaFromHit, countHits, hitFromAsset, hitFromPack, mergeLocalHits } from "@/lib/search/hits";
 import { canvaOpenUrl, styleBriefFromReport, styleReportFromHit } from "@/lib/vision/from-hit";
 import { folderSearchInput } from "@/lib/connections/presets";
 import { sourceLabel } from "@/stores/creative-store";
 import { useCreative } from "@/stores/creative-store";
+import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 import { maybeConnectorLogin } from "@/lib/app-data/login";
 import type { SearchHit } from "@/lib/search/creative";
@@ -23,6 +24,8 @@ export function CreativeSearch() {
   const setLastSearch = useCreative((s) => s.setLastSearch);
   const rememberStyle = useCreative((s) => s.rememberStyle);
   const folder = useCreative((s) => s.folder);
+  const lastPack = useCreative((s) => s.lastPack);
+  const assets = useStudio((s) => s.assets);
   const [q, setQ] = useState(lastSearch);
   const [busy, setBusy] = useState(false);
   const [found, setFound] = useState(0);
@@ -34,8 +37,12 @@ export function CreativeSearch() {
     setBusy(true);
     try {
       const result = await searchCreative({ data: folderSearchInput(query, folder) });
-      setGroups(result.groups);
-      setFound(result.found);
+      const groups = mergeLocalHits(query, result.groups, [
+        ...assets.map((asset) => hitFromAsset(asset)),
+        ...(lastPack ? [hitFromPack(lastPack)] : []),
+      ]);
+      setGroups(groups);
+      setFound(countHits(groups));
       setDetail(result.driveDetail);
       setDriveLoginUrl(result.loginRequired ? result.loginUrl : undefined);
       setLastSearch(query);

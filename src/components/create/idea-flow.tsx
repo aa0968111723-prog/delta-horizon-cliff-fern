@@ -30,7 +30,7 @@ import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
 import { pagesOf } from "@/lib/studio/layers";
 import { searchCreative, type SearchHit } from "@/lib/search/creative";
-import { adoptIdeaFromHit, assetFromHit, uniqueIds } from "@/lib/search/hits";
+import { adoptIdeaFromHit, assetFromHit, hitFromAsset, hitFromPack, mergeLocalHits, uniqueIds } from "@/lib/search/hits";
 import { styleBriefFromReport, styleReportFromHit } from "@/lib/vision/from-hit";
 import type { CampaignPlan, ContentKind, CreativeDirection } from "@/lib/studio/types";
 import { sourceLabel, useCreative } from "@/stores/creative-store";
@@ -54,6 +54,7 @@ export function IdeaFlow({
   const createProject = useStudio((s) => s.createProject);
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const addAsset = useStudio((s) => s.addAsset);
+  const assets = useStudio((s) => s.assets);
   const setLastProjectId = useStudio((s) => s.setLastProjectId);
   const campaigns = useCreative((s) => s.campaigns);
   const upsertCampaign = useCreative((s) => s.upsertCampaign);
@@ -157,11 +158,17 @@ if (seedAutoRun) return;
     setPublishHint("");
     setStatus("正在找歷屆素材與品牌記憶…");
     try {
-      setLastSearch(parsed.searchQuery);
-      const search = await searchCreative({ data: folderSearchInput(parsed.searchQuery, folder) });
-      const foundHits = flattenHits(search.groups);
+      setLastSearch(raw);
+      const search = await searchCreative({ data: folderSearchInput(raw, folder) });
+      const localHits = [
+        ...assets.map((asset) => hitFromAsset(asset)),
+        ...(useCreative.getState().lastPack ? [hitFromPack(useCreative.getState().lastPack!)] : []),
+      ];
+      const groups = mergeLocalHits(raw, search.groups, localHits);
+      const foundHits = flattenHits(groups);
       setHits(foundHits);
-      setStatus(`找到 ${search.found} 個相關素材。根據過去內容生成 3 個方向…`);
+      const found = summarizeFound(groups);
+      setStatus(`找到 ${found.found} 個相關素材。根據過去內容生成 3 個方向…`);
       const brief = briefFromIdea(parsed, notesFromHits(parsed, foundHits, useCreative.getState().styleMemory));
       const result = await generateCampaignPlan({
         data: toBriefInput(brief, brand, { igLessons: lessonPrompt(igPosts) }),
@@ -174,9 +181,9 @@ if (seedAutoRun) return;
       const nextPlan = applyStudentReviewToPlan(mergePlanSources(result.plan, foundHits)).plan;
       setPlan(nextPlan);
       setPhase("directions");
-      setStatus(summarizeFound(search.groups).line + "。根據過去內容生成 3 個方向。");
+      setStatus(found.line + "。根據過去內容生成 3 個方向。");
       if (autoPack && nextPlan.directions?.[0]) {
-        setStatus(summarizeFound(search.groups).line + "。已依第一個方向做成完整宣傳，可再換方向。");
+        setStatus(found.line + "。已依第一個方向做成完整宣傳，可再換方向。");
         await packDirection(nextPlan, nextPlan.directions[0], foundHits, raw);
       }
     } catch (err) {

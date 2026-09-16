@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { asDriveHits, adoptIdeaFromAsset, adoptIdeaFromHit, assetFromHit, assetIdFromHit, driveThumb, mergeRanked } from "./hits.ts";
+import { asDriveHits, adoptIdeaFromAsset, adoptIdeaFromHit, assetFromHit, assetIdFromHit, driveThumb, hitFromPack, mergeLocalHits, mergeRanked } from "./hits.ts";
 
 test("Drive files keep a useful thumb and club tags", () => {
   assert.equal(driveThumb({ name: "2024 茶會現場.JPG" }), "/seed/tea.svg");
@@ -13,6 +13,7 @@ test("Drive files keep a useful thumb and club tags", () => {
   });
   assert.equal(hits[0]?.subtitle, "Google Drive / 夜間茶會照片");
   assert.ok(hits[0]?.tags.includes("茶會"));
+  assert.ok(hits[0]?.tags.includes("晚上"));
   assert.equal(hits[1]?.thumb, "/seed/tricolor.svg");
 });
 
@@ -112,4 +113,14 @@ test("adopting a library asset keeps the Drive or Canva source in the idea", () 
   assert.match(idea, /夜間茶會/);
   assert.match(idea, /Google Drive|現場感覺/);
   assert.match(idea, /不要直接複製/);
+});
+
+test("local generated pack hits merge into the generated group", () => {
+  const grouped = mergeLocalHits(
+    "茶會",
+    { generated: [{ id: "gen_old", source: "generated", title: "舊草稿", subtitle: "AI Generated", tags: ["AI生成"], kind: "ig-post", date: "", thumb: "/seed/campus.svg", notes: "" }] },
+    [hitFromPack({ projectId: "proj_tea", eventName: "茶會", hook: "最近是不是很久沒有好好坐下來？", kind: "ig-post", heroThumb: "/seed/tea.svg" })],
+  );
+  assert.ok(grouped.generated?.some((item) => item.id === "gen_pack_proj_tea"));
+  assert.equal(grouped.generated?.[0]?.title, "茶會");
 });

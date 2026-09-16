@@ -10,7 +10,7 @@ export function hitText(item: RankableHit) {
   return [item.title, item.subtitle, item.notes, item.caption, ...(item.tags ?? [])].join(" ").toLowerCase();
 }
 
-const CLUB_TERMS = [
+export const CLUB_TERMS = [
   "浮游禪光",
   "三色光",
   "茶會",
@@ -23,10 +23,21 @@ const CLUB_TERMS = [
   "淡水",
   "校園",
   "海報",
+  "同學",
+  "圍坐",
   "carousel",
   "限動",
   "story",
 ];
+
+export function clubTagsFromText(text: string) {
+  const blob = text.toLowerCase();
+  const tags = CLUB_TERMS.filter((term) => blob.includes(term.toLowerCase()));
+  if (/夜|晚/.test(text) && !tags.includes("晚上")) tags.push("晚上");
+  if (/龜|turtle/i.test(text) && !tags.includes("龜龜")) tags.push("龜龜");
+  if (/茶|tea/i.test(text) && !tags.includes("茶會")) tags.push("茶會");
+  return [...new Set(tags)];
+}
 
 export function searchKeys(query: string) {
   const q = query.trim().toLowerCase();
