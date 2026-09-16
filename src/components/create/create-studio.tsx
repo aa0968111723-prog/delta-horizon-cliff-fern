@@ -901,7 +901,12 @@ export function CreateStudio() {
         caption: packCaption(nextPlan, pack),
         body: pack.items.join("\n"),
         hashtags: nextPlan.hashtags,
-        imageAssetId: slideAssetIds?.[0] ?? (pack.kind === "carousel" ? prev?.imageAssetId : assetId) ?? assetId,
+        imageAssetId:
+          pack.kind === "reels"
+            ? prev?.imageAssetId && prev.imageAssetId !== assetId
+              ? prev.imageAssetId
+              : undefined
+            : slideAssetIds?.[0] ?? (pack.kind === "carousel" ? prev?.imageAssetId : assetId) ?? assetId,
         mediaUrl: undefined,
         ...(pack.kind === "carousel" && slideAssetIds?.length ? { slideAssetIds } : {}),
         ...(pack.kind === "reels" && created.videoAssetId ? { videoAssetId: created.videoAssetId } : {}),
@@ -1111,7 +1116,7 @@ export function CreateStudio() {
         campaignId: created.id,
         projectId: project?.id ?? null,
       }).catch(() => undefined);
-      toast.success("已用這個方向做出整套：主視覺、文案、Carousel、限動、LINE、月曆");
+      toast.success("已用這個方向做出整套：主視覺、文案、Carousel、限動、Reels、LINE、月曆");
       requestAnimationFrame(() => {
         document.querySelector('[data-testid="kit-ready"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
       });

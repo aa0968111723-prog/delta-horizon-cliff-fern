@@ -60,7 +60,9 @@ export function IgFeedPreview({
                 video={Boolean(nextReel.videoAssetId && videoSet.has(nextReel.videoAssetId))}
                 controls
                 className="aspect-[9/16] w-full rounded-[1.4rem]"
-                testId="ig-reels-film"
+                testId={
+                  nextReel.videoAssetId && videoSet.has(nextReel.videoAssetId) ? "ig-reels-film" : "ig-reels-cover"
+                }
               />
             ) : (
               <div className="flex aspect-[9/16] items-end rounded-[1.4rem] bg-surface-2 p-4 text-sm">{nextReel.title}</div>

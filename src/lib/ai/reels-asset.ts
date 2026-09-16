@@ -27,6 +27,40 @@ export function reelsVideoAsset(input: {
   });
 }
 
+export function reelsCoverAsset(input: {
+  id: string;
+  eventName?: string;
+  mime: string;
+  width: number;
+  height: number;
+}): AssetMeta {
+  return migrateAsset({
+    id: input.id,
+    name: `Reels 封面 · ${input.eventName || "禪光"}`,
+    kind: "image",
+    category: "reels",
+    mime: input.mime,
+    width: input.width,
+    height: input.height,
+    tags: ["AI 生成", "Reels", "封面", input.eventName || "禪光"],
+    source: "generated",
+    licenseNotes: "來源：AI Generated",
+    licenseOwner: "禪光",
+    lastUsedAt: Date.now(),
+  });
+}
+
+export function attachReelsCover<T extends { kind: string; campaignId?: string | null; imageAssetId?: string }>(
+  items: T[],
+  imageAssetId: string,
+  campaignId?: string | null,
+): T[] {
+  if (!campaignId) return items;
+  return items.map((item) =>
+    item.kind === "reels" && item.campaignId === campaignId ? { ...item, imageAssetId } : item,
+  );
+}
+
 export function attachReelsVideo<T extends { kind: string; campaignId?: string | null; videoAssetId?: string }>(
   items: T[],
   videoAssetId: string,

@@ -1,19 +1,13 @@
 import { encodeReelsFromPng } from "@/lib/ai/reels-encode";
-import { saveReelsFilm } from "@/lib/ai/reels-persist";
-import { generateStudioImage, toImageFormat } from "@/lib/ai/image-studio";
-import { putAssetBlob } from "@/lib/studio/assets-idb";
-import { persistGeneratedImage } from "@/lib/studio/raster";
-import { formatById } from "@/lib/studio/formats";
-import { uid } from "@/lib/studio/ids";
-import type { ReelsScript } from "@/lib/studio/types";
-import { HeroVisual } from "@/components/create/hero-visual";
+import { saveReelsAtmosphere, saveReelsFilm } from "@/lib/ai/reels-persist";
 import { AssetMedia } from "@/components/shared/asset-media";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { useStudio } from "@/stores/studio-store";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import type { ReelsScript } from "@/lib/studio/types";
 
 export function ReelsBoard({
   script,
@@ -26,76 +20,39 @@ export function ReelsBoard({
   campaignId?: string | null;
   onSchedule?: () => void;
 }) {
-  const addAsset = useStudio((s) => s.addAsset);
-  const storedVideoId = useStudio((s) => {
-    if (campaignId) return s.campaigns.find((row) => row.id === campaignId)?.videoAssetId;
-    return s.schedule.find((item) => item.kind === "reels")?.videoAssetId;
-  });
+  const schedule = useStudio((s) => s.schedule);
+  const campaigns = useStudio((s) => s.campaigns);
+  const stored = useMemo(() => {
+    const row = campaignId
+      ? schedule.find((item) => item.campaignId === campaignId && item.kind === "reels")
+      : schedule.find((item) => item.kind === "reels");
+    const videoId = campaignId
+      ? (campaigns.find((row) => row.id === campaignId)?.videoAssetId ?? row?.videoAssetId)
+      : row?.videoAssetId;
+    return { videoId: videoId ?? undefined, coverId: row?.imageAssetId };
+  }, [schedule, campaigns, campaignId]);
   const [busy, setBusy] = useState(false);
-  const [lastCover, setLastCover] = useState<{ base64: string; mime: string } | null>(null);
   const [localVideoId, setLocalVideoId] = useState<string | null>(null);
-  const videoId = localVideoId ?? storedVideoId ?? null;
-  const urls = useAssetUrls(videoId ? [videoId] : []);
-
-  async function makeCover() {
-    const result = await generateStudioImage({
-      data: {
-        prompt: `Reels cover, 9:16, quiet Tamsui night, three soft colored lights, no headline, no Chinese text, Tamkang student life, ${eventName || "茶會"}, not temple`,
-        format: toImageFormat("reels-cover"),
-        atmosphere: true,
-        name: "Reels 封面",
-        palette: "靜水、琥珀點",
-      },
-    });
-    if (!result.ok) {
-      toast.error(result.error);
-      return null;
-    }
-    const spec = formatById("reels-cover");
-    const png = await persistGeneratedImage({
-      base64: result.imageBase64,
-      mime: result.mime,
-      width: spec.width,
-      height: spec.height,
-    });
-    const id = uid("asset");
-    await putAssetBlob(id, png.blob);
-    addAsset({
-      id,
-      name: `Reels 封面 · ${eventName || "禪光"}`,
-      kind: "image",
-      category: "reels",
-      mime: png.mime,
-      width: spec.width,
-      height: spec.height,
-      tags: ["AI 生成", "Reels", eventName || "封面"],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      source: "generated",
-      licenseNotes: "來源：AI Generated",
-      licenseOwner: "禪光",
-      favorite: false,
-      lastUsedAt: Date.now(),
-      useCount: 0,
-    });
-    setLastCover({ base64: png.base64, mime: png.mime });
-    toast.success("Reels 封面已進素材庫（AI Generated，畫面不燒字）");
-    return png.base64;
-  }
-
-  async function atmospherePng() {
-    if (lastCover?.base64) return lastCover.base64;
-    return makeCover();
-  }
+  const [localCoverId, setLocalCoverId] = useState<string | null>(null);
+  const videoId = localVideoId ?? stored.videoId ?? null;
+  const coverId = localCoverId ?? stored.coverId ?? null;
+  const urls = useAssetUrls([videoId, coverId].filter((id): id is string => Boolean(id)));
 
   async function film() {
     setBusy(true);
     try {
-      const still = await atmospherePng();
-      if (!still) return;
-      const encoded = await encodeReelsFromPng(still, script, script.hook);
+      const cover = await saveReelsAtmosphere(
+        { colorMood: "靜水、琥珀點", campaignName: eventName || "禪光" },
+        { eventName, campaignId },
+      );
+      setLocalCoverId(cover.id);
+      if (cover.mime !== "image/png") {
+        toast.error("這台瀏覽器還不能編成 Reels 影片。氣氛封面已進素材庫。");
+        return;
+      }
+      const encoded = await encodeReelsFromPng(cover.base64, script, script.hook);
       if (!encoded) {
-        toast.error("這台瀏覽器還不能編成 Reels 影片。");
+        toast.error("這台瀏覽器還不能編成 Reels 影片。氣氛封面已進素材庫。");
         return;
       }
       const id = await saveReelsFilm(encoded, { eventName, campaignId });
@@ -113,19 +70,13 @@ export function ReelsBoard({
       <p className="mt-1 text-xs text-muted">
         片頭是氣氛畫面，不燒主標。字幕才是學生 Hook。編成後先在 IG Preview 看 9:16，到期發布走官方 Reels。
       </p>
-      {urls[videoId ?? ""] ? (
+      {videoId && urls[videoId] ? (
         <div className="mx-auto mt-4 w-full max-w-[14rem] overflow-hidden rounded-[1.6rem] bg-surface shadow-[var(--shadow-artboard)]">
-          <AssetMedia
-            src={urls[videoId!]}
-            video
-            controls
-            className="aspect-[9/16] w-full"
-            testId="reels-film"
-          />
+          <AssetMedia src={urls[videoId]} video controls className="aspect-[9/16] w-full" testId="reels-film" />
         </div>
-      ) : lastCover ? (
-        <div className="mt-3 max-w-48">
-          <HeroVisual base64={lastCover.base64} mime={lastCover.mime} headline={script.hook} />
+      ) : coverId && urls[coverId] ? (
+        <div className="mx-auto mt-4 w-full max-w-[14rem] overflow-hidden rounded-[1.6rem] bg-surface shadow-[var(--shadow-artboard)]">
+          <AssetMedia src={urls[coverId]} className="aspect-[9/16] w-full" testId="reels-cover" />
         </div>
       ) : null}
       <ol className="mt-3 space-y-2">
@@ -147,10 +98,7 @@ export function ReelsBoard({
         <Button size="sm" disabled={busy} data-testid="reels-encode" onClick={() => void film()}>
           {busy ? "編成中…" : videoId ? "重新編成短影音" : "編成短影音"}
         </Button>
-        <Button size="sm" variant="secondary" disabled={busy} onClick={() => void makeCover()}>
-          生成 Reels 封面
-        </Button>
-        {videoId ? (
+        {videoId || coverId ? (
           <Button size="sm" variant="secondary" asChild>
             <Link to="/ig">看 IG Preview</Link>
           </Button>

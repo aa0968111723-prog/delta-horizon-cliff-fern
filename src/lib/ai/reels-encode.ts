@@ -103,7 +103,12 @@ export async function encodeReelsFromPng(
   const shots = reelsShotsFromScript(script, hook);
   const spec = { ...reelsEncodeSpec(shots), width: encoderCfg.width, height: encoderCfg.height, bitrate: encoderCfg.bitrate };
   const blob = blobFromBase64(pngBase64, "image/png");
-  const poster = await createImageBitmap(blob);
+  let poster: ImageBitmap;
+  try {
+    poster = await createImageBitmap(blob);
+  } catch {
+    return null;
+  }
   const canvas = document.createElement("canvas");
   canvas.width = spec.width;
   canvas.height = spec.height;
