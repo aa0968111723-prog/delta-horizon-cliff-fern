@@ -150,8 +150,9 @@ try {
   await expectText("生成封面", "生成封面圖");
   await page.screenshot({ path: `${prefix}-reels.png` });
 
-  await page.getByText("做成其他型態").scrollIntoViewIfNeeded();
+  await page.getByText("做成其他型態").evaluate((el) => el instanceof HTMLElement && el.scrollIntoView({ block: "nearest" }));
   await tap(page.getByRole("button", { name: "一次做成全套" }));
+  await page.waitForURL(/pack=1/, { timeout: 15000 }).catch(() => undefined);
   await page.waitForSelector("#convert-pack", { timeout: 15000 });
   const afterPack = await text();
   record(
@@ -159,16 +160,31 @@ try {
     afterPack.includes("這次做成的全套") && afterPack.includes("輪播") && afterPack.includes("限動"),
     "全套裡沒有輪播或限動",
   );
-  await page.locator("#convert-pack").scrollIntoViewIfNeeded();
+  await page.locator("#convert-pack").evaluate((el) => el instanceof HTMLElement && el.scrollIntoView({ block: "start" }));
   await expectText("全套下載", "下載全套");
-  await expectText("全套下載說明", "種畫面會下載圖");
   await page.screenshot({ path: `${prefix}-pack.png` });
 
   await page.goto(`${base}/export`, { waitUntil: "networkidle" });
   await page.waitForSelector("text=預覽與下載", { timeout: 15000 });
   await expectText("輸出全套", "下載全套");
   await expectText("輸出全套列表", "這次做成的全套");
+  await expectText("輸出全套說明", "種畫面會下載圖");
   await page.screenshot({ path: `${prefix}-export-pack.png` });
+  const downloads = [];
+  page.on("download", (download) => {
+    downloads.push(download.suggestedFilename());
+    void download.cancel().catch(() => undefined);
+  });
+  await tap(page.getByRole("button", { name: "下載全套" }).first());
+  const deadline = Date.now() + 20000;
+  while (!downloads.length && Date.now() < deadline) {
+    await page.waitForTimeout(250);
+  }
+  record(
+    "點下載全套",
+    downloads.length > 0,
+    downloads.length ? downloads.slice(0, 8).join("、") : "沒有開始下載",
+  );
 
   // 7. 逐頁檢查
   for (const [name, path, needle] of [
