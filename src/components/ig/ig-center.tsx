@@ -27,7 +27,14 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
   const urls = useAssetUrls(assets.map((a) => a.id));
   const brand = brands[0];
   const navigate = useNavigate();
-  const slots = useMemo(() => igGridSlots({ projects, posts: igPosts }), [projects, igPosts]);
+  const slots = useMemo(() => {
+    const all = igGridSlots({ projects, posts: igPosts });
+    if (!focusProjectId) return all;
+    const focused = upcomingSlotId(focusProjectId);
+    const hit = all.find((slot) => slot.id === focused);
+    if (!hit) return all;
+    return [hit, ...all.filter((slot) => slot.id !== focused)];
+  }, [projects, igPosts, focusProjectId]);
   const [activeId, setActiveId] = useState<string | null>(
     focusProjectId ? upcomingSlotId(focusProjectId) : slots[0]?.id ?? null,
   );

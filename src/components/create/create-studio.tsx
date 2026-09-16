@@ -467,7 +467,10 @@ export function CreateStudio({
     toast.success(kind === "carousel" ? "已轉成 Carousel" : kind === "story" ? "已轉成限動" : "已轉成 Reels");
   }
 
-  function applyToStudio(andSchedule: boolean, opts?: { kind?: ContentKind; nextPack?: CreativePack }) {
+  function applyToStudio(
+    andSchedule: boolean,
+    opts?: { kind?: ContentKind; nextPack?: CreativePack; stay?: boolean; silent?: boolean },
+  ): { projectId: string; day: string } | undefined {
     const brand = brands[0];
     const active = opts?.nextPack ?? pack;
     const kind = opts?.kind ?? "carousel";
@@ -498,14 +501,29 @@ export function CreateStudio({
       style: active.plan.visualTheme,
       deliverables: { post: true, story: true, carousel: true, reels: true },
     };
-    const project = createProject({
-      name: `${active.plan.campaignName} · ${kind === "carousel" ? "Carousel" : kind === "story" ? "Story" : kind === "reels" ? "Reels" : kind === "line" ? "LINE" : kind === "threads" ? "Threads" : "IG"}`,
-      brandId: brand.id,
-      formatId: formatForKind(kind),
-      brief,
-      templateId: active.plan.templateId,
-    });
+    const studio = useStudio.getState();
+    const existing = studioProjectId ? studio.projects.find((item) => item.id === studioProjectId) : undefined;
+    const reuse = Boolean(existing && existing.contentKind === kind);
+    const project = reuse
+      ? existing!
+      : createProject({
+          name: `${active.plan.campaignName} · ${kind === "carousel" ? "Carousel" : kind === "story" ? "Story" : kind === "reels" ? "Reels" : kind === "line" ? "LINE" : kind === "threads" ? "Threads" : "IG"}`,
+          brandId: brand.id,
+          formatId: formatForKind(kind),
+          brief,
+          templateId: active.plan.templateId,
+        });
     applyCampaignPlan(project.id, active.plan, brief);
+    const activeCopy = copies.find((c) => c.tone === tone) ?? copies[0];
+    if (activeCopy) {
+      useStudio.getState().setCopy(project.id, {
+        headline: activeCopy.hook,
+        body: activeCopy.body,
+        cta: activeCopy.cta,
+        caption: `${activeCopy.body}\n\n${activeCopy.cta}\n${activeCopy.hashtags.join(" ")}`,
+        hashtags: activeCopy.hashtags,
+      });
+    }
     setStudioProjectId(project.id);
     const prevSession = readLastSession();
     writeLastSession({
@@ -524,33 +542,50 @@ export function CreateStudio({
       savedAt: Date.now(),
     });
     const scheduledAt = scheduledAtFor(kind, camp?.date);
+    const status = andSchedule ? "scheduled" : opts?.stay ? "done" : "creating";
     useStudio.getState().updateProject(project.id, {
       contentKind: kind,
       campaignId: camp?.id ?? null,
       sourceRefs: [
         ...active.sources,
-        ...(imageSrc?.startsWith("https:") ? [{ source: "generated" as const, label: "AI 主視覺", id: imageSrc }] : []),
+        ...(imageSrc?.startsWith("https:") || imageSrc?.startsWith("data:")
+          ? [{ source: "generated" as const, label: "AI 主視覺", id: imageSrc }]
+          : []),
       ],
-      status: andSchedule ? "scheduled" : "creating",
+      status,
       scheduledAt: andSchedule ? scheduledAt : null,
     });
-    if (camp) {
+    if (camp && andSchedule) {
       if (!camp.waves.length) generateWaves(camp.id);
       bindScheduledWave(camp.id, {
         kind,
         projectId: project.id,
         scheduledAt,
         topic: active.plan.hook,
-        status: andSchedule ? "scheduled" : "creating",
+        status: "scheduled",
       });
     }
     const day = isoFromMs(scheduledAt);
-    toast.success(andSchedule ? `已排進 ${day.replace(/^\d{4}-/, "").replace("-", "/")} 月曆` : "已套進畫布");
+    if (!opts?.silent) {
+      toast.success(andSchedule ? `已排進 ${day.replace(/^\d{4}-/, "").replace("-", "/")} 月曆` : opts?.stay ? "已放到 IG Grid" : "已套進畫布");
+    }
+    if (opts?.stay) return { projectId: project.id, day };
     if (andSchedule) {
       void navigate({ to: "/calendar", search: { day } });
-      return;
+      return { projectId: project.id, day };
     }
     void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+    return { projectId: project.id, day };
+  }
+
+  function goIgPreview() {
+    const placed = applyToStudio(false, { stay: true, silent: true });
+    const id = placed?.projectId ?? studioProjectId;
+    if (!id) {
+      toast.message("先生成一版，再去 IG 預覽");
+      return;
+    }
+    void navigate({ to: "/ig", search: { item: id } });
   }
 
   async function sendCanva(opts?: { afterConnect?: boolean }) {
@@ -584,6 +619,7 @@ export function CreateStudio({
       }),
     );
     const kind = aspect === "9:16" ? "story" : "carousel";
+    const placed = applyToStudio(false, { stay: true, silent: true });
     const persist = (step: CanvaLoopStep, editUrl?: string | null) => {
       setCanvaStep(step);
       if (editUrl) setCanvaEditUrl(editUrl);
@@ -594,7 +630,7 @@ export function CreateStudio({
         tone,
         imageSrc: persistableImageSrc(imageSrc),
         createdCampaignId,
-        projectId: studioProjectId,
+        projectId: placed?.projectId ?? studioProjectId,
         aspect,
         canvaKit: kit,
         canvaStep: step,
@@ -1035,12 +1071,7 @@ export function CreateStudio({
                   <Button
                     variant="secondary"
                     className="min-h-11 rounded-full"
-                    onClick={() =>
-                      void navigate({
-                        to: "/ig",
-                        search: studioProjectId ? { item: studioProjectId } : {},
-                      })
-                    }
+                    onClick={goIgPreview}
                   >
                     IG Preview
                   </Button>
@@ -1069,12 +1100,7 @@ export function CreateStudio({
             <Button
               variant="secondary"
               className="min-h-11 rounded-full"
-              onClick={() =>
-                void navigate({
-                  to: "/ig",
-                  search: studioProjectId ? { item: studioProjectId } : {},
-                })
-              }
+              onClick={goIgPreview}
             >
               IG Preview
             </Button>

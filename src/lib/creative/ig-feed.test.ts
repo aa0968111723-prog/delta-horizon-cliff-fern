@@ -63,6 +63,34 @@ test("scheduled carousel sits at the front of the IG grid", () => {
   assert.equal(slots[1]?.postId, "ig_old");
 });
 
+test("a finished pack still sits on the IG grid before it is scheduled", () => {
+  const slots = igGridSlots({
+    projects: [
+      {
+        id: "proj_preview",
+        name: "下週有一場茶會 · Carousel",
+        status: "done",
+        contentKind: "carousel",
+        scheduledAt: null,
+        copy,
+      },
+    ],
+    posts: [
+      {
+        id: "ig_old",
+        source: "seed",
+        mediaType: "image",
+        caption: "龜龜今天也在。",
+        takenAt: Date.parse("2026-03-04T12:00:00+08:00"),
+        assetIds: [],
+      },
+    ],
+  });
+  assert.equal(slots[0]?.id, upcomingSlotId("proj_preview"));
+  assert.equal(slots[0]?.origin, "upcoming");
+  assert.match(slots[0]?.caption ?? "", /很久沒坐好/);
+});
+
 test("earlier scheduled date comes first among upcoming", () => {
   const slots = igGridSlots({
     projects: [
