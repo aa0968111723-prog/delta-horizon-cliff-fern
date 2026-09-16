@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { pagesOf } from "@/lib/studio/layers";
+import { clubCreativeDna } from "@/lib/zen/dna";
 import { igHookAnalysis } from "@/lib/zen/review";
 import { useStudio } from "@/stores/studio-store";
 
@@ -15,6 +16,7 @@ export function InstagramCenter() {
   const brands = useStudio((s) => s.brands);
   const igMemory = useStudio((s) => s.igMemory);
   const assets = useStudio((s) => s.assets);
+  const campaigns = useStudio((s) => s.campaigns);
   const schedule = useStudio((s) => s.schedule);
   const brand = brands[0];
   const [selected, setSelected] = useState<string | null>(igMemory[0]?.id ?? null);
@@ -23,16 +25,10 @@ export function InstagramCenter() {
   const gridProjects = projects.filter((p) => p.activeFormatId.startsWith("feed") || p.contentKind === "carousel");
   const post = igMemory.find((p) => p.id === selected);
 
-  const dna = useMemo(() => {
-    const captions = igMemory.map((p) => p.caption);
-    const avg = captions.length ? Math.round(captions.reduce((n, c) => n + c.length, 0) / captions.length) : 0;
-    return {
-      palette: brand?.colors.map((c) => c.label).join(" / ") ?? "",
-      voice: brand?.voice ?? "",
-      length: avg,
-      cta: brand?.ctas[0] ?? "來坐一下",
-    };
-  }, [igMemory, brand]);
+  const dna = useMemo(
+    () => clubCreativeDna({ brand, igMemory, campaigns, assets }),
+    [igMemory, brand, assets, campaigns],
+  );
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-10">
@@ -51,9 +47,10 @@ export function InstagramCenter() {
         <p className="text-sm font-medium">{brand?.handle ?? "@tamkang.zen"}</p>
         <p className="mt-1 text-sm text-muted">{brand?.name} · 一人創作中控台</p>
         <p className="mt-2 text-xs text-muted">
-          DNA：{dna.palette} · 常用 CTA「{dna.cta}」· Caption 約 {dna.length} 字
+          DNA：{dna.palette} · 常用 CTA「{dna.ctas[0]}」· Caption 約 {dna.captionLength} 字
         </p>
         <p className="mt-2 text-xs text-subtle">{dna.voice}</p>
+        <p className="mt-2 text-xs text-muted">喜歡 {dna.likes.join("、")} · 視覺 {dna.visual}</p>
       </section>
 
       <section className="mt-8">

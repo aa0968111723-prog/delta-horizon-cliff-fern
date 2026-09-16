@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -13,6 +14,10 @@ import {
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ASSET_CATEGORIES, sourceLabel, usageLabel } from "@/lib/studio/assets";
 import { kindFromCategory } from "@/lib/studio/assets";
+import { getAssetStorage } from "@/lib/studio/asset-storage";
+import { bytesToBase64 } from "@/lib/studio/bytes";
+import { analyzeStudioImage } from "@/lib/ai/image-studio";
+import { tagsFromVision } from "@/lib/zen/vision-tags";
 import type { AssetCategory, AssetMeta, AssetUsageStatus } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
 
@@ -36,12 +41,46 @@ export function AssetDetailSheet({
   const placeAsset = useStudio((s) => s.placeAsset);
   const lastProjectId = useStudio((s) => s.lastProjectId);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
+  const [busy, setBusy] = useState(false);
+  const [notes, setNotes] = useState<string[] | null>(null);
 
   if (!asset) return null;
   const current = asset;
 
   function patch<K extends keyof AssetMeta>(key: K, value: AssetMeta[K]) {
     updateAsset(current.id, { [key]: value });
+  }
+
+  async function analyze() {
+    setBusy(true);
+    try {
+      let blob = await getAssetStorage().get(current.id);
+      if (!blob && current.seedSrc) {
+        const res = await fetch(current.seedSrc);
+        if (res.ok) blob = await res.blob();
+      }
+      if (!blob) {
+        toast.error("這張圖還沒有檔案可分析。");
+        return;
+      }
+      const buf = await blob.arrayBuffer();
+      const b64 = bytesToBase64(new Uint8Array(buf));
+      if (b64.length > 1_800_000) {
+        toast.error("圖檔太大，請用較小的照片分析。");
+        return;
+      }
+      const result = await analyzeStudioImage({ data: { imageBase64: b64, mime: blob.type || current.mime } });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      const tags = tagsFromVision(result.analysis, current.tags);
+      updateAsset(current.id, { tags, licenseNotes: result.analysis.content.slice(0, 180) });
+      setNotes(result.analysis.suggestions);
+      toast.success("已寫入 AI 標籤");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function place() {
@@ -140,9 +179,19 @@ export function AssetDetailSheet({
           />
         </div>
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
+        {notes?.length ? (
+          <ul className="list-disc pl-4 text-sm text-muted">
+            {notes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        ) : null}
         <div className="flex flex-wrap gap-2 pb-4">
           <Button onClick={place} disabled={!lastProjectId}>
             放到目前畫布
+          </Button>
+          <Button variant="secondary" disabled={busy} onClick={() => void analyze()}>
+            {busy ? "分析中…" : "AI 分析／標籤"}
           </Button>
           <Button variant="secondary" asChild>
             <Link to="/create" search={{ mode: "from-image", idea: asset.name }}>
@@ -150,7 +199,7 @@ export function AssetDetailSheet({
             </Link>
           </Button>
           <Button variant="secondary" asChild>
-            <Link to="/image">AI 分析／延伸</Link>
+            <Link to="/image">生成相似視覺</Link>
           </Button>
           <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}

@@ -12,6 +12,15 @@ export function parseEventDate(text: string, now = new Date()): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
+export function guessEventName(text: string): string {
+  if (/浮游/.test(text)) return "浮游禪光";
+  if (/茶會/.test(text)) return "茶會";
+  if (/招新|招生|迎新/.test(text)) return "招新";
+  if (/靜坐|坐禪/.test(text)) return "靜坐";
+  if (/社課|工作坊/.test(text)) return "社課";
+  return "";
+}
+
 export function parseEventTime(text: string, fallback = "19:00"): string {
   const range = text.match(/(\d{1,2}:\d{2})\s*[–\-到至]\s*(\d{1,2}:\d{2})/);
   if (range) return `${range[1]}–${range[2]}`;

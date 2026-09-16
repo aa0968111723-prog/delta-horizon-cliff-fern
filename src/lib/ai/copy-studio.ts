@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { zenSystemPrompt } from "@/lib/zen/context";
-import { studentReviewOf } from "@/lib/zen/review";
+import { studentReviewOf, tidyCopy } from "@/lib/zen/review";
 import type { CopyPack, CopyTone, StudentReview } from "@/lib/studio/types";
 
 const ToneSchema = z.enum(["short", "normal", "emotional", "student", "life", "humor"]);
@@ -12,7 +12,7 @@ const CopyInput = z.object({
   schedule: z.string().max(120).optional(),
   location: z.string().max(120).optional(),
   tone: ToneSchema.optional(),
-  memoryHint: z.string().max(400).optional(),
+  memoryHint: z.string().max(800).optional(),
   forceMock: z.boolean().optional(),
 });
 
@@ -33,7 +33,8 @@ function mockPacks(idea: string, eventName: string, schedule: string, location: 
     ? "最近是不是連休息都覺得有罪惡感？"
     : "最近是不是很久沒有好好坐下來？";
   const where = [schedule, location].filter(Boolean).join(" · ");
-  const body = `${idea.trim()}\n${eventName ? `${eventName}${where ? `，${where}` : ""}。` : ""}\n想找人一起的話，把這則傳給他。`.trim();
+  const eventLine = eventName ? `${eventName}${where ? `，${where}` : ""}` : where;
+  const body = tidyCopy(`${idea.trim()}\n${eventLine}\n想找人一起的話，把這則傳給他。`);
   const tags = ["#淡江禪學社", "#淡江", "#淡水"];
   const cta = "來坐一下";
   const tones: CopyTone[] = ["student", "short", "emotional", "life", "humor", "normal"];
@@ -44,7 +45,7 @@ function mockPacks(idea: string, eventName: string, schedule: string, location: 
       tone === "short"
         ? `${hook}\n${where || eventName}`
         : tone === "humor"
-          ? `${hook}\n不是要你頓悟，就是來坐一下。${where}`
+          ? tidyCopy(`${hook}\n不是要你頓悟，就是來坐一下。${where}`)
           : body,
     cta,
     hashtags: tags,
@@ -83,7 +84,7 @@ export const generateCopyPacks = createServerFn({ method: "POST" })
             role: "user",
             content: `為淡江禪學社寫 IG 文案。想法：${data.idea}
 活動：${data.eventName || "未定"} 時間：${data.schedule || ""} 地點：${data.location || ""}
-過去表現：${data.memoryHint || "問句 Hook 收藏較高"}
+品牌記憶與過去 IG：${data.memoryHint || "問句 Hook 收藏較高。學自己的 IG，不要套一般品牌模板。"}
 需要 JSON：{packs:[{tone,hook,body,cta,hashtags}], review:{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,tooLong,knowsWhat,knowsWhenWhere,wouldBringFriend,knowsHowToSignup,rewriteHook,notes[]}}
 tones 必含 short,normal,emotional,student,life,humor。禁止誠摯邀請。`,
           },

@@ -10,6 +10,7 @@ import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { contentKindLabel } from "@/lib/studio/content";
 import { daysUntil, academicBeatLabel, academicBeat } from "@/lib/zen/context";
 import { INSPIRATION } from "@/lib/zen/inspiration";
+import { clubCreativeDna } from "@/lib/zen/dna";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 import { ProjectCard } from "@/components/shared/project-card";
@@ -34,6 +35,10 @@ export function HomePage() {
   const scheduled = schedule.filter((item) => item.status === "scheduled").slice(0, 4);
   const generated = projects.filter((p) => p.plan).slice(0, 4);
   const strong = [...igMemory].sort((a, b) => (b.saves ?? 0) - (a.saves ?? 0))[0];
+  const dna = useMemo(
+    () => clubCreativeDna({ brand, igMemory, campaigns, assets }),
+    [brand, igMemory, campaigns, assets],
+  );
 
   const urls = useAssetUrls(assets.map((a) => a.id));
   const heroProject = projects.find((p) => p.campaignId === upcoming?.id) ?? projects[0];
@@ -216,6 +221,22 @@ export function HomePage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="mt-10 mb-6">
+        <SectionHeader title="淡江禪學社 Creative Brain" hint="生成前先讀自己，不是從零開始" />
+        <div className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+          <p className="text-sm">{dna.palette}</p>
+          <p className="mt-2 text-sm text-muted">
+            {dna.motifs.join(" · ")} · CTA「{dna.ctas[0]}」
+          </p>
+          <p className="mt-2 text-xs text-muted">
+            喜歡 {dna.likes.join("、")}。不要 {dna.dislikes.join("、")}。
+          </p>
+          <p className="mt-2 text-xs text-subtle">
+            素材 {assets.length} · 過去 IG {igMemory.length} · 活動 {campaigns.length} · Caption 約 {dna.captionLength || "—"} 字
+          </p>
+        </div>
       </section>
 
       <section className="mt-10 mb-6">

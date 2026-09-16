@@ -1,4 +1,5 @@
 import { HOOK_EXAMPLES, isZenClubBrief } from "../zen/context.ts";
+import { proposedHook, tidyCopy } from "../zen/review.ts";
 import { goalLabel } from "../studio/goals.ts";
 import type { CampaignPlan, CarouselPagePlan, CopyPack, StudentReview, TemplateId, VisualDirection } from "../studio/types.ts";
 import type { BriefInput } from "./schema.ts";
@@ -62,15 +63,17 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
   const visualDirection = `畫面用品牌色做底，上半主視覺、下半標題。風格：${style}。避免雜訊與浮水印。`;
   const subhead = offer || `${when} · ${where}`;
   const body = features;
-  const captionCore = [
-    hook,
-    `${when}${where ? `，${where}` : ""}。`,
-    features ? `這次看點：${features}。` : "",
-    offer ? offer : "",
-    slogan ? slogan : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const captionCore = tidyCopy(
+    [
+      hook,
+      `${when}${where ? `，${where}` : ""}`,
+      features ? `這次看點：${features}` : "",
+      offer ? offer : "",
+      slogan ? slogan : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
 
   const pages: CarouselPagePlan[] = data.wantCarousel
     ? [
@@ -214,7 +217,7 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
         knowsWhenWhere: `${when} ${where}`,
         wouldBringFriend: "有『找朋友』空間。",
         knowsHowToSignup: offer || "還要補報名方式。",
-        rewriteHook: hook,
+        rewriteHook: proposedHook(`${hook}\n${captionCore}`),
         notes: ["時間地點要能被截圖帶走"],
       }
     : undefined;

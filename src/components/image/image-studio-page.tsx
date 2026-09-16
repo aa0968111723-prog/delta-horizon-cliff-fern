@@ -16,6 +16,7 @@ import { putAssetBlob } from "@/lib/studio/assets-idb";
 import { blobFromBase64, bytesToBase64 } from "@/lib/studio/bytes";
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
+import { tagsFromVision } from "@/lib/zen/vision-tags";
 import type { FormatId, VisualDirection } from "@/lib/studio/types";
 import { useStudio } from "@/stores/studio-store";
 import { FORMATS } from "@/lib/studio/formats";
@@ -31,16 +32,19 @@ const VARIATIONS: { id: "composition" | "mood" | "background" | "style" | "text"
 export function ImageStudioPage() {
   const navigate = useNavigate();
   const addAsset = useStudio((s) => s.addAsset);
+  const updateAsset = useStudio((s) => s.updateAsset);
   const [idea, setIdea] = useState("我要宣傳茶會");
   const [format, setFormat] = useState<FormatId>("feed-portrait");
   const [directions, setDirections] = useState<VisualDirection[]>([]);
   const [busy, setBusy] = useState(false);
   const [vision, setVision] = useState<VisionAnalysis | null>(null);
 
-  async function directionsGo() {
+  async function directionsGo(nextIdea = idea, formatOverride?: FormatId) {
     setBusy(true);
     try {
-      const result = await generateVisualDirections({ data: { idea, format: toImageFormat(format) } });
+      const result = await generateVisualDirections({
+        data: { idea: nextIdea, format: toImageFormat(formatOverride ?? format) },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -51,22 +55,23 @@ export function ImageStudioPage() {
     }
   }
 
-  async function gen(dir: VisualDirection, kind?: (typeof VARIATIONS)[number]["id"]) {
+  async function gen(dir: VisualDirection, kind?: (typeof VARIATIONS)[number]["id"], formatOverride?: FormatId) {
     setBusy(true);
     try {
+      const nextFormat = formatOverride ?? format;
       const prompt = kind ? varyImagePrompt(dir.prompt, kind) : dir.prompt;
-      const result = await generateStudioImage({ data: { prompt, format: toImageFormat(format) } });
+      const result = await generateStudioImage({ data: { prompt, format: toImageFormat(nextFormat) } });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
-      const spec = formatById(format);
+      const spec = formatById(nextFormat);
       const blob = blobFromBase64(result.imageBase64, result.mime);
       const id = uid("asset");
       await putAssetBlob(id, blob);
       addAsset({
         id,
-        name: kind ? `${dir.name} · ${VARIATIONS.find((v) => v.id === kind)?.label}` : dir.name,
+        name: [dir.name, kind ? VARIATIONS.find((v) => v.id === kind)?.label : null, spec.short].filter(Boolean).join(" · "),
         kind: "image",
         category: "ai",
         mime: result.mime,
@@ -93,12 +98,34 @@ export function ImageStudioPage() {
     const b64 = bytesToBase64(new Uint8Array(buf));
     setBusy(true);
     try {
+      const id = uid("asset");
+      await putAssetBlob(id, file);
+      addAsset({
+        id,
+        name: file.name.replace(/\.[^.]+$/, "") || "上傳圖片",
+        kind: "image",
+        category: "photo",
+        mime: file.type || "image/jpeg",
+        width: 0,
+        height: 0,
+        tags: ["上傳"],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        source: "upload",
+        licenseNotes: "來源：本機上傳",
+        licenseOwner: "禪光",
+        favorite: false,
+        lastUsedAt: null,
+        useCount: 0,
+      });
       const result = await analyzeStudioImage({ data: { imageBase64: b64, mime: file.type } });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
       setVision(result.analysis);
+      updateAsset(id, { tags: tagsFromVision(result.analysis, ["上傳"]) });
+      toast.success("已進素材庫，並完成圖片理解");
     } finally {
       setBusy(false);
     }
@@ -145,6 +172,17 @@ export function ImageStudioPage() {
                   {item.label}
                 </Button>
               ))}
+              {FORMATS.filter((f) => f.id !== "feed-landscape" && f.id !== format).map((item) => (
+                <Button
+                  key={`ext-${item.id}`}
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => void gen(dir, undefined, item.id)}
+                >
+                  延伸 {item.short}
+                </Button>
+              ))}
             </div>
           </li>
         ))}
@@ -166,7 +204,17 @@ export function ImageStudioPage() {
               ))}
             </ul>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: vision.content } })}>
+              <Button
+                size="sm"
+                onClick={() => {
+                  const next = `${vision.content}。延續這個品牌 DNA，做新的活動，不要複製舊作品。`;
+                  setIdea(next);
+                  void directionsGo(next);
+                }}
+              >
+                生成相似視覺
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/create", search: { mode: "idea", idea: vision.content } })}>
                 延續這個風格
               </Button>
               <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/create", search: { mode: "story", idea: vision.content } })}>
@@ -180,7 +228,7 @@ export function ImageStudioPage() {
                 variant="secondary"
                 onClick={() => {
                   setFormat("reels-cover");
-                  void directionsGo();
+                  void directionsGo(vision.content, "reels-cover");
                 }}
               >
                 做成 Reels Cover

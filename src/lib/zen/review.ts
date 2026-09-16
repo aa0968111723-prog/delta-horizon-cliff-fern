@@ -1,4 +1,18 @@
 import type { StudentReview } from "../studio/types.ts";
+import { HOOK_EXAMPLES } from "./context.ts";
+
+export function tidyCopy(text: string) {
+  return text.replace(/。{2,}/g, "。").replace(/，。/g, "。").trim();
+}
+
+/** Student-facing rewrite — never keep a formal invitation as the first line. */
+export function proposedHook(text: string): string {
+  const first = text.split(/[。\n]/)[0]?.trim() ?? "";
+  if (/誠摯|敬邀|蒞臨|不容錯過/.test(first)) return HOOK_EXAMPLES[0];
+  if (!/[？?]/.test(first)) return HOOK_EXAMPLES[2];
+  const alt = HOOK_EXAMPLES.find((hook) => !first.includes(hook.slice(0, 8)));
+  return alt ?? HOOK_EXAMPLES[1];
+}
 
 export function studentReviewOf(text: string, schedule = "", location = ""): StudentReview {
   const religious = /佛法|涅槃|般若|禪宗|開示|虔誠|法會|業力|輪迴/.test(text);
@@ -16,7 +30,7 @@ export function studentReviewOf(text: string, schedule = "", location = ""): Stu
     knowsWhenWhere: schedule || location ? `${schedule} ${location}`.trim() : "時間地點還不夠清楚。",
     wouldBringFriend: /一起|揪|朋友/.test(text) ? "有揪人空間。" : "可加一句找朋友。",
     knowsHowToSignup: /報名|連結|表單/.test(text) ? "有報名線索。" : "如果需要報名，還要補。",
-    rewriteHook: text.split(/[。\n]/)[0]?.slice(0, 28) || "最近是不是很久沒有好好坐下來？",
+    rewriteHook: proposedHook(text),
     notes: [religious ? "拿掉佛學詞" : "保持生活感", "時間地點要能截圖"],
   };
 }

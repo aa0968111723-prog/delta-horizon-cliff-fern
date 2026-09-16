@@ -144,4 +144,6 @@ test("studentReview flags 誠摯邀請 as too formal", () => {
   const review = studentReviewOf("淡江大學禪學社誠摯邀請您蒞臨法會");
   assert.match(review.tooReligious, /宗教/);
   assert.match(review.tooSerious, /正式/);
+  assert.match(review.rewriteHook, /？/);
+  assert.doesNotMatch(review.rewriteHook, /誠摯/);
 });

@@ -9,6 +9,7 @@ import { uid } from "@/lib/studio/ids";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
+import { ScheduleEditor } from "@/components/calendar/schedule-editor";
 
 type View = "month" | "week" | "agenda";
 
@@ -20,6 +21,7 @@ export function CalendarPage() {
   const setCreateOpen = useUi((s) => s.setCreateOpen);
   const [cursor, setCursor] = useState(new Date("2026-09-16T00:00:00+08:00"));
   const [view, setView] = useState<View>("month");
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 });
@@ -118,6 +120,9 @@ export function CalendarPage() {
                           <button type="button" className="text-[10px] text-muted" onClick={() => duplicate(item.id)}>
                             複製
                           </button>
+                          <button type="button" className="text-[10px] text-muted" onClick={() => setEditingId(item.id)}>
+                            編輯
+                          </button>
                           <Link
                             to="/create"
                             search={{ mode: "idea", idea: item.title }}
@@ -149,9 +154,12 @@ export function CalendarPage() {
                   <Button size="sm" variant="secondary" onClick={() => duplicate(item.id)}>
                     複製
                   </Button>
+                  <Button size="sm" variant="secondary" onClick={() => setEditingId(item.id)}>
+                    直接編輯
+                  </Button>
                   <Button size="sm" variant="secondary" asChild>
                     <Link to="/create" search={{ mode: "idea", idea: item.title }}>
-                      直接編輯
+                      AI 延伸
                     </Link>
                   </Button>
                 </div>
@@ -159,6 +167,25 @@ export function CalendarPage() {
             ))}
         </ul>
       )}
+
+      {editingId ? (
+        <div className="mt-6">
+          {(() => {
+            const item = schedule.find((row) => row.id === editingId);
+            if (!item) return null;
+            return (
+              <ScheduleEditor
+                item={item}
+                onSave={(next) => {
+                  upsertSchedule(next);
+                  setEditingId(null);
+                }}
+                onClose={() => setEditingId(null)}
+              />
+            );
+          })()}
+        </div>
+      ) : null}
 
       <section className="mt-8">
         <h2 className="text-sm font-medium">活動</h2>

@@ -13,9 +13,9 @@ import { putAssetBlob } from "@/lib/studio/assets-idb";
 import { blobFromBase64 } from "@/lib/studio/bytes";
 import { formatById } from "@/lib/studio/formats";
 import { uid } from "@/lib/studio/ids";
-import { parseEventDate, parseEventTime } from "@/lib/zen/dates";
+import { parseEventDate, parseEventTime, guessEventName } from "@/lib/zen/dates";
 import { DEFAULT_AUDIENCE } from "@/lib/zen/context";
-import { learnFromIg } from "@/lib/zen/insights";
+import { clubCreativeDna } from "@/lib/zen/dna";
 import { rhythmHint } from "@/lib/zen/rhythm";
 import { searchCreative, type CreativeHit } from "@/lib/zen/search";
 import { suggestWaves, eventKindFromText, waveLabel } from "@/lib/zen/schedule";
@@ -61,15 +61,18 @@ export function CreateStudio() {
   const addAsset = useStudio((s) => s.addAsset);
   const upsertRemoteFiles = useStudio((s) => s.upsertRemoteFiles);
   const brand = brands[0];
-  const memoryHint = learnFromIg(igMemory).promptBlock;
+  const memoryHint = clubCreativeDna({ brand, igMemory, campaigns, assets }).promptBlock;
   const recentKinds = calendar.slice(-4).map((item) => item.kind);
 
   const [idea, setIdea] = useState(search.idea || "下週有一場茶會");
-  const [eventName, setEventName] = useState(search.idea?.includes("浮游") ? "浮游禪光" : "");
+  const [eventName, setEventName] = useState(guessEventName(search.idea || ""));
   const [schedule, setSchedule] = useState("2026/09/24 19:00");
   const [location, setLocation] = useState("淡江大學淡水校園 · 禪學社");
   const [signupUrl, setSignupUrl] = useState("");
   const [studentPain, setStudentPain] = useState("開學後行程變滿，休息會心虛。");
+  const [oneLiner, setOneLiner] = useState("");
+  const [description, setDescription] = useState("");
+  const [theme, setTheme] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [plan, setPlan] = useState<CampaignPlan | null>(null);
@@ -88,7 +91,19 @@ export function CreateStudio() {
 
   useEffect(() => {
     if (search.idea) setIdea(search.idea);
-    if (search.idea?.includes("浮游")) setEventName("浮游禪光");
+    const guessed = guessEventName(search.idea || "");
+    if (guessed) setEventName(guessed);
+    const existing = campaigns.find((c) => search.idea && (c.name === search.idea || c.oneLiner === search.idea));
+    if (existing) {
+      setEventName(existing.name);
+      setLocation(existing.location);
+      setStudentPain(existing.studentPain || "開學後行程變滿，休息會心虛。");
+      setSignupUrl(existing.signupUrl);
+      setOneLiner(existing.oneLiner);
+      setDescription(existing.description);
+      setTheme(existing.theme);
+      if (existing.date) setSchedule(`${existing.date.replaceAll("-", "/")} ${existing.time}`.trim());
+    }
   }, [search.idea]);
 
   const activePack = packs.find((p) => p.tone === tone) ?? packs[0];
@@ -141,18 +156,20 @@ export function CreateStudio() {
     try {
       const brief = migrateBrief({
         ...emptyBrief(),
-        eventName: eventName || idea.slice(0, 20),
-        product: eventName || idea,
+        eventName: eventName || guessEventName(idea) || idea.slice(0, 20),
+        product: eventName || guessEventName(idea) || idea.slice(0, 20),
         schedule,
         location,
         audience: DEFAULT_AUDIENCE,
         goal: "traffic",
-        features: `${idea}\n學生痛點：${studentPain}`,
+        features: `${idea}\n一句介紹：${oneLiner}\n學生痛點：${studentPain}\n主題：${theme}`.slice(0, 400),
         style: "生活感、夜晚、年輕",
-        notes: `一人網宣。不要宗教語氣。參考來源：${hits
-          .slice(0, 6)
-          .map((h) => `${h.kind}/${h.title}`)
-          .join("、") || "品牌記憶"}`,
+        notes: `一人網宣。不要宗教語氣。${description ? `介紹：${description}。` : ""}參考來源：${
+          hits
+            .slice(0, 4)
+            .map((h) => `${h.kind}/${h.title}`)
+            .join("、") || "品牌記憶"
+        }`.slice(0, 400),
         deliverables: { post: true, story: true, carousel: true, reels: true },
       });
       const result = await generateCampaignPlan({
@@ -257,7 +274,7 @@ export function CreateStudio() {
   }
 
   function saveCampaignAndWaves() {
-    const name = eventName || plan?.campaignName || idea.slice(0, 16);
+    const name = eventName.trim() || guessEventName(`${idea} ${plan?.campaignName ?? ""}`) || plan?.campaignName || "未命名活動";
     const date = parseEventDate(schedule);
     const type = eventKindFromText(`${name} ${idea}`);
     const waves = suggestWaves({ date, type, name });
@@ -267,9 +284,9 @@ export function CreateStudio() {
       date,
       time: parseEventTime(schedule),
       location,
-      oneLiner: plan?.hook || idea,
-      description: plan?.concept || "",
-      theme: plan?.visualTheme || "",
+      oneLiner: oneLiner || plan?.hook || idea,
+      description: description || plan?.concept || "",
+      theme: theme || plan?.visualTheme || "",
       studentPain,
       cta: plan?.cta || "來坐一下",
       signupUrl,
@@ -356,12 +373,23 @@ export function CreateStudio() {
         </div>
         {mode === "campaign" ? (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Field label="一句活動介紹">
+              <Input value={oneLiner} onChange={(e) => setOneLiner(e.target.value)} placeholder="最近是不是很久沒有好好坐下來？" />
+            </Field>
+            <Field label="活動主題">
+              <Input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="光、坐下來、朋友…" />
+            </Field>
             <Field label="學生痛點">
               <Input value={studentPain} onChange={(e) => setStudentPain(e.target.value)} />
             </Field>
             <Field label="報名連結（可空）">
               <Input value={signupUrl} onChange={(e) => setSignupUrl(e.target.value)} placeholder="https://" />
             </Field>
+            <div className="sm:col-span-2">
+              <Field label="完整介紹">
+                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+              </Field>
+            </div>
           </div>
         ) : null}
         <div className="mt-4 flex flex-wrap gap-2">
@@ -419,7 +447,22 @@ export function CreateStudio() {
         </section>
       ) : null}
 
-      {review ? <StudentReviewCard review={review} /> : null}
+      {review ? (
+        <StudentReviewCard
+          review={review}
+          onApplyHook={(hook) => {
+            setPacks((rows) =>
+              rows.map((pack) => ({
+                ...pack,
+                hook,
+                body: pack.body.replace(pack.hook, hook),
+              })),
+            );
+            setPlan((current) => (current ? { ...current, hook } : current));
+            toast.success("已套用學生視角 Hook");
+          }}
+        />
+      ) : null}
 
       {directions.length ? (
         <section className="mt-8">
@@ -511,7 +554,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function StudentReviewCard({ review }: { review: StudentReview }) {
+export function StudentReviewCard({
+  review,
+  onApplyHook,
+}: {
+  review: StudentReview;
+  onApplyHook?: (hook: string) => void;
+}) {
   return (
     <section className="mt-8 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
       <h2 className="text-sm font-medium">淡江學生視角</h2>
@@ -524,7 +573,16 @@ export function StudentReviewCard({ review }: { review: StudentReview }) {
         <li>會找朋友嗎？{review.wouldBringFriend}</li>
         <li>知道怎麼報名嗎？{review.knowsHowToSignup}</li>
       </ul>
-      {review.rewriteHook ? <p className="mt-3 text-sm">可改 Hook：{review.rewriteHook}</p> : null}
+      {review.rewriteHook ? (
+        <div className="mt-3">
+          <p className="text-sm">可改 Hook：{review.rewriteHook}</p>
+          {onApplyHook ? (
+            <Button className="mt-3" size="sm" onClick={() => onApplyHook(review.rewriteHook)}>
+              用這個 Hook 改寫
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
