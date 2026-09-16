@@ -26,11 +26,11 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
       style: "編輯節奏、留白",
     }),
     copy: {
-      eyebrow: "STUDIO NOTE",
+      eyebrow: "SIT",
       headline: "把故事\n放進畫面",
-      subhead: "以編輯節奏鋪陳品牌觀點。",
-      body: "適合系列開場、理念闡述與季節提案。",
-      cta: "閱讀更多",
+      subhead: "先讓學生覺得這跟自己有關。",
+      body: "適合系列開場、生活向與活動預告。",
+      cta: "晚上見",
       handle: "",
       caption: "",
       hashtags: [],
@@ -39,8 +39,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
   },
   {
     id: "product",
-    name: "商品主圖",
-    description: "上圖下文，適合單品上市",
+    name: "活動主圖",
+    description: "上圖下文，適合茶會與夜燈",
     formatId: "feed-portrait",
     brief: migrateBrief({
       product: "主打商品",
@@ -64,8 +64,8 @@ export const TEMPLATE_STARTERS: TemplateStarter[] = [
   },
   {
     id: "offer",
-    name: "優惠公告",
-    description: "置中大標與 CTA，適合檔期",
+    name: "活動公告",
+    description: "置中大標與 CTA，適合倒數",
     formatId: "feed-square",
     brief: migrateBrief({
       product: "檔期活動",

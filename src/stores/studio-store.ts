@@ -17,6 +17,7 @@ import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
 import { uid } from "@/lib/studio/ids";
 import { applyCopyToArtboard, buildLayout, extractImageAssetId } from "@/lib/studio/layout";
+import { migrateStatus } from "@/lib/studio/status";
 import { inspectProject } from "@/lib/studio/quality";
 import { applyQaFixToPages } from "@/lib/studio/quality-fix";
 import {
@@ -51,7 +52,7 @@ import type {
   TemplateId,
 } from "@/lib/studio/types";
 
-const STORAGE_KEY = "kouzhen-studio-v1";
+const STORAGE_KEY = "tkuzc-studio-v1";
 const AUTO_SNAP_MS = 20000;
 
 type EditorState = {
@@ -159,6 +160,11 @@ function migrateBrandRecord(raw: BrandKit): BrandKit {
     logos: next.logos.length ? next.logos : SEED_BRAND.logos,
     imageStyle: next.imageStyle.mood ? next.imageStyle : SEED_BRAND.imageStyle,
     rules: next.rules.notes ? next.rules : { ...SEED_BRAND.rules, ...next.rules },
+    mascot: next.mascot || SEED_BRAND.mascot,
+    signatureLights: next.signatureLights || SEED_BRAND.signatureLights,
+    clubIntro: next.clubIntro || SEED_BRAND.clubIntro,
+    likes: next.likes.length ? next.likes : SEED_BRAND.likes,
+    dislikes: next.dislikes.length ? next.dislikes : SEED_BRAND.dislikes,
   };
 }
 
@@ -197,8 +203,12 @@ function migrateProject(raw: Project): Project {
   const plan = migratePlan(raw.plan);
   return {
     ...raw,
-    status: raw.status ?? (plan ? "ready" : "draft"),
+    status: migrateStatus(raw.status ?? (plan ? "done" : "creating")),
     exports: raw.exports ?? [],
+    campaignId: raw.campaignId ?? null,
+    contentKind: raw.contentKind,
+    scheduledAt: raw.scheduledAt ?? null,
+    publishedAt: raw.publishedAt ?? null,
     artboards,
     slides,
     slideIndex,
@@ -379,7 +389,7 @@ export const useStudio = create<StudioState>()(
           brandId,
           templateId: tpl,
           activeFormatId: formatId,
-          status: "draft",
+          status: "creating",
           brief: migrateBrief(brief),
           copy,
           plan: null,
@@ -409,7 +419,7 @@ export const useStudio = create<StudioState>()(
           brandId,
           templateId,
           activeFormatId: starter.formatId,
-          status: "draft",
+          status: "creating",
           brief: migrateBrief(starter.brief),
           copy,
           plan: null,
@@ -453,7 +463,7 @@ export const useStudio = create<StudioState>()(
           artboards: boards.artboards,
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
-          status: "ready" as const,
+          status: "done" as const,
           planVersions: [version, ...(p.planVersions ?? [])].slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, nextPlan.source === "mock" ? "本機草案" : "AI 企劃", "manual");
@@ -477,7 +487,7 @@ export const useStudio = create<StudioState>()(
           artboards: boards.artboards,
           activeFormatId: boards.activeFormatId,
           slideIndex: 0,
-          status: "ready" as const,
+          status: "done" as const,
           planVersions: [version, p.planVersions.filter((v) => v.id !== versionId)].flat().slice(0, MAX_PLAN_VERSIONS),
         }));
         get().captureSnapshot(projectId, `還原 ${version.name}`, "manual");
@@ -548,7 +558,7 @@ export const useStudio = create<StudioState>()(
           name: `${src.name} 副本`,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          status: "draft",
+          status: "creating",
           exports: [],
         };
         set((s) => ({ projects: [copy, ...s.projects], lastProjectId: copy.id }));
@@ -557,7 +567,7 @@ export const useStudio = create<StudioState>()(
       recordExport: (id, version) =>
         get().updateProject(id, (p) => ({
           ...p,
-          status: "exported",
+          status: "published",
           exports: [version, ...p.exports].slice(0, 20),
         })),
       ensureArtboard: (projectId, formatId) => {
@@ -1058,7 +1068,7 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 6,
+      version: 7,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,

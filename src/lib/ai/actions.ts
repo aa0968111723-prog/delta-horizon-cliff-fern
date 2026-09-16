@@ -89,7 +89,7 @@ export const EditorActionSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("set-format"),
-    formatId: z.enum(["feed-square", "feed-portrait", "feed-landscape", "story", "reels-cover"]),
+    formatId: z.enum(["feed-square", "feed-portrait", "feed-landscape", "story", "reels-cover", "threads", "line"]),
     label: z.string().optional(),
   }),
   z.object({

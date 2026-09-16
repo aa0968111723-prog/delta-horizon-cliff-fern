@@ -6,20 +6,23 @@
   --font-display: "Noto Serif TC", "Source Han Serif TC", "Noto Serif", ui-serif, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-bg: #f3f0ea;
+  --color-bg: #eef3ef;
   --color-surface: #fffcf7;
-  --color-surface-2: #ebe6dc;
-  --color-fg: #1a1814;
-  --color-muted: #6f6a63;
-  --color-subtle: #9a948c;
-  --color-border: #ddd6ca;
-  --color-border-strong: #c9c1b4;
-  --color-accent: #1e4a45;
-  --color-accent-fg: #f3f0ea;
+  --color-surface-2: #e4ebe6;
+  --color-fg: #1c2422;
+  --color-muted: #5e6b66;
+  --color-subtle: #8a968f;
+  --color-border: #d5ded8;
+  --color-border-strong: #b7c4bc;
+  --color-accent: #3f6f64;
+  --color-accent-fg: #f4f7f3;
+  --color-glow: #e8a060;
+  --color-dusk: #5b6e8a;
+  --color-mist: #7ec8c3;
   --color-danger: #a33b2a;
   --color-warn: #9a6b2f;
   --color-success: #2f6a4a;
-  --color-ring: #1e4a45;
+  --color-ring: #3f6f64;
 
   --radius-xs: 4px;
   --radius-sm: 8px;
@@ -89,6 +92,19 @@
 
   .h-app {
     height: calc(100dvh - var(--spacing-nav-safe));
+  }
+
+  .glass {
+    background: color-mix(in oklab, var(--color-surface) 78%, transparent);
+    backdrop-filter: blur(18px);
+    box-shadow: var(--shadow-border);
+  }
+
+  .hero-wash {
+    background:
+      radial-gradient(1200px 420px at 80% -10%, color-mix(in oklab, var(--color-mist) 35%, transparent), transparent 60%),
+      radial-gradient(900px 380px at -10% 0%, color-mix(in oklab, var(--color-glow) 28%, transparent), transparent 55%),
+      var(--color-bg);
   }
 
   @media (min-width: 1024px) {

@@ -136,7 +136,7 @@ export function AssetDetailSheet({
           <Input
             value={asset.licenseOwner}
             onChange={(e) => patch("licenseOwner", e.target.value)}
-            placeholder="例如：日食咖啡、攝影師姓名"
+            placeholder="例如：淡江禪學社、社員姓名"
           />
         </div>
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>

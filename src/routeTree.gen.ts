@@ -13,8 +13,17 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AssetsRouteImport } from './routes/assets'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as BrandRouteImport } from './routes/brand'
+import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as CampaignsRouteImport } from './routes/campaigns'
+import { Route as ConnectRouteImport } from './routes/connect'
+import { Route as CreateRouteImport } from './routes/create'
 import { Route as ExportRouteImport } from './routes/export'
+import { Route as InstagramRouteImport } from './routes/instagram'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
+import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
+import { Route as CreateIndexRouteImport } from './routes/create.index'
+import { Route as CreateImageRouteImport } from './routes/create.image'
 import { Route as StudioIndexRouteImport } from './routes/studio.index'
 import { Route as StudioProjectIdRouteImport } from './routes/studio.$projectId'
 
@@ -38,15 +47,60 @@ const BrandRoute = BrandRouteImport.update({
   path: '/brand',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CampaignsRoute = CampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnectRoute = ConnectRouteImport.update({
+  id: '/connect',
+  path: '/connect',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CreateRoute = CreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExportRoute = ExportRouteImport.update({
   id: '/export',
   path: '/export',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstagramRoute = InstagramRouteImport.update({
+  id: '/instagram',
+  path: '/instagram',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudioRoute = StudioRouteImport.update({
   id: '/studio',
   path: '/studio',
   getParentRoute: () => rootRouteImport,
+} as any)
+const CampaignsIndexRoute = CampaignsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CampaignsRoute,
+} as any)
+const CampaignsCampaignIdRoute = CampaignsCampaignIdRouteImport.update({
+  id: '/$campaignId',
+  path: '/$campaignId',
+  getParentRoute: () => CampaignsRoute,
+} as any)
+const CreateIndexRoute = CreateIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CreateRoute,
+} as any)
+const CreateImageRoute = CreateImageRouteImport.update({
+  id: '/image',
+  path: '/image',
+  getParentRoute: () => CreateRoute,
 } as any)
 const StudioIndexRoute = StudioIndexRouteImport.update({
   id: '/',
@@ -64,8 +118,17 @@ export interface FileRoutesByFullPath {
   '/assets': typeof AssetsRoute
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
+  '/calendar': typeof CalendarRoute
+  '/campaigns': typeof CampaignsRouteWithChildren
+  '/connect': typeof ConnectRoute
+  '/create': typeof CreateRouteWithChildren
   '/export': typeof ExportRoute
+  '/instagram': typeof InstagramRoute
   '/studio': typeof StudioRouteWithChildren
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
+  '/campaigns/': typeof CampaignsIndexRoute
+  '/create/image': typeof CreateImageRoute
+  '/create/': typeof CreateIndexRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio/': typeof StudioIndexRoute
 }
@@ -74,7 +137,14 @@ export interface FileRoutesByTo {
   '/assets': typeof AssetsRoute
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
+  '/calendar': typeof CalendarRoute
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
+  '/campaigns': typeof CampaignsIndexRoute
+  '/connect': typeof ConnectRoute
+  '/create/image': typeof CreateImageRoute
+  '/create': typeof CreateIndexRoute
   '/export': typeof ExportRoute
+  '/instagram': typeof InstagramRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio': typeof StudioIndexRoute
 }
@@ -84,8 +154,17 @@ export interface FileRoutesById {
   '/assets': typeof AssetsRoute
   '/assistant': typeof AssistantRoute
   '/brand': typeof BrandRoute
+  '/calendar': typeof CalendarRoute
+  '/campaigns': typeof CampaignsRouteWithChildren
+  '/connect': typeof ConnectRoute
+  '/create': typeof CreateRouteWithChildren
   '/export': typeof ExportRoute
+  '/instagram': typeof InstagramRoute
   '/studio': typeof StudioRouteWithChildren
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
+  '/campaigns/': typeof CampaignsIndexRoute
+  '/create/image': typeof CreateImageRoute
+  '/create/': typeof CreateIndexRoute
   '/studio/$projectId': typeof StudioProjectIdRoute
   '/studio/': typeof StudioIndexRoute
 }
@@ -96,8 +175,17 @@ export interface FileRouteTypes {
     | '/assets'
     | '/assistant'
     | '/brand'
+    | '/calendar'
+    | '/campaigns'
+    | '/connect'
+    | '/create'
     | '/export'
+    | '/instagram'
     | '/studio'
+    | '/campaigns/$campaignId'
+    | '/campaigns/'
+    | '/create/image'
+    | '/create/'
     | '/studio/$projectId'
     | '/studio/'
   fileRoutesByTo: FileRoutesByTo
@@ -106,7 +194,14 @@ export interface FileRouteTypes {
     | '/assets'
     | '/assistant'
     | '/brand'
+    | '/calendar'
+    | '/campaigns/$campaignId'
+    | '/campaigns'
+    | '/connect'
+    | '/create/image'
+    | '/create'
     | '/export'
+    | '/instagram'
     | '/studio/$projectId'
     | '/studio'
   id:
@@ -115,8 +210,17 @@ export interface FileRouteTypes {
     | '/assets'
     | '/assistant'
     | '/brand'
+    | '/calendar'
+    | '/campaigns'
+    | '/connect'
+    | '/create'
     | '/export'
+    | '/instagram'
     | '/studio'
+    | '/campaigns/$campaignId'
+    | '/campaigns/'
+    | '/create/image'
+    | '/create/'
     | '/studio/$projectId'
     | '/studio/'
   fileRoutesById: FileRoutesById
@@ -126,7 +230,12 @@ export interface RootRouteChildren {
   AssetsRoute: typeof AssetsRoute
   AssistantRoute: typeof AssistantRoute
   BrandRoute: typeof BrandRoute
+  CalendarRoute: typeof CalendarRoute
+  CampaignsRoute: typeof CampaignsRouteWithChildren
+  ConnectRoute: typeof ConnectRoute
+  CreateRoute: typeof CreateRouteWithChildren
   ExportRoute: typeof ExportRoute
+  InstagramRoute: typeof InstagramRoute
   StudioRoute: typeof StudioRouteWithChildren
 }
 
@@ -160,11 +269,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BrandRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campaigns': {
+      id: '/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof CampaignsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connect': {
+      id: '/connect'
+      path: '/connect'
+      fullPath: '/connect'
+      preLoaderRoute: typeof ConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/create': {
+      id: '/create'
+      path: '/create'
+      fullPath: '/create'
+      preLoaderRoute: typeof CreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/export': {
       id: '/export'
       path: '/export'
       fullPath: '/export'
       preLoaderRoute: typeof ExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/instagram': {
+      id: '/instagram'
+      path: '/instagram'
+      fullPath: '/instagram'
+      preLoaderRoute: typeof InstagramRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio': {
@@ -173,6 +317,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/studio'
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/campaigns/': {
+      id: '/campaigns/'
+      path: '/'
+      fullPath: '/campaigns/'
+      preLoaderRoute: typeof CampaignsIndexRouteImport
+      parentRoute: typeof CampaignsRoute
+    }
+    '/campaigns/$campaignId': {
+      id: '/campaigns/$campaignId'
+      path: '/$campaignId'
+      fullPath: '/campaigns/$campaignId'
+      preLoaderRoute: typeof CampaignsCampaignIdRouteImport
+      parentRoute: typeof CampaignsRoute
+    }
+    '/create/': {
+      id: '/create/'
+      path: '/'
+      fullPath: '/create/'
+      preLoaderRoute: typeof CreateIndexRouteImport
+      parentRoute: typeof CreateRoute
+    }
+    '/create/image': {
+      id: '/create/image'
+      path: '/image'
+      fullPath: '/create/image'
+      preLoaderRoute: typeof CreateImageRouteImport
+      parentRoute: typeof CreateRoute
     }
     '/studio/': {
       id: '/studio/'
@@ -190,6 +362,31 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface CampaignsRouteChildren {
+  CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRoute
+  CampaignsIndexRoute: typeof CampaignsIndexRoute
+}
+
+const CampaignsRouteChildren: CampaignsRouteChildren = {
+  CampaignsCampaignIdRoute: CampaignsCampaignIdRoute,
+  CampaignsIndexRoute: CampaignsIndexRoute,
+}
+
+const CampaignsRouteWithChildren =
+  CampaignsRoute._addFileChildren(CampaignsRouteChildren)
+
+interface CreateRouteChildren {
+  CreateImageRoute: typeof CreateImageRoute
+  CreateIndexRoute: typeof CreateIndexRoute
+}
+
+const CreateRouteChildren: CreateRouteChildren = {
+  CreateImageRoute: CreateImageRoute,
+  CreateIndexRoute: CreateIndexRoute,
+}
+
+const CreateRouteWithChildren = CreateRoute._addFileChildren(CreateRouteChildren)
 
 interface StudioRouteChildren {
   StudioProjectIdRoute: typeof StudioProjectIdRoute
@@ -209,7 +406,12 @@ const rootRouteChildren: RootRouteChildren = {
   AssetsRoute: AssetsRoute,
   AssistantRoute: AssistantRoute,
   BrandRoute: BrandRoute,
+  CalendarRoute: CalendarRoute,
+  CampaignsRoute: CampaignsRouteWithChildren,
+  ConnectRoute: ConnectRoute,
+  CreateRoute: CreateRouteWithChildren,
   ExportRoute: ExportRoute,
+  InstagramRoute: InstagramRoute,
   StudioRoute: StudioRouteWithChildren,
 }
 export const routeTree = rootRouteImport

@@ -9,7 +9,7 @@ import type {
   Project,
 } from "./types.ts";
 
-export const ASSET_DRAG_MIME = "application/x-kouzhen-asset";
+export const ASSET_DRAG_MIME = "application/x-zenlight-asset";
 
 export const ASSET_CATEGORIES: {
   id: AssetCategory;
@@ -17,20 +17,32 @@ export const ASSET_CATEGORIES: {
   hint: string;
   virtual?: boolean;
 }[] = [
-  { id: "photo", label: "活動照片", hint: "商品、場景、活動紀實" },
-  { id: "people", label: "人物", hint: "人像、手部、服務瞬間" },
-  { id: "background", label: "背景", hint: "桌面、材質、留白場景" },
-  { id: "illustration", label: "插圖", hint: "手繪、裝飾、編輯素材" },
-  { id: "icon", label: "圖示", hint: "小圖、符號、徽章" },
-  { id: "logo", label: "Logo", hint: "標誌與變體" },
+  { id: "logo", label: "Logo", hint: "社徽與變體" },
+  { id: "mascot", label: "龜龜", hint: "角色、貼圖、吉祥物" },
+  { id: "photo", label: "活動照片", hint: "茶會、社課、現場" },
+  { id: "people", label: "社員照片", hint: "人、互動、側臉" },
+  { id: "campus", label: "淡江校園", hint: "斜坡、宮燈、教室" },
+  { id: "tamsui", label: "淡水", hint: "河岸、捷運、夜色" },
+  { id: "poster", label: "海報", hint: "歷屆文宣" },
+  { id: "background", label: "背景", hint: "天空、材質、留白" },
+  { id: "generated", label: "AI 生成", hint: "Studio 產生的圖" },
+  { id: "ig", label: "IG", hint: "貼文與輪播畫面" },
+  { id: "story", label: "Story", hint: "限動畫面" },
+  { id: "reels", label: "Reels", hint: "封面與截幀" },
+  { id: "archive", label: "歷屆活動", hint: "舊檔、可延伸" },
+  { id: "illustration", label: "插圖", hint: "手繪與裝飾" },
+  { id: "icon", label: "圖示", hint: "小符號" },
   { id: "template", label: "模板", hint: "可套用的版型起點", virtual: true },
   { id: "history", label: "歷史素材", hint: "曾放到畫布的檔案", virtual: true },
 ];
 
 export const ASSET_SOURCES: { id: AssetSourceKind; label: string }[] = [
   { id: "upload", label: "本機上傳" },
-  { id: "seed", label: "示範素材" },
-  { id: "generated", label: "生成" },
+  { id: "seed", label: "品牌記憶" },
+  { id: "generated", label: "AI 生成" },
+  { id: "drive", label: "Google Drive" },
+  { id: "canva", label: "Canva" },
+  { id: "instagram", label: "Instagram" },
 ];
 
 export function categoryLabel(id: AssetCategory) {
@@ -62,7 +74,11 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
   const tags = (raw.tags ?? []).join(" ").toLowerCase();
   const name = (raw.name ?? "").toLowerCase();
   const blob = `${tags} ${name}`;
-  if (/人物|人像|portrait|people/.test(blob)) return "people";
+  if (/龜龜|吉祥物|mascot|turtle/.test(blob)) return "mascot";
+  if (/校園|宮燈|淡江|campus/.test(blob)) return "campus";
+  if (/淡水|河岸|tamsui/.test(blob)) return "tamsui";
+  if (/海報|poster/.test(blob)) return "poster";
+  if (/人物|人像|社員|portrait|people/.test(blob)) return "people";
   if (/背景|場景|材質|background|texture/.test(blob)) return "background";
   if (/插圖|illustration|handdrawn/.test(blob)) return "illustration";
   if (/圖示|icon|badge/.test(blob)) return "icon";
@@ -84,7 +100,15 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
     createdAt: raw.createdAt ?? Date.now(),
     updatedAt: raw.updatedAt ?? raw.createdAt ?? Date.now(),
     seedSrc: raw.seedSrc,
-    source: raw.source === "seed" || raw.source === "generated" || raw.source === "upload" ? raw.source : "upload",
+    source:
+      raw.source === "seed" ||
+      raw.source === "generated" ||
+      raw.source === "upload" ||
+      raw.source === "drive" ||
+      raw.source === "canva" ||
+      raw.source === "instagram"
+        ? raw.source
+        : "upload",
     licenseNotes: raw.licenseNotes ?? "",
     licenseOwner: raw.licenseOwner ?? "",
     favorite: Boolean(raw.favorite),
@@ -114,7 +138,7 @@ export function createGeneratedAsset(input: {
     createdAt: now,
     updatedAt: now,
     source: "generated",
-    licenseNotes: "由構幀依報名網址在本機產生，僅供畫面使用。",
+    licenseNotes: "由禪光依報名網址在本機產生，僅供畫面使用。",
     licenseOwner: "本機產生",
   });
 }

@@ -231,6 +231,17 @@ export function BrandEditor() {
         <Field label="品牌聲音">
           <Textarea value={brand.voice} onChange={(e) => patch("voice", e.target.value)} placeholder="語氣、節奏、像誰在說話" />
         </Field>
+        <Field label="社團理念">
+          <Textarea value={brand.clubIntro} onChange={(e) => patch("clubIntro", e.target.value)} placeholder="給學生一個可以慢下來的地方" />
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="吉祥物">
+            <Input value={brand.mascot} onChange={(e) => patch("mascot", e.target.value)} />
+          </Field>
+          <Field label="招牌視覺">
+            <Input value={brand.signatureLights} onChange={(e) => patch("signatureLights", e.target.value)} />
+          </Field>
+        </div>
       </section>
 
       <section id="brand-logo" className="space-y-3 rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">

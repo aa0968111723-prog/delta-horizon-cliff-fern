@@ -26,6 +26,8 @@ export function toBriefInput(
     wantStory: d.story,
     wantCarousel: d.carousel,
     wantReels: d.reels,
+    wantThreads: d.threads,
+    wantLine: d.line,
     brandName: brand.name,
     handle: brand.handle,
     voice: brand.voice,

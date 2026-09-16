@@ -21,7 +21,7 @@ export function SheetContent({
       <DialogPrimitive.Content
         className={cn(
           "fixed z-50 bg-surface shadow-[var(--shadow-border)] outline-none",
-          side === "bottom" && "inset-x-0 bottom-0 max-h-[78dvh] rounded-t-xl p-4",
+          side === "bottom" && "inset-x-0 bottom-0 max-h-[78dvh] overflow-y-auto rounded-t-xl p-4",
           side === "right" && "inset-y-0 right-0 h-full w-[min(100%,22rem)] p-4",
           className,
         )}
@@ -38,6 +38,10 @@ export function SheetContent({
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );
+}
+
+export function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return <div className={cn("pr-8", className)} {...props} />;
 }
 
 export function SheetTitle({

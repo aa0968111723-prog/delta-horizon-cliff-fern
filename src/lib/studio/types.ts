@@ -3,7 +3,9 @@ export type FormatId =
   | "feed-portrait"
   | "feed-landscape"
   | "story"
-  | "reels-cover";
+  | "reels-cover"
+  | "threads"
+  | "line";
 
 export type TemplateId = "editorial" | "product" | "offer" | "quote";
 
@@ -26,7 +28,22 @@ export type Align = "left" | "center" | "right";
 
 export type ColorRole = "primary" | "secondary" | "accent" | "background" | "ink";
 
-export type ProjectStatus = "draft" | "ready" | "exported";
+export type ProjectStatus = "idea" | "creating" | "done" | "scheduled" | "published";
+
+export type ContentKind =
+  | "ig-post"
+  | "carousel"
+  | "story"
+  | "reels"
+  | "threads"
+  | "line"
+  | "poster"
+  | "recap"
+  | "member-story"
+  | "countdown"
+  | "qa"
+  | "poll"
+  | "knowledge";
 
 export type EditorTool = "select" | "text" | "rect" | "ellipse" | "line";
 
@@ -104,6 +121,11 @@ export type BrandKit = {
   imageStyle: ImageStyle;
   rules: BrandRules;
   boilerplate: BrandBoilerplate;
+  mascot: string;
+  signatureLights: string;
+  likes: string[];
+  dislikes: string[];
+  clubIntro: string;
   updatedAt: number;
 };
 
@@ -117,9 +139,18 @@ export type AssetCategory =
   | "icon"
   | "logo"
   | "template"
-  | "history";
+  | "history"
+  | "mascot"
+  | "campus"
+  | "tamsui"
+  | "poster"
+  | "generated"
+  | "ig"
+  | "story"
+  | "reels"
+  | "archive";
 
-export type AssetSourceKind = "upload" | "seed" | "generated";
+export type AssetSourceKind = "upload" | "seed" | "generated" | "drive" | "canva" | "instagram";
 
 export type AssetUsageStatus = "in-use" | "used" | "unused";
 
@@ -274,6 +305,8 @@ export type DeliverableFlags = {
   story: boolean;
   carousel: boolean;
   reels: boolean;
+  threads: boolean;
+  line: boolean;
 };
 
 export type CaptionVariant = {
@@ -328,6 +361,56 @@ export type CampaignPlan = {
   qaNotes: string[];
   generatedAt: number;
   source: PlanSource;
+  visualDirections?: VisualDirection[];
+  threadsPost?: string;
+  lineCopy?: string;
+  reelsScript?: ReelsBeat[];
+  studentReview?: StudentReview;
+  citedSources?: CitedSource[];
+};
+
+export type VisualDirection = {
+  id: string;
+  title: string;
+  concept: string;
+  palette: string;
+  composition: string;
+  typeDirection: string;
+  imagePrompt: string;
+  headline: string;
+  subhead: string;
+};
+
+export type ReelsBeat = {
+  startSec: number;
+  endSec: number;
+  visual: string;
+  caption: string;
+  voiceover: string;
+  transition: string;
+  assetHint: string;
+};
+
+export type StudentReview = {
+  wouldStop: string;
+  understandable: string;
+  tooReligious: string;
+  tooSerious: string;
+  tooLiterary: string;
+  tooAi: string;
+  tooLong: string;
+  knowsWhat: string;
+  knowsWhenWhere: string;
+  wouldBringFriend: string;
+  knowsSignup: string;
+  notes: string[];
+  rewriteHook: string;
+};
+
+export type CitedSource = {
+  source: "drive" | "canva" | "instagram" | "generated" | "brand";
+  label: string;
+  detail: string;
 };
 
 export type PlanVersion = {
@@ -379,6 +462,10 @@ export type Project = {
   snapshots: Snapshot[];
   planVersions: PlanVersion[];
   exports: ExportVersion[];
+  campaignId?: string | null;
+  contentKind?: ContentKind;
+  scheduledAt?: number | null;
+  publishedAt?: number | null;
 };
 
 export type PersistSlice = {

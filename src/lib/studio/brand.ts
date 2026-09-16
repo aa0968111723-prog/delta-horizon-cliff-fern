@@ -42,11 +42,11 @@ export function logoUsageLabel(usage: LogoUsage) {
 
 export function defaultBrandColors() {
   return [
-    { id: uid("c"), hex: "#1A1814", role: "primary" as const, label: "主色" },
-    { id: uid("c"), hex: "#6F6A63", role: "secondary" as const, label: "輔助色" },
-    { id: uid("c"), hex: "#F3F0EA", role: "background" as const, label: "背景色" },
-    { id: uid("c"), hex: "#1E4A45", role: "accent" as const, label: "強調" },
-    { id: uid("c"), hex: "#1A1814", role: "ink" as const, label: "文字" },
+    { id: uid("c"), hex: "#3F6F64", role: "primary" as const, label: "苔綠" },
+    { id: uid("c"), hex: "#5B6E8A", role: "secondary" as const, label: "暮藍" },
+    { id: uid("c"), hex: "#F4F1EA", role: "background" as const, label: "沙色" },
+    { id: uid("c"), hex: "#E8A060", role: "accent" as const, label: "三色光・暖" },
+    { id: uid("c"), hex: "#1C2422", role: "ink" as const, label: "墨" },
   ];
 }
 
@@ -70,6 +70,11 @@ export function createEmptyBrand(name: string): BrandKit {
     imageStyle: emptyImageStyle(),
     rules: emptyBrandRules(),
     boilerplate: emptyBoilerplate(),
+    mascot: "龜龜",
+    signatureLights: "三色光",
+    likes: [],
+    dislikes: [],
+    clubIntro: "",
     updatedAt: Date.now(),
   };
 }
@@ -130,6 +135,11 @@ export function migrateBrand(raw: Partial<BrandKit> & { id: string; name: string
     imageStyle: { ...emptyImageStyle(), ...(raw.imageStyle ?? {}) },
     rules: { ...emptyBrandRules(), ...(raw.rules ?? {}) },
     boilerplate: raw.boilerplate ?? emptyBoilerplate(),
+    mascot: raw.mascot ?? "龜龜",
+    signatureLights: raw.signatureLights ?? "三色光",
+    likes: asStringArray(raw.likes),
+    dislikes: asStringArray(raw.dislikes),
+    clubIntro: raw.clubIntro ?? "",
     updatedAt: raw.updatedAt ?? Date.now(),
   };
 }
