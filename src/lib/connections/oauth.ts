@@ -89,7 +89,7 @@ export const startOAuth = createServerFn({ method: "POST" })
       url.searchParams.set("response_type", "code");
       url.searchParams.set("client_id", process.env.CANVA_CLIENT_ID ?? "");
       url.searchParams.set("redirect_uri", `${origin}/oauth/canva`);
-      url.searchParams.set("scope", "design:meta:read design:content:read design:content:write");
+      url.searchParams.set("scope", "design:meta:read design:content:read design:content:write asset:read asset:write");
       url.searchParams.set("state", state);
       url.searchParams.set("code_challenge", challenge);
       url.searchParams.set("code_challenge_method", "S256");
@@ -206,13 +206,20 @@ export const createCanvaFromPlan = createServerFn({ method: "POST" })
       .object({
         title: z.string().min(1).max(80),
         kind: z.string().max(40).optional(),
+        imageBase64: z.string().max(1_400_000).optional(),
+        imageUrl: z.string().max(2000).optional(),
       })
       .parse(input && typeof input === "object" && "data" in input ? (input as { data: unknown }).data : input),
   )
   .handler(async ({ data }) => {
     const req = getRequest();
     const blob = await readBlobFromCookie(req?.headers.get("cookie") ?? null);
-    return createCanvaDesign(blob, { title: data.title, kind: data.kind || "ig-post" });
+    return createCanvaDesign(blob, {
+      title: data.title,
+      kind: data.kind || "ig-post",
+      imageBase64: data.imageBase64,
+      imageUrl: data.imageUrl,
+    });
   });
 
 export const publishToInstagram = createServerFn({ method: "POST" })

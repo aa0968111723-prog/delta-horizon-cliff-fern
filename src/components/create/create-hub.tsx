@@ -28,7 +28,8 @@ import { useStudio } from "@/stores/studio-store";
 import { useCreative } from "@/stores/creative-store";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { lessonPrompt } from "@/lib/club/insights";
-import { kindFromFormat, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, withPackKind } from "@/lib/club/last-pack";
+import { applyCanvaPush, canvaPushMessage, pushHeroToCanva } from "@/lib/club/canva-push";
+import { kindFromFormat, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, withPackKind, httpsRasterUrl } from "@/lib/club/last-pack";
 import { convertedScheduleInput, matchingScheduleRow } from "@/lib/club/schedule";
 import type { ContentKind, CreativeDirection, FormatId } from "@/lib/studio/types";
 import { cn } from "@/lib/utils";
@@ -348,6 +349,15 @@ function ImageStudio({
           },
           kind,
           converted: current?.converted,
+          packs: current?.packs,
+          formatAssetIds: { ...current?.formatAssetIds, [kind]: id },
+          formatPublicUrls: {
+            ...current?.formatPublicUrls,
+            ...(httpsRasterUrl(url) ? { [kind]: httpsRasterUrl(url) } : {}),
+          },
+          canvaDesignId: current?.canvaDesignId,
+          canvaEditUrl: current?.canvaEditUrl,
+          canvaExportUrl: current?.canvaExportUrl,
           directionName: direction.name,
           heroAssetId: id,
           heroThumb: current?.heroThumb,
@@ -531,6 +541,7 @@ function ConvertStudio({
   const navigate = useNavigate();
   const project = projects.find((p) => p.id === lastProjectId);
   const [kind, setKind] = useState<ContentKind>(seedKind || "carousel");
+  const [sending, setSending] = useState(false);
   const urls = useAssetUrls(packAssetIds(lastPack));
 
   useEffect(() => {
@@ -630,13 +641,33 @@ function ConvertStudio({
         </Button>
         <Button
           variant="secondary"
+          data-testid="convert-canva"
+          disabled={sending}
           onClick={async () => {
-            await navigator.clipboard.writeText(converted.items.map((item) => `${item.heading}\n${item.body}`).join("\n\n"));
-            window.open("https://www.canva.com", "_blank", "noopener,noreferrer");
-            toast.success("文案已複製，可在 Canva 繼續編");
+            setSending(true);
+            try {
+              const caption = converted.items.map((item) => `${item.heading}\n${item.body}`).join("\n\n");
+              const result = await pushHeroToCanva({
+                title: lastPack ? `${lastPack.eventName} · ${converted.title}` : converted.title,
+                kind,
+                previewSrc,
+                caption,
+              });
+              const current = useCreative.getState().lastPack;
+              if (current && result.ok) setLastPack(applyCanvaPush(withPackKind(current, kind, converted.items), result));
+              if (result.ok) {
+                window.open(result.editUrl, "_blank", "noopener,noreferrer");
+                toast.success(canvaPushMessage(result));
+                return;
+              }
+              window.open("https://www.canva.com", "_blank", "noopener,noreferrer");
+              toast.message(canvaPushMessage(result));
+            } finally {
+              setSending(false);
+            }
           }}
         >
-          送進 Canva 微調
+          {sending ? "送進 Canva…" : "送進 Canva 微調"}
         </Button>
       </div>
     </div>

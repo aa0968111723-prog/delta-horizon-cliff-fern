@@ -1,10 +1,10 @@
 import { publishToInstagram } from "@/lib/connections/oauth";
 import type { LastPack } from "./last-pack.ts";
-import { graphImageUrl, memoryPostFromPublish, publishCaption, publishNeedsVideo } from "./publish.ts";
+import { memoryPostFromPublish, publicPublishUrl, publishCaption, publishNeedsVideo } from "./publish.ts";
 
 export async function runPackPublish(pack: LastPack, previewSrc: string) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const imageUrl = graphImageUrl(previewSrc, origin);
+  const imageUrl = publicPublishUrl(pack, previewSrc, origin);
   let live = false;
   let mediaId: string | undefined;
   let error = "";

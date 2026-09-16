@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fallbackHeroThumb, formatIdFromKind, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, persistablePack, withPackKind } from "./last-pack.ts";
+import { fallbackHeroThumb, formatIdFromKind, kindAspectClass, lastPackFromPlan, lastPackPreviewSrc, persistablePack, withCanvaExport, withPackKind } from "./last-pack.ts";
 
 test("lastPackFromPlan keeps hook, caption, and a public hero fallback", () => {
   const pack = lastPackFromPlan({
@@ -52,16 +52,27 @@ test("withPackKind keeps the hero and swaps convert pages", () => {
   assert.equal(lastPackPreviewSrc(pack, { asset_story: "blob:story" }, "story"), "blob:story");
 });
 
-test("persistablePack drops data-url thumbs", () => {
+test("persistablePack drops data-url thumbs and keeps https Canva exports", () => {
   const pack = lastPackFromPlan({
     projectId: "p",
     campaignId: "c",
     eventName: "茶會",
     plan: { hook: "坐一下", captions: [], hashtags: [] },
     heroThumb: "data:image/svg+xml;charset=utf-8,x",
+    formatPublicUrls: {
+      "ig-post": "https://export-download.canva.com/hero.jpg",
+      story: "data:image/jpeg;base64,xx",
+    },
+    canvaEditUrl: "https://www.canva.com/design/tea/edit",
+    canvaExportUrl: "https://export-download.canva.com/hero.jpg",
     updatedAt: 1,
   });
-  assert.equal(persistablePack(pack)?.heroThumb, "/seed/tea.svg");
+  const saved = persistablePack(pack);
+  assert.equal(saved?.heroThumb, "/seed/tea.svg");
+  assert.equal(saved?.formatPublicUrls?.["ig-post"], "https://export-download.canva.com/hero.jpg");
+  assert.equal(saved?.formatPublicUrls?.story, undefined);
+  assert.equal(saved?.canvaExportUrl, "https://export-download.canva.com/hero.jpg");
+  assert.equal(saved?.canvaEditUrl, "https://www.canva.com/design/tea/edit");
 });
 
 test("lastPackPreviewSrc prefers the generated asset url", () => {
@@ -71,8 +82,27 @@ test("lastPackPreviewSrc prefers the generated asset url", () => {
     eventName: "茶會",
     plan: { hook: "坐一下", captions: [], hashtags: [] },
     heroAssetId: "asset_hero",
+    formatPublicUrls: { "ig-post": "https://export-download.canva.com/tea.jpg" },
     updatedAt: 1,
   });
   assert.equal(lastPackPreviewSrc(pack, { asset_hero: "blob:hero" }), "blob:hero");
-  assert.equal(lastPackPreviewSrc(pack, {}), "/seed/tea.svg");
+  assert.equal(lastPackPreviewSrc(pack, {}), "https://export-download.canva.com/tea.jpg");
+});
+
+test("withCanvaExport stores the public export url on the current format", () => {
+  const pack = lastPackFromPlan({
+    projectId: "proj_tea",
+    campaignId: "camp_tea",
+    eventName: "茶會",
+    plan: { hook: "坐一下", captions: [], hashtags: [] },
+    updatedAt: 1,
+  });
+  const next = withCanvaExport(pack, {
+    id: "DAF123",
+    editUrl: "https://www.canva.com/design/tea/edit",
+    exportUrl: "https://export-download.canva.com/tea.jpg",
+  });
+  assert.equal(next.canvaDesignId, "DAF123");
+  assert.equal(next.canvaExportUrl, "https://export-download.canva.com/tea.jpg");
+  assert.equal(next.formatPublicUrls?.["ig-post"], "https://export-download.canva.com/tea.jpg");
 });

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { graphImageUrl, memoryPostFromPublish, publishCaption, publishNeedsVideo } from "./publish.ts";
+import { graphImageUrl, memoryPostFromPublish, publicPublishUrl, publishCaption, publishNeedsVideo } from "./publish.ts";
 import { lastPackFromPlan } from "./last-pack.ts";
 import { lessonsFromIg, nextCreateIdeaFromLessons } from "./insights.ts";
 
@@ -23,6 +23,22 @@ test("graphImageUrl only accepts public raster urls for official Graph", () => {
   assert.equal(graphImageUrl("/seed/tea.svg", "https://zen.example"), "");
   assert.equal(graphImageUrl("https://cdn.example/hero.png"), "https://cdn.example/hero.png");
   assert.equal(graphImageUrl("/og.jpg", "https://zen.example"), "https://zen.example/og.jpg");
+  assert.equal(graphImageUrl("https://imgen.x.ai/hero"), "https://imgen.x.ai/hero");
+});
+
+test("publicPublishUrl prefers Canva export over a blob preview", () => {
+  const packed = lastPackFromPlan({
+    projectId: "proj_tea",
+    campaignId: "camp_tea",
+    eventName: "茶會",
+    plan: { hook: "坐一下", captions: [{ style: "學生版", text: "下週茶會。" }], hashtags: [] },
+    kind: "ig-post",
+    formatPublicUrls: { "ig-post": "https://export-download.canva.com/tea.jpg" },
+    canvaExportUrl: "https://export-download.canva.com/tea.jpg",
+    updatedAt: 1,
+  });
+  assert.equal(publicPublishUrl(packed, "blob:http://127.0.0.1/hero"), "https://export-download.canva.com/tea.jpg");
+  assert.equal(publicPublishUrl(pack, "data:image/svg+xml;charset=utf-8,x"), "");
 });
 
 test("publish caption keeps the student hook and club hashtags", () => {

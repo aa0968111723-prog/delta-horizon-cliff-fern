@@ -14,9 +14,31 @@ export type LastPack = {
   converted: ConvertedPack["items"];
   packs?: Partial<Record<ContentKind, ConvertedPack["items"]>>;
   formatAssetIds?: Partial<Record<ContentKind, string>>;
+  formatPublicUrls?: Partial<Record<ContentKind, string>>;
+  canvaDesignId?: string;
+  canvaEditUrl?: string;
+  canvaExportUrl?: string;
   directionName?: string;
   updatedAt: number;
 };
+
+export function httpsRasterUrl(src?: string | null) {
+  const raw = src?.trim() || "";
+  if (!raw.startsWith("https://")) return "";
+  if (/\.svg(\?|$)/i.test(raw) || /image\/svg/i.test(raw)) return "";
+  if (/\.(jpe?g|png|webp)(\?|$)/i.test(raw)) return raw;
+  if (/fbcdn|cdninstagram|scontent|instagram\.com|googleusercontent|canva|x\.ai|imgen|grok/i.test(raw)) return raw;
+  return "";
+}
+
+function httpsUrlMap(urls?: Partial<Record<ContentKind, string>>) {
+  const next: Partial<Record<ContentKind, string>> = {};
+  for (const [kind, url] of Object.entries(urls ?? {})) {
+    const publicUrl = httpsRasterUrl(url);
+    if (publicUrl) next[kind as ContentKind] = publicUrl;
+  }
+  return next;
+}
 
 export function fallbackHeroThumb(eventName: string) {
   if (eventName.includes("茶")) return "/seed/tea.svg";
@@ -56,6 +78,10 @@ export function lastPackFromPlan(input: {
   converted?: ConvertedPack["items"];
   packs?: Partial<Record<ContentKind, ConvertedPack["items"]>>;
   formatAssetIds?: Partial<Record<ContentKind, string>>;
+  formatPublicUrls?: Partial<Record<ContentKind, string>>;
+  canvaDesignId?: string;
+  canvaEditUrl?: string;
+  canvaExportUrl?: string;
   directionName?: string;
   heroAssetId?: string | null;
   heroThumb?: string;
@@ -65,6 +91,7 @@ export function lastPackFromPlan(input: {
   const packs = input.packs ?? {};
   const converted = input.converted ?? packs[kind] ?? [];
   const formatAssetIds = input.formatAssetIds ?? {};
+  const formatPublicUrls = httpsUrlMap(input.formatPublicUrls);
   const heroThumb = input.heroThumb?.startsWith("data:") ? fallbackHeroThumb(input.eventName) : input.heroThumb;
   return {
     projectId: input.projectId,
@@ -79,6 +106,10 @@ export function lastPackFromPlan(input: {
     converted,
     packs,
     formatAssetIds,
+    formatPublicUrls,
+    canvaDesignId: input.canvaDesignId,
+    canvaEditUrl: input.canvaEditUrl?.startsWith("https://") ? input.canvaEditUrl : undefined,
+    canvaExportUrl: httpsRasterUrl(input.canvaExportUrl) || undefined,
     directionName: input.directionName,
     updatedAt: input.updatedAt ?? Date.now(),
   };
@@ -99,12 +130,29 @@ export function withPackKind(pack: LastPack, kind: ContentKind, converted?: Conv
 export function lastPackPreviewSrc(pack: LastPack, assetUrls: Record<string, string>, kind = pack.kind) {
   const assetId = pack.formatAssetIds?.[kind] ?? pack.heroAssetId;
   if (assetId && assetUrls[assetId]) return assetUrls[assetId];
+  const publicUrl = pack.formatPublicUrls?.[kind] || (kind === pack.kind ? pack.canvaExportUrl : "") || "";
+  if (publicUrl) return publicUrl;
   return pack.heroThumb || fallbackHeroThumb(pack.eventName);
 }
 
 export function packAssetIds(pack: LastPack | null) {
   if (!pack) return [];
   return [pack.heroAssetId, ...Object.values(pack.formatAssetIds ?? {})].filter((id): id is string => Boolean(id));
+}
+
+export function withCanvaExport(pack: LastPack, result: { id: string; editUrl: string; exportUrl?: string }): LastPack {
+  const exportUrl = httpsRasterUrl(result.exportUrl);
+  return {
+    ...pack,
+    canvaDesignId: result.id,
+    canvaEditUrl: result.editUrl.startsWith("https://") ? result.editUrl : pack.canvaEditUrl,
+    canvaExportUrl: exportUrl || pack.canvaExportUrl,
+    formatPublicUrls: {
+      ...pack.formatPublicUrls,
+      ...(exportUrl ? { [pack.kind]: exportUrl } : {}),
+    },
+    updatedAt: Date.now(),
+  };
 }
 
 export function persistablePack(pack: LastPack | null): LastPack | null {
@@ -114,5 +162,9 @@ export function persistablePack(pack: LastPack | null): LastPack | null {
     heroThumb: pack.heroThumb?.startsWith("data:") ? fallbackHeroThumb(pack.eventName) : pack.heroThumb,
     packs: pack.packs ?? {},
     formatAssetIds: pack.formatAssetIds ?? {},
+    formatPublicUrls: httpsUrlMap(pack.formatPublicUrls),
+    canvaDesignId: pack.canvaDesignId,
+    canvaEditUrl: pack.canvaEditUrl?.startsWith("https://") ? pack.canvaEditUrl : undefined,
+    canvaExportUrl: httpsRasterUrl(pack.canvaExportUrl) || undefined,
   };
 }

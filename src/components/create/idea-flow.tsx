@@ -10,13 +10,13 @@ import { takeAutoRun } from "@/lib/create/handoff";
 import { applyStudentReviewToPlan } from "@/lib/copy/review";
 import { toBriefInput } from "@/lib/ai/payload";
 import { applyPickedDirection, briefFromIdea, flattenHits, mergePlanSources, notesFromHits, summarizeFound } from "@/lib/club/compose";
-import { formatIdFromKind, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, withPackKind } from "@/lib/club/last-pack";
+import { applyCanvaPush, canvaPushMessage, pushHeroToCanva } from "@/lib/club/canva-push";
+import { formatIdFromKind, httpsRasterUrl, lastPackFromPlan, lastPackPreviewSrc, packAssetIds, withPackKind } from "@/lib/club/last-pack";
 import { parseIdea } from "@/lib/club/idea";
 import { lessonPrompt } from "@/lib/club/insights";
 import { convertedScheduleInput, matchingScheduleRow } from "@/lib/club/schedule";
 import { runPackPublish } from "@/lib/club/run-publish";
 import { CONVERT_TARGETS, allConvertedPacks, convertPlan } from "@/lib/convert/pack";
-import { createCanvaFromPlan } from "@/lib/connections/oauth";
 import { folderSearchInput } from "@/lib/connections/presets";
 import { generateStudioImage } from "@/lib/image/studio";
 import { moodFromVariation, posterDataUrl } from "@/lib/image/poster";
@@ -213,6 +213,11 @@ export function IdeaFlow({
       }
     }
     setKindUrls(nextKindUrls);
+    const formatPublicUrls = Object.fromEntries(
+      Object.entries(nextKindUrls)
+        .map(([kind, url]) => [kind, httpsRasterUrl(url)] as const)
+        .filter(([, url]) => url),
+    ) as Partial<Record<ContentKind, string>>;
     const scheduled = Boolean(nextPlan.waves?.length);
     updateProject(projectNext.id, {
       campaignId: campaign.id,
@@ -229,6 +234,7 @@ export function IdeaFlow({
         converted: packs[packKind],
         packs,
         formatAssetIds,
+        formatPublicUrls,
         directionName: direction.name,
         heroAssetId,
         heroThumb: currentHits[0]?.thumb,
@@ -411,6 +417,10 @@ export function IdeaFlow({
           ...current,
           heroAssetId: painted.id,
           formatAssetIds: { ...current.formatAssetIds, [packKind]: painted.id },
+          formatPublicUrls: {
+            ...current.formatPublicUrls,
+            ...(httpsRasterUrl(painted.url) ? { [packKind]: httpsRasterUrl(painted.url) } : {}),
+          },
           updatedAt: Date.now(),
         });
       }
@@ -425,17 +435,21 @@ export function IdeaFlow({
     setBusy(true);
     try {
       const caption = plan.captions[0]?.text ?? plan.hook;
-      await navigator.clipboard.writeText(caption).catch(() => undefined);
-      const result = await createCanvaFromPlan({
-        data: { title: `${plan.campaignName} · ${parseIdea(idea).eventName}`.slice(0, 80), kind: packKind },
+      const result = await pushHeroToCanva({
+        title: `${plan.campaignName} · ${parseIdea(idea).eventName}`,
+        kind: packKind,
+        previewSrc,
+        caption,
       });
+      const current = useCreative.getState().lastPack;
+      if (current && result.ok) setLastPack(applyCanvaPush(current, result));
       if (result.ok) {
         window.open(result.editUrl, "_blank", "noopener,noreferrer");
-        toast.success("已在 Canva 開新設計，文案已複製");
+        toast.success(canvaPushMessage(result));
         return;
       }
       window.open("https://www.canva.com", "_blank", "noopener,noreferrer");
-      toast.message(result.needsConnect ? "還沒連接 Canva。文案已複製，可先貼上再連接。" : `${result.error} 文案已複製。`);
+      toast.message(canvaPushMessage(result));
     } finally {
       setBusy(false);
     }
@@ -609,6 +623,10 @@ export function IdeaFlow({
                         converted: convertPlan(reviewed.plan, packKind).items,
                         packs: allConvertedPacks(reviewed.plan),
                         formatAssetIds: current?.formatAssetIds,
+                        formatPublicUrls: current?.formatPublicUrls,
+                        canvaDesignId: current?.canvaDesignId,
+                        canvaEditUrl: current?.canvaEditUrl,
+                        canvaExportUrl: current?.canvaExportUrl,
                         directionName: picked?.name ?? current?.directionName,
                         heroAssetId: current?.heroAssetId,
                         heroThumb: current?.heroThumb,

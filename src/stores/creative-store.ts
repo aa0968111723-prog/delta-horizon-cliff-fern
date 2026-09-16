@@ -342,6 +342,10 @@ export const useCreative = create<CreativeState>()(
                 converted: p.lastPack.converted ?? current.lastPack?.converted ?? [],
                 packs: p.lastPack.packs ?? current.lastPack?.packs ?? {},
                 formatAssetIds: p.lastPack.formatAssetIds ?? current.lastPack?.formatAssetIds ?? {},
+                formatPublicUrls: p.lastPack.formatPublicUrls ?? current.lastPack?.formatPublicUrls ?? {},
+                canvaDesignId: p.lastPack.canvaDesignId ?? current.lastPack?.canvaDesignId,
+                canvaEditUrl: p.lastPack.canvaEditUrl ?? current.lastPack?.canvaEditUrl,
+                canvaExportUrl: p.lastPack.canvaExportUrl ?? current.lastPack?.canvaExportUrl,
               }
             : current.lastPack ?? null,
         };

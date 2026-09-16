@@ -1,18 +1,21 @@
-import type { LastPack } from "./last-pack.ts";
+import { httpsRasterUrl, type LastPack } from "./last-pack.ts";
 import type { ContentKind } from "../studio/types.ts";
 
 export function graphImageUrl(src: string, origin = "") {
   const raw = src.trim();
   if (!raw || raw.startsWith("data:") || raw.startsWith("blob:")) return "";
-  if (/\.svg(\?|$)/i.test(raw)) return "";
-  const absolute = /^https?:\/\//i.test(raw)
-    ? raw
-    : raw.startsWith("/") && origin
-      ? `${origin.replace(/\/$/, "")}${raw}`
-      : "";
-  if (!absolute.startsWith("https://")) return "";
-  if (/\.(jpe?g|png|webp)(\?|$)/i.test(absolute)) return absolute;
-  if (/fbcdn|cdninstagram|scontent|instagram\.com|googleusercontent|canva/i.test(absolute)) return absolute;
+  if (raw.startsWith("https://")) return httpsRasterUrl(raw);
+  if (raw.startsWith("/") && origin) return httpsRasterUrl(`${origin.replace(/\/$/, "")}${raw}`);
+  return "";
+}
+
+export function publicPublishUrl(pack: LastPack, previewSrc: string, origin = "") {
+  const candidates = [pack.formatPublicUrls?.[pack.kind], pack.canvaExportUrl, previewSrc];
+  for (const src of candidates) {
+    if (!src) continue;
+    const url = graphImageUrl(src, origin);
+    if (url) return url;
+  }
   return "";
 }
 
