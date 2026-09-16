@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { COPY_KIND_IDS, COPY_STYLES, systemPrompt } from "@/lib/zen/voice";
+import { COPY_KIND_IDS, COPY_STYLES, completeCopyVariants, systemPrompt } from "@/lib/zen/voice";
 import { applyStudentRewrite } from "@/lib/zen/review";
 import type { CopyPack } from "@/lib/zen/types";
 import { describeAdapter } from "./campaign";
@@ -58,7 +58,7 @@ function mockCopy(data: z.infer<typeof CopyInput>): CopyPack {
     body,
     cta: signup ? "報名連結在下面" : "晚上見",
     hashtags: ["#淡江禪學社", "#淡江", "#淡水"],
-    variants,
+    variants: completeCopyVariants({ hook, body, cta: signup ? "報名連結在下面" : "晚上見", variants }),
     studentReview: {
       wouldStop: "會。第一句在講我。",
       understandable: "看得懂。",
@@ -135,7 +135,21 @@ export const generateCopyPack = createServerFn({ method: "POST" })
     try {
       const parsed = JSON.parse(body.choices?.[0]?.message?.content ?? "{}") as CopyPack;
       if (!parsed.hook) return { ok: false, error: "文案無法解析。", adapter: "live" };
-      return { ok: true, pack: applyStudentRewrite(parsed), adapter: "live" };
+      const cta = parsed.cta ?? "";
+      const filled = {
+        ...parsed,
+        body: parsed.body ?? parsed.hook,
+        cta,
+        hashtags: parsed.hashtags ?? [],
+        variants: completeCopyVariants({
+          hook: parsed.hook,
+          body: parsed.body ?? parsed.hook,
+          cta,
+          variants: parsed.variants,
+        }),
+        studentReview: parsed.studentReview,
+      };
+      return { ok: true, pack: applyStudentRewrite(filled), adapter: "live" };
     } catch {
       return { ok: false, error: "文案無法解析。", adapter: "live" };
     }

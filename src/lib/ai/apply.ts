@@ -25,7 +25,7 @@ export function copyFromCampaign(plan: CampaignPlan, brand: BrandKit): CopyDeck 
       body: plan.body,
       cta: plan.cta,
       handle: brand.handle,
-      caption: plan.captions[0]?.text ?? "",
+      caption: plan.captions.find((row) => row.style === "一般版")?.text ?? plan.captions[0]?.text ?? "",
       hashtags: plan.hashtags,
       altText: plan.altText,
     },

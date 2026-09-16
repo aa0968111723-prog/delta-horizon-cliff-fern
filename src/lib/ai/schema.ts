@@ -40,7 +40,7 @@ export const PlanJsonSchema = z.object({
         text: z.string().catch(""),
       }),
     )
-    .max(4)
+    .max(8)
     .catch([]),
   hashtags: z.array(z.string()).max(20).catch([]),
   storyBeats: z.array(z.string()).max(5).catch([]),

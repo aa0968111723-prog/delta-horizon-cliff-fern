@@ -31,6 +31,7 @@ import { hitFromIgPost } from "@/lib/zen/from-hit";
 import { dnaPromptIdea, igDnaBlock, learnFromPosts, nextCreateHint, recentPostedNotes } from "@/lib/zen/insights";
 import { IG_DNA } from "@/lib/zen/memory";
 import { CONTENT_KIND_LABEL } from "@/lib/zen/types";
+import { COPY_STYLES, captionFromCopyStyle, completeCopyVariants, matchingCopyStyle } from "@/lib/zen/voice";
 import { tonightAt, contentKindForFormat, convertFromPlan, convertTargetForPreview, formatIdForContentKind, formatScript, previewContentKind } from "@/lib/zen/convert";
 import { isWaveScheduleItem, schedulePreviewAssetId, placeScheduleItems, dueScheduleItems, scheduleItemForPreview } from "@/lib/zen/schedule";
 import { cn } from "@/lib/utils";
@@ -109,6 +110,7 @@ export function InstagramCenter() {
   const [canvaBusy, setCanvaBusy] = useState(false);
   const [previewFormat, setPreviewFormat] = useState<FormatId>(igFormat);
   const [caption, setCaption] = useState("");
+  const [copyStyle, setCopyStyle] = useState("一般版");
   const post = igPosts.find((p) => p.id === active);
   const brand = brands[0];
   const learned = useMemo(() => learnFromPosts(igPosts), [igPosts]);
@@ -159,6 +161,10 @@ export function InstagramCenter() {
     projects[0];
   const previewPages = previewProject ? pagesOf(previewProject, previewFormat) : [];
   const alreadyOnCalendar = Boolean(previewSlot);
+  const previewCopyVariants = useMemo(
+    () => (lastPack ? completeCopyVariants(lastPack.copy) : []),
+    [lastPack],
+  );
   const previewScript = useMemo(() => {
     if (!lastPack) return null;
     return formatScript(convertFromPlan(lastPack.plan), previewFormat, previewProject?.contentKind);
@@ -197,6 +203,12 @@ export function InstagramCenter() {
     }
     if (previewProject) setCaption(previewProject.copy.caption || previewProject.copy.headline);
   }, [previewScheduleId, schedule, previewProject?.id, previewProject?.copy.caption, previewProject?.copy.headline]);
+
+  useEffect(() => {
+    if (!previewCopyVariants.length) return;
+    const matched = matchingCopyStyle(caption, previewCopyVariants);
+    if (matched) setCopyStyle(matched);
+  }, [caption, previewCopyVariants]);
 
   useEffect(() => {
     if (!previewSlot?.id || previewSlot.id === previewScheduleId) return;
@@ -335,11 +347,27 @@ export function InstagramCenter() {
     }
   }
 
+  function persistCaption(next: string) {
+    if (previewProject) {
+      ensureArtboard(previewProject.id, previewFormat);
+      setActiveFormat(previewProject.id, previewFormat);
+      setCopy(previewProject.id, { caption: next });
+    }
+    if (previewSlot) {
+      patchSchedule(previewSlot.id, { captionPreview: next });
+    }
+  }
+
+  function applyPreviewCopyStyle(style: string) {
+    if (!lastPack) return;
+    const next = captionFromCopyStyle(lastPack.copy, style);
+    setCopyStyle(style);
+    setCaption(next);
+    persistCaption(next);
+  }
+
   function saveCaption() {
-    if (!previewProject) return;
-    ensureArtboard(previewProject.id, previewFormat);
-    setActiveFormat(previewProject.id, previewFormat);
-    setCopy(previewProject.id, { caption });
+    persistCaption(caption);
     toast.success("已更新 Caption");
   }
 
@@ -809,14 +837,35 @@ export function InstagramCenter() {
                 </div>
               ) : null}
               <p className="text-sm font-medium">Caption</p>
+              {previewCopyVariants.length ? (
+                <div className="flex min-w-0 flex-wrap gap-2" data-testid="preview-copy-styles">
+                  {previewCopyVariants.map((variant) => {
+                    const styleId = COPY_STYLES.find((row) => row.label === variant.style)?.id ?? variant.style;
+                    return (
+                      <button
+                        key={variant.style}
+                        type="button"
+                        data-testid={`preview-copy-style-${styleId}`}
+                        onClick={() => applyPreviewCopyStyle(variant.style)}
+                        className={`min-h-11 rounded-full px-3 py-2 text-xs ${
+                          copyStyle === variant.style ? "bg-accent text-accent-fg" : "bg-bg"
+                        }`}
+                      >
+                        {variant.style}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
               <Textarea
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 rows={4}
+                data-testid="preview-caption"
                 className="min-w-0 md:min-h-40"
               />
               <p className="break-words text-xs text-muted">{IG_DNA.hashtags.join(" ")}</p>
-              <Button size="sm" onClick={saveCaption} disabled={!previewProject}>
+              <Button size="sm" onClick={saveCaption} disabled={!previewProject && !previewSlot}>
                 更新文案
               </Button>
               {!lastPack || !lastVisualAssetId ? (

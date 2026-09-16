@@ -16,7 +16,7 @@ import { igDnaBlock } from "@/lib/zen/insights";
 import { clientMemoryLines, composeMemoryNotes } from "@/lib/zen/ingest";
 import { groupSearchHits, searchCreativeKnowledge } from "@/lib/zen/search";
 import { applyStudentRewrite } from "@/lib/zen/review";
-import { COPY_KIND_OPTIONS, type CopyKindId } from "@/lib/zen/voice";
+import { COPY_KIND_OPTIONS, completeCopyVariants, type CopyKindId } from "@/lib/zen/voice";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
@@ -228,16 +228,16 @@ export function CreateHub() {
           <p className="text-xs text-muted">IG Copy AI</p>
           <h2 className="mt-2 font-display text-2xl">{copyPack.hook}</h2>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">
-            {copyPack.variants.find((v) => v.style === copyStyle)?.text ?? copyPack.body}
+            {completeCopyVariants(copyPack).find((v) => v.style === copyStyle)?.text ?? copyPack.body}
           </p>
           <p className="mt-3 text-xs text-muted">{copyPack.cta} · {copyPack.hashtags.join(" ")}</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {copyPack.variants.map((v) => (
+          <div className="mt-4 flex min-w-0 flex-wrap gap-2">
+            {completeCopyVariants(copyPack).map((v) => (
               <button
                 key={v.style}
                 type="button"
                 onClick={() => setCopyStyle(v.style)}
-                className={`rounded-full px-3 py-2 text-xs ${copyStyle === v.style ? "bg-accent text-accent-fg" : "bg-bg"}`}
+                className={`min-h-11 rounded-full px-3 py-2 text-xs ${copyStyle === v.style ? "bg-accent text-accent-fg" : "bg-bg"}`}
               >
                 {v.style}
               </button>

@@ -36,7 +36,12 @@ test("buildMockPlan is structured Traditional Chinese and marked mock", () => {
   assert.ok(plan.visualTheme.length > 4);
   assert.ok(plan.headline.length > 0);
   assert.ok(plan.cta.length >= 2);
-  assert.ok(plan.captions[0]?.text.includes("週六下午"));
+  assert.ok(plan.captions.some((caption) => caption.text.includes("週六下午")));
+  assert.equal(plan.captions.length, 6);
+  assert.deepEqual(
+    plan.captions.map((caption) => caption.style),
+    ["短版", "一般版", "感性版", "學生版", "生活版", "幽默版"],
+  );
   assert.ok(plan.hashtags.some((tag) => tag.includes("日食")));
   assert.equal(plan.carouselPages.length, 6);
   assert.deepEqual(

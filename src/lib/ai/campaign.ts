@@ -1,7 +1,7 @@
 import { completeCarouselPages } from "@/lib/studio/carousel";
 import { createServerFn } from "@tanstack/react-start";
 import type { CampaignPlan, TemplateId } from "@/lib/studio/types";
-import { systemPrompt } from "@/lib/zen/voice";
+import { completeCopyVariants, systemPrompt } from "@/lib/zen/voice";
 import { buildMockPlan } from "./mock";
 import { BriefInputSchema, PlanJsonSchema, type BriefInput } from "./schema";
 
@@ -47,9 +47,12 @@ function toPlan(parsed: ReturnType<typeof PlanJsonSchema.parse>, source: Campaig
     subhead: parsed.subhead,
     body: parsed.body,
     cta: parsed.cta || "了解更多",
-    captions: parsed.captions.length
-      ? parsed.captions
-      : [{ style: "敘事", text: parsed.hook || parsed.concept || headline }],
+    captions: completeCopyVariants({
+      hook: parsed.hook || headline,
+      body: parsed.body || parsed.insight || parsed.hook || headline,
+      cta: parsed.cta || "了解更多",
+      variants: parsed.captions,
+    }),
     hashtags: parsed.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)),
     storyBeats: parsed.storyBeats,
     carouselPages: parsed.carouselPages,

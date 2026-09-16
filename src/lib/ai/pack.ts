@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { CitedSource } from "@/lib/studio/types";
 import { applyStudentRewrite } from "@/lib/zen/review";
+import { completeCopyVariants } from "@/lib/zen/voice";
 import { composeMemoryNotes, mergeCitedSources, sourcesFromMemoryNotes } from "@/lib/zen/ingest";
 import type { CreativePack } from "@/lib/zen/types";
 import { generateCampaignPlan } from "./campaign";
@@ -43,10 +44,15 @@ export const generateCreativePack = createServerFn({ method: "POST" })
       plan,
       copy: applyStudentRewrite({
         hook: plan.hook,
-        body: plan.captions[0]?.text ?? plan.insight,
+        body: plan.captions.find((row) => row.style === "一般版")?.text ?? plan.captions[0]?.text ?? plan.insight,
         cta: plan.cta,
         hashtags: plan.hashtags,
-        variants: plan.captions,
+        variants: completeCopyVariants({
+          hook: plan.hook,
+          body: plan.captions.find((row) => row.style === "一般版")?.text ?? plan.captions[0]?.text ?? plan.insight,
+          cta: plan.cta,
+          variants: plan.captions,
+        }),
         studentReview: plan.studentReview ?? {
           wouldStop: "請再看一次第一句。",
           understandable: "",

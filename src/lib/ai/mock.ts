@@ -1,6 +1,7 @@
 import { goalLabel } from "../studio/goals.ts";
 import type { CampaignPlan, CarouselPagePlan, TemplateId } from "../studio/types.ts";
 import { sourcesFromMemoryNotes } from "../zen/ingest.ts";
+import { completeCopyVariants } from "../zen/voice.ts";
 import type { BriefInput } from "./schema.ts";
 
 function pickTemplate(goal: BriefInput["goal"], wantCarousel: boolean): TemplateId {
@@ -172,11 +173,16 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
     subhead,
     body,
     cta,
-    captions: [
-      { style: "一般版", text: stripForbidden(captionCore, data.forbiddenWords) },
-      { style: "短版", text: stripForbidden(`${hook}\n${cta}`, data.forbiddenWords) },
-      { style: "學生版", text: stripForbidden(`${hook}\n${when}，${where}。找一個朋友也行。`, data.forbiddenWords) },
-    ],
+    captions: completeCopyVariants({
+      hook: stripForbidden(hook, data.forbiddenWords),
+      body: stripForbidden(captionCore, data.forbiddenWords),
+      cta: stripForbidden(cta, data.forbiddenWords),
+      variants: [
+        { style: "一般版", text: stripForbidden(captionCore, data.forbiddenWords) },
+        { style: "短版", text: stripForbidden(`${hook}\n${cta}`, data.forbiddenWords) },
+        { style: "學生版", text: stripForbidden(`${hook}\n${when}，${where}。找一個朋友也行。`, data.forbiddenWords) },
+      ],
+    }),
     hashtags: isZen
       ? [hashTag(data.brandName), "#淡江", "#淡水", hashTag(name)].filter(Boolean)
       : hashtags,

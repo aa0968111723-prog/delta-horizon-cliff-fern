@@ -36,7 +36,10 @@ export function convertFromPlan(plan: CampaignPlan): ConvertedFormats {
   return {
     post: {
       hook,
-      body: plan.captions[0]?.text ?? `${hook}\n\n${plan.insight}`,
+      body:
+        plan.captions.find((row) => row.style === "一般版")?.text ??
+        plan.captions[0]?.text ??
+        `${hook}\n\n${plan.insight}`,
       cta,
     },
     carousel: pages,

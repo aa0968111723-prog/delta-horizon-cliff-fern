@@ -102,6 +102,67 @@ export const COPY_STYLES = [
 
 export type CopyStyleId = (typeof COPY_STYLES)[number]["id"];
 
+export type CopyVariant = { style: string; text: string };
+
+export function normalizeCopyStyle(style: string): string {
+  const trimmed = style.trim();
+  const hit = COPY_STYLES.find((row) => row.label === trimmed || row.id === trimmed);
+  return hit?.label ?? trimmed;
+}
+
+export function completeCopyVariants(input: {
+  hook: string;
+  body: string;
+  cta?: string;
+  variants?: CopyVariant[];
+}): CopyVariant[] {
+  const byLabel = new Map<string, string>();
+  for (const row of input.variants ?? []) {
+    const label = normalizeCopyStyle(row.style);
+    const text = row.text.trim();
+    if (!label || !text) continue;
+    const known = COPY_STYLES.some((style) => style.label === label);
+    const key = known ? label : byLabel.has("一般版") ? "" : "一般版";
+    if (key && !byLabel.has(key)) byLabel.set(key, text);
+  }
+  const hook = input.hook.trim();
+  const cta = (input.cta ?? "").trim();
+  const body = input.body.replace(hook, "").trim();
+  const full = [hook, body].filter(Boolean).join("\n\n");
+  const withCta = cta && full && !full.includes(cta) ? `${full}\n\n${cta}` : full || cta;
+  const fallback: Record<CopyStyleId, string> = {
+    short: [hook, cta].filter(Boolean).join("\n"),
+    normal: withCta || hook,
+    tender: [hook, "慢慢來沒關係。今晚只是坐一下。", cta].filter(Boolean).join("\n"),
+    student: [hook, "找一個朋友一起來也行。", cta].filter(Boolean).join("\n"),
+    life: [hook, "淡水的晚上其實很適合什麼都不做。", cta].filter(Boolean).join("\n"),
+    humor: [hook, "報告先放旁邊。來坐一下就好。", cta].filter(Boolean).join("\n"),
+  };
+  return COPY_STYLES.map((style) => ({
+    style: style.label,
+    text: byLabel.get(style.label) || fallback[style.id],
+  }));
+}
+
+export function captionFromCopyStyle(
+  pack: { hook: string; body: string; cta: string; variants?: CopyVariant[] },
+  style: string,
+): string {
+  const label = normalizeCopyStyle(style);
+  return completeCopyVariants(pack).find((row) => row.style === label)?.text ?? pack.body;
+}
+
+export function matchingCopyStyle(caption: string, variants: CopyVariant[]): string | null {
+  const trimmed = caption.trim();
+  if (!trimmed) return null;
+  const hit = variants.find((row) => row.text.trim() === trimmed);
+  return hit?.style ?? null;
+}
+
+export function primaryCopyText(variants: CopyVariant[] | undefined, fallback = ""): string {
+  return variants?.find((row) => row.style === "一般版")?.text ?? variants?.[0]?.text ?? fallback;
+}
+
 export const COPY_KIND_OPTIONS = [
   { id: "event", label: "活動宣傳" },
   { id: "emotion", label: "情緒共鳴" },

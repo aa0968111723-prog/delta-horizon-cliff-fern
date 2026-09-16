@@ -94,6 +94,11 @@ test("carousel and story captions start with the student hook, not a page outlin
   assert.match(converted.carousel[0]?.headline.replace(/\n/g, "") ?? "", /坐好|最近/);
 });
 
+test("convertFromPlan uses the 一般版 caption as the IG body", () => {
+  assert.ok(converted.post.body.includes("2026-09-23"));
+  assert.ok(converted.post.body.includes("坐下來"));
+});
+
 test("previewContentKind uses carousel for 4:5 after a suite, square for the single post", () => {
   assert.equal(previewContentKind("feed-portrait", [{ kind: "carousel" }]), "carousel");
   assert.equal(previewContentKind("feed-square", [{ kind: "carousel" }, { kind: "post" }]), "ig-post");
