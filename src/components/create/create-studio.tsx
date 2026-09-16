@@ -120,7 +120,13 @@ export function CreateStudio() {
   const [pickedDirection, setPickedDirection] = useState<VisualDirection | null>(null);
   const [campaign, setCampaign] = useState<ClubCampaign | null>(null);
   const [vision, setVision] = useState<VisionAnalysis | null>(null);
-  const [lastImage, setLastImage] = useState<{ base64: string; mime: string; assetId?: string; headline?: string } | null>(null);
+  const [lastImage, setLastImage] = useState<{
+    base64: string;
+    mime: string;
+    assetId?: string;
+    headline?: string;
+    directionName?: string;
+  } | null>(null);
   const [sourcePreview, setSourcePreview] = useState<{
     id: string;
     name: string;
@@ -473,7 +479,7 @@ export function CreateStudio() {
       lastUsedAt: Date.now(),
       useCount: 0,
     });
-    setLastImage({ base64: png.base64, mime: png.mime, assetId: id, headline: dir.headline });
+    setLastImage({ base64: png.base64, mime: png.mime, assetId: id, headline: dir.headline, directionName: dir.name });
     if (!opts?.silent) toast.success("圖片已進素材庫（AI Generated）");
     return id;
   }
@@ -648,11 +654,17 @@ export function CreateStudio() {
     setPlan(next);
     setBusy(true);
     try {
-      const imageId = (await saveGeneratedImage(dir, { silent: true })) ?? undefined;
+      const imageId =
+        lastImage?.assetId && lastImage.directionName === dir.name
+          ? lastImage.assetId
+          : ((await saveGeneratedImage(dir, { silent: true })) ?? lastImage?.assetId);
       const project = applyToCanvas(next, false, imageId);
       const created = saveCampaignAndWaves(next, imageId, project?.id ?? null, { silent: true });
       scheduleConverted(next, created, project?.id ?? null, imageId);
       toast.success("已用這個方向做出整套：主視覺、文案、各平台、月曆");
+      requestAnimationFrame(() => {
+        document.querySelector('[data-testid="kit-ready"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
     } finally {
       setBusy(false);
     }
@@ -774,19 +786,15 @@ export function CreateStudio() {
       <section className="mt-8" data-testid="inspiration-research">
         <h2 className="text-sm font-medium">這次抽象自：{research.cards[0]?.title}</h2>
         <p className="mt-1 text-xs text-muted">
-          研究構圖、配色、排版、Hook、形式，再轉成淡江禪學社。不是抄別人。
+          研究構圖、配色、排版、Hook、形式，再轉成淡江禪學社。不是抄別人。{research.fromOwnIg}
         </p>
-        <p className="mt-2 text-xs text-muted">{research.fromOwnIg}</p>
         <ul className="mt-3 grid gap-2">
           {research.cards.slice(0, 3).map((card) => (
-            <li key={card.id} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+            <li key={card.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
               <p className="text-sm font-medium">{card.title}</p>
-              <p className="mt-1 text-xs text-muted">構圖 {card.composition}</p>
-              <p className="mt-1 text-xs text-muted">配色 {card.palette}</p>
-              <p className="mt-1 text-xs text-muted">排版 {card.layout}</p>
-              <p className="mt-1 text-xs text-muted">Hook {card.hookShape}</p>
-              <p className="mt-1 text-xs text-muted">形式 {card.form}</p>
-              <p className="mt-2 text-xs text-subtle">{card.zenUse}</p>
+              <p className="mt-1 text-xs text-muted">
+                {card.composition} · {card.palette} · Hook {card.hookShape}
+              </p>
             </li>
           ))}
         </ul>
@@ -827,6 +835,89 @@ export function CreateStudio() {
             </Button>
           </div>
         </VisionCard>
+      ) : null}
+
+      {lastImage ? (
+        <section className="mt-8">
+          <h2 className="text-sm font-medium">主視覺</h2>
+          <p className="mt-1 text-xs text-muted">
+            {pickedDirection?.name || lastImage.directionName || "這次方向"} · 來源：AI Generated
+          </p>
+          <div className="mt-3">
+            <HeroVisual
+              base64={lastImage.base64}
+              mime={lastImage.mime}
+              headline={lastImage.headline || pickedDirection?.headline}
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {directions.length ? (
+        <section className="mt-8" data-testid="direction-list">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-medium">根據過去內容生成 {directions.length} 個方向</h2>
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void runDirections()}>
+              換三個方向
+            </Button>
+          </div>
+          {found.length ? (
+            <p className="mt-2 text-xs text-muted">
+              找到 {found.length} 個相關素材
+              {Object.entries(foundGroups)
+                .map(([source, list]) => ` · ${sourceLabelOf(source)} ${list.length}`)
+                .join("")}
+            </p>
+          ) : null}
+          <ul className="mt-3 grid gap-3">
+            {directions.map((dir, index) => (
+              <li key={dir.id || dir.name} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+                <p className="font-medium">{dir.name}</p>
+                <p className="mt-1 text-sm text-muted">{dir.concept}</p>
+                <p className="mt-2 text-xs text-muted">{dir.palette} · {dir.composition}</p>
+                <p className="mt-1 text-sm">{dir.headline} · {dir.subhead}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={pickedDirection?.name === dir.name ? "default" : "secondary"}
+                    data-testid={index === 0 ? "realize-direction" : undefined}
+                    onClick={() => void realizeDirection(dir)}
+                  >
+                    {pickedDirection?.name === dir.name ? "已做出這套" : "用這個方向做出整套"}
+                  </Button>
+                  <Button size="sm" disabled={busy} onClick={() => void generateFromDirection(dir)}>
+                    生成圖片
+                  </Button>
+                  <Button size="sm" variant="secondary" disabled={busy} onClick={() => void generateFromDirection(dir)}>
+                    重新生成
+                  </Button>
+                  {VARIATIONS.map((item) => (
+                    <Button
+                      key={item.id}
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => void generateFromDirection(dir, item.id)}
+                    >
+                      {item.label}
+                    </Button>
+                  ))}
+                  {FORMATS.filter((item) => item.id !== "feed-landscape").map((item) => (
+                    <Button
+                      key={`ext-${item.id}`}
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => void generateFromDirection(dir, undefined, item.id)}
+                    >
+                      延伸 {item.short}
+                    </Button>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       {found.length ? (
@@ -908,76 +999,6 @@ export function CreateStudio() {
         />
       ) : null}
 
-      {lastImage ? (
-        <section className="mt-8">
-          <h2 className="text-sm font-medium">主視覺</h2>
-          <p className="mt-1 text-xs text-muted">
-            {pickedDirection?.name || "這次方向"} · 來源：AI Generated
-          </p>
-          <div className="mt-3">
-            <HeroVisual
-              base64={lastImage.base64}
-              mime={lastImage.mime}
-              headline={lastImage.headline || pickedDirection?.headline}
-            />
-          </div>
-        </section>
-      ) : null}
-
-      {directions.length ? (
-        <section className="mt-8">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-medium">根據過去內容生成 {directions.length} 個方向</h2>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void runDirections()}>
-              換三個方向
-            </Button>
-          </div>
-          <ul className="mt-3 grid gap-3">
-            {directions.map((dir) => (
-              <li key={dir.id || dir.name} className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
-                <p className="font-medium">{dir.name}</p>
-                <p className="mt-1 text-sm text-muted">{dir.concept}</p>
-                <p className="mt-2 text-xs text-muted">{dir.palette} · {dir.composition}</p>
-                <p className="mt-1 text-sm">{dir.headline} · {dir.subhead}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button size="sm" variant={pickedDirection?.name === dir.name ? "default" : "secondary"} onClick={() => void realizeDirection(dir)}>
-                    {pickedDirection?.name === dir.name ? "已做出這套" : "用這個方向做出整套"}
-                  </Button>
-                  <Button size="sm" disabled={busy} onClick={() => void generateFromDirection(dir)}>
-                    生成圖片
-                  </Button>
-                  <Button size="sm" variant="secondary" disabled={busy} onClick={() => void generateFromDirection(dir)}>
-                    重新生成
-                  </Button>
-                  {VARIATIONS.map((item) => (
-                    <Button
-                      key={item.id}
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => void generateFromDirection(dir, item.id)}
-                    >
-                      {item.label}
-                    </Button>
-                  ))}
-                  {FORMATS.filter((item) => item.id !== "feed-landscape").map((item) => (
-                    <Button
-                      key={`ext-${item.id}`}
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => void generateFromDirection(dir, undefined, item.id)}
-                    >
-                      延伸 {item.short}
-                    </Button>
-                  ))}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
       {plan ? (
         <section className="mt-8">
           <h2 className="text-sm font-medium">一鍵轉換</h2>
@@ -1012,7 +1033,7 @@ export function CreateStudio() {
             </Button>
           </div>
           {campaign ? (
-            <div className="mt-4 rounded-2xl bg-accent/15 p-4">
+            <div className="mt-4 rounded-2xl bg-accent/15 p-4" data-testid="kit-ready">
               <p className="text-sm font-medium">下一步</p>
               <p className="mt-1 text-xs text-muted">
                 已用這個方向做出整套。可送 Canva 微調、看 IG Preview、或到月曆改時間。發布後會寫進過去 IG。
@@ -1020,6 +1041,14 @@ export function CreateStudio() {
               <p className="mt-3 text-xs text-muted">
                 已建立 {campaign.name}，節奏含 {campaign.waves.map((w) => waveLabel(w.kind)).join("、") || "預熱到回顧"}。
               </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => void navigate({ to: "/calendar" })}>
+                  看月曆
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => void navigate({ to: "/ig" })}>
+                  IG Preview
+                </Button>
+              </div>
             </div>
           ) : null}
         </section>

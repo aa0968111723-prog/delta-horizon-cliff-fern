@@ -13,6 +13,7 @@ import { persistGeneratedImage } from "@/lib/studio/raster";
 import { pagesOf } from "@/lib/studio/layers";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { canGraphPublish } from "@/lib/zen/memory";
+import { soonestScheduled } from "@/lib/zen/schedule";
 import { igHookAnalysis } from "@/lib/zen/review";
 import { useStudio } from "@/stores/studio-store";
 import type { ScheduleItem } from "@/lib/studio/types";
@@ -32,7 +33,7 @@ export function InstagramCenter() {
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const urls = useAssetUrls(assets.map((a) => a.id));
   const gridProjects = projects.filter((p) => p.activeFormatId.startsWith("feed") || p.contentKind === "carousel");
-  const upcoming = schedule.filter((item) => item.status === "scheduled");
+  const upcoming = soonestScheduled(schedule, 12);
   const post = igMemory.find((p) => p.id === selected);
 
   const dna = useMemo(
@@ -114,7 +115,7 @@ export function InstagramCenter() {
 
       <section className="mt-8">
         <h2 className="text-sm font-medium">Grid Preview</h2>
-        <ul className="mt-3 grid grid-cols-3 gap-1">
+        <ul className="mt-3 grid grid-cols-3 gap-1" data-testid="ig-upcoming-grid">
           {upcoming
             .filter((item) => item.kind === "ig-post" || item.kind === "carousel")
             .slice(0, 6)
@@ -125,7 +126,7 @@ export function InstagramCenter() {
               return (
                 <li key={`up-${item.id}`} className="relative aspect-square overflow-hidden bg-surface-2">
                   {src ? (
-                    <img src={src} alt={item.title} className="size-full object-cover" />
+                    <img src={src} alt={item.title} data-testid="ig-upcoming-thumb" className="size-full object-cover" />
                   ) : page && brand ? (
                     <ArtboardView artboard={page} brand={brand} urls={urls} width={140} />
                   ) : (

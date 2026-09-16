@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { contentKindLabel } from "@/lib/studio/content";
-import { daysUntil, academicBeatLabel, academicBeat } from "@/lib/zen/context";
+import { academicBeat, academicBeatLabel, daysUntil } from "@/lib/zen/context";
 import { ideaFromInspiration, inspirationForBeat } from "@/lib/zen/inspiration";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
+import { soonestScheduled } from "@/lib/zen/schedule";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 import { ProjectCard } from "@/components/shared/project-card";
@@ -33,8 +34,9 @@ export function HomePage() {
     return [...campaigns].sort((a, b) => a.date.localeCompare(b.date))[0];
   }, [campaigns]);
   const days = upcoming ? daysUntil(upcoming.date) : null;
-  const scheduled = schedule.filter((item) => item.status === "scheduled").slice(0, 4);
-  const generated = projects.filter((p) => p.plan).slice(0, 4);
+  const scheduled = soonestScheduled(schedule, 6);
+  const generated = [...projects].filter((p) => p.plan).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
+  const generatedLooks = assets.filter((asset) => asset.source === "generated").slice(0, 4);
   const strong = [...igMemory].sort((a, b) => (b.saves ?? 0) - (a.saves ?? 0))[0];
   const dna = useMemo(
     () => clubCreativeDna({ brand, igMemory, campaigns, assets }),
@@ -204,6 +206,23 @@ export function HomePage() {
 
       <section className="mt-10">
         <SectionHeader title="最近 AI 生成" />
+        {generatedLooks.length ? (
+          <ul className="mb-3 grid grid-cols-4 gap-2" data-testid="home-generated">
+            {generatedLooks.map((asset) => (
+              <li key={asset.id} className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
+                <Link to="/create" search={{ mode: "from-image", asset: asset.id, idea: `延續「${asset.name}」` }} className="block">
+                  <div className="aspect-square bg-bg">
+                    {urls[asset.id] ? (
+                      <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" />
+                    ) : (
+                      <div className="flex size-full items-center justify-center text-xs text-muted">{asset.name}</div>
+                    )}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {generated.map((project) => (
             <li key={project.id}>

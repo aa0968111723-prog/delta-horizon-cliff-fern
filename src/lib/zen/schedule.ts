@@ -103,6 +103,14 @@ export function contentKindForWave(kind: CampaignWaveKind): ContentKind {
   }
 }
 
+/** Soonest scheduled first so a new tea-party kit is visible on Home / IG, not buried under LINE drafts. */
+export function soonestScheduled<T extends { status: string; scheduledAt: number }>(items: T[], limit = 6): T[] {
+  return [...items]
+    .filter((item) => item.status === "scheduled")
+    .sort((a, b) => a.scheduledAt - b.scheduledAt)
+    .slice(0, limit);
+}
+
 export function eventKindFromText(text: string): EventKind {
   if (/茶/.test(text)) return "tea";
   if (/光|浮游|燈/.test(text)) return "light";
