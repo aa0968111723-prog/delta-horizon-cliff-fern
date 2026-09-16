@@ -131,6 +131,7 @@ export function migratePlan(raw?: Partial<CampaignPlan> | null): CampaignPlan | 
         : [],
     altText: raw.altText ?? "",
     qaNotes: Array.isArray(raw.qaNotes) ? raw.qaNotes : [],
+    copyPack: raw.copyPack,
     generatedAt: raw.generatedAt ?? Date.now(),
     source: raw.source === "mock" || raw.source === "live" ? raw.source : "live",
   };

@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { CopyStudio } from "@/components/assistant/copy-studio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -123,6 +124,8 @@ export function PlanResult({ projectId, onOpenEditor }: Props) {
           }
         />
       </Field>
+
+      <CopyStudio projectId={projectId} />
 
       <div className="space-y-1.5">
         <Label>建議版型</Label>

@@ -304,6 +304,44 @@ export type AssetNeed = {
 
 export type PlanSource = "live" | "mock";
 
+export type CopyTone = "短版" | "一般版" | "感性版" | "學生版" | "生活版" | "幽默版";
+
+export type CopyVariant = {
+  tone: CopyTone;
+  hook: string;
+  body: string;
+  cta: string;
+  hashtags: string[];
+};
+
+export type StudentReviewItem = {
+  question: string;
+  pass: boolean;
+  feedback: string;
+};
+
+export type ReelsBeat = {
+  timing: string;
+  visual: string;
+  subtitle: string;
+  voiceover: string;
+  transition: string;
+  assetSuggestion: string;
+};
+
+export type CopyPack = {
+  variants: CopyVariant[];
+  studentReview: StudentReviewItem[];
+  revisedCaption: string;
+  threads: string;
+  line: string;
+  storyFrames: string[];
+  carouselPages: string[];
+  reelsScript: ReelsBeat[];
+  generatedAt: number;
+  source: PlanSource;
+};
+
 export type CampaignPlan = {
   campaignName: string;
   concept: string;
@@ -326,6 +364,7 @@ export type CampaignPlan = {
   checklist: string[];
   altText: string;
   qaNotes: string[];
+  copyPack?: CopyPack;
   generatedAt: number;
   source: PlanSource;
 };
