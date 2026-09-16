@@ -1,6 +1,6 @@
 import { addDays, format, startOfMonth, startOfWeek } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { PublishButton } from "@/components/create/publish-button";
@@ -12,15 +12,26 @@ import { useStudio } from "@/stores/studio-store";
 import { cn } from "@/lib/utils";
 import type { CalendarItem } from "@/lib/creative/types";
 
-export function CalendarPage() {
+export function CalendarPage({ focusDay }: { focusDay?: string }) {
   const campaigns = useCreative((s) => s.campaigns);
   const moveWave = useCreative((s) => s.moveWave);
   const duplicateWave = useCreative((s) => s.duplicateWave);
   const projects = useStudio((s) => s.projects);
   const navigate = useNavigate();
-  const [cursor, setCursor] = useState(() => new Date());
+  const [cursor, setCursor] = useState(() => (focusDay ? new Date(`${focusDay}T12:00:00+08:00`) : new Date()));
   const [view, setView] = useState<"month" | "week" | "agenda">("agenda");
   const items = calendarFrom(campaigns, projects);
+
+  useEffect(() => {
+    if (!focusDay) return;
+    setCursor(new Date(`${focusDay}T12:00:00+08:00`));
+  }, [focusDay]);
+
+  useEffect(() => {
+    if (!focusDay) return;
+    const el = document.getElementById(`cal-day-${focusDay}`);
+    el?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [focusDay, items.length, view]);
 
   const weeks = useMemo(() => {
     const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 });
@@ -63,6 +74,11 @@ export function CalendarPage() {
       <p className="text-xs tracking-[0.18em] text-muted uppercase">排程</p>
       <h1 className="mt-1 font-display text-3xl">什麼時候發</h1>
       <p className="mt-2 text-sm text-muted">只服務創作與發布。沒有審核人。桌面可拖曳改日期。</p>
+      {focusDay ? (
+        <p className="mt-3 rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]">
+          這次排在 {focusDay.slice(5).replace("-", "/")}。Agenda 會亮出來，週視圖從這週看。
+        </p>
+      ) : null}
       <div className="mt-4 flex flex-wrap gap-2">
         {(["agenda", "week", "month"] as const).map((id) => (
           <Button key={id} size="sm" variant={view === id ? "default" : "secondary"} onClick={() => setView(id)}>
@@ -88,6 +104,7 @@ export function CalendarPage() {
             <AgendaRow
               key={item.id}
               item={item}
+              focused={Boolean(focusDay && item.date === focusDay && item.kind !== "event")}
               onExtend={() => extend(item)}
               onCopy={() => item.campaignId && item.waveId && duplicateWave(item.campaignId, item.waveId)}
             />
@@ -125,7 +142,10 @@ export function CalendarPage() {
                         key={item.id}
                         draggable
                         onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
-                        className="cursor-grab rounded-lg bg-surface-2 px-1.5 py-1 text-xs leading-tight"
+                        className={cn(
+                          "cursor-grab rounded-lg bg-surface-2 px-1.5 py-1 text-xs leading-tight",
+                          focusDay && item.date === focusDay && item.kind !== "event" && "ring-2 ring-primary",
+                        )}
                       >
                         {item.title}
                       </li>
@@ -162,7 +182,10 @@ export function CalendarPage() {
                         key={item.id}
                         draggable
                         onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
-                        className="cursor-grab text-sm"
+                        className={cn(
+                          "cursor-grab text-sm",
+                          focusDay && item.date === focusDay && item.kind !== "event" && "rounded-lg ring-2 ring-primary",
+                        )}
                       >
                         {item.title}
                       </li>
@@ -187,7 +210,14 @@ export function CalendarPage() {
                 <li key={iso} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
                   <p className="text-xs text-muted">{format(day, "M/d EEE", { locale: zhTW })}</p>
                   {dayItems.map((item) => (
-                    <div key={item.id} className="mt-2 border-t border-border pt-2">
+                    <div
+                      key={item.id}
+                      id={item.date === focusDay ? `cal-day-${item.date}` : undefined}
+                      className={cn(
+                        "mt-2 border-t border-border pt-2",
+                        focusDay && item.date === focusDay && item.kind !== "event" && "rounded-xl ring-2 ring-primary",
+                      )}
+                    >
                       <p className="text-sm">{item.title}</p>
                       <div className="mt-1 flex flex-wrap gap-2">
                         <Button size="sm" variant="ghost" onClick={() => extend(item)}>
@@ -220,7 +250,14 @@ export function CalendarPage() {
                 <p className="text-xs text-muted">{format(day, "M/d EEE", { locale: zhTW })}</p>
                 {dayItems.length ? (
                   dayItems.map((item) => (
-                    <div key={item.id} className="mt-2 border-t border-border pt-2 first:mt-1 first:border-0 first:pt-0">
+                    <div
+                      key={item.id}
+                      id={item.date === focusDay ? `cal-day-${item.date}` : undefined}
+                      className={cn(
+                        "mt-2 border-t border-border pt-2 first:mt-1 first:border-0 first:pt-0",
+                        focusDay && item.date === focusDay && item.kind !== "event" && "rounded-xl ring-2 ring-primary",
+                      )}
+                    >
                       <p className="text-sm">{item.title}</p>
                       <div className="mt-1 flex flex-wrap gap-2">
                         <Button size="sm" variant="ghost" onClick={() => extend(item)}>
@@ -260,15 +297,20 @@ export function CalendarPage() {
 
 function AgendaRow({
   item,
+  focused,
   onExtend,
   onCopy,
 }: {
   item: CalendarItem;
+  focused?: boolean;
   onExtend: () => void;
   onCopy: () => void;
 }) {
   return (
-    <li className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+    <li
+      id={focused ? `cal-day-${item.date}` : undefined}
+      className={cn("rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]", focused && "ring-2 ring-primary")}
+    >
       <p className="text-xs text-muted">{item.date}</p>
       <p className="text-sm">{item.title}</p>
       <p className="text-xs text-subtle">

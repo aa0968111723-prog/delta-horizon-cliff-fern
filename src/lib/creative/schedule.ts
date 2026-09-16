@@ -3,6 +3,9 @@ import { uid } from "../studio/ids.ts";
 import type { ContentKind, ProjectStatus } from "../studio/types.ts";
 import type { CampaignType, CampaignWave, ClubCampaign } from "./types.ts";
 
+/** 當天／回顧節奏不能被轉換格式搶走。 */
+const RESERVED_WAVE_INTENTS = /當天|回顧/;
+
 type WaveSeed = {
   offsetDays: number;
   intent: string;
@@ -72,6 +75,83 @@ export function isoFromMs(ms: number) {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date(ms));
+}
+
+/** 轉換格式排進月曆時的相對活動日，Carousel 提前一週、Story 前一天。 */
+export function offsetDaysForKind(kind: ContentKind): number {
+  if (kind === "story" || kind === "countdown") return -1;
+  if (kind === "reels") return -3;
+  if (kind === "carousel") return -7;
+  if (kind === "line") return -4;
+  if (kind === "threads") return -5;
+  if (kind === "recap") return 1;
+  if (kind === "member-story") return -2;
+  if (kind === "poll") return -5;
+  return -10;
+}
+
+export function scheduledAtFor(kind: ContentKind, campDate?: string, now = Date.now()): number {
+  if (!campDate) return now + 86400000;
+  const event = Date.parse(`${campDate}T19:00:00+08:00`);
+  if (Number.isNaN(event)) return now + 86400000;
+  return event + offsetDaysForKind(kind) * 86400000;
+}
+
+export function waveIntentForKind(kind: ContentKind): string {
+  if (kind === "carousel") return "Carousel";
+  if (kind === "story") return "Story";
+  if (kind === "reels") return "Reels";
+  if (kind === "threads") return "Threads";
+  if (kind === "line") return "LINE";
+  if (kind === "countdown") return "倒數";
+  if (kind === "recap") return "回顧";
+  if (kind === "ig-post") return "IG";
+  if (kind === "member-story") return "故事";
+  if (kind === "poll") return "互動";
+  return "網宣";
+}
+
+export function bindScheduledWave(
+  waves: CampaignWave[],
+  input: {
+    kind: ContentKind;
+    projectId: string;
+    scheduledAt: number;
+    topic: string;
+    status: ProjectStatus;
+    campaignDate: string;
+  },
+): CampaignWave[] {
+  const event = Date.parse(`${input.campaignDate}T19:00:00+08:00`);
+  const offsetDays = Number.isNaN(event) ? 0 : Math.round((input.scheduledAt - event) / 86400000);
+  const desired = offsetDaysForKind(input.kind);
+  const unused = waves.find(
+    (wave) =>
+      wave.contentKind === input.kind &&
+      !wave.projectId &&
+      !RESERVED_WAVE_INTENTS.test(wave.intent) &&
+      Math.abs(wave.offsetDays - desired) <= 2,
+  );
+  const patch = {
+    status: input.status,
+    projectId: input.projectId,
+    scheduledAt: input.scheduledAt,
+    offsetDays,
+    topic: input.topic,
+  };
+  if (unused) {
+    return waves.map((wave) => (wave.id === unused.id ? { ...wave, ...patch } : wave));
+  }
+  return [
+    ...waves,
+    {
+      id: uid("wave"),
+      intent: waveIntentForKind(input.kind),
+      contentKind: input.kind,
+      publishedAt: null,
+      ...patch,
+    },
+  ];
 }
 
 /** 從一句話猜活動日，給還沒建 Campaign 的創作。 */

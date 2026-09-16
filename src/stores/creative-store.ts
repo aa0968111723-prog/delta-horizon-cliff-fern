@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { suggestWaves, isoFromMs } from "@/lib/creative/schedule";
+import { bindScheduledWave as placeOnWave, suggestWaves, isoFromMs } from "@/lib/creative/schedule";
 import { lastLearnFromPosts } from "@/lib/club/insights";
 import { mergeIgPosts } from "@/lib/creative/ig-memory";
 import { applyMarkPublished } from "@/lib/creative/publish-flow";
@@ -42,6 +42,13 @@ type CreativeState = {
   updateCampaign: (id: string, patch: Partial<ClubCampaign>) => void;
   generateWaves: (id: string) => void;
   setWaveStatus: (campaignId: string, waveId: string, status: ProjectStatus, projectId?: string | null) => void;
+  bindScheduledWave: (campaignId: string, input: {
+    kind: ContentKind;
+    projectId: string;
+    scheduledAt: number;
+    topic: string;
+    status: ProjectStatus;
+  }) => void;
   moveWave: (campaignId: string, waveId: string, dateIso: string) => void;
   duplicateWave: (campaignId: string, waveId: string) => void;
   setConnection: (id: ConnectionId, patch: Partial<ConnectionState>) => void;
@@ -98,11 +105,12 @@ export function calendarFrom(campaigns: ClubCampaign[], projects: Project[]): Ca
     });
     for (const wave of campaign.waves) {
       if (!wave.scheduledAt) continue;
+      const project = wave.projectId ? projects.find((item) => item.id === wave.projectId) : undefined;
       items.push({
         id: wave.id,
         date: isoFromMs(wave.scheduledAt),
-        title: `${wave.intent} · ${wave.topic}`,
-        kind: wave.contentKind,
+        title: project?.name ?? `${wave.intent} · ${wave.topic}`,
+        kind: project?.contentKind ?? wave.contentKind,
         status: wave.status,
         campaignId: campaign.id,
         waveId: wave.id,
@@ -173,6 +181,14 @@ export const useCreative = create<CreativeState>()(
             w.id === waveId ? { ...w, status, projectId: projectId === undefined ? w.projectId : projectId } : w,
           ),
           projectIds: projectId ? [...new Set([...campaign.projectIds, projectId])] : campaign.projectIds,
+        });
+      },
+      bindScheduledWave: (campaignId, input) => {
+        const campaign = get().campaigns.find((c) => c.id === campaignId);
+        if (!campaign) return;
+        get().updateCampaign(campaignId, {
+          waves: placeOnWave(campaign.waves, { ...input, campaignDate: campaign.date }),
+          projectIds: [...new Set([...campaign.projectIds, input.projectId])],
         });
       },
       moveWave: (campaignId, waveId, dateIso) => {

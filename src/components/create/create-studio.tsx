@@ -20,7 +20,7 @@ import { buildCanvaKit } from "@/lib/connect/canva-kit";
 import { publicImageUrl } from "@/lib/connect/ig-publish";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { varyImagePrompt } from "@/lib/creative/image-vary";
-import { inferCampaignType, inferEventDate } from "@/lib/creative/schedule";
+import { inferCampaignType, inferEventDate, isoFromMs, scheduledAtFor } from "@/lib/creative/schedule";
 import { searchCreative } from "@/lib/creative/search";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { createGeneratedAsset } from "@/lib/studio/assets";
@@ -79,14 +79,6 @@ function mergeConvert(pack: CreativePack, kind: string, kit: ConvertResult): Cre
   };
 }
 
-function scheduledAtFor(kind: ContentKind, campDate?: string) {
-  if (!campDate) return Date.now() + 86400000;
-  const event = Date.parse(`${campDate}T19:00:00+08:00`);
-  const days =
-    kind === "story" || kind === "countdown" ? -1 : kind === "reels" ? -3 : kind === "carousel" ? -7 : kind === "line" ? -4 : kind === "threads" ? -5 : -10;
-  return event + days * 86400000;
-}
-
 async function readAssetAsDataUrl(asset: { id: string; seedSrc?: string }) {
   const stored = await getAssetStorage().get(asset.id);
   const blob = stored ?? (asset.seedSrc ? await (await fetch(asset.seedSrc)).blob() : undefined);
@@ -134,13 +126,14 @@ export function CreateStudio({
   const igPosts = useCreative((s) => s.igPosts);
   const inspirations = useCreative((s) => s.inspirations);
   const generateWaves = useCreative((s) => s.generateWaves);
-  const updateCampaign = useCreative((s) => s.updateCampaign);
   const addCampaign = useCreative((s) => s.addCampaign);
   const addMemory = useCreative((s) => s.addMemory);
-  const setWaveStatus = useCreative((s) => s.setWaveStatus);
+  const bindScheduledWave = useCreative((s) => s.bindScheduledWave);
   const assets = useStudio((s) => s.assets);
   const projects = useStudio((s) => s.projects);
-  const campaign = campaignId ? campaigns.find((c) => c.id === campaignId) : undefined;
+  const [createdCampaignId, setCreatedCampaignId] = useState<string | undefined>();
+  const resolvedCampaignId = campaignId ?? createdCampaignId;
+  const campaign = resolvedCampaignId ? campaigns.find((c) => c.id === resolvedCampaignId) : undefined;
 
   const [query, setQuery] = useState(initialQuery || starterQuery(mode, campaign?.name));
   const [busy, setBusy] = useState(false);
@@ -428,7 +421,7 @@ export function CreateStudio({
     const active = opts?.nextPack ?? pack;
     const kind = opts?.kind ?? "carousel";
     if (!brand || !active) return;
-    let camp = campaignId ? campaigns.find((c) => c.id === campaignId) : undefined;
+    let camp = resolvedCampaignId ? campaigns.find((c) => c.id === resolvedCampaignId) : undefined;
     if (!camp && andSchedule) {
       camp = addCampaign({
         name: active.plan.campaignName,
@@ -441,6 +434,7 @@ export function CreateStudio({
         theme: active.plan.visualTheme,
         location: campaign?.location ?? "淡江校園",
       });
+      setCreatedCampaignId(camp.id);
     }
     const brief = {
       ...emptyBrief(),
@@ -474,18 +468,18 @@ export function CreateStudio({
     });
     if (camp) {
       if (!camp.waves.length) generateWaves(camp.id);
-      const latest = useCreative.getState().campaigns.find((c) => c.id === camp.id);
-      const wave =
-        latest?.waves.find((item) => item.contentKind === kind && !item.projectId) ??
-        latest?.waves.find((item) => item.contentKind === kind) ??
-        latest?.waves.find((item) => item.intent === "主視覺") ??
-        latest?.waves[0];
-      if (wave) setWaveStatus(camp.id, wave.id, andSchedule ? "scheduled" : "creating", project.id);
-      updateCampaign(camp.id, { projectIds: [...new Set([...camp.projectIds, project.id])] });
+      bindScheduledWave(camp.id, {
+        kind,
+        projectId: project.id,
+        scheduledAt,
+        topic: active.plan.hook,
+        status: andSchedule ? "scheduled" : "creating",
+      });
     }
-    toast.success(andSchedule ? "已排進月曆，到時間可以發" : "已套進畫布");
+    const day = isoFromMs(scheduledAt);
+    toast.success(andSchedule ? `已排進 ${day.replace(/^\d{4}-/, "").replace("-", "/")} 月曆` : "已套進畫布");
     if (andSchedule) {
-      void navigate({ to: "/calendar" });
+      void navigate({ to: "/calendar", search: { day } });
       return;
     }
     void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
