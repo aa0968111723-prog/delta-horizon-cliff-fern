@@ -174,9 +174,9 @@ export function AssetLibrary() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="品牌資產"
-        title="素材庫"
-        description="依分類管理活動照片、人物、背景、插圖、圖示、Logo 與歷史素材。搜尋、收藏、刪除，或拖到編輯器畫布。"
+        kicker="淡江禪學社 Creative Brain"
+        title="AI Creative Library"
+        description="集中活動照片、社員、淡江校園、淡水、龜龜、三色光與歷屆網宣。現在可搜尋、收藏並放入創作，後續會加入 AI 分析與跨來源素材。"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BrandSubnav current="assets" />

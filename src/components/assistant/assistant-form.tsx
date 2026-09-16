@@ -37,6 +37,8 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
   const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
   const setLastProjectId = useStudio((s) => s.setLastProjectId);
   const setAssistantOpen = useUi((s) => s.setAssistantOpen);
+  const creativePreset = useUi((s) => s.creativePreset);
+  const clearCreativePreset = useUi((s) => s.clearCreativePreset);
 
   const existing = projectId ? projects.find((p) => p.id === projectId) : undefined;
   const [targetId, setTargetId] = useState<string>(existing?.id ?? "new");
@@ -70,6 +72,16 @@ export function AssistantForm({ variant = "page", projectId }: Props) {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!creativePreset) return;
+    const preset = migrateBrief({ ...emptyBrief(), ...creativePreset });
+    setTargetId("new");
+    setDoneId(null);
+    setBrief(preset);
+    setName(preset.eventName);
+    clearCreativePreset();
+  }, [creativePreset, clearCreativePreset]);
 
   function patchBrief(patch: Partial<Brief>) {
     setBrief((b) => ({ ...b, ...patch, deliverables: patch.deliverables ?? b.deliverables }));

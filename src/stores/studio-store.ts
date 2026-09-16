@@ -30,7 +30,15 @@ import {
   normalizeArtboard,
   pagesOf,
 } from "@/lib/studio/layers";
-import { SEED_ASSETS, SEED_BRAND, SEED_BRAND_ID, SEED_PROJECT_ID, createSeedDraft, createSeedProject } from "@/lib/studio/seed";
+import {
+  SEED_ASSETS,
+  SEED_BRAND,
+  SEED_BRAND_ID,
+  SEED_DRAFT_ID,
+  SEED_PROJECT_ID,
+  createSeedDraft,
+  createSeedProject,
+} from "@/lib/studio/seed-zen";
 import { templateById } from "@/lib/studio/templates";
 import type {
   AlignMode,
@@ -150,6 +158,7 @@ function historyKey(projectId: string, formatId: FormatId) {
 }
 
 function migrateBrandRecord(raw: BrandKit): BrandKit {
+  if (raw.id === SEED_BRAND_ID && raw.name === "日食咖啡") return clone(SEED_BRAND);
   const next = migrateBrand(raw);
   if (next.id !== SEED_BRAND_ID) return next;
   return {
@@ -178,6 +187,8 @@ function migrateAssetRecord(raw: AssetMeta): AssetMeta {
 }
 
 function migrateProject(raw: Project): Project {
+  if (raw.id === SEED_PROJECT_ID && raw.name.includes("耶加雪菲")) return createSeedProject();
+  if (raw.id === SEED_DRAFT_ID && raw.name.includes("手沖")) return createSeedDraft();
   const artboards: Partial<Record<FormatId, Artboard>> = {};
   for (const [key, value] of Object.entries(raw.artboards ?? {})) {
     if (value) artboards[key as FormatId] = normalizeArtboard(value);
@@ -1058,7 +1069,7 @@ export const useStudio = create<StudioState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 6,
+      version: 7,
       partialize: (s) => ({
         brands: s.brands,
         assets: s.assets,
@@ -1072,8 +1083,16 @@ export const useStudio = create<StudioState>()(
           projects: Project[];
           lastProjectId: string | null;
         }>;
+        const legacySeed = p.brands?.some(
+          (brand) => brand.id === SEED_BRAND_ID && brand.name === "日食咖啡",
+        ) ?? false;
         const brands = (p.brands ?? current.brands).map(migrateBrandRecord);
-        const assets = (p.assets ?? current.assets).map(migrateAssetRecord);
+        const assets = (p.assets ?? current.assets)
+          .filter((asset) => !legacySeed || !["asset_cup", "asset_beans", "asset_nisshoku_logo"].includes(asset.id))
+          .map(migrateAssetRecord);
+        if (legacySeed && !assets.some((asset) => asset.id === SEED_ASSETS[0]?.id)) {
+          assets.unshift(...SEED_ASSETS);
+        }
         const projects = (p.projects ?? current.projects).map(migrateProject);
         return {
           ...current,
@@ -1091,8 +1110,16 @@ export const useStudio = create<StudioState>()(
           projects?: Project[];
           lastProjectId?: string | null;
         };
+        const legacySeed = state.brands?.some(
+          (brand) => brand.id === SEED_BRAND_ID && brand.name === "日食咖啡",
+        ) ?? false;
         const brands = (state.brands ?? []).map(migrateBrandRecord);
-        const assets = (state.assets ?? []).map(migrateAssetRecord);
+        const assets = (state.assets ?? [])
+          .filter((asset) => !legacySeed || !["asset_cup", "asset_beans", "asset_nisshoku_logo"].includes(asset.id))
+          .map(migrateAssetRecord);
+        if (legacySeed && !assets.some((asset) => asset.id === SEED_ASSETS[0]?.id)) {
+          assets.unshift(...SEED_ASSETS);
+        }
         const projects = (state.projects ?? []).map(migrateProject);
         return {
           brands,

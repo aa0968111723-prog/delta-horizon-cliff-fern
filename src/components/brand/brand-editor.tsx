@@ -1,4 +1,4 @@
-import { Plus, Star, Trash2, Upload } from "lucide-react";
+import { Star, Trash2, Upload } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
@@ -50,7 +50,6 @@ export function BrandEditor() {
   const brands = useStudio((s) => s.brands);
   const updateBrand = useStudio((s) => s.updateBrand);
   const createBrand = useStudio((s) => s.createBrand);
-  const deleteBrand = useStudio((s) => s.deleteBrand);
   const addAsset = useStudio((s) => s.addAsset);
   const [activeId, setActiveId] = useState(brands[0]?.id ?? "");
   const [section, setSection] = useState<(typeof SECTIONS)[number]["id"]>("identity");
@@ -129,42 +128,15 @@ export function BrandEditor() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-8 md:py-10">
       <PageHeader
-        kicker="品牌中心"
-        title="品牌規範"
-        description="名稱、Logo 版本、色彩、字體、標語、CTA、圖片風格與禁用規則會套進排版、AI 企劃與品質檢查。"
+        kicker="淡江禪學社 Creative Brain"
+        title="Brand Memory"
+        description="Logo、龜龜、三色光、語氣、CTA、圖片風格與禁用規則會優先進入每一次 AI 創作。"
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <BrandSubnav current="brand" />
-            <Button variant="secondary" onClick={() => setActiveId(createBrand("新品牌").id)}>
-              <Plus className="size-4" />
-              新增品牌
-            </Button>
-            {brands.length > 1 && (
-              <Button variant="outline" onClick={() => deleteBrand(brand.id)}>
-                <Trash2 className="size-4" />
-                刪除
-              </Button>
-            )}
-          </div>
+          <BrandSubnav current="brand" />
         }
       />
 
       <StorageNotice />
-
-      {brands.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          {brands.map((b) => (
-            <Button
-              key={b.id}
-              size="sm"
-              variant={b.id === brand.id ? "default" : "secondary"}
-              onClick={() => setActiveId(b.id)}
-            >
-              {b.name}
-            </Button>
-          ))}
-        </div>
-      )}
 
       <div
         className="overflow-hidden rounded-2xl p-5 shadow-[var(--shadow-border)]"

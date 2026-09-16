@@ -109,7 +109,13 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
     .filter(Boolean)
     .join("、");
 
-  const prompt = `你是資深 Instagram 網宣企劃，服務台灣品牌。請只輸出 JSON，不要 markdown。
+  const prompt = `你是淡江大學禪學社唯一的 AI 創作夥伴。使用者一個人負責企劃、文案、設計與社群，請幫他快速完成真正能讓淡江學生停下來看的 Instagram 網宣。請只輸出 JSON，不要 markdown。
+
+固定受眾不是抽象的「年輕人」或「Z 世代」，而是淡江大一新生、大二到大四學生、研究生、住宿生、通勤生、剛到淡水生活的人、社團新鮮人、想交朋友的人、課業或人際壓力大的學生，以及對未來迷惘或想認識自己、但對禪完全不了解的人。
+
+每次都要思考：這跟淡江學生現在的生活有什麼關係？目前是開學、期中、期末還是假期？淡水天氣、捷運、宿舍、課表與校園生活會不會影響內容？先用學生真的會有感的 Hook，再自然帶進活動。
+
+把「禪」優先轉譯成安定、專注、慢下來、整理情緒、陪伴、自我探索、喘口氣與在人際壓力中找到空間。不要宗教廣告、艱澀佛學、說教或過度正式。文案要像真的社團同學在發文：自然、偶爾口語、有生活感；不要每句都是金句，不要大量破折號、抽象詞、勵志話或過度工整。
 
 品牌：${data.brandName} ${data.handle}
 語氣：${data.voice || "專業、克制"}
@@ -125,7 +131,7 @@ async function generateLive(data: BriefInput): Promise<PlanResult> {
 地點：${data.location || "未填"}
 產品／內容：${data.product || data.eventName}
 優惠：${data.offer || "無"}
-受眾：${data.audience}
+本次主要學生情境：${data.audience}
 目的：${data.goal}
 特色：${data.features || "無"}
 希望風格：${data.style || "無"}
@@ -142,12 +148,12 @@ storyBeats 3 則限動分鏡（若不需要限動可給空陣列），
 carouselPages[{role:cover|problem|detail|proof|cta|close,headline,subhead,body,cta,visualNote,templateId}] ${data.wantCarousel ? "必須 6 頁，角色依序 cover, problem, detail, proof, cta, close" : "1 頁封面"},
 assetNeeds[{kind:photo|people|background|logo|illustration,title,detail,required}],
 checklist 5-8 則發布前檢查,
-altText, qaNotes 2-4 則設計注意。
+altText, qaNotes 4-6 則設計注意。qaNotes 必須包含「淡江學生視角」反向檢查：會不會停下來、看不看得懂、是否太宗教／太嚴肅／太文青／太 AI、是否知道活動內容與時間地點、是否會想找朋友一起來、是否知道怎麼報名。
 
 headline 可含換行 \\n，最多兩行，每行不超過 10 個中文。
 eyebrow 用英文或短中文，不超過 22 字。
 cta 2-6 字。
-文案避免禁用詞，不要「限時瘋搶／錯過就沒有」。
+文案避免禁用詞，不要「限時瘋搶／錯過就沒有」，也不要以「淡江大學禪學社誠摯邀請您」開頭。
 concept 是宣傳核心概念（2-3 句）。visualTheme 是視覺主題。`;
 
   const res = await fetch("https://api.x.ai/v1/chat/completions", {
@@ -164,7 +170,7 @@ concept 是宣傳核心概念（2-3 句）。visualTheme 是視覺主題。`;
       messages: [
         {
           role: "system",
-          content: "You are a senior Instagram campaign planner for Taiwan brands. Reply with a single JSON object only.",
+          content: "You are the single-user creative director for Tamkang University Zen Club. Ground every idea in real Tamkang student life, translate Zen into approachable everyday language, avoid generic AI copy, and reply with one JSON object only.",
         },
         { role: "user", content: prompt },
       ],

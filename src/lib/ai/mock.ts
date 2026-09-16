@@ -32,6 +32,14 @@ function stripForbidden(text: string, words: string[]) {
   return next.replace(/\s{2,}/g, " ").trim();
 }
 
+function studentHook(name: string, features: string) {
+  const text = `${name} ${features}`;
+  if (/茶|夜|晚/.test(text)) return "有時候我們需要的不是答案，只是一個安靜的晚上。";
+  if (/期中|期末|考|壓力|情緒/.test(text)) return "最近是不是連休息都覺得有罪惡感？";
+  if (/招生|新生|朋友|認識/.test(text)) return "剛到淡江，還在找一個可以自在待著的地方嗎？";
+  return "最近是不是很久沒有好好坐下來？";
+}
+
 export function buildMockPlan(data: BriefInput): CampaignPlan {
   const name = data.eventName.trim();
   const when = data.schedule.trim() || "近期檔期";
@@ -48,12 +56,12 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
   const cta = stripForbidden(ctaPool[0] || (data.goal === "traffic" ? "查看地點" : "了解活動"), data.forbiddenWords);
   const templateId = pickTemplate(data.goal, data.wantCarousel);
   const headline = clipHeadline(name.replace(/[（(].*$/, ""));
-  const hook = slogan || (offer ? `${name}，${offer}。` : `${name}，只在${when}。`);
+  const hook = studentHook(name, features);
   const concept = stripForbidden(
     `${name}把「${features}」講給${audience}聽。目的是${goalLabel(data.goal)}，語氣維持${style}，不靠叫賣。`,
     data.forbiddenWords,
   );
-  const insight = `${audience}要的是可以相信的理由，不是更大聲的促銷。把時間（${when}）與場域（${where}）講清楚，特色只留一句能被記住的。`;
+  const insight = `${audience}會先判斷「這跟我現在的淡江生活有沒有關係」，再看活動資訊。先說出課表、人際、通勤或宿舍生活裡的真實感受，再把時間（${when}）、地點（${where}）和能得到什麼講清楚。`;
   const visualTheme = data.imageStyle?.trim() || `${style}；主視覺放現場或物件，文字區留白。`;
   const visualDirection = `畫面用品牌色做底，上半主視覺、下半標題。風格：${style}。避免雜訊與浮水印。`;
   const subhead = offer || `${when} · ${where}`;
@@ -145,8 +153,9 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
     hashTag(data.brandName),
     hashTag(name),
     hashTag(where),
-    "#到店",
-    data.goal === "ugc" ? "#打卡" : "#活動",
+    "#淡江大學",
+    "#淡江生活",
+    data.goal === "ugc" ? "#淡江日常" : "#淡江社團",
   ].filter(Boolean);
 
   return {
@@ -187,7 +196,13 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
       "Logo 沒壓到主體",
     ],
     altText: `${name}的宣傳畫面，標題為「${headline.replace("\n", " ")}」，標示${when}、${where}。`,
-    qaNotes: ["避免把價格或焦慮話術放進主畫面", `風格維持：${style}`],
+    qaNotes: [
+      "淡江學生視角：第一句要像在說我的生活，不先講社團全名",
+      "檢查是否太宗教、太嚴肅、太文青或太像 AI",
+      "確認看得懂活動在做什麼，時間、地點與參加方式都找得到",
+      "讓人看完會想傳給朋友，而不是只看到一則招生廣告",
+      `風格維持：${style}`,
+    ],
     generatedAt: Date.now(),
     source: "mock",
   };

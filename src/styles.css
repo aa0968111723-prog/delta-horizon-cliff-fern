@@ -6,20 +6,20 @@
   --font-display: "Noto Serif TC", "Source Han Serif TC", "Noto Serif", ui-serif, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-bg: #f3f0ea;
+  --color-bg: #f4f1ea;
   --color-surface: #fffcf7;
-  --color-surface-2: #ebe6dc;
+  --color-surface-2: #e9e5da;
   --color-fg: #1a1814;
   --color-muted: #6f6a63;
   --color-subtle: #9a948c;
   --color-border: #ddd6ca;
   --color-border-strong: #c9c1b4;
-  --color-accent: #1e4a45;
-  --color-accent-fg: #f3f0ea;
+  --color-accent: #174d49;
+  --color-accent-fg: #f4f1ea;
   --color-danger: #a33b2a;
-  --color-warn: #9a6b2f;
+  --color-warn: #b18b36;
   --color-success: #2f6a4a;
-  --color-ring: #1e4a45;
+  --color-ring: #174d49;
 
   --radius-xs: 4px;
   --radius-sm: 8px;
