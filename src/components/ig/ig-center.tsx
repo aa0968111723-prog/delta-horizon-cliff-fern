@@ -84,6 +84,13 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
     if (followed) setActiveId(followed.id);
   }, [focusProjectId, slots, projects]);
 
+  useEffect(() => {
+    if (!focusProjectId || !active) return;
+    const el = document.querySelector("[data-ig-focus]");
+    if (!(el instanceof HTMLElement)) return;
+    el.scrollIntoView({ block: "start", inline: "nearest" });
+  }, [focusProjectId, active?.id]);
+
   function analyze() {
     if (!active) return;
     if (active.origin === "published" && active.postId) {
@@ -213,17 +220,160 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
     }
   }
 
+  const focusedCaption = active ? (
+    <section
+      className={cn("rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]", focusProjectId ? "mt-6" : "mt-8")}
+      data-ig-focus={focusProjectId || undefined}
+    >
+      <p className="text-xs text-muted">
+        {active.origin === "upcoming" ? (active.scheduledAt ? "即將 · " : "預覽 · ") : ""}
+        {active.origin === "published" || active.scheduledAt
+          ? `${format(active.takenAt, "yyyy.MM.dd", { locale: zhTW })} · `
+          : ""}
+        {active.mediaType}
+      </p>
+      <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed">{active.caption}</pre>
+      {active.origin === "published" ? (
+        <p className="mt-2 text-sm" data-published-memory="">
+          已進 Content Memory
+        </p>
+      ) : null}
+      {activeProject?.sourceRefs.some((ref) => ref.source === "canva") ||
+      assets.find((asset) => asset.id === active.assetIds[0])?.source === "canva" ? (
+        <p className="mt-2 text-sm" data-canva-source="returned">
+          來源：Canva 微調後
+        </p>
+      ) : null}
+      {active.origin === "published" ? (
+        <p className="mt-3 text-xs text-muted">
+          收藏 {active.saves ?? "—"} · 留言 {active.comments ?? "—"} · 觸及 {active.reach ?? "—"}
+          {active.shares != null ? ` · 分享 ${active.shares}` : ""}
+        </p>
+      ) : (
+        <p className="mt-3 text-xs text-muted">{upcomingStatusCopy(active)}</p>
+      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {active.origin === "upcoming" && activeProject ? (
+          <Button className="min-h-11" onClick={scheduleActive}>
+            {activeProject.scheduledAt ? "去月曆" : "排進月曆"}
+          </Button>
+        ) : null}
+        <Button className="min-h-11" variant={active.origin === "published" ? "default" : "secondary"} onClick={analyze}>
+          AI 分析
+        </Button>
+        {active.origin === "upcoming" && shownAnalysis?.studentSim ? (
+          <Button className="min-h-11" variant="secondary" onClick={applyDraftFixes}>
+            照學生視角改一版
+          </Button>
+        ) : null}
+        {active.origin === "upcoming" ? (
+          <PublishButton
+            projectId={active.projectId}
+            campaignId={activeProject?.campaignId ?? undefined}
+            title={active.title}
+            caption={active.caption}
+            variant="secondary"
+            size="default"
+            className="rounded-full"
+          />
+        ) : null}
+        {active.projectId ? (
+          <Button asChild variant="secondary" className="min-h-11">
+            <Link to="/studio/$projectId" params={{ projectId: active.projectId }}>
+              編輯
+            </Link>
+          </Button>
+        ) : null}
+        <Button
+          variant="secondary"
+          className="min-h-11"
+          onClick={() =>
+            void navigate({
+              to: "/create",
+              search: {
+                q: `延續這篇 IG：${active.caption.split("\n")[0]}`,
+                go: "1",
+                mode: "post",
+                asset: active.assetIds[0],
+              },
+            })
+          }
+        >
+          從這篇再生一篇
+        </Button>
+      </div>
+      {shownAnalysis ? (
+        <div className="mt-4 space-y-2 text-sm">
+          <p>Hook：{shownAnalysis.hook}</p>
+          <p>視覺：{shownAnalysis.visual}</p>
+          <p>Caption 長度：{shownAnalysis.captionLength} 字</p>
+          <p>CTA：{shownAnalysis.cta}</p>
+          <p>方向：{shownAnalysis.direction}</p>
+          <p>可改善：{shownAnalysis.improve.join(" ")}</p>
+          {shownAnalysis.studentSim?.notes.length ? (
+            <div className="mt-3 rounded-2xl bg-bg p-3 text-xs text-muted">
+              {shownAnalysis.studentSim.notes.map((line) => (
+                <p key={line} className="mt-1 first:mt-0">
+                  {line}
+                </p>
+              ))}
+            </div>
+          ) : null}
+          {active.origin === "published" ? (
+            <p className="mt-2 text-xs text-subtle">完整帳號節奏在下面「這次 IG 學到」。這裡只看這篇。</p>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  ) : null;
+
+  const feedPreview = (
+    <>
+      <h2 className={cn("text-sm font-medium", focusProjectId ? "mt-8" : "mt-6")}>Feed Preview</h2>
+      <p className="mt-1 text-xs text-muted">點即將發的格子可以發到 IG，或先標記進記憶。下載檔案不算發布。</p>
+      <div className="mt-3 grid grid-cols-3 gap-1 overflow-hidden rounded-2xl">
+        {slots.slice(0, 18).map((slot) => (
+          <GridCell
+            key={slot.id}
+            slot={slot}
+            active={active?.id === slot.id}
+            brand={brand}
+            project={slot.projectId ? projects.find((item) => item.id === slot.projectId) : undefined}
+            urls={urls}
+            onSelect={() => setActiveId(slot.id)}
+          />
+        ))}
+      </div>
+    </>
+  );
+
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
       <p className="text-xs tracking-[0.18em] text-muted uppercase">Instagram Center</p>
-      <h1 className="mt-1 font-display text-3xl">貼文長得像自己的帳號</h1>
+      <h1 className="mt-1 font-display text-3xl">
+        {focusProjectId ? "看這篇會不會停下來" : "貼文長得像自己的帳號"}
+      </h1>
       <p className="mt-2 text-sm text-muted">
-        即將發的排在 Grid 最前面。連接官方 API 後會讀真實貼文；現在先用社團 Content Memory。
+        {focusProjectId
+          ? "先看正在預覽的 Caption 和格子。帳號整體學到在下面。"
+          : "即將發的排在 Grid 最前面。連接官方 API 後會讀真實貼文；現在先用社團 Content Memory。"}
       </p>
 
       <DuePublishBar compact />
 
-      <section className="mt-6 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      {focusProjectId ? (
+        <>
+          {focusedCaption}
+          {feedPreview}
+        </>
+      ) : (
+        <>
+          {feedPreview}
+          {focusedCaption}
+        </>
+      )}
+
+      <section className="mt-8 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]" data-ig-learn="">
         <p className="text-xs tracking-[0.16em] text-muted uppercase">這次 IG 學到</p>
         <p className="mt-2 font-display text-xl leading-snug">
           「{lastLearn?.hook || insights.winningHooks[0] || "問句比社團介紹更容易停"}」
@@ -259,126 +409,6 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
           </Button>
         </div>
       </section>
-
-      <h2 className="mt-8 text-sm font-medium">Feed Preview</h2>
-      <p className="mt-1 text-xs text-muted">點即將發的格子可以發到 IG，或先標記進記憶。下載檔案不算發布。</p>
-      <div className="mt-3 grid grid-cols-3 gap-1 overflow-hidden rounded-2xl">
-        {slots.slice(0, 18).map((slot) => (
-          <GridCell
-            key={slot.id}
-            slot={slot}
-            active={active?.id === slot.id}
-            brand={brand}
-            project={slot.projectId ? projects.find((item) => item.id === slot.projectId) : undefined}
-            urls={urls}
-            onSelect={() => setActiveId(slot.id)}
-          />
-        ))}
-      </div>
-
-      {active ? (
-        <section className="mt-8 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]" data-ig-focus={focusProjectId || undefined}>
-          <p className="text-xs text-muted">
-            {active.origin === "upcoming" ? (active.scheduledAt ? "即將 · " : "預覽 · ") : ""}
-            {active.origin === "published" || active.scheduledAt
-              ? `${format(active.takenAt, "yyyy.MM.dd", { locale: zhTW })} · `
-              : ""}
-            {active.mediaType}
-          </p>
-          <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed">{active.caption}</pre>
-          {active.origin === "published" ? (
-            <p className="mt-2 text-sm" data-published-memory="">
-              已進 Content Memory
-            </p>
-          ) : null}
-          {activeProject?.sourceRefs.some((ref) => ref.source === "canva") ||
-          assets.find((asset) => asset.id === active.assetIds[0])?.source === "canva" ? (
-            <p className="mt-2 text-sm" data-canva-source="returned">
-              來源：Canva 微調後
-            </p>
-          ) : null}
-          {active.origin === "published" ? (
-            <p className="mt-3 text-xs text-muted">
-              收藏 {active.saves ?? "—"} · 留言 {active.comments ?? "—"} · 觸及 {active.reach ?? "—"}
-              {active.shares != null ? ` · 分享 ${active.shares}` : ""}
-            </p>
-          ) : (
-            <p className="mt-3 text-xs text-muted">{upcomingStatusCopy(active)}</p>
-          )}
-          <div className="mt-4 flex flex-wrap gap-2">
-            {active.origin === "upcoming" && activeProject ? (
-              <Button className="min-h-11" onClick={scheduleActive}>
-                {activeProject.scheduledAt ? "去月曆" : "排進月曆"}
-              </Button>
-            ) : null}
-            <Button className="min-h-11" variant={active.origin === "published" ? "default" : "secondary"} onClick={analyze}>
-              AI 分析
-            </Button>
-            {active.origin === "upcoming" && shownAnalysis?.studentSim ? (
-              <Button className="min-h-11" variant="secondary" onClick={applyDraftFixes}>
-                照學生視角改一版
-              </Button>
-            ) : null}
-            {active.origin === "upcoming" ? (
-              <PublishButton
-                projectId={active.projectId}
-                campaignId={activeProject?.campaignId ?? undefined}
-                title={active.title}
-                caption={active.caption}
-                variant="secondary"
-                size="default"
-                className="rounded-full"
-              />
-            ) : null}
-            {active.projectId ? (
-              <Button asChild variant="secondary" className="min-h-11">
-                <Link to="/studio/$projectId" params={{ projectId: active.projectId }}>
-                  編輯
-                </Link>
-              </Button>
-            ) : null}
-            <Button
-              variant="secondary"
-              className="min-h-11"
-              onClick={() =>
-                void navigate({
-                  to: "/create",
-                  search: {
-                    q: `延續這篇 IG：${active.caption.split("\n")[0]}`,
-                    go: "1",
-                    mode: "post",
-                    asset: active.assetIds[0],
-                  },
-                })
-              }
-            >
-              從這篇再生一篇
-            </Button>
-          </div>
-          {shownAnalysis ? (
-            <div className="mt-4 space-y-2 text-sm">
-              <p>Hook：{shownAnalysis.hook}</p>
-              <p>視覺：{shownAnalysis.visual}</p>
-              <p>Caption 長度：{shownAnalysis.captionLength} 字</p>
-              <p>CTA：{shownAnalysis.cta}</p>
-              <p>方向：{shownAnalysis.direction}</p>
-              <p>可改善：{shownAnalysis.improve.join(" ")}</p>
-              {shownAnalysis.studentSim?.notes.length ? (
-                <div className="mt-3 rounded-2xl bg-bg p-3 text-xs text-muted">
-                  {shownAnalysis.studentSim.notes.map((line) => (
-                    <p key={line} className="mt-1 first:mt-0">
-                      {line}
-                    </p>
-                  ))}
-                </div>
-              ) : null}
-              {active.origin === "published" ? (
-                <p className="mt-2 text-xs text-subtle">完整帳號節奏在上面「這次 IG 學到」。這裡只看這篇。</p>
-              ) : null}
-            </div>
-          ) : null}
-        </section>
-      ) : null}
 
       <section className="mt-8 rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
         <h2 className="text-sm font-medium">Zen Club IG DNA</h2>
