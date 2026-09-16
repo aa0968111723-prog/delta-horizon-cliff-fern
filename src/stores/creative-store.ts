@@ -4,7 +4,7 @@ import type { FormatId } from "@/lib/studio/types";
 import { uid } from "@/lib/studio/ids";
 import { SEED_CAMPUS_ID, SEED_CUP_ID, SEED_DRAFT_ID, SEED_LIGHT_ID, SEED_PROJECT_ID } from "@/lib/studio/seed";
 import { SEED_CAMPAIGN_ID, SEED_CONNECTIONS, SEED_IG_POSTS, SEED_MEMORY, SEED_TEA_ID } from "@/lib/zen/memory";
-import { emptyCampaign, preferSuiteSchedule, scheduleItemsFromCampaign, suggestWaves } from "@/lib/zen/schedule";
+import { emptyCampaign, mergeCampaignSchedule, preferSuiteSchedule, scheduleItemsFromCampaign, spreadSchedule, suggestWaves } from "@/lib/zen/schedule";
 import { publishedToMemory } from "@/lib/zen/publish-memory";
 import type {
   CampaignWave,
@@ -69,7 +69,7 @@ function seedCampaigns(): ClubCampaign[] {
 }
 
 function seedSchedule(campaigns: ClubCampaign[]): ScheduleItem[] {
-  return preferSuiteSchedule(campaigns.flatMap((camp) => scheduleItemsFromCampaign(camp)));
+  return spreadSchedule(preferSuiteSchedule(campaigns.flatMap((camp) => scheduleItemsFromCampaign(camp))));
 }
 
 type IgView = "grid" | "preview" | "calendar";
@@ -180,12 +180,7 @@ export const useCreative = create<CreativeState>()(
             ? s.campaigns.map((c) => (c.id === campaign.id ? campaign : c))
             : [campaign, ...s.campaigns];
           const extra = scheduleItemsFromCampaign(campaign);
-          const extraIds = new Set(extra.map((item) => item.id));
-          const schedule = preferSuiteSchedule([
-            ...extra,
-            ...s.schedule.filter((item) => !extraIds.has(item.id)),
-          ]);
-          return { campaigns, schedule };
+          return { campaigns, schedule: mergeCampaignSchedule(s.schedule, extra) };
         }),
       patchCampaign: (id, patch) =>
         set((s) => ({
@@ -285,7 +280,7 @@ export const useCreative = create<CreativeState>()(
     {
       name: STORAGE_KEY,
       skipHydration: true,
-      version: 6,
+      version: 7,
       migrate: (persisted) => {
         const row = (persisted ?? {}) as {
           campaigns: ClubCampaign[];
@@ -318,7 +313,7 @@ export const useCreative = create<CreativeState>()(
             : [];
         return {
           campaigns: row.campaigns,
-          schedule: preferSuiteSchedule(row.schedule ?? []),
+          schedule: spreadSchedule(preferSuiteSchedule(row.schedule ?? [])),
           igPosts: row.igPosts,
           memory: row.memory,
           connections: row.connections,

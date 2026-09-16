@@ -33,8 +33,8 @@ export function waveOffsets(input: { date: string; type: CampaignType; now?: Dat
   }
   if (days < 6) {
     return {
-      tease: -4,
-      emotion: -3,
+      tease: -5,
+      emotion: -4,
       "key-visual": -3,
       info: -2,
       reason: -2,
@@ -175,6 +175,34 @@ export function mergeSuiteIntoSchedule(existing: ScheduleItem[], pending: Schedu
   const preview = preferSuiteSchedule([...pending, ...existing.filter((row) => !pendingIds.has(row.id))]);
   const remaining = preview.filter((row) => !pendingIds.has(row.id));
   return [...placeScheduleItems(remaining, pending), ...remaining];
+}
+
+export function spreadSchedule(items: ScheduleItem[]): ScheduleItem[] {
+  const out: ScheduleItem[] = [];
+  for (const item of items) {
+    const [placed] = placeScheduleItems(out, [item]);
+    if (placed) out.push(placed);
+  }
+  return out;
+}
+
+export function mergeCampaignSchedule(existing: ScheduleItem[], waveItems: ScheduleItem[]): ScheduleItem[] {
+  const extraIds = new Set(waveItems.map((item) => item.id));
+  const others = existing.filter((item) => !extraIds.has(item.id));
+  const merged = preferSuiteSchedule([...waveItems, ...others]);
+  const keptWaves = merged.filter((item) => extraIds.has(item.id));
+  const keptOthers = merged.filter((item) => !extraIds.has(item.id));
+  const placed = spreadScheduleAgainst(keptOthers, keptWaves);
+  return [...placed, ...keptOthers];
+}
+
+function spreadScheduleAgainst(existing: ScheduleItem[], pending: ScheduleItem[]): ScheduleItem[] {
+  const out: ScheduleItem[] = [];
+  for (const item of pending) {
+    const [placed] = placeScheduleItems([...existing, ...out], [item]);
+    if (placed) out.push(placed);
+  }
+  return out;
 }
 
 export const WAVE_ANGLES: Record<WaveKind, string[]> = {

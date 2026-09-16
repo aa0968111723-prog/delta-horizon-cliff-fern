@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { SEED_MEMORY } from "./memory.ts";
 import { creativeSearch, expandCreativeQuery, groupSearchHits, knowledgeFromHits, searchCreativeKnowledge, searchTerms } from "./search.ts";
-import { applyPackToWaves, contentKindForWave, copyKindForWave, emptyCampaign, mergeSuiteIntoSchedule, nextWaveAngle, nextWaveVisual, preferSuiteSchedule, rhythmHint, scheduleItemsFromCampaign, schedulePreviewAssetId, suggestWaves, suiteCoversWave, waveOffsets } from "./schedule.ts";
+import { applyPackToWaves, contentKindForWave, copyKindForWave, emptyCampaign, mergeSuiteIntoSchedule, nextWaveAngle, nextWaveVisual, preferSuiteSchedule, rhythmHint, scheduleItemsFromCampaign, schedulePreviewAssetId, spreadSchedule, suggestWaves, suiteCoversWave, waveOffsets } from "./schedule.ts";
 import { canvaDraftNotes, canvaDraftTitle, canvaPresetForAspect, canvaPresetForKind } from "./canva-draft.ts";
 import { convertFromPlan, CONVERT_TARGETS, aspectForTarget, briefFlagsForTarget, captionForTarget, contentKindForFormat, convertTargetForFormat } from "./convert.ts";
 import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
@@ -479,8 +479,10 @@ test("preferSuiteSchedule drops unpublished wave placeholders covered by the for
 
 test("waveOffsets compress when the event is soon and recruit starts earlier", () => {
   const soon = waveOffsets({ date: "2026-09-24", type: "tea", now: new Date("2026-09-20T12:00:00+08:00") });
-  assert.equal(soon.tease, -4);
+  assert.equal(soon.tease, -5);
   assert.equal(soon.recap, 1);
+  assert.notEqual(soon.emotion, soon["key-visual"]);
+  assert.notEqual(soon.emotion, soon.info);
   const recruit = waveOffsets({ date: "2026-10-20", type: "recruit", now: new Date("2026-09-16T12:00:00+08:00") });
   assert.equal(recruit.tease, -18);
   const light = waveOffsets({ date: "2026-10-20", type: "light", now: new Date("2026-09-16T12:00:00+08:00") });
@@ -489,6 +491,38 @@ test("waveOffsets compress when the event is soon and recruit starts earlier", (
   assert.equal(contentKindForWave("reason"), "member-story");
   assert.equal(contentKindForWave("day-of"), "story");
   assert.match(rhythmHint([{ contentKind: "ig-post" }, { contentKind: "carousel" }, { contentKind: "ig-post" }]), /招生/);
+});
+
+test("spreadSchedule keeps two knowledge teasers off the same night", () => {
+  const night = Date.parse("2026-09-15T20:00:00+08:00");
+  const item = (id: string, title: string) => ({
+    id,
+    title,
+    contentKind: "knowledge" as const,
+    status: "idea" as const,
+    scheduledAt: night,
+    publishedAt: null,
+    projectId: null,
+    campaignId: "c",
+    captionPreview: title,
+  });
+  const next = spreadSchedule([item("sch_wave_a", "預告 · 浮游禪光"), item("sch_wave_b", "預告 · 開學茶會")]);
+  assert.equal(next[0]?.scheduledAt, night);
+  assert.ok((next[1]?.scheduledAt ?? 0) >= night + 86_400_000);
+});
+
+test("soon tea waves do not stack promo kinds on one night", () => {
+  const waves = suggestWaves({ date: "2026-09-24", type: "tea", name: "茶會", now: new Date("2026-09-20T12:00:00+08:00") });
+  const items = scheduleItemsFromCampaign(emptyCampaign({ id: "camp_soon", waves }));
+  const byDay = new Map<string, string[]>();
+  for (const row of items) {
+    const day = new Date(row.scheduledAt).toDateString();
+    byDay.set(day, [...(byDay.get(day) ?? []), row.contentKind]);
+  }
+  for (const kinds of byDay.values()) {
+    const promos = kinds.filter((kind) => kind === "ig-post" || kind === "carousel" || kind === "poster");
+    assert.ok(promos.length <= 1, String(kinds));
+  }
 });
 
 test("schedulePreviewAssetId uses campaign cover and related thumbs", () => {
