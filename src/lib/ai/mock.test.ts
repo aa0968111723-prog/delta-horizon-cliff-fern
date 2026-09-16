@@ -105,6 +105,23 @@ test("zen mock prefers a proven IG hook from lessons", () => {
   assert.match(plan.qaNotes.join(), /成效回饋/);
 });
 
+test("zen mock prefers the hook the user asked to continue even if slogans have a question", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "浮游禪光",
+    brandName: "淡江大學禪學社",
+    handle: "@tku.zen",
+    audience: "淡江大學學生",
+    slogans: "最近是不是很久沒有好好坐下來？",
+    notes: "延續這個比較讓人停下來的第一句：「來的人比想像中多。我不會禪也可以嗎？」。幫09/24 浮游禪光做新的 IG。",
+    wantCarousel: true,
+    wantStory: true,
+    wantReels: true,
+  });
+  assert.match(plan.hook, /來的人比想像中多/);
+  assert.equal(plan.hook.includes("很久沒有好好坐下來"), false);
+});
+
 test("buildMockPlan strips forbidden words", () => {
   const plan = buildMockPlan({
     ...base,

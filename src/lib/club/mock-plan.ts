@@ -21,10 +21,10 @@ export function buildZenMockPlan(data: BriefInput): CampaignPlan {
     .split(/[／/]/)
     .map((item) => item.trim())
     .find((item) => item.includes("？"));
-  const learnedHook = quotedHookFromLessons(data.igLessons || "");
+  const learnedHook = quotedHookFromLessons(`${data.notes || ""}\n${data.features || ""}\n${data.igLessons || ""}`);
   const hook =
-    sloganHook ||
     (learnedHook.includes("？") ? learnedHook : "") ||
+    sloganHook ||
     (ctx.phase === "finals"
       ? "最近是不是連休息都覺得有罪惡感？"
       : ctx.phase === "orientation"

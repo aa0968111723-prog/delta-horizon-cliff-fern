@@ -243,14 +243,8 @@ export function HomePage() {
                 </div>
               </div>
             ) : null}
-            <ul className="mt-3 space-y-2 text-sm" data-testid="home-ig-lessons">
-              <li>Hook：{lessons.hook}</li>
-              <li>圖片：{lessons.visual}</li>
-              <li>Carousel：{lessons.carousel}</li>
-            </ul>
             <Button
-              className="mt-3"
-              size="sm"
+              className="mt-3 min-h-11"
               data-testid="home-lesson-create"
               onClick={() => {
                 writeHandoff({
@@ -267,6 +261,11 @@ export function HomePage() {
             >
               用這個 Hook 創作
             </Button>
+            <ul className="mt-3 space-y-2 text-sm" data-testid="home-ig-lessons">
+              <li>Hook：{lessons.hook}</li>
+              <li>圖片：{lessons.visual}</li>
+              <li>Carousel：{lessons.carousel}</li>
+            </ul>
           </article>
           <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
             <SectionHeader

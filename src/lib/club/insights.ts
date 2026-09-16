@@ -23,6 +23,11 @@ function firstLine(caption: string) {
   return caption.split("\n")[0]?.trim() || caption.slice(0, 24);
 }
 
+function bestHookLine(posts: IgLessonPost[]) {
+  const scored = posts.filter((post) => post.metrics).sort((a, b) => score(b) - score(a));
+  return firstLine(scored[0]?.caption ?? "").replace(/[「」]/g, "").trim();
+}
+
 export function formatLessons(lessons: IgLessons) {
   return [
     `Hook：${lessons.hook}`,
@@ -46,7 +51,7 @@ export function quotedHookFromLessons(text: string) {
 /** Home / IG Center: turn performance advice into the next create prompt. */
 export function nextCreateIdeaFromLessons(posts: IgLessonPost[], eventName?: string) {
   const lessons = lessonsFromIg(posts);
-  const hook = quotedHookFromLessons(formatLessons(lessons));
+  const hook = bestHookLine(posts) || quotedHookFromLessons(formatLessons(lessons));
   const event = eventName?.trim() || "下一場活動";
   if (hook) {
     return `延續這個比較讓人停下來的第一句：「${hook}」。幫${event}做新的 IG。`;
