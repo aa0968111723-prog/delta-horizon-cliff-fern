@@ -71,7 +71,9 @@ if (!/Story|限動/.test(scheduledTitle)) {
 if (/預熱|參加理由/.test(scheduledTitle)) {
   issues.push(`首頁已排程還是活動節奏: ${scheduledTitle}`);
 }
+await page.locator('[data-testid="home-scheduled"]').scrollIntoViewIfNeeded();
 await page.screenshot({ path: "/workspace/screenshots/image-into-story-home.png" });
+await page.locator('[data-testid="home-scheduled"]').screenshot({ path: "/workspace/screenshots/image-into-story-scheduled.png" });
 
 await page.goto(url, { waitUntil: "networkidle" });
 await page.waitForSelector('[data-testid="story-board"]', { timeout: 40_000 });
