@@ -112,7 +112,10 @@ export function buildCampaignBoards(input: {
       artboards[formatId] = boards[0];
       continue;
     }
-    const pageCopy = formatId === "story" || formatId === "reels-cover" ? storyCopy(copy, input.plan) : copy;
+    const pageCopy =
+      formatId === "story" || formatId === "reels-cover" || formatId === "line-promo"
+        ? storyCopy(copy, input.plan)
+        : copy;
     const board = buildLayout(formatId, pageCopy, input.brand, input.plan.templateId, { imageAssetId });
     board.role = "cover";
     board.templateId = input.plan.templateId;

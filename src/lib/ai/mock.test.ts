@@ -49,6 +49,28 @@ test("buildMockPlan is structured Traditional Chinese and marked mock", () => {
   assert.equal(plan.templateId, "product");
 });
 
+test("buildMockPlan for 淡江禪學社 uses student hooks", () => {
+  const plan = buildMockPlan({
+    ...base,
+    eventName: "浮游禪光",
+    brandName: "淡江大學禪學社",
+    handle: "@tku.zen",
+    audience: "淡江大學學生",
+    wantCarousel: true,
+    wantStory: true,
+    wantReels: true,
+    forbiddenWords: ["誠摯邀請您"],
+    slogans: "最近是不是很久沒有好好坐下來？",
+    preferredCtas: "來坐一下",
+  });
+  assert.equal(plan.source, "mock");
+  assert.ok(plan.hook.includes("？") || plan.hook.includes("晚上"));
+  assert.equal(`${plan.hook}${plan.captions.map((c) => c.text).join()}`.includes("誠摯邀請您"), false);
+  assert.ok(plan.directions && plan.directions.length === 3);
+  assert.ok(plan.reelsScript && plan.reelsScript.length === 5);
+  assert.ok(plan.studentReview?.revisions.length);
+});
+
 test("buildMockPlan strips forbidden words", () => {
   const plan = buildMockPlan({
     ...base,

@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -136,13 +136,46 @@ export function AssetDetailSheet({
           <Input
             value={asset.licenseOwner}
             onChange={(e) => patch("licenseOwner", e.target.value)}
-            placeholder="例如：日食咖啡、攝影師姓名"
+            placeholder="例如：淡江禪學社、社員拍攝"
           />
         </div>
         <p className="text-xs text-muted">來源與授權只存在此裝置，不會上傳到雲端。</p>
         <div className="flex flex-wrap gap-2 pb-4">
           <Button onClick={place} disabled={!lastProjectId}>
             放到目前畫布
+          </Button>
+          <Button variant="secondary" asChild>
+            <Link
+              to="/create"
+              search={{ tab: "vision" }}
+              onClick={() => onOpenChange(false)}
+            >
+              AI 分析
+            </Link>
+          </Button>
+          <Button variant="secondary" asChild>
+            <Link
+              to="/create"
+              search={{ tab: "image" }}
+              onClick={() => {
+                window.sessionStorage.setItem("zen-idea", `延續「${current.name}」的風格`);
+                onOpenChange(false);
+              }}
+            >
+              生成相似視覺
+            </Link>
+          </Button>
+          <Button variant="secondary" asChild>
+            <Link
+              to="/create"
+              search={{ tab: "copy" }}
+              onClick={() => {
+                window.sessionStorage.setItem("zen-idea", current.name);
+                onOpenChange(false);
+              }}
+            >
+              生成文案
+            </Link>
           </Button>
           <Button variant="secondary" onClick={() => toggleFavorite(asset.id)}>
             {asset.favorite ? "取消收藏" : "收藏"}

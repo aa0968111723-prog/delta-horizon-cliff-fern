@@ -1,251 +1,271 @@
-import { Link } from "@tanstack/react-router";
-import { FolderKanban, Images, Plus } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { format as formatDate } from "date-fns";
+import { zhTW } from "date-fns/locale";
+import { Images, Plus, Search, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { NewProjectDialog } from "@/components/dashboard/new-project-dialog";
-import { EmptyState } from "@/components/shared/empty-state";
-import { PageHeader, SectionHeader } from "@/components/shared/page-header";
 import { ProjectCard } from "@/components/shared/project-card";
-import { ArtboardView } from "@/components/studio/artboard-view";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { SectionHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
-import { categoryLabel } from "@/lib/studio/assets";
-import { formatById } from "@/lib/studio/formats";
-import { previewTemplate, TEMPLATE_STARTERS } from "@/lib/studio/templates";
+import { generateCampaignPlan } from "@/lib/ai/campaign";
+import { toBriefInput } from "@/lib/ai/payload";
+import { FEATURED_EVENT } from "@/lib/club/memory";
+import { formatDaysUntil, studentContext } from "@/lib/club/season";
+import { emptyBrief } from "@/lib/studio/brief";
+import { CONTENT_KIND_META, contentStatusOf } from "@/lib/studio/status";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
-import { useNavigate } from "@tanstack/react-router";
+import { useUi } from "@/stores/ui-store";
+
+const QUICK = [
+  { label: "生成 IG 貼文", to: "/assistant" },
+  { label: "生成圖片", to: "/create" },
+  { label: "生成 Story", to: "/assistant" },
+  { label: "生成 Carousel", to: "/assistant" },
+  { label: "生成 Reels", to: "/create" },
+  { label: "建立活動", to: "/campaigns" },
+] as const;
 
 export function HomePage() {
   const navigate = useNavigate();
   const projects = useStudio((s) => s.projects);
   const brands = useStudio((s) => s.brands);
   const assets = useStudio((s) => s.assets);
-  const duplicateProject = useStudio((s) => s.duplicateProject);
-  const deleteProject = useStudio((s) => s.deleteProject);
-  const createFromTemplate = useStudio((s) => s.createFromTemplate);
+  const createProject = useStudio((s) => s.createProject);
+  const applyCampaignPlan = useStudio((s) => s.applyCampaignPlan);
+  const campaigns = useCreative((s) => s.campaigns);
+  const schedule = useCreative((s) => s.schedule);
+  const igPosts = useCreative((s) => s.igPosts);
+  const setCreateOpen = useUi((s) => s.setCreateOpen);
+  const setSearchOpen = useUi((s) => s.setSearchOpen);
   const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
-
-  const filtered = useMemo(() => {
-    const n = q.trim().toLowerCase();
-    const list = n
-      ? projects.filter((p) => p.name.toLowerCase().includes(n) || (brands.find((b) => b.id === p.brandId)?.name ?? "").toLowerCase().includes(n))
-      : projects;
-    return [...list].sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [projects, brands, q]);
-
-  const drafts = filtered.filter((p) => p.status === "draft");
-  const recent = filtered.slice(0, 8);
+  const [busy, setBusy] = useState(false);
+  const ctx = studentContext();
+  const featured = campaigns.find((c) => c.id === FEATURED_EVENT.id) ?? campaigns[0];
   const brand = brands[0];
 
-  const assetIds = useMemo(() => {
-    const ids: string[] = [];
-    for (const p of filtered) {
-      const board = p.artboards[p.activeFormatId];
-      if (!board) continue;
-      for (const l of board.layers) {
-        if (l.type === "image") ids.push(l.assetId);
-        if (l.type === "logo" && l.assetId) ids.push(l.assetId);
-      }
-    }
-    for (const b of brands) if (b.logoAssetId) ids.push(b.logoAssetId);
-    for (const a of assets) ids.push(a.id);
-    return ids;
-  }, [filtered, brands, assets]);
-  const urls = useAssetUrls(assetIds);
+  const urls = useAssetUrls(assets.map((a) => a.id));
+  const recent = useMemo(() => [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6), [projects]);
+  const upcoming = [...schedule].sort((a, b) => a.plannedAt - b.plannedAt).filter((row) => row.status !== "published").slice(0, 4);
+  const strong = [...igPosts].sort((a, b) => (b.metrics?.saves ?? 0) - (a.metrics?.saves ?? 0))[0];
 
-  function startTemplate(id: (typeof TEMPLATE_STARTERS)[number]["id"]) {
-    if (!brand) return;
-    const project = createFromTemplate({ templateId: id, brandId: brand.id });
-    void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+  async function generateFeatured() {
+    if (!brand || !featured) return;
+    setBusy(true);
+    try {
+      const brief = {
+        ...emptyBrief(),
+        eventName: featured.name,
+        product: featured.name,
+        schedule: `${featured.date} ${featured.time}`,
+        location: featured.location,
+        audience: "淡江大學學生，尤其剛到淡水、想找一個能坐下的晚上的人",
+        features: featured.description,
+        notes: featured.oneLiner,
+        style: "學生生活感，不要宗教",
+        deliverables: { post: true, story: true, carousel: true, reels: true },
+      };
+      const result = await generateCampaignPlan({ data: toBriefInput(brief, brand) });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      const project = createProject({
+        name: result.plan.campaignName,
+        brandId: brand.id,
+        formatId: "feed-portrait",
+        brief,
+        templateId: result.plan.templateId,
+      });
+      applyCampaignPlan(project.id, result.plan, brief);
+      toast.success(result.adapter === "mock" ? "已用社團規則寫好一版，可接著改" : "已生成文案、輪播與腳本");
+      void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "生成失敗");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
-      <PageHeader
-        kicker="Instagram 網宣工作台"
-        title="構幀"
-        description="最近作品、草稿、模板與品牌資產都在這裡。手機用底部導覽，電腦可開左右面板編輯。"
-        actions={
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="size-4" />
-            新建專案
-          </Button>
-        }
-      />
+    <main className="hero-wash min-h-full">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs tracking-[0.2em] text-muted">淡江大學禪學社 · AI CREATIVE STUDIO</p>
+            <h1 className="mt-2 font-display text-3xl tracking-tight md:text-5xl">今天可以創作什麼？</h1>
+            <p className="mt-2 max-w-xl text-sm text-muted">
+              {ctx.phaseLabel}。{ctx.calendarNote}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="icon" aria-label="搜尋" onClick={() => setSearchOpen(true)}>
+              <Search className="size-4" />
+            </Button>
+            <Button className="hidden sm:inline-flex" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" />
+              AI 創作
+            </Button>
+          </div>
+        </div>
 
-      <div className="mt-6 flex items-center gap-3">
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="搜尋作品或品牌"
-          className="max-w-sm"
-        />
-        <p className="text-xs text-subtle tabular-nums">{filtered.length} 件</p>
-      </div>
+        {featured ? (
+          <section className="glass-card mt-8 rounded-3xl p-5 md:p-8">
+            <p className="text-xs tracking-[0.16em] text-muted">今天推薦創作</p>
+            <div className="mt-3 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-sm text-muted">
+                  {featured.date.slice(5).replace("-", "/")} {featured.name}
+                  <span className="ml-2 text-accent">{formatDaysUntil(featured.date)}</span>
+                </p>
+                <h2 className="mt-2 max-w-xl font-display text-2xl md:text-4xl">「{featured.oneLiner}」</h2>
+                <p className="mt-3 text-sm text-muted">AI 建議做成 IG Carousel · {featured.location}</p>
+              </div>
+              <Button size="lg" className="h-12 rounded-full px-6" disabled={busy} onClick={() => void generateFeatured()}>
+                <Sparkles className="size-4" />
+                {busy ? "正在生成…" : "AI 幫我創作"}
+              </Button>
+            </div>
+            <p className="mt-4 text-xs text-subtle">會一次產出 IG 文案、圖片 Prompt、主視覺方向、Carousel、Story、Threads、Reels Script。</p>
+          </section>
+        ) : null}
 
-      <section className="mt-8">
-        <SectionHeader title="最近作品" hint="依最後編輯排列" />
-        {recent.length === 0 ? (
-          <EmptyState
-            icon={FolderKanban}
-            title="還沒有作品"
-            description="從模板開始，或新建一則網宣。"
+        <section className="mt-8">
+          <SectionHeader title="快速開始" hint="從一個動作進入創作" />
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+            {QUICK.map((item) => (
+              <Button key={item.label} asChild variant="secondary" className="shrink-0 rounded-full">
+                <Link to={item.to}>{item.label}</Link>
+              </Button>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-10 grid gap-4 md:grid-cols-2">
+          <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+            <SectionHeader
+              title="今日靈感"
+              hint={ctx.weatherNote}
+              action={
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/inspiration">研究趨勢</Link>
+                </Button>
+              }
+            />
+            <ul className="space-y-2 text-sm">
+              {ctx.whoIsListening.map((who) => (
+                <li key={who} className="rounded-2xl bg-bg px-3 py-2">
+                  {who}
+                </li>
+              ))}
+            </ul>
+          </article>
+          <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+            <SectionHeader
+              title="近期活動"
+              hint="沒有負責人，只有你"
+              action={
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/campaigns">全部</Link>
+                </Button>
+              }
+            />
+            <ul className="space-y-2">
+              {campaigns.slice(0, 3).map((campaign) => (
+                <li key={campaign.id}>
+                  <Link to="/campaigns/$campaignId" params={{ campaignId: campaign.id }} className="block rounded-2xl bg-bg px-3 py-3">
+                    <p className="font-medium">{campaign.name}</p>
+                    <p className="text-xs text-muted">
+                      {campaign.date} · {campaign.time} · {campaign.location}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </article>
+        </section>
+
+        <section className="mt-10">
+          <SectionHeader
+            title="已排程內容"
+            hint="服務創作與發布"
             action={
-              <Button onClick={() => setOpen(true)}>
-                <Plus className="size-4" />
-                新建專案
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/calendar">月曆</Link>
               </Button>
             }
           />
-        ) : (
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {upcoming.map((row) => (
+              <li key={row.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+                <p className="text-xs text-muted">
+                  {formatDate(row.plannedAt, "M/d HH:mm", { locale: zhTW })} · {CONTENT_KIND_META[row.contentKind].label}
+                </p>
+                <p className="mt-1 text-sm font-medium">{row.title}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="mt-10">
+          <SectionHeader title="最近 AI 生成" hint="依最後編輯" />
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {recent.map((project) => (
               <li key={project.id}>
-                <ProjectCard
-                  project={project}
-                  brand={brands.find((b) => b.id === project.brandId)}
-                  urls={urls}
-                  onDuplicate={() => duplicateProject(project.id)}
-                  onDelete={() => setPendingDelete(project.id)}
-                />
+                <ProjectCard project={project} brand={brands.find((b) => b.id === project.brandId)} urls={urls} />
+                <p className="mt-1 px-1 text-xs text-subtle">
+                  {CONTENT_KIND_META[project.contentKind].label} · {contentStatusOf(project)}
+                </p>
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
 
-      <section className="mt-10">
-        <SectionHeader title="草稿" hint="尚未完成企劃或輸出" />
-        {drafts.length === 0 ? (
-          <p className="rounded-2xl bg-surface px-4 py-8 text-center text-sm text-muted shadow-[var(--shadow-border)]">
-            沒有草稿。完成企劃後會標成可輸出。
-          </p>
-        ) : (
-          <ul className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-3">
-            {drafts.map((project) => (
-              <li key={project.id} className="min-w-[16rem] sm:min-w-0">
-                <ProjectCard
-                  project={project}
-                  brand={brands.find((b) => b.id === project.brandId)}
-                  urls={urls}
-                  compact
-                  onDuplicate={() => duplicateProject(project.id)}
-                  onDelete={() => setPendingDelete(project.id)}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="mt-10">
-        <SectionHeader title="模板" hint="套用品牌色與字體，立刻進編輯器" />
-        <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {TEMPLATE_STARTERS.map((tpl) => {
-            const preview = brand ? previewTemplate(tpl, brand, assets.find((a) => a.kind === "image")?.id) : null;
-            const format = formatById(tpl.formatId);
-            return (
-              <li key={tpl.id}>
-                <button
-                  type="button"
-                  onClick={() => startTemplate(tpl.id)}
-                  className="w-full rounded-2xl bg-surface p-3 text-left shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-border-hover)]"
-                >
-                  <div className="flex h-36 items-center justify-center overflow-hidden rounded-lg bg-bg">
-                    {preview && brand ? (
-                      <ArtboardView
-                        artboard={preview}
-                        brand={brand}
-                        urls={urls}
-                        width={Math.min(120, (120 * format.width) / format.height)}
-                      />
-                    ) : (
-                      <span className="text-xs text-muted">預覽</span>
-                    )}
-                  </div>
-                  <p className="mt-3 truncate text-sm font-medium">{tpl.name}</p>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-muted">{tpl.description}</p>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      <section className="mt-10">
-        <SectionHeader
-          title="品牌資產"
-          hint="Logo、商品圖與場景"
-          action={
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/assets">全部素材</Link>
-            </Button>
-          }
-        />
-        {assets.length === 0 ? (
-          <EmptyState
-            icon={Images}
-            title="還沒有素材"
-            description="上傳 Logo 與商品圖，之後排版會直接取用。"
-            action={
-              <Button asChild variant="secondary">
-                <Link to="/assets">前往素材庫</Link>
-              </Button>
-            }
-          />
-        ) : (
-          <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
-            {assets.slice(0, 12).map((asset) => (
-              <li key={asset.id} className="overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
-                <Link to="/assets" className="block">
-                  <div className="aspect-square bg-bg">
+        <section className="mt-10 grid gap-4 md:grid-cols-2">
+          <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+            <SectionHeader title="過去表現不錯" hint="用來改善下一次，不是報表牆" />
+            {strong ? (
+              <div className="flex gap-3">
+                <img src={strong.thumb} alt="" className="size-20 rounded-xl object-cover" />
+                <div>
+                  <p className="text-sm">{strong.caption.split("\n")[0]}</p>
+                  <p className="mt-1 text-xs text-muted">{strong.analysis}</p>
+                </div>
+              </div>
+            ) : null}
+          </article>
+          <article className="rounded-3xl bg-surface p-5 shadow-[var(--shadow-border)]">
+            <SectionHeader
+              title="最近素材"
+              action={
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/assets">素材庫</Link>
+                </Button>
+              }
+            />
+            <ul className="grid grid-cols-4 gap-2">
+              {assets.slice(0, 8).map((asset) => (
+                <li key={asset.id} className="overflow-hidden rounded-xl bg-bg">
+                  <Link to="/assets">
                     {urls[asset.id] ? (
-                      <img src={urls[asset.id]} alt={asset.name} className="size-full object-cover" />
+                      <img src={urls[asset.id]} alt={asset.name} className="aspect-square w-full object-cover" />
                     ) : (
-                      <div className="flex size-full items-center justify-center text-xs text-muted">載入中</div>
+                      <div className="flex aspect-square items-center justify-center text-[10px] text-muted">
+                        <Images className="size-4" />
+                      </div>
                     )}
-                  </div>
-                  <p className="truncate px-2 py-1.5 text-xs">{asset.name}</p>
-                  <p className="truncate px-2 pb-1.5 text-xs text-subtle">{categoryLabel(asset.category)}</p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </article>
+        </section>
 
-      <NewProjectDialog open={open} onOpenChange={setOpen} />
-      <AlertDialog open={Boolean(pendingDelete)} onOpenChange={() => setPendingDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>刪除這個專案？</AlertDialogTitle>
-            <AlertDialogDescription>此動作無法復原。素材庫與品牌規範會保留。</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (pendingDelete) deleteProject(pendingDelete);
-                setPendingDelete(null);
-              }}
-            >
-              刪除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <p className="mt-8 text-center text-xs text-subtle">參考來源來自 Brand / Drive / Canva / Instagram 記憶，不會隱藏 AI 用了什麼。</p>
+        <NewProjectDialog open={open} onOpenChange={setOpen} />
+      </div>
     </main>
   );
 }

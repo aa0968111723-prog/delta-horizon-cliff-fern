@@ -6,20 +6,23 @@
   --font-display: "Noto Serif TC", "Source Han Serif TC", "Noto Serif", ui-serif, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-bg: #f3f0ea;
-  --color-surface: #fffcf7;
-  --color-surface-2: #ebe6dc;
-  --color-fg: #1a1814;
-  --color-muted: #6f6a63;
-  --color-subtle: #9a948c;
-  --color-border: #ddd6ca;
-  --color-border-strong: #c9c1b4;
-  --color-accent: #1e4a45;
-  --color-accent-fg: #f3f0ea;
+  --color-bg: #f6f1e8;
+  --color-surface: #fffcf8;
+  --color-surface-2: #ebe4d8;
+  --color-fg: #1c2422;
+  --color-muted: #5e6a66;
+  --color-subtle: #8b938f;
+  --color-border: #ddd4c6;
+  --color-border-strong: #c9bfb0;
+  --color-accent: #2f5f56;
+  --color-accent-fg: #f6f1e8;
   --color-danger: #a33b2a;
   --color-warn: #9a6b2f;
   --color-success: #2f6a4a;
-  --color-ring: #1e4a45;
+  --color-ring: #2f5f56;
+  --color-water: #7eb8c9;
+  --color-lantern: #e0b07a;
+  --color-rose: #d9a3a3;
 
   --radius-xs: 4px;
   --radius-sm: 8px;
@@ -41,8 +44,12 @@
     0px 1px 2px -1px rgba(26, 24, 20, 0.08),
     0px 2px 4px 0px rgba(26, 24, 20, 0.06);
   --shadow-artboard:
-    0 18px 40px -24px rgba(26, 24, 20, 0.35),
-    0 0 0 1px rgba(26, 24, 20, 0.06);
+    0 18px 40px -24px rgba(28, 36, 34, 0.35),
+    0 0 0 1px rgba(28, 36, 34, 0.06);
+  --shadow-float:
+    0 28px 60px -32px rgba(28, 36, 34, 0.4),
+    0 8px 18px -12px rgba(28, 36, 34, 0.12),
+    0 0 0 1px rgba(28, 36, 34, 0.05);
 }
 
 @layer base {
@@ -89,6 +96,24 @@
 
   .h-app {
     height: calc(100dvh - var(--spacing-nav-safe));
+  }
+
+  .hero-wash {
+    background:
+      radial-gradient(ellipse 90% 55% at 8% -10%, color-mix(in oklab, var(--color-water) 28%, transparent), transparent 58%),
+      radial-gradient(ellipse 70% 45% at 96% 0%, color-mix(in oklab, var(--color-lantern) 22%, transparent), transparent 52%),
+      radial-gradient(ellipse 50% 40% at 70% 110%, color-mix(in oklab, var(--color-rose) 16%, transparent), transparent 55%);
+  }
+
+  .glass-card {
+    background: color-mix(in oklab, var(--color-surface) 82%, transparent);
+    box-shadow: var(--shadow-float);
+    backdrop-filter: blur(18px);
+  }
+
+  .card-3d {
+    transform: perspective(900px) rotateX(4deg);
+    box-shadow: var(--shadow-float);
   }
 
   @media (min-width: 1024px) {
