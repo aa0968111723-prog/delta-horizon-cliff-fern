@@ -22,6 +22,7 @@ export function buildPublishedPost(input: {
   caption: string;
   kind: ContentKind;
   assetIds?: string[];
+  mediaUrl?: string;
   publishedAt?: number;
 }): IgMemoryPost {
   const publishedAt = input.publishedAt ?? Date.now();
@@ -37,6 +38,7 @@ export function buildPublishedPost(input: {
     caption,
     takenAt: publishedAt,
     assetIds: input.assetIds ?? [],
+    mediaUrl: input.mediaUrl,
     analysis: {
       ...analysis,
       theme: analysis.theme || input.title,

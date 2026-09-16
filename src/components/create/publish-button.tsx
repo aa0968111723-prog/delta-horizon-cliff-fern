@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { runPublish } from "@/components/create/run-publish";
 import { publicImageUrl } from "@/lib/connect/ig-publish";
+import { publishCoverFromRefs } from "@/lib/creative/ig-feed";
 import { captionFromProject } from "@/lib/creative/publish";
 import { extractImageAssetId } from "@/lib/studio/layout";
 import { pagesOf } from "@/lib/studio/layers";
@@ -56,11 +57,9 @@ export function PublishButton({
           const liveProject =
             (projectId ? studio.projects.find((item) => item.id === projectId) : undefined) ?? project;
           const board = liveProject ? pagesOf(liveProject)[0] : undefined;
-          const imageId = extractImageAssetId(board);
+          const cover = publishCoverFromRefs(liveProject?.sourceRefs, extractImageAssetId(board));
           const text = caption ?? (liveProject ? captionFromProject(liveProject) : title) ?? "";
-          const httpsUrl =
-            publicImageUrl(imageUrl) ||
-            publicImageUrl(liveProject?.sourceRefs.find((ref) => publicImageUrl(ref.id))?.id);
+          const httpsUrl = publicImageUrl(imageUrl) || cover.imageUrl;
           setBusy(true);
           try {
             const result = await runPublish({
@@ -71,11 +70,9 @@ export function PublishButton({
               caption: text || title || "淡江禪學社",
               kind: liveProject?.contentKind ?? "ig-post",
               scheduledAt: liveProject?.scheduledAt ?? Date.now(),
-              imageUrl: httpsUrl ?? undefined,
+              imageUrl: httpsUrl,
+              assetIds: cover.assetIds,
             });
-            if (imageId && result.post) {
-              useCreative.getState().ingestIgPosts([{ ...result.post, assetIds: [imageId] }]);
-            }
             if (result.graph.ok) toast.success(`已發到 ${result.graph.account}`);
             else toast.message(result.graph.message);
           } finally {

@@ -112,7 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     className="relative flex h-14 min-h-11 flex-col items-center justify-center"
                     aria-label="AI 創作"
                   >
-                    <span className="absolute -top-5 flex size-14 items-center justify-center rounded-full bg-accent text-accent-fg shadow-[var(--shadow-artboard)]">
+                    <span className="absolute -top-3 flex size-14 items-center justify-center rounded-full bg-accent text-accent-fg shadow-[var(--shadow-artboard)]">
                       <Plus className="size-6" />
                     </span>
                     <span className="mt-6 text-[10px] text-fg">創作</span>

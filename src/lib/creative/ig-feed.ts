@@ -57,6 +57,16 @@ export function coverFromSourceRefs(refs?: SourceRef[]) {
   return { assetIds, mediaUrl };
 }
 
+export function publishCoverFromRefs(refs?: SourceRef[], extraAssetId?: string | null) {
+  const cover = coverFromSourceRefs(refs);
+  const extra = extraAssetId?.trim();
+  const assetIds =
+    extra && !extra.startsWith("http") && !extra.startsWith("data:") && !cover.assetIds.includes(extra)
+      ? [extra, ...cover.assetIds]
+      : cover.assetIds;
+  return { imageUrl: cover.mediaUrl, assetIds };
+}
+
 export function upcomingSlotId(projectId: string) {
   return `up-${projectId}`;
 }

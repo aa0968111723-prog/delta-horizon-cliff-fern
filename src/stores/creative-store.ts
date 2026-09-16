@@ -66,6 +66,7 @@ type CreativeState = {
     caption?: string;
     kind?: ContentKind;
     assetIds?: string[];
+    mediaUrl?: string;
   }) => IgMemoryPost | null;
 };
 

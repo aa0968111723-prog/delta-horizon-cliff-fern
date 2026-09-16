@@ -25,6 +25,20 @@ test("marking published updates the wave and feeds IG memory", () => {
   assert.ok(result.post.analysis?.direction.includes("Content Memory"));
 });
 
+test("marking published keeps the Canva asset on the memory post", () => {
+  const result = applyMarkPublished({
+    campaigns: SEED_CAMPAIGNS,
+    campaignId: "camp_float_light",
+    waveId: "wave_visual",
+    title: "浮游禪光",
+    caption: "最近是不是很久沒坐好？",
+    kind: "carousel",
+    assetIds: ["asset_canva_1"],
+    now: 7,
+  });
+  assert.deepEqual(result?.post.assetIds, ["asset_canva_1"]);
+});
+
 test("project-only publish still writes a memory post", () => {
   const result = applyMarkPublished({
     campaigns: SEED_CAMPAIGNS,

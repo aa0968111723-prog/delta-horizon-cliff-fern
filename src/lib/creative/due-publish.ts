@@ -1,4 +1,5 @@
 import type { ContentKind, Project, ProjectStatus } from "../studio/types.ts";
+import { coverFromSourceRefs } from "./ig-feed.ts";
 import { captionFromProject } from "./publish.ts";
 import { applyMarkPublished } from "./publish-flow.ts";
 import { isoFromMs } from "./schedule.ts";
@@ -15,6 +16,7 @@ export type DueTarget = {
   kind: ContentKind;
   scheduledAt: number;
   imageUrl?: string;
+  assetIds?: string[];
 };
 
 type ProjectSlice = Pick<
@@ -26,11 +28,9 @@ function isReady(status: ProjectStatus) {
   return READY.includes(status);
 }
 
-function httpsFromProject(project?: ProjectSlice) {
-  for (const ref of project?.sourceRefs ?? []) {
-    if (ref.id?.startsWith("https://")) return ref.id;
-  }
-  return undefined;
+function coverOf(project?: ProjectSlice) {
+  const cover = coverFromSourceRefs(project?.sourceRefs);
+  return { imageUrl: cover.mediaUrl, assetIds: cover.assetIds };
 }
 
 function captionOf(waveTopic: string, project?: ProjectSlice) {
@@ -66,6 +66,7 @@ export function duePublishTargets(input: {
       if (!isDue(wave.scheduledAt)) continue;
       const project = wave.projectId ? projects.get(wave.projectId) : undefined;
       const title = wave.topic || project?.name || campaign.name;
+      const cover = coverOf(project);
       targets.push({
         campaignId: campaign.id,
         waveId: wave.id,
@@ -74,7 +75,8 @@ export function duePublishTargets(input: {
         caption: captionOf(title, project),
         kind: wave.contentKind,
         scheduledAt: wave.scheduledAt ?? now,
-        imageUrl: httpsFromProject(project),
+        imageUrl: cover.imageUrl,
+        assetIds: cover.assetIds,
       });
       if (wave.projectId) seenProjects.add(wave.projectId);
     }
@@ -89,6 +91,7 @@ export function duePublishTargets(input: {
     if (!isReady(project.status)) continue;
     if (!isDue(project.scheduledAt)) continue;
     if (seenProjects.has(project.id)) continue;
+    const cover = coverOf(project);
     targets.push({
       campaignId: project.campaignId ?? undefined,
       projectId: project.id,
@@ -96,7 +99,8 @@ export function duePublishTargets(input: {
       caption: captionOf(project.name, project),
       kind: project.contentKind,
       scheduledAt: project.scheduledAt ?? now,
-      imageUrl: httpsFromProject(project),
+      imageUrl: cover.imageUrl,
+      assetIds: cover.assetIds,
     });
     seenProjects.add(project.id);
   }
@@ -129,6 +133,8 @@ export function applyDuePublished(input: {
       title: target.title,
       caption: target.caption,
       kind: target.kind,
+      assetIds: target.assetIds,
+      mediaUrl: target.imageUrl,
       now,
     });
     if (!result) continue;

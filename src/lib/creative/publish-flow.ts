@@ -11,6 +11,7 @@ export type MarkPublishedInput = {
   caption?: string;
   kind?: ContentKind;
   assetIds?: string[];
+  mediaUrl?: string;
   now?: number;
 };
 
@@ -57,6 +58,7 @@ export function applyMarkPublished(input: MarkPublishedInput): MarkPublishedResu
     caption: caption || title || "已發布內容",
     kind,
     assetIds: input.assetIds,
+    mediaUrl: input.mediaUrl,
     publishedAt: now,
   });
   const campaigns =

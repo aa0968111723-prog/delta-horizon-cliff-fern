@@ -1410,26 +1410,16 @@ export function CreateStudio({
             <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => void navigate({ to: "/inspire" })}>
               靈感研究
             </Button>
-            {campaign ? (
-              <PublishButton
-                campaignId={campaign.id}
-                title={pack.plan.campaignName}
-                caption={copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook}
-                imageUrl={imageSrc}
-                variant="secondary"
-                size="default"
-                className="rounded-full"
-              />
-            ) : (
-              <PublishButton
-                title={pack.plan.campaignName}
-                caption={copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook}
-                imageUrl={imageSrc}
-                variant="secondary"
-                size="default"
-                className="rounded-full"
-              />
-            )}
+            <PublishButton
+              projectId={studioProjectId}
+              campaignId={campaign?.id}
+              title={pack.plan.campaignName}
+              caption={copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook}
+              imageUrl={imageSrc}
+              variant="secondary"
+              size="default"
+              className="rounded-full"
+            />
           </div>
         </section>
       ) : null}

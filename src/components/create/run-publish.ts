@@ -26,6 +26,8 @@ export async function runPublish(target: DueTarget) {
     title: target.title,
     caption: target.caption,
     kind: target.kind,
+    assetIds: target.assetIds,
+    mediaUrl: target.imageUrl,
   });
   if (graph.ok && post) {
     useCreative.getState().ingestIgPosts([
@@ -33,6 +35,8 @@ export async function runPublish(target: DueTarget) {
         ...post,
         id: `ig_${graph.mediaId}`,
         source: "instagram",
+        assetIds: target.assetIds?.length ? target.assetIds : post.assetIds,
+        mediaUrl: target.imageUrl ?? post.mediaUrl,
       },
     ]);
   }

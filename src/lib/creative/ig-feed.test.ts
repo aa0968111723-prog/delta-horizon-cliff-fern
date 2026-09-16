@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { coverFromSourceRefs, igGridSlots, upcomingSlotId, upcomingStatusCopy } from "./ig-feed.ts";
+import { coverFromSourceRefs, igGridSlots, publishCoverFromRefs, upcomingSlotId, upcomingStatusCopy } from "./ig-feed.ts";
 import type { CopyDeck } from "../studio/types.ts";
 
 const copy: CopyDeck = {
@@ -135,6 +135,18 @@ test("Canva return assets sit on the IG grid cover", () => {
     posts: [],
   });
   assert.deepEqual(slots[0]?.assetIds, ["asset_canva_1"]);
+});
+
+test("publish cover prefers the Canva asset over a data URL", () => {
+  const cover = publishCoverFromRefs(
+    [
+      { source: "canva", label: "Canva 微調後", id: "asset_canva_1" },
+      { source: "generated", label: "本機", id: "data:image/png;base64,aaa" },
+    ],
+    "asset_board",
+  );
+  assert.deepEqual(cover.assetIds, ["asset_board", "asset_canva_1"]);
+  assert.equal(cover.imageUrl, undefined);
 });
 
 test("earlier scheduled date comes first among upcoming", () => {

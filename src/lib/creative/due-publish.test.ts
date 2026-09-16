@@ -48,6 +48,30 @@ test("scheduled visual wave becomes due after its wall-clock time", () => {
   assert.ok(due[0].caption.includes("坐下來"));
 });
 
+test("due publish keeps a Canva-returned asset for Content Memory", () => {
+  const due = duePublishTargets({
+    campaigns: [],
+    projects: [
+      {
+        ...visualProject,
+        id: "proj_canva",
+        campaignId: null,
+        status: "scheduled",
+        scheduledAt: Date.parse("2026-09-16T08:00:00+08:00"),
+        sourceRefs: [{ source: "canva", label: "Canva 微調後", id: "asset_canva_1" }],
+      },
+    ],
+    now: Date.parse("2026-09-16T09:00:00+08:00"),
+  });
+  assert.deepEqual(due[0]?.assetIds, ["asset_canva_1"]);
+  const result = applyDuePublished({
+    campaigns: [],
+    targets: due,
+    now: Date.parse("2026-09-16T09:00:00+08:00"),
+  });
+  assert.deepEqual(result.posts[0]?.assetIds, ["asset_canva_1"]);
+});
+
 test("same-day flush can send tonight's slot before 19:00", () => {
   const today = dueTodayTargets({
     campaigns: SEED_CAMPAIGNS,

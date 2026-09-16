@@ -18,6 +18,19 @@ test("published post becomes IG memory without reviewer fields", () => {
   assert.equal("assignee" in post, false);
 });
 
+test("published posts keep the Canva visual for the next create", () => {
+  const post = buildPublishedPost({
+    title: "下週茶會",
+    caption: "最近是不是很久沒坐好？",
+    kind: "carousel",
+    assetIds: ["asset_canva_1"],
+    mediaUrl: "https://export.canva.com/zen.png",
+    publishedAt: 2,
+  });
+  assert.deepEqual(post.assetIds, ["asset_canva_1"]);
+  assert.equal(post.mediaUrl, "https://export.canva.com/zen.png");
+});
+
 test("captionFromProject prefers the written caption", () => {
   const text = captionFromProject({
     name: "浮游禪光",
