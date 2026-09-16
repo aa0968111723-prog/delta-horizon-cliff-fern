@@ -41,6 +41,7 @@ type CreativeState = {
   duplicateWave: (campaignId: string, waveId: string) => void;
   setConnection: (id: ConnectionId, patch: Partial<ConnectionState>) => void;
   addMemory: (item: MemoryItem) => void;
+  ingestIgPosts: (posts: IgMemoryPost[]) => void;
   analyzeIg: (id: string, analysis: IgMemoryPost["analysis"]) => void;
 };
 
@@ -183,7 +184,16 @@ export const useCreative = create<CreativeState>()(
         set((s) => ({
           connections: s.connections.map((c) => (c.id === id ? { ...c, ...patch } : c)),
         })),
-      addMemory: (item) => set((s) => ({ memory: [item, ...s.memory] })),
+      addMemory: (item) => set((s) => ({ memory: [item, ...s.memory.filter((m) => m.id !== item.id)] })),
+      ingestIgPosts: (posts) =>
+        set((s) => {
+          const byId = new Map(s.igPosts.map((post) => [post.id, post]));
+          for (const post of posts) {
+            const prev = byId.get(post.id);
+            byId.set(post.id, prev ? { ...prev, ...post, analysis: post.analysis ?? prev.analysis } : post);
+          }
+          return { igPosts: [...byId.values()].sort((a, b) => b.takenAt - a.takenAt) };
+        }),
       analyzeIg: (id, analysis) =>
         set((s) => ({
           igPosts: s.igPosts.map((p) => (p.id === id ? { ...p, analysis } : p)),

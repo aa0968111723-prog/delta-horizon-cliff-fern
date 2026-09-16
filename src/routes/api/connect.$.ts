@@ -70,7 +70,7 @@ function startOAuth(provider: ConnectionId, request: Request) {
     auth.searchParams.set("client_id", process.env.CANVA_CLIENT_ID ?? "");
     auth.searchParams.set("redirect_uri", redirectUri);
     auth.searchParams.set("response_type", "code");
-    auth.searchParams.set("scope", "design:meta:read design:content:read");
+    auth.searchParams.set("scope", "design:meta:read design:content:read design:content:write");
     auth.searchParams.set("state", state);
     return redirect(auth.toString(), [setStateCookie(state)]);
   }
@@ -158,9 +158,26 @@ async function exchange(provider: ConnectionId, code: string, redirectUri: strin
   const ig = await fetch(meta);
   if (!ig.ok) throw new Error("instagram");
   const body = (await ig.json()) as { access_token: string; expires_in?: number };
+  let access = body.access_token;
+  let expiry = Date.now() + (body.expires_in ?? 3600) * 1000;
+  try {
+    const longLived = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
+    longLived.searchParams.set("grant_type", "fb_exchange_token");
+    longLived.searchParams.set("client_id", process.env.META_APP_ID ?? "");
+    longLived.searchParams.set("client_secret", process.env.META_APP_SECRET ?? "");
+    longLived.searchParams.set("fb_exchange_token", access);
+    const longer = await fetch(longLived);
+    if (longer.ok) {
+      const next = (await longer.json()) as { access_token: string; expires_in?: number };
+      access = next.access_token;
+      expiry = Date.now() + (next.expires_in ?? 5184000) * 1000;
+    }
+  } catch {
+    /* keep short-lived */
+  }
   return {
-    access: body.access_token,
-    expiry: Date.now() + (body.expires_in ?? 3600) * 1000,
+    access,
+    expiry,
     account: "Instagram",
   };
 }

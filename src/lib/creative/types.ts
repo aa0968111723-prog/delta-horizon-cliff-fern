@@ -62,6 +62,7 @@ export type ConnectionState = {
   status: ConnectionStatus;
   accountLabel: string;
   folderHint: string;
+  folderId?: string;
   lastSyncAt: number | null;
 };
 

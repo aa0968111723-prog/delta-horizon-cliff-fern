@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BrandSubnav } from "@/components/brand/brand-subnav";
 import { Button } from "@/components/ui/button";
-import { getConnectionCapabilities, startConnection, syncConnectionMemory } from "@/lib/connect/oauth";
+import { getConnectionCapabilities, startConnection, syncConnectionMemory, listDriveFolders, setDriveFolder } from "@/lib/connect/oauth";
 import { oauthPath } from "@/lib/connect/providers";
 import type { ConnectionId } from "@/lib/creative/types";
 import { uid } from "@/lib/studio/ids";
@@ -24,7 +24,10 @@ export function ConnectCenter({
   const connections = useCreative((s) => s.connections);
   const setConnection = useCreative((s) => s.setConnection);
   const addMemory = useCreative((s) => s.addMemory);
+  const ingestIgPosts = useCreative((s) => s.ingestIgPosts);
   const [caps, setCaps] = useState<Record<string, { oauthReady: boolean; connected?: boolean }> | null>(null);
+  const [folders, setFolders] = useState<{ id: string; name: string }[]>([]);
+  const [folderId, setFolderId] = useState<string | null>(null);
 
   useEffect(() => {
     getConnectionCapabilities()
@@ -35,6 +38,7 @@ export function ConnectCenter({
             setConnection(id, { status: "connected" });
           }
         });
+        if (next["google-drive"]?.connected) void loadFolders();
       })
       .catch(() => setCaps(null));
   }, [setConnection]);
@@ -43,6 +47,7 @@ export function ConnectCenter({
     if (connected === "google-drive" || connected === "canva" || connected === "instagram") {
       setConnection(connected, { status: "connected", lastSyncAt: Date.now() });
       toast.success("已連接，Token 只存在伺服器");
+      void sync(connected);
     }
     if (notice === "memory") toast.message("官方授權尚未開啟，先用社團記憶創作");
     if (notice === "denied") toast.error("授權沒有完成");
@@ -77,12 +82,33 @@ export function ConnectCenter({
     for (const item of result.items) {
       addMemory({ ...item, id: item.id || uid("mem") });
     }
+    if (result.posts?.length) ingestIgPosts(result.posts);
     setConnection(id, {
       lastSyncAt: Date.now(),
       status: "connected",
       accountLabel: result.account ?? COPY[id].title,
     });
     toast.success(`已同步 ${result.items.length} 筆進 Creative Memory`);
+    if (id === "google-drive") void loadFolders();
+  }
+
+  async function loadFolders() {
+    const result = await listDriveFolders();
+    if (!result.ok) return;
+    setFolders(result.folders);
+    setFolderId(result.current);
+  }
+
+  async function pickFolder(id: string, name: string) {
+    const result = await setDriveFolder({ data: { folderId: id, name } });
+    if (!result.ok) {
+      toast.message(result.message);
+      return;
+    }
+    setFolderId(id);
+    setConnection("google-drive", { folderHint: name, folderId: id });
+    toast.success(`之後會讀「${name}」`);
+    void sync("google-drive");
   }
 
   return (
@@ -122,6 +148,23 @@ export function ConnectCenter({
                 中斷
               </Button>
             </div>
+            {c.id === "google-drive" && folders.length ? (
+              <div className="mt-4">
+                <p className="text-xs text-muted">禪學社主要資料夾</p>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {folders.map((folder) => (
+                    <Button
+                      key={folder.id}
+                      size="sm"
+                      variant={folderId === folder.id ? "default" : "secondary"}
+                      onClick={() => void pickFolder(folder.id, folder.name)}
+                    >
+                      {folder.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>

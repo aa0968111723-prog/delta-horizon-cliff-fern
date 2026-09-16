@@ -72,3 +72,26 @@ export function isoFromMs(ms: number) {
     day: "2-digit",
   }).format(new Date(ms));
 }
+
+/** 從一句話猜活動日，給還沒建 Campaign 的創作。 */
+export function inferEventDate(query: string, from = new Date()): string {
+  if (/明天/.test(query)) return isoFromMs(from.getTime() + 86400000);
+  if (/下週|下周/.test(query)) return isoFromMs(from.getTime() + 7 * 86400000);
+  const match = query.match(/(\d{1,2})[/／月](\d{1,2})/);
+  if (match) {
+    const month = match[1].padStart(2, "0");
+    const day = match[2].padStart(2, "0");
+    const parsed = Date.parse(`${from.getFullYear()}-${month}-${day}T12:00:00+08:00`);
+    if (!Number.isNaN(parsed)) return isoFromMs(parsed);
+  }
+  return isoFromMs(from.getTime() + 7 * 86400000);
+}
+
+export function inferCampaignType(query: string) {
+  if (/茶/.test(query)) return "tea" as const;
+  if (/光|禪光|靜心/.test(query)) return "light" as const;
+  if (/招|迎新/.test(query)) return "recruit" as const;
+  if (/回顧/.test(query)) return "recap" as const;
+  if (/課|工作坊/.test(query)) return "workshop" as const;
+  return "other" as const;
+}

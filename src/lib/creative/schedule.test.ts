@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isoFromMs, suggestWaves } from "./schedule.ts";
+import { inferEventDate, isoFromMs, suggestWaves } from "./schedule.ts";
 
 test("isoFromMs uses Taipei calendar day", () => {
   const ms = Date.parse("2026-09-24T00:30:00+08:00");
   assert.equal(isoFromMs(ms), "2026-09-24");
+});
+
+test("inferEventDate reads 下週 and 9/24", () => {
+  const from = new Date("2026-09-16T12:00:00+08:00");
+  assert.equal(inferEventDate("下週有一場茶會", from), "2026-09-23");
+  assert.equal(inferEventDate("9/24 浮游禪光", from), "2026-09-24");
 });
 
 test("tea campaign waves mix life and promo instead of stacking ads", () => {

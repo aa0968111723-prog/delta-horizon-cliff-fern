@@ -7,6 +7,8 @@ type TokenBlob = {
   refresh?: string;
   expiry: number;
   account?: string;
+  folderId?: string;
+  folderName?: string;
 };
 
 const COOKIE: Record<ConnectionId, string> = {
@@ -82,6 +84,89 @@ export function setTokenCookie(id: ConnectionId, blob: TokenBlob) {
   if (!value) return null;
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
   return `${COOKIE[id]}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${secure}`;
+}
+
+export async function persistTokenBlob(id: ConnectionId, blob: TokenBlob) {
+  const value = encrypt(JSON.stringify(blob));
+  if (!value) return;
+  try {
+    const { setCookie } = await import("@tanstack/react-start/server");
+    setCookie(COOKIE[id], value, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 2592000,
+      secure: process.env.NODE_ENV === "production",
+    });
+  } catch {
+    /* request may be outside a server fn */
+  }
+}
+
+async function refreshBlob(id: ConnectionId, blob: TokenBlob): Promise<TokenBlob | null> {
+  if (!blob.refresh) return blob;
+  try {
+    if (id === "google-drive") {
+      const res = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: process.env.GOOGLE_CLIENT_ID ?? "",
+          client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+          refresh_token: blob.refresh,
+          grant_type: "refresh_token",
+        }),
+      });
+      if (!res.ok) return blob;
+      const body = (await res.json()) as { access_token: string; expires_in?: number; refresh_token?: string };
+      return {
+        ...blob,
+        access: body.access_token,
+        refresh: body.refresh_token ?? blob.refresh,
+        expiry: Date.now() + (body.expires_in ?? 3600) * 1000,
+      };
+    }
+    if (id === "canva") {
+      const res = await fetch("https://api.canva.com/rest/v1/oauth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: process.env.CANVA_CLIENT_ID ?? "",
+          client_secret: process.env.CANVA_CLIENT_SECRET ?? "",
+          refresh_token: blob.refresh,
+          grant_type: "refresh_token",
+        }),
+      });
+      if (!res.ok) return blob;
+      const body = (await res.json()) as { access_token: string; expires_in?: number; refresh_token?: string };
+      return {
+        ...blob,
+        access: body.access_token,
+        refresh: body.refresh_token ?? blob.refresh,
+        expiry: Date.now() + (body.expires_in ?? 3600) * 1000,
+      };
+    }
+    const url = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
+    url.searchParams.set("grant_type", "fb_exchange_token");
+    url.searchParams.set("client_id", process.env.META_APP_ID ?? "");
+    url.searchParams.set("client_secret", process.env.META_APP_SECRET ?? "");
+    url.searchParams.set("fb_exchange_token", blob.access);
+    const res = await fetch(url);
+    if (!res.ok) return blob;
+    const body = (await res.json()) as { access_token: string; expires_in?: number };
+    return { ...blob, access: body.access_token, expiry: Date.now() + (body.expires_in ?? 5184000) * 1000 };
+  } catch {
+    return blob;
+  }
+}
+
+export async function readFreshTokens(id: ConnectionId): Promise<TokenBlob | null> {
+  const blob = readProviderTokens(id);
+  if (!blob) return null;
+  if (blob.expiry > Date.now() + 90_000) return blob;
+  const next = await refreshBlob(id, blob);
+  if (next && next.access !== blob.access) await persistTokenBlob(id, next);
+  return next;
 }
 
 export function clearTokenCookie(id: ConnectionId) {

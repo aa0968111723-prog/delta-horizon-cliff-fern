@@ -47,6 +47,7 @@ const PackInput = z.object({
     .max(24)
     .optional()
     .catch([]),
+    dnaNotes: z.string().max(1600).optional(),
   forceMock: z.boolean().optional(),
 });
 
@@ -159,6 +160,7 @@ export const generateCreativePack = createServerFn({ method: "POST" })
 地點：${brief.location}
 一句話：${brief.features}
 參考來源：${sources.map((s) => s.label).join("、") || "品牌記憶"}
+${data.dnaNotes ? `品牌與 IG DNA：\n${data.dnaNotes}` : ""}
 
 請輸出 JSON：
 campaignName, hook, concept, insight, visualTheme, visualDirection, templateId, colorMood,

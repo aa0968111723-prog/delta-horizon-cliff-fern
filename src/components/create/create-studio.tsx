@@ -7,8 +7,12 @@ import { Textarea } from "@/components/ui/input";
 import { convertContent } from "@/lib/ai/convert";
 import { generateCopy, type CopyBlock } from "@/lib/ai/copy";
 import { generateStudioImage, listVisualDirections } from "@/lib/ai/image";
+import { applyStudentRevisions } from "@/lib/ai/pack-mock";
 import { generateCreativePack, type CreativePack } from "@/lib/ai/pack";
 import { analyzeImage, type VisionReport } from "@/lib/ai/vision";
+import { clubDnaFromMemory, dnaPromptBlock } from "@/lib/club/dna";
+import { gatherCreativeMemory, createCanvaDesign } from "@/lib/connect/oauth";
+import { inferCampaignType, inferEventDate } from "@/lib/creative/schedule";
 import { searchCreative } from "@/lib/creative/search";
 import { getAssetStorage } from "@/lib/studio/asset-storage";
 import { createGeneratedAsset } from "@/lib/studio/assets";
@@ -59,9 +63,13 @@ export function CreateStudio({
   const igPosts = useCreative((s) => s.igPosts);
   const generateWaves = useCreative((s) => s.generateWaves);
   const updateCampaign = useCreative((s) => s.updateCampaign);
+  const addCampaign = useCreative((s) => s.addCampaign);
+  const addMemory = useCreative((s) => s.addMemory);
+  const ingestIgPosts = useCreative((s) => s.ingestIgPosts);
+  const setWaveStatus = useCreative((s) => s.setWaveStatus);
   const assets = useStudio((s) => s.assets);
   const projects = useStudio((s) => s.projects);
-  const campaign = campaigns.find((c) => c.id === campaignId) ?? campaigns[0];
+  const campaign = campaignId ? campaigns.find((c) => c.id === campaignId) : undefined;
 
   const [query, setQuery] = useState(initialQuery || starterQuery(mode, campaign?.name));
   const [busy, setBusy] = useState(false);
@@ -84,11 +92,32 @@ export function CreateStudio({
   async function runPack() {
     setBusy(true);
     try {
-      const sources = hits.slice(0, 12).map((hit) => ({
+      try {
+        const gathered = await gatherCreativeMemory({ data: { query: query.slice(0, 80) } });
+        if (gathered.ok) {
+          for (const item of gathered.items) addMemory(item);
+          if (gathered.posts?.length) ingestIgPosts(gathered.posts);
+        }
+      } catch {
+        /* 沒連上官方來源就用本機 Creative Memory */
+      }
+      const liveHits = searchCreative({
+        query,
+        memory: useCreative.getState().memory,
+        assets,
+        campaigns: useCreative.getState().campaigns,
+        igPosts: useCreative.getState().igPosts,
+        projects,
+      });
+      const sources = liveHits.slice(0, 12).map((hit) => ({
         source: hit.source,
         label: hit.sourceLabel || hit.title,
         id: hit.id.slice(0, 160),
       }));
+      const dna = clubDnaFromMemory({
+        igPosts: useCreative.getState().igPosts,
+        memory: useCreative.getState().memory,
+      });
       const result = await generateCreativePack({
         data: {
           query,
@@ -97,6 +126,7 @@ export function CreateStudio({
           location: campaign?.location,
           oneLiner: campaign?.oneLiner,
           sources,
+          dnaNotes: dnaPromptBlock(dna),
         },
       });
       if (!result.ok) {
@@ -201,12 +231,26 @@ export function CreateStudio({
   function applyToStudio(andSchedule: boolean) {
     const brand = brands[0];
     if (!brand || !pack) return;
+    let camp = campaignId ? campaigns.find((c) => c.id === campaignId) : undefined;
+    if (!camp && andSchedule) {
+      camp = addCampaign({
+        name: pack.plan.campaignName,
+        date: inferEventDate(query),
+        type: inferCampaignType(`${query} ${pack.plan.campaignName}`),
+        oneLiner: pack.plan.hook,
+        fullIntro: pack.plan.body,
+        studentPain: pack.plan.insight,
+        cta: pack.plan.cta,
+        theme: pack.plan.visualTheme,
+        location: campaign?.location ?? "淡江校園",
+      });
+    }
     const brief = {
       ...emptyBrief(),
       eventName: pack.plan.campaignName,
       product: pack.plan.campaignName,
-      schedule: campaign ? `${campaign.date} ${campaign.time}` : "",
-      location: campaign?.location ?? "淡江校園",
+      schedule: camp ? `${camp.date} ${camp.time}` : "",
+      location: camp?.location ?? "淡江校園",
       audience: pack.studentContext,
       features: pack.plan.concept,
       style: pack.plan.visualTheme,
@@ -220,24 +264,51 @@ export function CreateStudio({
       templateId: pack.plan.templateId,
     });
     applyCampaignPlan(project.id, pack.plan, brief);
-    const scheduledAt = campaign ? Date.parse(`${campaign.date}T19:00:00+08:00`) - 7 * 86400000 : Date.now() + 86400000;
+    const scheduledAt = camp ? Date.parse(`${camp.date}T19:00:00+08:00`) - 7 * 86400000 : Date.now() + 86400000;
     useStudio.getState().updateProject(project.id, {
       contentKind: "carousel",
-      campaignId: campaign?.id ?? null,
+      campaignId: camp?.id ?? null,
       sourceRefs: pack.sources,
       status: andSchedule ? "scheduled" : "creating",
       scheduledAt: andSchedule ? scheduledAt : null,
     });
-    if (campaign) {
-      generateWaves(campaign.id);
-      updateCampaign(campaign.id, { projectIds: [...new Set([...campaign.projectIds, project.id])] });
+    if (camp) {
+      generateWaves(camp.id);
+      const latest = useCreative.getState().campaigns.find((c) => c.id === camp.id);
+      const visual = latest?.waves.find((w) => w.intent === "主視覺") ?? latest?.waves[0];
+      if (visual) setWaveStatus(camp.id, visual.id, andSchedule ? "scheduled" : "creating", project.id);
+      updateCampaign(camp.id, { projectIds: [...new Set([...camp.projectIds, project.id])] });
     }
-    toast.success(andSchedule ? "已套進畫布並排進月曆" : "已套進畫布");
+    toast.success(andSchedule ? "已套進畫布並排進月曆節奏" : "已套進畫布");
     if (andSchedule) {
       void navigate({ to: "/calendar" });
       return;
     }
     void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+  }
+
+  async function sendCanva() {
+    if (!pack) return;
+    const result = await createCanvaDesign({ data: { title: pack.plan.campaignName, kind: "carousel" } });
+    if (!result.ok) {
+      toast.message(result.message);
+      if (result.reason === "connect") void navigate({ to: "/connect" });
+      return;
+    }
+    window.open(result.url, "_blank", "noopener");
+    toast.success("已在 Canva 開一個新設計");
+  }
+
+  function applySimFixes() {
+    if (!copy || !sim) return;
+    setCopies((prev) =>
+      prev.map((item) =>
+        item.tone === copy.tone
+          ? applyStudentRevisions(item, sim, campaign ? `${campaign.date} ${campaign.time}` : pack?.plan.subhead, campaign?.location)
+          : item,
+      ),
+    );
+    toast.success("已依淡江學生視角改過這一版");
   }
 
   const activeDir = pack?.directions.find((d) => d.id === dirId) ?? directions.find((d) => d.id === dirId);
@@ -406,8 +477,20 @@ export function CreateStudio({
               </ul>
               <p className="mt-2 text-sm">{sim.notes.join(" ")}</p>
               {sim.revisions.length ? <p className="mt-1 text-xs text-muted">修改：{sim.revisions.join(" ")}</p> : null}
+              {sim.revisions.length ? (
+                <Button className="mt-3" size="sm" variant="secondary" onClick={applySimFixes}>
+                  套用學生視角修改
+                </Button>
+              ) : null}
             </div>
           ) : null}
+
+          <IgPhonePreview
+            hook={pack.plan.hook}
+            caption={copy?.body ?? pack.plan.captions[0]?.text ?? pack.plan.hook}
+            imageSrc={imageSrc}
+            handle="@tkuzen"
+          />
 
           <PackKit pack={pack} />
 
@@ -426,12 +509,12 @@ export function CreateStudio({
             <Button
               variant="secondary"
               className="min-h-11 rounded-full"
-              onClick={() => {
-                toast.message("官方 Canva 授權開啟後，會把文案與主視覺送去微調。");
-                void navigate({ to: "/connect" });
-              }}
+              onClick={() => void sendCanva()}
             >
               送進 Canva 微調
+            </Button>
+            <Button variant="secondary" className="min-h-11 rounded-full" onClick={() => void navigate({ to: "/ig" })}>
+              IG Preview
             </Button>
           </div>
         </section>
@@ -460,6 +543,39 @@ export function CreateStudio({
         </section>
       ) : null}
     </main>
+  );
+}
+
+function IgPhonePreview({
+  hook,
+  caption,
+  imageSrc,
+  handle,
+}: {
+  hook: string;
+  caption: string;
+  imageSrc: string | null;
+  handle: string;
+}) {
+  return (
+    <div>
+      <h2 className="text-sm font-medium">IG Preview</h2>
+      <div className="mx-auto mt-3 w-[min(100%,280px)] rounded-[2rem] bg-[#1c1a16] p-3 text-[#f3eee4] shadow-[var(--shadow-artboard)]">
+        <p className="px-1 text-xs">{handle}</p>
+        <div className="mt-2 aspect-4/5 overflow-hidden rounded-2xl bg-linear-to-b from-[#2a6a64] to-[#161410]">
+          {imageSrc ? (
+            <img src={imageSrc} alt="" className="size-full object-cover" />
+          ) : (
+            <div className="flex size-full flex-col justify-end p-4">
+              <p className="font-display text-xl leading-snug">{hook}</p>
+            </div>
+          )}
+        </div>
+        <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap px-1 font-sans text-[11px] leading-relaxed text-[#f3eee4]/90">
+          {caption}
+        </pre>
+      </div>
+    </div>
   );
 }
 

@@ -1,6 +1,32 @@
 import { HOOK_BANK, HASHTAG_BANK } from "../club/identity.ts";
-import type { CampaignPlan, CreativeDirection, ReelsBeat, StoryFrame, StudentSim } from "../studio/types.ts";
+import type { CampaignPlan, CopyTone, CreativeDirection, ReelsBeat, StoryFrame, StudentSim } from "../studio/types.ts";
 import type { BriefInput } from "./schema.ts";
+
+export function applyStudentRevisions(
+  copy: { tone: CopyTone; hook: string; body: string; cta: string; hashtags: string[] },
+  sim: StudentSim,
+  when?: string,
+  where?: string,
+) {
+  let body = copy.body;
+  if (sim.tooLong) {
+    body = body.split("\n").filter(Boolean).slice(0, 5).join("\n");
+  }
+  if (!sim.knowsWhenWhere) {
+    const line = [when, where].filter(Boolean).join(" · ");
+    if (line && !body.includes(line)) body = `${body}\n${line}`;
+  }
+  if (!sim.wouldBringFriend && !body.includes("朋友")) {
+    body = `${body}\n帶一個朋友來就好。`;
+  }
+  if (!sim.knowsHowToJoin && !/留言|連結|報名/.test(body)) {
+    body = `${body}\n想來的話留言或點連結。`;
+  }
+  if (sim.tooReligious) {
+    body = body.replace(/修行|開示|法會/g, "").replace(/\n{3,}/g, "\n\n");
+  }
+  return { ...copy, body: body.trim() };
+}
 
 export function mockStudentSim(input: {
   hook: string;
