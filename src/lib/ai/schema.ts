@@ -76,6 +76,7 @@ export const BriefInputSchema = z.object({
   preferredCtas: z.string().max(160).optional(),
   imageStyle: z.string().max(400).optional(),
   forceMock: z.boolean().optional(),
+  avoidHook: z.string().max(120).optional(),
 });
 
 export type BriefInput = z.infer<typeof BriefInputSchema>;

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { daysUntil, academicMoment } from "@/lib/club/season";
 import { DuePublishBar } from "@/components/calendar/due-publish-bar";
 import { CalendarThumb } from "@/components/calendar/calendar-thumb";
-import { compactSeasonSteer, featuredHookForNow, learnCardForNow } from "@/lib/club/featured";
+import { compactSeasonSteer, featuredHookForNow, learnCardForNow, sameLivingHook } from "@/lib/club/featured";
 import { clubInsightsFromPosts, nextCreateFromLearn } from "@/lib/club/insights";
 import { gatherIntoStore } from "@/lib/creative/gather-client";
 import { gatherStatusLine, searchCreative } from "@/lib/creative/search";
@@ -83,11 +83,13 @@ export function HomePage() {
         season,
         campaign: featured,
         posts: igPosts,
+        avoidHooks: lastLearn?.hook ? [lastLearn.hook] : [],
       })
     : null;
-  const featuredHook = featuredSuggest?.hook || "最近是不是很久沒有好好坐下來？";
+  const featuredHook = featuredSuggest?.hook || "剛到淡水的時候，好像什麼都還沒開始。";
   const latestPublished = [...igPosts].sort((a, b) => b.takenAt - a.takenAt)[0];
   const learnCard = learnCardForNow({ season, lastLearn });
+  const justLearned = Boolean(lastLearn?.hook && Date.now() - lastLearn.at < 15 * 60 * 1000);
 
   const featuredProject = projects.find((p) => p.id === featured?.projectIds[0]);
   const featuredBoard = featuredProject?.artboards[featuredProject.activeFormatId];
@@ -169,8 +171,15 @@ export function HomePage() {
               </h2>
               <p className="mt-1 text-sm text-muted">{remain > 0 ? `還有 ${remain} 天` : remain === 0 ? "就是今天" : "已過活動日"}</p>
               <p className="mt-5 text-sm text-muted">AI 建議做一篇</p>
-              <p className="mt-1 font-display text-xl leading-snug">「{featuredHook}」</p>
+              <p className="mt-1 font-display text-xl leading-snug" data-featured-hook="">
+                「{featuredHook}」
+              </p>
               {featuredSuggest ? <p className="mt-2 text-xs text-muted">{featuredSuggest.why}</p> : null}
+              {justLearned && lastLearn && !sameLivingHook(featuredHook, lastLearn.hook) ? (
+                <p className="mt-2 text-xs text-muted" data-featured-avoid="">
+                  剛才發過「{lastLearn.hook}」，這次換切入。
+                </p>
+              ) : null}
               <p className="mt-2 text-xs tracking-[0.14em] text-subtle uppercase">IG Carousel</p>
               <div className="mt-6 flex flex-wrap gap-2">
                 <Button onClick={runFeatured} className="min-h-11 rounded-full px-5">

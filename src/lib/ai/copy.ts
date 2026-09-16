@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { clubSystemPrompt, HASHTAG_BANK, HOOK_BANK } from "@/lib/club/identity";
 import { academicMoment } from "@/lib/club/season";
+import { featuredHookForNow, sameLivingHook } from "@/lib/club/featured";
+import { avoidHookFromLearnNotes } from "@/lib/club/insights";
 import type { CopyTone } from "@/lib/studio/types";
 import { extractJson, hasXai, xaiChat } from "./xai";
 import { parseFnInput } from "./parse";
@@ -24,8 +26,13 @@ export type CopyBlock = {
   hashtags: string[];
 };
 
-function mockCopy(topic: string, tone: CopyTone, when?: string, where?: string): CopyBlock {
-  const hook = HOOK_BANK[tone === "humor" ? 6 : 3];
+function mockCopy(topic: string, tone: CopyTone, when?: string, where?: string, avoidHook?: string): CopyBlock {
+  const featured = featuredHookForNow({
+    season: academicMoment(),
+    avoidHooks: avoidHook ? [avoidHook] : [],
+  }).hook;
+  const humor = HOOK_BANK[6];
+  const hook = tone === "humor" && avoidHook && sameLivingHook(humor, avoidHook) ? featured : tone === "humor" ? humor : featured;
   const loc = [when, where].filter(Boolean).join(" · ");
   const bodies: Record<CopyTone, string> = {
     short: `${hook}\n${loc || topic}`,
@@ -48,7 +55,10 @@ export const generateCopy = createServerFn({ method: "POST" })
   .validator((input: unknown) => parseFnInput(CopyInput, input))
   .handler(async ({ data }): Promise<{ ok: true; copies: CopyBlock[] } | { ok: false; error: string }> => {
     const tones: CopyTone[] = data.tone ? [data.tone] : ["short", "normal", "emotional", "student", "life", "humor"];
-    const mocked = () => tones.map((tone) => mockCopy(data.topic, tone, data.when, data.where));
+    const mocked = () => {
+      const avoid = avoidHookFromLearnNotes(data.insightNotes);
+      return tones.map((tone) => mockCopy(data.topic, tone, data.when, data.where, avoid));
+    };
     try {
       if (!hasXai() || data.forceMock) {
         return { ok: true, copies: mocked() };

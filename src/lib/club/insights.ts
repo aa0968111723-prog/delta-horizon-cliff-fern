@@ -147,7 +147,16 @@ export function lastLearnPromptBlock(
 ) {
   if (!learn?.hook) return "";
   const visual = learn.visualLesson ? ` ${learn.visualLesson}` : "";
-  return `上次發布第一句是「${learn.hook}」。下一篇換生活切入，不要重複同一句。${learn.hookLesson} ${learn.mixLesson}${visual}`;
+  return `上次發布第一句是「${learn.hook}」。下一篇換生活切入，不要重複同一句，也不要用坐好／坐下來的同義句。${learn.hookLesson} ${learn.mixLesson}${visual}`;
+}
+
+export function avoidHookFromLearnNotes(notes?: string) {
+  if (!notes?.trim()) return "";
+  const match =
+    notes.match(/上次發布第一句是「([^」]+)」/) ||
+    notes.match(/不要重複「([^」]+)」/) ||
+    notes.match(/不要沿用「([^」]+)」/);
+  return match?.[1]?.trim() ?? "";
 }
 
 export function nextCreateFromLearn(

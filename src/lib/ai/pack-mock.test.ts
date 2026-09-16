@@ -116,3 +116,35 @@ test("student-sim revisions add time and a way to come", () => {
   assert.equal(batch.applied, true);
   assert.ok(batch.copies.every((item) => item.body.includes("9/24")));
 });
+
+test("after publishing 坐好 the mock pack opens on a different hook", () => {
+  const data: BriefInput = {
+    eventName: "茶會",
+    schedule: "9/23 19:30",
+    location: "淡江校園",
+    product: "茶會",
+    offer: "",
+    audience: "淡江大一新生、住宿生",
+    goal: "traffic",
+    features: "燈光、熱茶、坐著就好",
+    style: "生活",
+    notes: "下週有一場茶會",
+    wantPost: true,
+    wantStory: true,
+    wantCarousel: true,
+    wantReels: true,
+    brandName: "淡江大學禪學社",
+    handle: "@tkuzen",
+    voice: "自然",
+    doSay: "淡江",
+    dontSay: "誠摯邀請",
+    forbiddenWords: ["誠摯邀請"],
+    avoidHook: "最近是不是很久沒有好好坐下來？",
+  };
+  const plan = buildZenMockPlan(data, mockDirections("茶會", [data.avoidHook!]));
+  assert.equal(plan.hook.includes("坐好"), false);
+  assert.equal(plan.hook.includes("坐下來"), false);
+  assert.match(plan.hook, /淡水|朋友|課表|休息|風|快樂|捷運/);
+  assert.equal((plan.directions?.[0]?.headline ?? "").includes("坐好"), false);
+  assert.equal((plan.reelsScript?.[0]?.caption ?? "").includes("坐好"), false);
+});

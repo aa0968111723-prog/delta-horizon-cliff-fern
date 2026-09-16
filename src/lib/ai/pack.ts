@@ -3,6 +3,7 @@ import { z } from "zod";
 import { clubSystemPrompt, HASHTAG_BANK } from "@/lib/club/identity";
 import { academicMoment } from "@/lib/club/season";
 import { seasonCreateNote } from "@/lib/club/featured";
+import { avoidHookFromLearnNotes } from "@/lib/club/insights";
 import { resolvePromoEvent } from "@/lib/creative/schedule";
 import type { CampaignPlan, CopyTone, CreativeDirection, SourceRef } from "@/lib/studio/types";
 import { buildZenMockPlan, mockDirections, mockReels, mockStoryFrames, mockStudentSim } from "./pack-mock";
@@ -54,6 +55,7 @@ const PackInput = z.object({
   visionNotes: z.string().max(1600).optional(),
   inspirationNotes: z.string().max(1200).optional(),
   forceMock: z.boolean().optional(),
+  avoidHook: z.string().max(120).optional(),
 });
 
 function briefFromPack(data: z.infer<typeof PackInput>): BriefInput {
@@ -88,6 +90,7 @@ function briefFromPack(data: z.infer<typeof PackInput>): BriefInput {
     slogans: "先坐下來。／不用先懂禪。",
     preferredCtas: "晚上來坐一下／帶一個朋友來就好",
     imageStyle: "夜間三色光、霧亞麻、龜龜配角",
+    avoidHook: data.avoidHook?.trim() || avoidHookFromLearnNotes(data.dnaNotes) || undefined,
   };
 }
 
@@ -132,17 +135,18 @@ export function buildPackFromPlan(
     copyVariants: variantsFromPlan(plan),
     conversions: {
       carousel: plan.carouselPages,
-      story: mockStoryFrames(plan.campaignName, plan.subhead, plan.body),
+      story: mockStoryFrames(plan.campaignName, plan.subhead, plan.body, plan.hook),
       threads: plan.threadsPost || `${plan.hook}\n${plan.subhead}`,
       line: plan.lineCopy || `【${plan.campaignName}】${plan.subhead}\n${plan.hook}`,
-      reels: plan.reelsScript?.length ? plan.reelsScript : mockReels(plan.campaignName, plan.subhead),
+      reels: plan.reelsScript?.length ? plan.reelsScript : mockReels(plan.campaignName, plan.subhead, plan.hook),
     },
     adapter,
   };
 }
 
 function mockPack(query: string, brief: BriefInput, sources: SourceRef[]): CreativePack {
-  const directions = mockDirections(brief.eventName);
+  const avoid = brief.avoidHook ? [brief.avoidHook] : [];
+  const directions = mockDirections(brief.eventName, avoid);
   const plan = buildZenMockPlan(brief, directions);
   plan.sources = sources;
   plan.studentSim = mockStudentSim({
@@ -172,6 +176,7 @@ export const generateCreativePack = createServerFn({ method: "POST" })
 一句話：${brief.features}
 參考來源：${sources.map((s) => s.label).join("、") || "品牌記憶"}
 ${seasonCreateNote(season)}
+${brief.avoidHook ? `上次發布第一句是「${brief.avoidHook}」。下一篇禁止同一句或坐好／坐下來的同義句。` : ""}
 ${data.dnaNotes ? `品牌與 IG DNA：\n${data.dnaNotes}` : ""}
 ${data.visionNotes ? `圖片理解（延續風格，不要複製原圖）：\n${data.visionNotes}` : ""}
 ${data.inspirationNotes ? `靈感抽象（不要抄作品）：\n${data.inspirationNotes}` : ""}
@@ -197,8 +202,8 @@ studentSim{wouldStop,understandable,tooReligious,tooSerious,tooLiterary,tooAi,to
       if (!text) return { ok: true, pack: mockPack(data.query, brief, sources) };
       try {
         const raw = extractJson(text) as CampaignPlan & { directions?: CreativeDirection[] };
-        const fallback = buildZenMockPlan(brief, mockDirections(brief.eventName));
-        const mockDirs = fallback.directions ?? mockDirections(brief.eventName);
+        const fallback = buildZenMockPlan(brief, mockDirections(brief.eventName, brief.avoidHook ? [brief.avoidHook] : []));
+        const mockDirs = fallback.directions ?? mockDirections(brief.eventName, brief.avoidHook ? [brief.avoidHook] : []);
         const plan: CampaignPlan = {
           ...fallback,
           ...raw,

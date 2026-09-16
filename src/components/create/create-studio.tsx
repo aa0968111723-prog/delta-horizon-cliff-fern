@@ -15,7 +15,7 @@ import { analyzeImage, type VisionReport } from "@/lib/ai/vision";
 import { visionPromptBlock } from "@/lib/ai/vision-notes";
 import { clubDnaFromMemory, dnaPromptBlock } from "@/lib/club/dna";
 import { clubInsightsFromPosts, insightsPromptBlock, lastLearnPromptBlock } from "@/lib/club/insights";
-import { seasonCreateNote } from "@/lib/club/featured";
+import { seasonCreateNote, sameLivingHook } from "@/lib/club/featured";
 import { academicMoment } from "@/lib/club/season";
 import { createCanvaDesign, pullCanvaExport, startConnection } from "@/lib/connect/oauth";
 import { buildCanvaKit, canvaDesignIdFromEditUrl, canvaReturnTitle, memoryFromCanvaKit } from "@/lib/connect/canva-kit";
@@ -305,6 +305,7 @@ export function CreateStudio({
             .inspirations.slice(0, 4)
             .map((item) => `${item.pattern} → ${item.clubTurn}`)
             .join("\n"),
+          avoidHook: useCreative.getState().lastLearn?.hook,
         },
       });
       if (!result.ok) {
@@ -1513,8 +1514,13 @@ export function CreateStudio({
             </div>
             <p className="mt-3 text-xs text-muted">{insights.mixLesson}</p>
             {lastLearn?.hook ? (
-              <p className="mt-1 text-xs text-muted">
-                下次會避開重複「{lastLearn.hook}」。{lastLearn.hookLesson}
+              <p
+                className="mt-1 text-xs text-muted"
+                data-learn-avoid={sameLivingHook(pack.plan.hook, lastLearn.hook) ? "pending" : "yes"}
+              >
+                {sameLivingHook(pack.plan.hook, lastLearn.hook)
+                  ? `下次會避開重複「${lastLearn.hook}」。${lastLearn.hookLesson}`
+                  : `這次已避開上次「${lastLearn.hook}」。`}
               </p>
             ) : null}
             {inspirations[0] ? (

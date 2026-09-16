@@ -37,6 +37,34 @@ function firstLine(text: string) {
   return text.split("\n").map((line) => line.trim()).find(Boolean) ?? "";
 }
 
+function fingerprintHook(text: string) {
+  return text
+    .replace(/\s+/g, "")
+    .replace(/[？?。.!！，,、「」""]/g, "")
+    .replace(/是不是/g, "")
+    .replace(/最近/g, "")
+    .replace(/好好/g, "")
+    .replace(/下來/g, "")
+    .replace(/嗎/g, "");
+}
+
+/** 同一句生活切入：坐好／坐下來、有無問號都算重複。 */
+export function sameLivingHook(left: string, right: string) {
+  const a = left.trim();
+  const b = right.trim();
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const fa = fingerprintHook(a);
+  const fb = fingerprintHook(b);
+  if (fa && fb) {
+    if (fa === fb) return true;
+    const shorter = fa.length <= fb.length ? fa : fb;
+    const longer = fa.length <= fb.length ? fb : fa;
+    if (shorter.length >= 4 && longer.includes(shorter)) return true;
+  }
+  return /很久沒/.test(a) && /很久沒/.test(b) && /坐/.test(a) && /坐/.test(b);
+}
+
 /** 過季詞不能拿來當今天的第一句。生活問句沒有學期詞就算通過。 */
 export function hookFitsSeason(text: string, seasonId: AcademicMomentId) {
   for (const [id, pattern] of Object.entries(OTHER_SEASON) as [AcademicMomentId, RegExp][]) {
@@ -68,9 +96,12 @@ export function featuredHookForNow(input: {
   season: AcademicMoment;
   campaign?: Pick<ClubCampaign, "name" | "oneLiner" | "theme" | "studentPain">;
   posts?: Array<Pick<IgMemoryPost, "caption" | "saves" | "comments" | "reach" | "likes" | "shares" | "analysis">>;
+  avoidHooks?: string[];
 }): FeaturedSuggestion {
   const season = input.season;
   const bank = BANK_FOR[season.id] ?? HOOK_BANK;
+  const avoided = (input.avoidHooks ?? []).map((hook) => hook.trim()).filter(Boolean);
+  const blockedBy = (hook: string) => avoided.some((item) => sameLivingHook(hook, item));
   const ranked = [...(input.posts ?? [])]
     .map((post) => ({
       hook: post.analysis?.hook || firstLine(post.caption),
@@ -78,7 +109,7 @@ export function featuredHookForNow(input: {
     }))
     .filter((item) => item.hook && hookFitsSeason(item.hook, season.id));
 
-  const candidates = [
+  const raw = [
     ...ranked.map((item) => ({
       hook: item.hook,
       score: item.score + motifScore(item.hook, input.campaign) + (SEASON_OWN[season.id].test(item.hook) ? 4 : 0),
@@ -91,16 +122,20 @@ export function featuredHookForNow(input: {
     })),
   ].filter((item) => hookFitsSeason(item.hook, season.id));
 
-  candidates.sort((a, b) => b.score - a.score);
-  const picked = candidates[0] ?? {
-    hook: input.campaign?.oneLiner || HOOK_BANK[3],
+  const blocked = raw.filter((item) => blockedBy(item.hook));
+  const open = raw.filter((item) => !blockedBy(item.hook));
+  const pool = open.length ? open : raw.filter((item) => item.hook !== avoided[0]);
+  pool.sort((a, b) => b.score - a.score);
+  const picked = pool[0] ?? {
+    hook: HOOK_BANK.find((hook) => hookFitsSeason(hook, season.id) && !blockedBy(hook)) || input.campaign?.oneLiner || HOOK_BANK[5],
     why: season.contentHint,
   };
+  const why = blocked.length ? "上次發過類似的第一句，換生活切入" : picked.why;
   const name = input.campaign?.name?.trim();
   const query = name
     ? `幫我做 ${name} 完整宣傳。第一句：「${picked.hook}」`
     : `第一句：「${picked.hook}」幫我寫一篇 IG。`;
-  return { hook: picked.hook, why: picked.why, query: query.slice(0, 360) };
+  return { hook: picked.hook, why, query: query.slice(0, 360) };
 }
 
 export function seasonCreateNote(season: AcademicMoment, lastHook?: string) {

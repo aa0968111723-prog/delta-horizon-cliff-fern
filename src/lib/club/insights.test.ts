@@ -9,6 +9,7 @@ import {
   lastLearnFromPosts,
   lastLearnPromptBlock,
   nextCreateFromLearn,
+  avoidHookFromLearnNotes,
 } from "./insights.ts";
 import { academicMoment } from "./season.ts";
 
@@ -42,6 +43,7 @@ test("insights prefer high-save life posts over club invitations", () => {
   assert.match(seasonQuery, /不要沿用/);
   assert.ok(seasonQuery.includes("幫我寫一篇新的 IG"));
   assert.equal(seasonQuery.length <= 360, true);
+  assert.equal(avoidHookFromLearnNotes(nextBlock), "課表有了，人還在趕路。");
   const fromThisPost = lastLearnFromPosts(SEED_IG_POSTS, "淡江大學禪學社誠摯邀請您", 2, {
     caption: "淡江大學禪學社誠摯邀請您蒞臨本週活動。",
     mediaType: "image",

@@ -15,7 +15,7 @@ import { analyzeIgMemoryPost, applyStudentSimToCopy } from "@/lib/club/ig-analyz
 import { captionFromProject } from "@/lib/creative/publish";
 import { coverFromSourceRefs, followPublishedSlot, igGridSlots, upcomingSlotId, upcomingStatusCopy, type IgGridSlot } from "@/lib/creative/ig-feed";
 import { contentKindLabel } from "@/lib/studio/content";
-import { planPreviewSchedule } from "@/lib/creative/schedule";
+import { planPreviewSchedule, displayEventWhen } from "@/lib/creative/schedule";
 import { syncConnectionMemory } from "@/lib/connect/oauth";
 import { uid } from "@/lib/studio/ids";
 import type { IgMemoryPost } from "@/lib/creative/types";
@@ -111,7 +111,7 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
     const report = analyzeIgMemoryPost({
       caption: active.caption,
       mediaType: active.mediaType,
-      when: campaign ? `${campaign.date} ${campaign.time}` : undefined,
+      when: campaign ? displayEventWhen(campaign.date, campaign.time) : undefined,
       where: campaign?.location,
     });
     setDraftAnalysis((prev) => ({
@@ -133,7 +133,7 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
     const nextCopy = applyStudentSimToCopy(
       activeProject.copy,
       shownAnalysis.studentSim,
-      campaign ? `${campaign.date} ${campaign.time}` : undefined,
+      campaign ? displayEventWhen(campaign.date, campaign.time) : undefined,
       campaign?.location,
     );
     setCopy(activeProject.id, {
@@ -146,7 +146,7 @@ export function IgCenter({ focusProjectId }: { focusProjectId?: string }) {
     const report = analyzeIgMemoryPost({
       caption,
       mediaType: active.mediaType,
-      when: campaign ? `${campaign.date} ${campaign.time}` : undefined,
+      when: campaign ? displayEventWhen(campaign.date, campaign.time) : undefined,
       where: campaign?.location,
     });
     setDraftAnalysis((prev) => ({ ...prev, [active.id]: report }));
