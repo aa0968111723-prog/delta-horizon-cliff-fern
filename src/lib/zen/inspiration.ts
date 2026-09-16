@@ -1,3 +1,5 @@
+import type { AcademicBeat } from "./context.ts";
+
 /** Abstracted visual / copy patterns — never a swipe file of other clubs. */
 
 export type InspirationCard = {
@@ -82,4 +84,21 @@ export function ideaFromInspiration(card: InspirationCard): string {
     `形式：${card.form}`,
     `轉成淡江禪學社：${card.zenUse}`,
   ].join("\n");
+}
+
+const BEAT_ORDER: Record<AcademicBeat, string[]> = {
+  orientation: ["friend-seat", "dorm-night", "night-pause", "carousel-breath", "reels-first-seconds", "midterm-breath"],
+  midterm: ["midterm-breath", "night-pause", "carousel-breath", "reels-first-seconds", "friend-seat", "dorm-night"],
+  finals: ["midterm-breath", "night-pause", "reels-first-seconds", "dorm-night", "friend-seat", "carousel-breath"],
+  break: ["dorm-night", "friend-seat", "night-pause", "carousel-breath", "reels-first-seconds", "midterm-breath"],
+  summer: ["friend-seat", "night-pause", "carousel-breath", "dorm-night", "reels-first-seconds", "midterm-breath"],
+  winter: ["night-pause", "dorm-night", "friend-seat", "reels-first-seconds", "carousel-breath", "midterm-breath"],
+  ordinary: ["night-pause", "carousel-breath", "friend-seat", "reels-first-seconds", "dorm-night", "midterm-breath"],
+};
+
+/** Rank inspiration for this week's 淡江節奏 — composition, not a swipe file. */
+export function inspirationForBeat(beat: AcademicBeat): InspirationCard[] {
+  const ids = BEAT_ORDER[beat];
+  const byId = new Map(INSPIRATION.map((card) => [card.id, card]));
+  return ids.map((id) => byId.get(id)).filter((card): card is InspirationCard => Boolean(card));
 }

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { contentKindLabel } from "@/lib/studio/content";
 import { daysUntil, academicBeatLabel, academicBeat } from "@/lib/zen/context";
-import { INSPIRATION, ideaFromInspiration } from "@/lib/zen/inspiration";
+import { ideaFromInspiration, inspirationForBeat } from "@/lib/zen/inspiration";
 import { clubCreativeDna } from "@/lib/zen/dna";
 import { learnFromIg } from "@/lib/zen/insights";
 import { useStudio } from "@/stores/studio-store";
@@ -41,6 +41,8 @@ export function HomePage() {
     [brand, igMemory, campaigns, assets],
   );
   const learning = useMemo(() => learnFromIg(igMemory), [igMemory]);
+  const beat = academicBeat();
+  const inspiration = useMemo(() => inspirationForBeat(beat), [beat]);
 
   const urls = useAssetUrls(assets.map((a) => a.id));
   const heroProject = projects.find((p) => p.campaignId === upcoming?.id) ?? projects[0];
@@ -107,9 +109,9 @@ export function HomePage() {
       ) : null}
 
       <section className="mt-10">
-        <SectionHeader title="今日靈感" hint="研究構圖與 Hook，不要抄別人" />
+        <SectionHeader title="今日靈感" hint={`${academicBeatLabel(beat)} · 研究構圖與 Hook，不要抄別人`} />
         <ul className="flex gap-3 overflow-x-auto pb-1">
-          {INSPIRATION.map((card) => (
+          {inspiration.map((card) => (
             <li key={card.id} className="min-w-[16rem] rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
               <p className="text-sm font-medium">{card.title}</p>
               <p className="mt-2 text-xs text-muted">{card.zenUse}</p>

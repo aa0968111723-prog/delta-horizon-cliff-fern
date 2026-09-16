@@ -4,7 +4,7 @@ import { academicBeat, daysUntil, studentSituation, zenSystemPrompt } from "./co
 import { parseEventDate, parseEventTime } from "./dates.ts";
 import { studentReviewOf } from "./review.ts";
 import { searchCreative } from "./search.ts";
-import { ideaFromInspiration, INSPIRATION } from "./inspiration.ts";
+import { ideaFromInspiration, INSPIRATION, inspirationForBeat } from "./inspiration.ts";
 import { eventKindFromText, suggestWaves } from "./schedule.ts";
 
 test("September mid-month is orientation season for Tamkang", () => {
@@ -183,6 +183,12 @@ test("inspiration idea carries composition not a swipe file", () => {
   assert.match(idea, /構圖/);
   assert.match(idea, /淡江禪學社/);
   assert.doesNotMatch(idea, /抄/);
+});
+
+test("inspirationForBeat puts 開學季 friend-seat first, not a random swipe", () => {
+  const cards = inspirationForBeat("orientation");
+  assert.equal(cards[0]?.id, "friend-seat");
+  assert.ok(cards.length >= 4);
 });
 
 test("parseEventDate reads 2026/09/24 19:00", () => {
