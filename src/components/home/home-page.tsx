@@ -222,7 +222,10 @@ export function HomePage() {
         </section>
 
         <aside className="space-y-3">
-          <div className="rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
+          <Link
+            to="/campaigns"
+            className="block rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)] transition-shadow hover:shadow-[var(--shadow-border-hover)]"
+          >
             <div className="flex items-center gap-2">
               <CalendarDays className="size-5 text-accent" />
               <h2 className="font-display text-lg">接下來的內容節奏</h2>
@@ -242,7 +245,7 @@ export function HomePage() {
                 </li>
               ))}
             </ol>
-          </div>
+          </Link>
           <div className="rounded-2xl bg-surface p-5 shadow-[var(--shadow-border)]">
             <div className="flex items-center gap-2">
               <BrainCircuit className="size-5 text-accent" />
