@@ -67,7 +67,7 @@ export function HomePage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10" data-testid="home-ready">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-nav md:px-8 md:py-10" data-testid="home-ready">
       <p className="text-xs tracking-[0.2em] text-muted uppercase">淡江大學禪學社</p>
       <p className="mt-2 text-xs text-subtle">{academicBeatLabel(academicBeat())} · 一人完成網宣</p>
       <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl">今天可以創作什麼？</h1>
@@ -108,6 +108,13 @@ export function HomePage() {
                 </span>
               </p>
               <p className="mt-2 text-sm text-accent-fg/75">IG Carousel · 讓淡江學生覺得這跟自己有關</p>
+              {upcoming.imageAssetId && urls[upcoming.imageAssetId] ? (
+                <img
+                  src={urls[upcoming.imageAssetId]}
+                  alt=""
+                  className="mt-4 size-16 rounded-2xl object-cover sm:hidden"
+                />
+              ) : null}
               <Button
                 className="mt-6 min-h-11 bg-surface text-fg hover:bg-surface-2"
                 onClick={() => {
@@ -125,7 +132,7 @@ export function HomePage() {
                 <ArrowRight className="size-4" />
               </Button>
             </div>
-            <div className="flex items-center justify-center">
+            <div className="hidden items-center justify-center sm:flex">
               {upcoming.imageAssetId && urls[upcoming.imageAssetId] ? (
                 <img
                   src={urls[upcoming.imageAssetId]}

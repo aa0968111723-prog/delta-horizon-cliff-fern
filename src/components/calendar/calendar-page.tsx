@@ -263,7 +263,7 @@ export function CalendarPage() {
           })}
         </div>
       ) : (
-        <ul data-testid="calendar-agenda" className="mt-4 space-y-2">
+        <ul data-testid="calendar-agenda" className="mt-4 space-y-2 pb-8">
           {agenda.map((item) => (
               <li
                 key={item.id}
@@ -326,6 +326,7 @@ export function CalendarPage() {
                             : undefined
                     }
                     onClick={() => void publishItem(item.id)}
+                    className="min-h-11"
                   >
                     發布到 IG
                   </Button>

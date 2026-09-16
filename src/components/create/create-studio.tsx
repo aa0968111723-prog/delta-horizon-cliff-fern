@@ -1379,25 +1379,30 @@ export function CreateStudio() {
             <Input value={location} onChange={(e) => setLocation(e.target.value)} />
           </Field>
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Field label="一句活動介紹">
-            <Input value={oneLiner} onChange={(e) => setOneLiner(e.target.value)} placeholder="最近是不是很久沒有好好坐下來？" />
-          </Field>
-          <Field label="活動主題">
-            <Input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="光、坐下來、朋友…" />
-          </Field>
-          <Field label="學生痛點">
-            <Input value={studentPain} onChange={(e) => setStudentPain(e.target.value)} />
-          </Field>
-          <Field label="報名連結（可空）">
-            <Input value={signupUrl} onChange={(e) => setSignupUrl(e.target.value)} placeholder="https://" />
-          </Field>
-          <div className="sm:col-span-2">
-            <Field label="完整介紹">
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+        <details className="mt-3 rounded-2xl bg-bg/60 px-3 py-2">
+          <summary className="cursor-pointer text-sm text-muted" data-testid="event-details">
+            活動細節（可空，不擋創作）
+          </summary>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Field label="一句活動介紹">
+              <Input value={oneLiner} onChange={(e) => setOneLiner(e.target.value)} placeholder="最近是不是很久沒有好好坐下來？" />
             </Field>
+            <Field label="活動主題">
+              <Input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="光、坐下來、朋友…" />
+            </Field>
+            <Field label="學生痛點">
+              <Input value={studentPain} onChange={(e) => setStudentPain(e.target.value)} />
+            </Field>
+            <Field label="報名連結（可空）">
+              <Input value={signupUrl} onChange={(e) => setSignupUrl(e.target.value)} placeholder="https://" />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="完整介紹">
+                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+              </Field>
+            </div>
           </div>
-        </div>
+        </details>
         <div className="mt-4 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
           <Button disabled={busy} onClick={() => void runKit()}>
             AI 生成完整宣傳
@@ -1415,6 +1420,73 @@ export function CreateStudio() {
           ) : null}
         </div>
       </div>
+
+      {found.length || liveNote ? (
+        <section className="mt-8" data-testid="found-sources">
+          <h2 className="text-sm font-medium">找到 {found.length} 個相關素材</h2>
+          <p className="mt-1 text-xs text-muted" data-testid="live-found-note">
+            可釘選給 AI 當風格參考。來源會標出來。
+            {liveNote ? ` ${liveNote}。` : ""}{" "}
+            {Object.entries(foundGroups)
+              .map(([source, list]) => `${sourceLabelOf(source)} ${list.length}`)
+              .join(" · ")}
+          </p>
+          {Object.entries(foundGroups).map(([source, list]) => (
+            <div key={source} className="mt-3">
+              <h3 className="text-xs tracking-[0.14em] text-muted uppercase">{sourceLabelOf(source)}</h3>
+              <ul className="mt-2 space-y-2">
+                {list.map((hit) => {
+                  const pinnedHit = pinned.some((row) => row.id === hit.id);
+                  const thumb = hit.thumbnail || (hit.assetId ? urls[hit.assetId] : undefined);
+                  return (
+                    <li key={hit.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-surface px-3 py-2 text-sm shadow-[var(--shadow-border)]">
+                      {thumb ? (
+                        <img src={thumb} alt="" data-testid="found-thumb" className="size-12 shrink-0 rounded-xl object-cover" />
+                      ) : (
+                        <span className="size-12 shrink-0 rounded-xl bg-surface-2" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate">{hit.title}</p>
+                        <p className="mt-1 truncate text-xs text-muted">
+                          {sourceLine(hit)} · {hit.subtitle}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={pinnedHit ? "default" : "secondary"}
+                        data-testid={hit.source === "canva" ? "pin-canva" : undefined}
+                        onClick={() => togglePin(hit)}
+                      >
+                        {pinnedHit ? "已參考" : "加入參考"}
+                      </Button>
+                      {hit.url ? (
+                        <Button size="sm" variant="ghost" asChild>
+                          <a href={hit.url} target="_blank" rel="noreferrer">
+                            開啟
+                          </a>
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        data-testid={hit.source === "canva" ? "extend-canva" : undefined}
+                        onClick={() => {
+                          if (!pinnedHit) togglePin(hit);
+                          const nextIdea = `${idea}。延續「${hit.title}」的品牌 DNA，做新的活動，不要複製舊作品。`;
+                          setIdea(nextIdea);
+                          void runKit(nextIdea);
+                        }}
+                      >
+                        延伸新設計
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </section>
+      ) : null}
 
       <section className="mt-8" data-testid="inspiration-research">
         <h2 className="text-sm font-medium">這次抽象自：{research.cards[0]?.title}</h2>
@@ -1796,73 +1868,6 @@ export function CreateStudio() {
           onSwapVisual={(kind) => swapWaveVisual(kind)}
           onApplyDraft={applyWaveCopy}
         />
-      ) : null}
-
-      {found.length ? (
-        <section className="mt-8" data-testid="found-sources">
-          <h2 className="text-sm font-medium">找到 {found.length} 個相關素材</h2>
-          <p className="mt-1 text-xs text-muted" data-testid="live-found-note">
-            可釘選給 AI 當風格參考。來源會標出來。
-            {liveNote ? ` ${liveNote}。` : ""}{" "}
-            {Object.entries(foundGroups)
-              .map(([source, list]) => `${sourceLabelOf(source)} ${list.length}`)
-              .join(" · ")}
-          </p>
-          {Object.entries(foundGroups).map(([source, list]) => (
-            <div key={source} className="mt-3">
-              <h3 className="text-xs tracking-[0.14em] text-muted uppercase">{sourceLabelOf(source)}</h3>
-              <ul className="mt-2 space-y-2">
-                {list.map((hit) => {
-                  const pinnedHit = pinned.some((row) => row.id === hit.id);
-                  const thumb = hit.thumbnail || (hit.assetId ? urls[hit.assetId] : undefined);
-                  return (
-                    <li key={hit.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-surface px-3 py-2 text-sm shadow-[var(--shadow-border)]">
-                      {thumb ? (
-                        <img src={thumb} alt="" data-testid="found-thumb" className="size-12 shrink-0 rounded-xl object-cover" />
-                      ) : (
-                        <span className="size-12 shrink-0 rounded-xl bg-surface-2" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate">{hit.title}</p>
-                        <p className="mt-1 truncate text-xs text-muted">
-                          {sourceLine(hit)} · {hit.subtitle}
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant={pinnedHit ? "default" : "secondary"}
-                        data-testid={hit.source === "canva" ? "pin-canva" : undefined}
-                        onClick={() => togglePin(hit)}
-                      >
-                        {pinnedHit ? "已參考" : "加入參考"}
-                      </Button>
-                      {hit.url ? (
-                        <Button size="sm" variant="ghost" asChild>
-                          <a href={hit.url} target="_blank" rel="noreferrer">
-                            開啟
-                          </a>
-                        </Button>
-                      ) : null}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        data-testid={hit.source === "canva" ? "extend-canva" : undefined}
-                        onClick={() => {
-                          if (!pinnedHit) togglePin(hit);
-                          const nextIdea = `${idea}。延續「${hit.title}」的品牌 DNA，做新的活動，不要複製舊作品。`;
-                          setIdea(nextIdea);
-                          void runKit(nextIdea);
-                        }}
-                      >
-                        延伸新設計
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </section>
       ) : null}
 
       <p className="mt-8 text-xs text-subtle">來源會標成 Google Drive / Canva / Instagram / AI Generated。沒連接時先用品牌記憶與本機素材。</p>
