@@ -812,7 +812,7 @@ export function CreatePage({ search }: { search: CreateSearch }) {
       ) : null}
 
       {/* 想法與活動資訊 */}
-      <section className="mt-6 space-y-4 rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)] md:p-5">
+      <section className="glass mt-6 space-y-4 rounded-2xl p-4 md:p-5">
         <div>
           <Label htmlFor="idea">一句想法</Label>
           <textarea

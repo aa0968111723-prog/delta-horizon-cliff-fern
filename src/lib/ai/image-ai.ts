@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { uid } from "@/lib/studio/ids";
+import type { AssetInsight } from "@/lib/studio/types";
 import { VISUAL_ANCHORS } from "@/lib/zen/club";
 import { z } from "zod";
+import { localImageAnalysis } from "./image-local";
 import { buildEditPayload, buildGeneratePayload, hitToDataUrl, imagineResultFromBody } from "./imagine-request";
 import { aiAvailable, buildZenContext, extractJson, zenChat } from "./zen-context";
 
@@ -275,10 +277,16 @@ export const editImage = createServerFn({ method: "POST" })
 const VisionSchema = z.object({
   imageUrl: z.string().min(1).max(3_000_000),
   question: z.string().max(600).catch(""),
+  name: z.string().max(120).catch(""),
+  category: z.string().max(40).catch(""),
+  tags: z.array(z.string().max(40)).max(20).catch([]),
+  licenseNotes: z.string().max(400).catch(""),
+  source: z.string().max(40).catch(""),
   audienceIds: z.array(z.string().max(40)).max(8).catch([]),
   brandMemoryText: z.string().max(2500).optional(),
   igDnaText: z.string().max(1500).optional(),
   insightsText: z.string().max(1200).optional(),
+  forceLocal: z.boolean().optional(),
 });
 
 const VisionJsonSchema = z.object({
@@ -305,15 +313,43 @@ const VisionJsonSchema = z.object({
 export type ImageAnalysis = z.infer<typeof VisionJsonSchema>;
 
 export type VisionResult =
-  | { ok: true; analysis: ImageAnalysis }
-  | { ok: false; error: string };
+  | { ok: true; analysis: ImageAnalysis; adapter: "live" | "local" }
+  | { ok: false; error: string; analysis: ImageAnalysis; adapter: "local" };
 
-/** 圖片理解：丟一張照片、歷屆海報、IG 截圖或 Canva 設計進來，AI 讀它。 */
+function localVision(data: z.infer<typeof VisionSchema>): ImageAnalysis {
+  return VisionJsonSchema.parse(
+    localImageAnalysis({
+      name: data.name,
+      category: data.category,
+      tags: data.tags,
+      licenseNotes: data.licenseNotes,
+      question: data.question,
+      source: data.source,
+    }),
+  );
+}
+
+export function insightFromAnalysis(analysis: ImageAnalysis, adapter: "live" | "local"): AssetInsight {
+  return {
+    summary: analysis.summary,
+    stylePrompt: analysis.stylePrompt,
+    captionIdea: analysis.captionIdea,
+    tooReligious: analysis.tooReligious,
+    tooAi: analysis.tooAi,
+    fitsTku: analysis.fitsTku,
+    nextSteps: analysis.nextSteps,
+    analyzedAt: Date.now(),
+    source: adapter,
+  };
+}
+
+/** 圖片理解：丟一張照片、歷屆海報、IG 截圖或 Canva 設計進來。沒有金鑰就走標過的本機規則。 */
 export const analyzeImage = createServerFn({ method: "POST" })
   .validator((input: unknown) => unwrap(input, VisionSchema))
   .handler(async ({ data }): Promise<VisionResult> => {
-    if (!aiAvailable()) {
-      return { ok: false, error: "這個環境沒有連上圖片理解服務。" };
+    const fallback = localVision(data);
+    if (data.forceLocal || !aiAvailable()) {
+      return { ok: true, analysis: fallback, adapter: "local" };
     }
     const prompt = [
       buildZenContext({
@@ -345,11 +381,16 @@ export const analyzeImage = createServerFn({ method: "POST" })
       temperature: 0.5,
     });
     if (!res.ok) {
-      return { ok: false, error: res.error === "no-key" ? "目前沒有連上 AI" : res.error };
+      return {
+        ok: false,
+        error: res.error === "no-key" ? "目前沒有連上 AI，先用本機規則。" : res.error,
+        analysis: fallback,
+        adapter: "local",
+      };
     }
     try {
-      return { ok: true, analysis: VisionJsonSchema.parse(extractJson(res.text)) };
+      return { ok: true, analysis: VisionJsonSchema.parse(extractJson(res.text)), adapter: "live" };
     } catch {
-      return { ok: false, error: "AI 回傳無法解析。" };
+      return { ok: false, error: "AI 回傳無法解析，先用本機規則。", analysis: fallback, adapter: "local" };
     }
   });

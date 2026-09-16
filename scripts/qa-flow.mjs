@@ -337,9 +337,17 @@ try {
   record("做成這篇自動文案", madeDrafts, "做成這篇之後沒有自動寫文案");
   await page.screenshot({ path: `${prefix}-from-wave.png` });
 
-  // 8b. 從一張圖片 → 不用先分析就能做成限動；改這張圖要看得到
+  // 8b. 從一張圖片：示範照片會自動用本機規則分析；上傳圖也能直接做成限動
   await page.goto(`${base}/create?from=image`, { waitUntil: "networkidle" });
   await expectText("從一張圖片", "圖片理解");
+  await page.waitForSelector('button[aria-label="分析 淡水河傍晚"]', { timeout: 15000 });
+  await tap(page.getByRole("button", { name: "分析 淡水河傍晚" }));
+  await page.waitForSelector("text=本機規則", { timeout: 20000 });
+  await expectText("圖片本機規則", "本機規則");
+  await expectText("圖片適合淡江", "適合淡江學生");
+  await expectText("圖片不會太宗教", "不會太宗教");
+  await expectText("圖片沒看像素", "沒有真的看像素");
+  await page.screenshot({ path: `${prefix}-image-analysis.png` });
   const tinyPng = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mP8z8BQz0AEYBxVSF+FAP5FDvcfRYWgAAAAAElFTkSuQmCC",
     "base64",

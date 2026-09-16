@@ -75,3 +75,10 @@ test("export falls back to seedSrc when IndexedDB has no displayable image", () 
   assert.equal(pickExportImageSource(png)?.kind, "blob");
   assert.equal(pickExportImageSource(undefined), null);
 });
+
+test("logos and 龜龜 are stamps; campus photos are hero candidates", () => {
+  assert.equal(isStampAsset({ kind: "logo", category: "logo" }), true);
+  assert.equal(isStampAsset({ kind: "logo", category: "mascot" }), true);
+  assert.equal(isStampAsset({ kind: "image", category: "campus" }), false);
+  assert.equal(isStampAsset({ kind: "image", category: "photo" }), false);
+});

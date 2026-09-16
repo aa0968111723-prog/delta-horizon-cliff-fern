@@ -19,7 +19,7 @@ export function StudentReviewPanel({
   const risks = review.items.filter((item) => item.verdict === "risk");
 
   return (
-    <section className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+    <section className="glass rounded-2xl p-4">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="flex size-9 items-center justify-center rounded-xl bg-[color-mix(in_oklab,var(--color-night)_16%,transparent)] text-[var(--color-night)]">

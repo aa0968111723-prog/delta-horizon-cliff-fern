@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { analyzeImage, generateImage } from "@/lib/ai/image-ai";
+import { analyzeImage, generateImage, insightFromAnalysis } from "@/lib/ai/image-ai";
 import { formatBrandMemory, toggleLegacyAssetId } from "@/lib/studio/brand";
 import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
 import { ASSET_CATEGORIES, assetPreviewFitClass, kindFromCategory, similarAssets, sourceLabel, usageLabel } from "@/lib/studio/assets";
@@ -91,6 +91,11 @@ export function AssetDetailSheet({
         data: {
           imageUrl,
           question: "這張圖適不適合禪學社網宣？可以怎麼延續？",
+          name: current.name,
+          category: current.category,
+          tags: current.tags,
+          licenseNotes: current.licenseNotes,
+          source: current.source,
           brandMemoryText: brand ? formatBrandMemory(brand.memory, assets) : undefined,
           igDnaText: igDnaText || undefined,
           insightsText: insightsText || undefined,
@@ -98,21 +103,11 @@ export function AssetDetailSheet({
       });
       if (!res.ok) {
         toast.warning(res.error);
-        return;
       }
       updateAsset(current.id, {
-        insight: {
-          summary: res.analysis.summary,
-          stylePrompt: res.analysis.stylePrompt,
-          captionIdea: res.analysis.captionIdea,
-          tooReligious: res.analysis.tooReligious,
-          tooAi: res.analysis.tooAi,
-          fitsTku: res.analysis.fitsTku,
-          nextSteps: res.analysis.nextSteps,
-          analyzedAt: Date.now(),
-        },
+        insight: insightFromAnalysis(res.analysis, res.adapter),
       });
-      toast.success("已讀完這張圖");
+      toast.success(res.adapter === "local" ? "已用本機規則讀完這張圖" : "已讀完這張圖");
     } catch {
       toast.error("讀圖時出錯了。");
     } finally {
@@ -200,6 +195,10 @@ export function AssetDetailSheet({
           <p className="text-sm font-medium">AI 怎麼用這張</p>
           {asset.insight ? (
             <div className="mt-2 space-y-1.5 text-xs text-muted">
+              <p>
+                {asset.insight.source === "live" ? "AI 看圖" : "本機規則"}
+                {asset.insight.source === "local" ? "（依名稱、分類與標籤，不是線上模型看圖）" : ""}
+              </p>
               <p>{asset.insight.summary}</p>
               {asset.insight.captionIdea ? <p>文案想法：{asset.insight.captionIdea}</p> : null}
               <p>

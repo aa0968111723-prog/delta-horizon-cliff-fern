@@ -187,6 +187,8 @@ export type AssetInsight = {
   fitsTku: boolean;
   nextSteps: string[];
   analyzedAt: number;
+  /** live = 線上模型看圖；local = 本機規則依名稱／分類／標籤。 */
+  source?: "live" | "local";
 };
 
 export type AssetMeta = {

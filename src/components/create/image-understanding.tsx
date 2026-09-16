@@ -2,11 +2,12 @@ import { AlertTriangle, CheckCircle2, Eye, Loader2, PenLine, Repeat2, Upload } f
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ImageRevisionBar } from "@/components/create/image-revision";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { analyzeImage, type ImageAnalysis } from "@/lib/ai/image-ai";
+import { analyzeImage, insightFromAnalysis, type ImageAnalysis } from "@/lib/ai/image-ai";
 import { formatBrandMemory } from "@/lib/studio/brand";
 import { assetPreviewFitClass } from "@/lib/studio/assets";
-import type { AssetInsight, ContentKind } from "@/lib/studio/types";
+import type { AssetInsight, AssetMeta, ContentKind } from "@/lib/studio/types";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { useIgDnaText, useIgInsightsText } from "@/hooks/use-ig-dna";
 import { cn } from "@/lib/utils";
@@ -94,8 +95,10 @@ export function ImageUnderstanding({
   const [busy, setBusy] = useState(false);
   const [making, setMaking] = useState<ContentKind | null>(null);
   const [analysis, setAnalysis] = useState<ImageAnalysis | null>(null);
+  const [adapter, setAdapter] = useState<"live" | "local" | null>(null);
   const [cachedInsight, setCachedInsight] = useState(false);
   const primed = useRef(false);
+  const runGen = useRef(0);
 
   useEffect(() => {
     if (primed.current || !initialAssetId) return;
@@ -104,12 +107,18 @@ export function ImageUnderstanding({
     void pickAsset(initialAssetId);
   }, [initialAssetId, urls]);
 
+  function metaFor(assetId: string | null | undefined): Pick<AssetMeta, "name" | "category" | "tags" | "licenseNotes" | "source"> | undefined {
+    if (!assetId) return undefined;
+    return assets.find((item) => item.id === assetId);
+  }
+
   async function pickFile(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
       setPreview(String(reader.result));
       setPickedAssetId(null);
       setAnalysis(null);
+      setAdapter(null);
       setCachedInsight(false);
     };
     reader.readAsDataURL(file);
@@ -123,12 +132,21 @@ export function ImageUnderstanding({
       const blob = await res.blob();
       const reader = new FileReader();
       reader.onload = () => {
-        setPreview(String(reader.result));
+        const dataUrl = String(reader.result);
+        setPreview(dataUrl);
         setPickedAssetId(assetId);
         const asset = assets.find((item) => item.id === assetId);
         const cached = asset?.insight;
-        setAnalysis(cached ? analysisFromInsight(cached) : null);
-        setCachedInsight(Boolean(cached));
+        if (cached) {
+          setAnalysis(analysisFromInsight(cached));
+          setAdapter(cached.source === "live" ? "live" : "local");
+          setCachedInsight(true);
+          return;
+        }
+        setAnalysis(null);
+        setAdapter(null);
+        setCachedInsight(false);
+        void run({ silent: true, previewUrl: dataUrl, assetId });
       };
       reader.readAsDataURL(blob);
     } catch {
@@ -136,46 +154,48 @@ export function ImageUnderstanding({
     }
   }
 
-  async function run() {
-    if (!preview) {
-      toast.error("先選一張圖片。");
+  async function run(opts?: { silent?: boolean; previewUrl?: string; assetId?: string | null }) {
+    const imageUrl = opts?.previewUrl ?? preview;
+    const assetId = opts?.assetId !== undefined ? opts.assetId : pickedAssetId;
+    if (!imageUrl) {
+      if (!opts?.silent) toast.error("先選一張圖片。");
       return;
     }
+    const gen = ++runGen.current;
     setBusy(true);
     try {
+      const asset = metaFor(assetId);
       const res = await analyzeImage({
         data: {
-          imageUrl: preview,
+          imageUrl,
+          name: asset?.name,
+          category: asset?.category,
+          tags: asset?.tags,
+          licenseNotes: asset?.licenseNotes,
+          source: asset?.source,
           audienceIds,
           brandMemoryText: brand ? formatBrandMemory(brand.memory, assets) : undefined,
           igDnaText: igDnaText || undefined,
           insightsText: insightsText || undefined,
         },
       });
+      if (gen !== runGen.current) return;
       if (!res.ok) {
-        toast.warning(res.error);
-        return;
+        if (!opts?.silent) toast.warning(res.error);
+      } else if (res.adapter === "local" && !opts?.silent) {
+        toast.info("目前是本機規則，依名稱、分類與標籤判斷，不是線上模型看圖。");
       }
       setAnalysis(res.analysis);
+      setAdapter(res.adapter);
       setCachedInsight(false);
-      if (pickedAssetId) {
-        updateAsset(pickedAssetId, {
-          insight: {
-            summary: res.analysis.summary,
-            stylePrompt: res.analysis.stylePrompt,
-            captionIdea: res.analysis.captionIdea,
-            tooReligious: res.analysis.tooReligious,
-            tooAi: res.analysis.tooAi,
-            fitsTku: res.analysis.fitsTku,
-            nextSteps: res.analysis.nextSteps,
-            analyzedAt: Date.now(),
-          },
-        });
+      if (assetId) {
+        updateAsset(assetId, { insight: insightFromAnalysis(res.analysis, res.adapter) });
       }
     } catch {
-      toast.error("分析圖片時出錯了，再試一次。");
+      if (gen !== runGen.current) return;
+      if (!opts?.silent) toast.error("分析圖片時出錯了，再試一次。");
     } finally {
-      setBusy(false);
+      if (gen === runGen.current) setBusy(false);
     }
   }
 
@@ -197,10 +217,19 @@ export function ImageUnderstanding({
   }
 
   return (
-    <section className="rounded-2xl bg-surface p-4 shadow-[var(--shadow-border)]">
+    <section className="glass rounded-2xl p-4">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-medium">圖片理解</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium">圖片理解</p>
+            {adapter === "local" ? (
+              <Badge data-testid="image-analysis-source">本機規則</Badge>
+            ) : adapter === "live" ? (
+              <Badge variant="accent" data-testid="image-analysis-source">
+                AI 看圖
+              </Badge>
+            ) : null}
+          </div>
           <p className="text-xs text-muted">照片、歷屆海報、IG 截圖、Canva 設計都可以。</p>
         </div>
         <div className="flex gap-2">
@@ -219,7 +248,7 @@ export function ImageUnderstanding({
             <Upload className="size-4" />
             上傳圖片
           </Button>
-          <Button size="sm" onClick={run} disabled={busy || !preview}>
+          <Button size="sm" onClick={() => void run()} disabled={busy || !preview}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}
             AI 分析
           </Button>
@@ -234,6 +263,7 @@ export function ImageUnderstanding({
               <li key={asset.id}>
                 <button
                   type="button"
+                  data-testid={`analyze-asset-${asset.id}`}
                   onClick={() => void pickAsset(asset.id)}
                   className={cn(
                     "size-16 overflow-hidden rounded-xl bg-surface-2 shadow-[var(--shadow-border)]",
@@ -259,9 +289,11 @@ export function ImageUnderstanding({
         <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,14rem)_1fr]">
           <img src={preview} alt="待分析的圖片" className="w-full rounded-xl bg-surface-2 object-cover" />
           {analysis ? (
-            <div className="min-w-0 space-y-3">
+            <div className="min-w-0 space-y-3" data-testid="image-analysis">
               {cachedInsight ? (
                 <p className="text-xs text-subtle">這張先前分析過。畫面有改再按「AI 分析」。</p>
+              ) : adapter === "local" ? (
+                <p className="text-xs text-subtle">本機規則依名稱、分類與標籤判斷，不是線上模型看圖。</p>
               ) : null}
               <p className="text-sm font-medium">{analysis.summary}</p>
 
@@ -312,7 +344,11 @@ export function ImageUnderstanding({
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted">選好圖就可以直接做成限動、輪播或 Reels 封面。想知道適不適合淡江學生，再按「AI 分析」。</p>
+            <p className="text-sm text-muted">
+              {busy
+                ? "正在用本機規則看這張適不適合淡江學生…"
+                : "選好圖就會先用本機規則看適不適合淡江學生。也可以直接做成限動、輪播或 Reels 封面。"}
+            </p>
           )}
         </div>
       ) : null}
@@ -367,6 +403,7 @@ export function ImageUnderstanding({
               setPreview(dataUrl);
               setPickedAssetId(meta.id);
               setAnalysis(null);
+              setAdapter(null);
               setCachedInsight(false);
             }}
           />
