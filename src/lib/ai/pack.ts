@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { CitedSource } from "@/lib/studio/types";
+import { applyStudentRewrite } from "@/lib/zen/review";
 import type { CreativePack } from "@/lib/zen/types";
 import { generateCampaignPlan } from "./campaign";
 import { BriefInputSchema } from "./schema";
@@ -38,7 +39,7 @@ export const generateCreativePack = createServerFn({ method: "POST" })
       citedSources: sources,
       directions: plan.visualDirections,
       plan,
-      copy: {
+      copy: applyStudentRewrite({
         hook: plan.hook,
         body: plan.captions[0]?.text ?? plan.insight,
         cta: plan.cta,
@@ -59,7 +60,7 @@ export const generateCreativePack = createServerFn({ method: "POST" })
           notes: [],
           rewriteHook: "",
         },
-      },
+      }),
     };
     return { ok: true, pack, adapter: result.adapter };
   });

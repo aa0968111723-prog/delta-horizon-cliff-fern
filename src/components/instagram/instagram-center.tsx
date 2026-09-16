@@ -187,6 +187,8 @@ export function InstagramCenter() {
           CTA {IG_DNA.cta.join("／")} · {IG_DNA.hashtags.join(" ")}
         </p>
         <p className="mt-3 text-xs text-muted">有效 Hook：{learned.winningHooks.join("／")}</p>
+        <p className="mt-2 text-sm">{learned.whatWorks}</p>
+        <p className="mt-1 text-xs text-muted">{learned.whatFails}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button size="sm" disabled={dnaBusy} onClick={() => void writeFromDna()}>
             {dnaBusy ? "寫作中…" : "用這個 DNA 寫新文案"}

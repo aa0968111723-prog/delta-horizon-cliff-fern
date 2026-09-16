@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { systemPrompt } from "@/lib/zen/voice";
 import { COPY_STYLES } from "@/lib/zen/voice";
+import { applyStudentRewrite } from "@/lib/zen/review";
 import type { CopyPack } from "@/lib/zen/types";
 import { describeAdapter } from "./campaign";
 
@@ -96,7 +97,7 @@ export const generateCopyPack = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true; pack: CopyPack; adapter: "live" | "mock" } | { ok: false; error: string; adapter: "live" | "mock" }> => {
     const apiKey = process.env.XAI_API_KEY;
     if (!apiKey || data.forceMock) {
-      return { ok: true, pack: mockCopy(data), adapter: "mock" };
+      return { ok: true, pack: applyStudentRewrite(mockCopy(data)), adapter: "mock" };
     }
     const res = await fetch("https://api.x.ai/v1/chat/completions", {
       method: "POST",
@@ -127,7 +128,7 @@ export const generateCopyPack = createServerFn({ method: "POST" })
     try {
       const parsed = JSON.parse(body.choices?.[0]?.message?.content ?? "{}") as CopyPack;
       if (!parsed.hook) return { ok: false, error: "文案無法解析。", adapter: "live" };
-      return { ok: true, pack: parsed, adapter: "live" };
+      return { ok: true, pack: applyStudentRewrite(parsed), adapter: "live" };
     } catch {
       return { ok: false, error: "文案無法解析。", adapter: "live" };
     }

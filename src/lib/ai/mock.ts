@@ -248,7 +248,7 @@ export function buildMockPlan(data: BriefInput): CampaignPlan {
       wouldBringFriend: "可以。",
       knowsSignup: "CTA 有了，報名連結要補。",
       notes: ["報名方式再具體。"],
-      rewriteHook: "",
+      rewriteHook: isZen ? "最近是不是連休息都覺得有罪惡感？" : "",
     },
     reelsScript: data.wantReels
       ? [

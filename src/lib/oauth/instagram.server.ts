@@ -146,6 +146,24 @@ export async function searchInstagramMedia(query: string): Promise<IgMediaHit[]>
     }));
 }
 
+export async function mediaInsights(
+  mediaId: string,
+  accessToken: string,
+): Promise<{ reach: number; saves: number }> {
+  const url = new URL(`https://graph.instagram.com/v21.0/${encodeURIComponent(mediaId)}/insights`);
+  url.searchParams.set("metric", "reach,saved");
+  url.searchParams.set("access_token", accessToken);
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return { reach: 0, saves: 0 };
+    const json = (await res.json()) as { data?: { name?: string; values?: { value?: number }[] }[] };
+    const pick = (name: string) => Number(json.data?.find((row) => row.name === name)?.values?.[0]?.value ?? 0);
+    return { reach: pick("reach"), saves: pick("saved") };
+  } catch {
+    return { reach: 0, saves: 0 };
+  }
+}
+
 export async function revokeInstagram() {
   const tokens = await readOAuthTokens("instagram");
   if (tokens?.accessToken) {

@@ -1,6 +1,6 @@
-import { addDays, format, startOfMonth, startOfWeek, addMonths, isSameDay, isSameMonth } from "date-fns";
+import { addDays, addWeeks, format, startOfMonth, startOfWeek, addMonths, isSameDay, isSameMonth } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,10 @@ export function CalendarPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [extendBusy, setExtendBusy] = useState<string | null>(null);
   const editing = schedule.find((item) => item.id === editingId);
+
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 640px)").matches) setMode("agenda");
+  }, []);
 
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 });
@@ -111,12 +115,15 @@ export function CalendarPage() {
         }
       />
       <div className="mt-4 flex items-center justify-between">
-        <Button variant="ghost" onClick={() => setCursor(addMonths(cursor, -1))}>
-          上月
+        <Button
+          variant="ghost"
+          onClick={() => setCursor(mode === "month" ? addMonths(cursor, -1) : addWeeks(cursor, -1))}
+        >
+          {mode === "month" ? "上月" : "上週"}
         </Button>
         <p className="font-display text-xl">{format(cursor, "yyyy年M月", { locale: zhTW })}</p>
-        <Button variant="ghost" onClick={() => setCursor(addMonths(cursor, 1))}>
-          下月
+        <Button variant="ghost" onClick={() => setCursor(mode === "month" ? addMonths(cursor, 1) : addWeeks(cursor, 1))}>
+          {mode === "month" ? "下月" : "下週"}
         </Button>
       </div>
       <form
@@ -248,6 +255,20 @@ export function CalendarPage() {
                   <Button size="sm" variant="ghost" onClick={() => setEditingId(item.id)}>
                     改這則
                   </Button>
+                  {item.status !== "published" ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        patchSchedule(item.id, { status: "published", publishedAt: Date.now() });
+                        toast.success("已標記發布，沒有審核流程");
+                      }}
+                    >
+                      標記已發布
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-muted">已發布</p>
+                  )}
                 </div>
               </li>
             ))}

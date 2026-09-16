@@ -169,24 +169,30 @@ export const syncInstagramMemory = createServerFn({ method: "POST" }).handler(as
   if (!tokens?.accessToken) {
     return { ok: false, connected: false, error: "還沒連接 Instagram 官方帳號。" };
   }
-  const { searchInstagramMedia } = await import("@/lib/oauth/instagram.server");
+  const { searchInstagramMedia, mediaInsights } = await import("@/lib/oauth/instagram.server");
   const items = await searchInstagramMedia("");
+  const scored = await Promise.all(
+    items.slice(0, 12).map(async (item) => {
+      const insight = item.id ? await mediaInsights(item.id, tokens.accessToken) : { reach: 0, saves: 0 };
+      return {
+        id: `ig_${item.id}`,
+        caption: item.caption,
+        mediaType: igMediaKind(item.mediaType),
+        postedAt: item.timestamp ? Date.parse(item.timestamp) : Date.now(),
+        likes: item.likes ?? 0,
+        comments: item.comments ?? 0,
+        saves: insight.saves,
+        reach: insight.reach,
+        permalink: item.permalink,
+        mediaUrl: item.thumbnail,
+        hook: item.caption.split("\n")[0]?.slice(0, 40) || "IG 貼文",
+      };
+    }),
+  );
   return {
     ok: true,
     connected: true,
-    posts: items.map((item) => ({
-      id: `ig_${item.id}`,
-      caption: item.caption,
-      mediaType: igMediaKind(item.mediaType),
-      postedAt: item.timestamp ? Date.parse(item.timestamp) : Date.now(),
-      likes: item.likes ?? 0,
-      comments: item.comments ?? 0,
-      saves: 0,
-      reach: 0,
-      permalink: item.permalink,
-      mediaUrl: item.thumbnail,
-      hook: item.caption.split("\n")[0]?.slice(0, 40) || "IG 貼文",
-    })),
+    posts: scored,
   };
 });
 

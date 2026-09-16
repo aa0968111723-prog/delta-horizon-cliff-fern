@@ -1,6 +1,8 @@
 import { uid } from "../studio/ids.ts";
 import type { ContentKind, ProjectStatus } from "../studio/types.ts";
-import type { ClubCampaign, CampaignType, CampaignWave, ScheduleItem, WaveKind } from "./types.ts";
+import { convertFromPlan } from "./convert.ts";
+import { applyStudentRewrite } from "./review.ts";
+import type { ClubCampaign, CampaignType, CampaignWave, CreativePack, ScheduleItem, WaveKind } from "./types.ts";
 
 const DEFAULT_OFFSETS: Record<WaveKind, number> = {
   tease: -14,
@@ -72,6 +74,39 @@ export function contentKindForWave(kind: WaveKind): ContentKind {
   if (kind === "recap") return "recap";
   if (kind === "countdown") return "countdown";
   return "ig-post";
+}
+
+export function previewForWave(kind: WaveKind, pack: CreativePack): string {
+  const copy = applyStudentRewrite(pack.copy);
+  const converted = convertFromPlan(pack.plan);
+  const direction = pack.directions?.[0];
+  if (kind === "tease") return copy.hook;
+  if (kind === "emotion") return copy.body;
+  if (kind === "key-visual") {
+    return direction
+      ? `${direction.headline}\n${direction.concept}\nPrompt：${direction.imagePrompt}`
+      : converted.carousel[0]?.headline ?? copy.hook;
+  }
+  if (kind === "info") return `${pack.plan.campaignName}\n${pack.plan.subhead}\n${copy.cta}`;
+  if (kind === "reason") return copy.studentReview.wouldBringFriend || converted.carousel.find((page) => page.role === "proof")?.body || copy.body;
+  if (kind === "countdown") return `倒數。${pack.plan.subhead}\n${copy.cta}`;
+  if (kind === "day-of") return converted.story.map((beat) => beat.headline).join(" → ");
+  return `昨天晚上。${copy.hook}`;
+}
+
+export function applyPackToWaves(campaign: ClubCampaign, pack: CreativePack): ClubCampaign {
+  const copy = applyStudentRewrite(pack.copy);
+  return {
+    ...campaign,
+    updatedAt: Date.now(),
+    tagline: copy.hook || campaign.tagline,
+    waves: campaign.waves.map((wave) => ({
+      ...wave,
+      copyPreview: previewForWave(wave.kind, { ...pack, copy }),
+      status: wave.status === "published" || wave.status === "done" ? wave.status : "creating",
+      notes: wave.kind === "key-visual" ? pack.directions?.[0]?.imagePrompt || wave.notes : wave.notes,
+    })),
+  };
 }
 
 export function scheduleItemsFromCampaign(

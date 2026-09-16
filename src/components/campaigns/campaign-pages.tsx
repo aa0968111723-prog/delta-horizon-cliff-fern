@@ -2,14 +2,16 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { PackResult } from "@/components/create/pack-result";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { migrateBrief } from "@/lib/studio/brief";
 import { CAMPAIGN_TYPES } from "@/lib/zen/types";
 import type { CampaignType } from "@/lib/zen/types";
 import { igDnaBlock } from "@/lib/zen/insights";
-import { emptyCampaign, suggestWaves } from "@/lib/zen/schedule";
+import { emptyCampaign, applyPackToWaves, suggestWaves } from "@/lib/zen/schedule";
 import { formatMd } from "@/lib/zen/season";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
@@ -130,6 +132,8 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   const attach = useCreative((s) => s.attachProject);
   const patchWave = useCreative((s) => s.patchWave);
   const upsertCampaign = useCreative((s) => s.upsertCampaign);
+  const lastPack = useCreative((s) => s.lastPack);
+  const setLastPack = useCreative((s) => s.setLastPack);
   const igPosts = useCreative((s) => s.igPosts);
   const [busy, setBusy] = useState(false);
 
@@ -163,7 +167,6 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
           try {
             const { generateCreativePack } = await import("@/lib/ai/pack");
             const { toBriefInput } = await import("@/lib/ai/payload");
-            const { migrateBrief } = await import("@/lib/studio/brief");
             const brief = migrateBrief({
               eventName: campaign.name,
               schedule: `${campaign.date} ${campaign.time}`,
@@ -176,17 +179,13 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
             const result = await generateCreativePack({
               data: toBriefInput(brief, brand, { dnaNotes: igDnaBlock(igPosts) }),
             });
-            if (!result.ok) return;
-            const project = createProject({
-              name: campaign.name,
-              brandId: brand.id,
-              formatId: "feed-portrait",
-              brief,
-              templateId: result.pack.plan.templateId,
-            });
-            applyCampaignPlan(project.id, result.pack.plan, brief);
-            attach(campaign.id, project.id);
-            void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+            if (!result.ok) {
+              toast.error("完整宣傳沒有生成出來");
+              return;
+            }
+            setLastPack(result.pack);
+            upsertCampaign(applyPackToWaves(campaign, result.pack));
+            toast.success("已生成主軸、三個方向、每一波文案。還沒進畫布。");
           } finally {
             setBusy(false);
           }
@@ -210,13 +209,49 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
       >
         排進日曆
       </Button>
+      {lastPack && lastPack.campaignName === campaign.name ? (
+        <Button
+          variant="ghost"
+          onClick={() => {
+            const brand = brands[0];
+            if (!brand || !lastPack) return;
+            const brief = migrateBrief({
+              eventName: campaign.name,
+              schedule: `${campaign.date} ${campaign.time}`,
+              location: campaign.location,
+              audience: "淡江大學學生",
+              features: campaign.theme,
+              notes: campaign.studentPain,
+              deliverables: { post: true, story: true, carousel: true, reels: true, threads: true, line: true },
+            });
+            const project = createProject({
+              name: campaign.name,
+              brandId: brand.id,
+              formatId: "feed-portrait",
+              brief,
+              templateId: lastPack.plan.templateId,
+            });
+            applyCampaignPlan(project.id, lastPack.plan, brief);
+            attach(campaign.id, project.id);
+            void navigate({ to: "/studio/$projectId", params: { projectId: project.id } });
+          }}
+        >
+          打開畫布
+        </Button>
+      ) : null}
       </div>
+      {lastPack && lastPack.campaignName === campaign.name ? (
+        <section className="mt-6">
+          <PackResult pack={lastPack} />
+        </section>
+      ) : null}
       <ol className="mt-8 space-y-2">
         {campaign.waves.map((wave) => (
           <li key={wave.id} className="rounded-2xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
             <p className="text-xs text-muted">{new Date(wave.scheduledAt).toLocaleString("zh-TW")}</p>
             <p className="text-sm font-medium">{wave.title}</p>
             {wave.copyPreview ? <p className="mt-2 text-sm leading-relaxed">{wave.copyPreview}</p> : null}
+            {wave.notes ? <p className="mt-1 text-xs text-muted">{wave.notes}</p> : null}
             <Button
               className="mt-2"
               size="sm"

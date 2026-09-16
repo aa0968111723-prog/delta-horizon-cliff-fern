@@ -13,6 +13,7 @@ import { toBriefInput } from "@/lib/ai/payload";
 import { migrateBrief } from "@/lib/studio/brief";
 import type { CopyPack } from "@/lib/zen/types";
 import { igDnaBlock } from "@/lib/zen/insights";
+import { applyStudentRewrite } from "@/lib/zen/review";
 import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 
@@ -155,28 +156,20 @@ export function CreateHub() {
             學生視角：停下？{copyPack.studentReview.wouldStop} 宗教？{copyPack.studentReview.tooReligious} AI？
             {copyPack.studentReview.tooAi}
           </p>
-          {copyPack.studentReview.rewriteHook ? (
+          {copyPack.studentReview.rewriteHook && copyPack.studentReview.rewriteHook !== copyPack.hook ? (
             <Button
               className="mt-3"
               size="sm"
               variant="secondary"
               onClick={() =>
-                setCopyPack((current) =>
-                  current
-                    ? {
-                        ...current,
-                        hook: current.studentReview.rewriteHook,
-                        variants: current.variants.map((row) => ({
-                          ...row,
-                          text: row.text.replace(current.hook, current.studentReview.rewriteHook),
-                        })),
-                      }
-                    : current,
-                )
+                setCopyPack((current) => (current ? applyStudentRewrite(current) : current))
               }
             >
               用學生視角改第一句
             </Button>
+          ) : Array.isArray(copyPack.studentReview.notes) &&
+            copyPack.studentReview.notes.some((line) => line.startsWith("原第一句")) ? (
+            <p className="mt-3 text-xs text-muted">已自動改成學生第一句</p>
           ) : null}
         </section>
       ) : null}

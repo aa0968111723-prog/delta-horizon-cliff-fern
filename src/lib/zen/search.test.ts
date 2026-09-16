@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { creativeSearch, expandCreativeQuery, groupSearchHits } from "./search.ts";
-import { scheduleItemsFromCampaign, suggestWaves } from "./schedule.ts";
+import { applyPackToWaves, emptyCampaign, scheduleItemsFromCampaign, suggestWaves } from "./schedule.ts";
 import { convertFromPlan, CONVERT_TARGETS, briefFlagsForTarget, captionForTarget } from "./convert.ts";
 import { hitActionLabel, ideaFromHit, memorySourceFromHit } from "./from-hit.ts";
+import { applyStudentRewrite } from "./review.ts";
 import { migrateStatus } from "../studio/status.ts";
+import { buildMockPlan } from "../ai/mock.ts";
 
 test("migrateStatus maps old studio statuses", () => {
   assert.equal(migrateStatus("draft"), "creating");
@@ -246,4 +248,94 @@ test("scheduleItemsFromCampaign maps waves without owners", () => {
   assert.equal(items.find((row) => row.title.startsWith("今晚"))?.contentKind, "story");
   assert.ok(items.every((row) => row.campaignId === "camp_x"));
   assert.ok(items.every((row) => !("assignee" in row) && !("reviewer" in row)));
+});
+
+test("applyStudentRewrite swaps the first sentence", () => {
+  const next = applyStudentRewrite({
+    hook: "淡江大學禪學社誠摯邀請您",
+    body: "淡江大學禪學社誠摯邀請您來坐。",
+    cta: "晚上見",
+    hashtags: [],
+    variants: [{ style: "一般版", text: "淡江大學禪學社誠摯邀請您來坐。" }],
+    studentReview: {
+      wouldStop: "不會",
+      understandable: "",
+      tooReligious: "太宗教",
+      tooSerious: "",
+      tooLiterary: "",
+      tooAi: "",
+      tooLong: "",
+      knowsWhat: "",
+      knowsWhenWhere: "",
+      wouldBringFriend: "",
+      knowsSignup: "",
+      notes: [],
+      rewriteHook: "最近是不是連休息都覺得有罪惡感？",
+    },
+  });
+  assert.equal(next.hook, "最近是不是連休息都覺得有罪惡感？");
+  assert.match(next.body, /連休息/);
+  assert.ok(next.studentReview.notes.some((line) => line.includes("原第一句")));
+});
+
+test("applyPackToWaves fills every wave without owners", () => {
+  const plan = buildMockPlan({
+    eventName: "浮游禪光",
+    schedule: "9/24 19:30",
+    location: "淡江大學淡水校園",
+    product: "浮游禪光",
+    offer: "",
+    audience: "淡江大學學生",
+    goal: "awareness",
+    features: "三色光",
+    style: "空氣",
+    notes: "",
+    wantPost: true,
+    wantStory: true,
+    wantCarousel: true,
+    wantReels: true,
+    brandName: "淡江大學禪學社",
+    handle: "@tkuzen",
+    voice: "",
+    doSay: "",
+    dontSay: "",
+    forbiddenWords: [],
+  });
+  const camp = emptyCampaign({ name: "浮游禪光", date: "2026-09-24", tagline: "舊句" });
+  camp.waves = suggestWaves({ date: "2026-09-24", type: "light", name: "浮游禪光" });
+  const next = applyPackToWaves(camp, {
+    campaignName: plan.campaignName,
+    insight: plan.insight,
+    studentContext: "淡江大學學生",
+    foundCount: 3,
+    citedSources: [],
+    directions: plan.visualDirections,
+    plan,
+    copy: {
+      hook: plan.hook,
+      body: plan.captions[0]?.text ?? "",
+      cta: plan.cta,
+      hashtags: plan.hashtags,
+      variants: plan.captions,
+      studentReview: plan.studentReview ?? {
+        wouldStop: "",
+        understandable: "",
+        tooReligious: "",
+        tooSerious: "",
+        tooLiterary: "",
+        tooAi: "",
+        tooLong: "",
+        knowsWhat: "",
+        knowsWhenWhere: "",
+        wouldBringFriend: "可以找朋友。",
+        knowsSignup: "",
+        notes: [],
+        rewriteHook: "最近是不是連休息都覺得有罪惡感？",
+      },
+    },
+  });
+  assert.equal(next.waves.length, 8);
+  assert.ok(next.waves.every((wave) => (wave.copyPreview ?? "").length > 0));
+  assert.ok(next.tagline.includes("休息") || next.tagline.includes("坐好"));
+  assert.ok(next.waves.every((wave) => !("assignee" in wave)));
 });
