@@ -63,14 +63,22 @@ export function ReelsPreview({
           </p>
 
           {!playing ? (
-            <button
-              type="button"
-              onClick={onTogglePlay}
-              className="absolute top-1/2 left-1/2 z-[5] flex size-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-night/55 text-night-fg backdrop-blur-sm"
-              aria-label="在畫面裡預覽"
-            >
-              <Play className="size-6 fill-current" />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={onTogglePlay}
+                className="absolute inset-x-0 top-10 bottom-28 z-[4] md:hidden"
+                aria-label="在畫面裡預覽"
+              />
+              <button
+                type="button"
+                onClick={onTogglePlay}
+                className="absolute top-1/2 left-1/2 z-[5] hidden size-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-night/55 text-night-fg backdrop-blur-sm md:flex"
+                aria-label="在畫面裡預覽"
+              >
+                <Play className="size-6 fill-current" />
+              </button>
+            </>
           ) : (
             <button
               type="button"

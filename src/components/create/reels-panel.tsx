@@ -114,7 +114,7 @@ export function ReelsPanel({
         </p>
       ) : (
           <div className="mt-4 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,16.5rem)_1fr] lg:items-start">
-            <div className="mx-auto w-full max-w-[min(16.5rem,100%)]">
+            <div className="mx-auto w-full max-w-[9.5rem] md:max-w-[min(16.5rem,100%)]">
             <ReelsPreview
               beats={beats}
               cover={cover}

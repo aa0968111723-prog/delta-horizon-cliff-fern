@@ -33,6 +33,7 @@ import { type CreateMode, MODE_LABEL, modeToContentType } from "@/lib/zen/create
 import { CONTENT_STATUS, CONTENT_STATUS_ORDER, CONTENT_TYPES, contentTypeLabel, WAVE_ROLES } from "@/lib/zen/labels";
 import { reelsCoverPrompt } from "@/lib/zen/reels";
 import { pickHooks } from "@/lib/zen/voice";
+import { cn } from "@/lib/utils";
 import type { CreateSearch } from "@/routes/create";
 import { useStudio } from "@/stores/studio-store";
 
@@ -550,9 +551,9 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
       ) : null}
 
       <div className="mt-6 grid min-w-0 gap-5 lg:grid-cols-[1.35fr_1fr] lg:items-start">
-        <div className="min-w-0 space-y-5">
+        <div className="flex min-w-0 flex-col gap-5">
           {/* 情境 */}
-          <section className="rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)] md:p-5">
+          <section className={cn("rounded-[24px] bg-surface p-4 shadow-[var(--shadow-border)] md:p-5", isReels && "order-2 lg:order-1")}>
             <h2 className="text-sm font-medium">這篇在講什麼</h2>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <div>
@@ -663,25 +664,28 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
           </section>
 
           {isReels ? (
-            <ReelsPanel
-              beats={content?.reels ?? []}
-              cover={cover}
-              handle={brand.handle}
-              assets={assets}
-              assetUrls={urls}
-              busy={Boolean(busy.conv)}
-              onGenerate={() => void runReels()}
-              onPatchBeat={patchBeat}
-              onGenerateCover={() => {
-                const t = ensureContent();
-                if (!t) return;
-                const prompt = t.imagePrompt.trim() || reelsCoverPrompt(t.visualDirection, t.copy.hook);
-                if (!t.imagePrompt.trim()) updateContent(t.id, { imagePrompt: prompt });
-                void runImage("9:16", prompt);
-              }}
-            />
+            <div className="order-1 lg:order-2">
+              <ReelsPanel
+                beats={content?.reels ?? []}
+                cover={cover}
+                handle={brand.handle}
+                assets={assets}
+                assetUrls={urls}
+                busy={Boolean(busy.conv)}
+                onGenerate={() => void runReels()}
+                onPatchBeat={patchBeat}
+                onGenerateCover={() => {
+                  const t = ensureContent();
+                  if (!t) return;
+                  const prompt = t.imagePrompt.trim() || reelsCoverPrompt(t.visualDirection, t.copy.hook);
+                  if (!t.imagePrompt.trim()) updateContent(t.id, { imagePrompt: prompt });
+                  void runImage("9:16", prompt);
+                }}
+              />
+            </div>
           ) : null}
 
+          <div className="order-3">
           <CopyPanel
             copy={content?.copy ?? { hook: wave?.hook ?? "", body: "", cta: campaign?.cta ?? "", hashtags: [], tone: "normal" }}
             variants={content?.variants ?? []}
@@ -736,6 +740,7 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
               }}
             />
           ) : null}
+          </div>
         </div>
 
         {/* Right rail */}
@@ -743,7 +748,7 @@ export function CreateStudio({ search }: { search: CreateSearch }) {
           {content ? (
             <>
               {isReels ? (
-                <section className="rounded-[24px] bg-night p-5 text-night-fg">
+                <section className="hidden rounded-[24px] bg-night p-5 text-night-fg lg:block">
                   <p className="text-xs tracking-[0.16em] text-night-fg/60 uppercase">拍攝順序</p>
                   <p className="mt-2 font-display text-xl leading-snug">左邊時間軸就是 20 秒。</p>
                   <p className="mt-2 text-sm text-night-fg/75">改字幕、選素材、出封面，然後排進 Calendar。一個人拿手機就能拍。</p>
