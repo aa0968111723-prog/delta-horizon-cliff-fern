@@ -119,6 +119,7 @@ export function CreateStudio({
   mode = "idea",
   campaignId,
   initialAssetId,
+  initialDay,
   connected,
   notice,
 }: {
@@ -127,6 +128,7 @@ export function CreateStudio({
   mode?: string;
   campaignId?: string;
   initialAssetId?: string;
+  initialDay?: string;
   connected?: string;
   notice?: string;
 }) {
@@ -154,6 +156,9 @@ export function CreateStudio({
   const [canvaReturnAssetId, setCanvaReturnAssetId] = useState<string | null>(null);
   const resolvedCampaignId = campaignId ?? createdCampaignId;
   const campaign = resolvedCampaignId ? campaigns.find((c) => c.id === resolvedCampaignId) : undefined;
+  function eventFor(q: string) {
+    return resolvePromoEvent({ query: q, campaign, dayIso: initialDay });
+  }
 
   const [query, setQuery] = useState(initialQuery || starterQuery(mode, campaign?.name));
   const [busy, setBusy] = useState(false);
@@ -281,7 +286,7 @@ export function CreateStudio({
         igPosts: useCreative.getState().igPosts,
         memory: useCreative.getState().memory,
       });
-      const event = resolvePromoEvent({ query: q, campaign });
+      const event = eventFor(q);
       const result = await generateCreativePack({
         data: {
           query: q,
@@ -463,7 +468,7 @@ export function CreateStudio({
   async function runCopy() {
     setBusy(true);
     try {
-      const event = resolvePromoEvent({ query, campaign });
+      const event = eventFor(query);
       const result = await generateCopy({
         data: {
           topic: query,
@@ -525,7 +530,7 @@ export function CreateStudio({
     } else if (lastAsset.current.story) {
       sources.push({ source: "generated", label: "9:16 封面", id: lastAsset.current.story });
     }
-    const event = resolvePromoEvent({ query, campaign });
+    const event = eventFor(query);
     return posterPackFromDirection({
       query,
       direction: chosen,
@@ -710,14 +715,14 @@ export function CreateStudio({
     if (!camp && andSchedule) {
       camp = live.addCampaign({
         name: active.plan.campaignName,
-        date: inferEventDate(query),
+        date: eventFor(query).isoDate || inferEventDate(query),
         type: inferCampaignType(`${query} ${active.plan.campaignName}`),
         oneLiner: active.plan.hook,
         fullIntro: active.plan.body,
         studentPain: active.plan.insight,
         cta: active.plan.cta,
         theme: active.plan.visualTheme,
-        location: campaign?.location ?? "淡江校園",
+        location: campaign?.location ?? eventFor(query).location,
         ...(opts?.single ? { waves: [] } : {}),
       });
       setCreatedCampaignId(camp.id);
@@ -726,7 +731,7 @@ export function CreateStudio({
       ...emptyBrief(),
       eventName: active.plan.campaignName,
       product: active.plan.campaignName,
-      schedule: camp ? displayEventWhen(camp.date, camp.time || "19:30") : resolvePromoEvent({ query }).schedule,
+      schedule: camp ? displayEventWhen(camp.date, camp.time || "19:30") : eventFor(query).schedule,
       location: camp?.location ?? "淡江校園",
       audience: active.studentContext,
       features: active.plan.concept,
@@ -833,14 +838,14 @@ export function CreateStudio({
     if (!camp) {
       camp = live.addCampaign({
         name: active.plan.campaignName,
-        date: inferEventDate(query),
+        date: eventFor(query).isoDate || inferEventDate(query),
         type: inferCampaignType(`${query} ${active.plan.campaignName}`),
         oneLiner: active.plan.hook,
         fullIntro: active.plan.body,
         studentPain: active.plan.insight,
         cta: active.plan.cta,
         theme: active.plan.visualTheme,
-        location: "淡江校園",
+        location: eventFor(query).location,
       });
       setCreatedCampaignId(camp.id);
     }
@@ -1154,6 +1159,7 @@ export function CreateStudio({
         q: query || undefined,
         mode: mode !== "idea" ? mode : undefined,
         campaign: resolvedCampaignId,
+        day: initialDay,
       },
       replace: true,
     });
@@ -1161,7 +1167,7 @@ export function CreateStudio({
 
   function applySimFixes() {
     if (!copy || !sim) return;
-    const event = resolvePromoEvent({ query, campaign });
+    const event = eventFor(query);
     const when = event.schedule || pack?.plan.subhead;
     setCopies((prev) => stampEventWhen(
       prev.map((item) => applyStudentRevisions(item, sim, when, event.location)),
@@ -1201,7 +1207,7 @@ export function CreateStudio({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         className="mt-6 min-h-28 rounded-2xl"
-        placeholder="例如：下週有一場茶會"
+        placeholder={initialDay ? `例如：${displayEventWhen(initialDay)} 茶會` : "例如：下週有一場茶會"}
       />
       <div className="mt-3 flex flex-wrap gap-2">
         <Button onClick={() => void runPack({ skipHero: Boolean(imageSrc) && imageDirId.current === dirId })} disabled={busy} className="min-h-11 rounded-full">

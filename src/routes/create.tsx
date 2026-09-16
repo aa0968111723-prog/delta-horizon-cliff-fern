@@ -8,6 +8,7 @@ type Search = {
   mode?: string;
   campaign?: string;
   asset?: string;
+  day?: string;
   ok?: string;
   notice?: string;
 };
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/create")({
     mode: typeof s.mode === "string" ? s.mode : undefined,
     campaign: typeof s.campaign === "string" ? s.campaign : undefined,
     asset: typeof s.asset === "string" ? s.asset : undefined,
+    day: typeof s.day === "string" ? s.day : undefined,
     ok: typeof s.ok === "string" ? s.ok : undefined,
     notice: typeof s.notice === "string" ? s.notice : undefined,
   }),
@@ -34,6 +36,7 @@ function CreatePage() {
       mode={search.mode}
       campaignId={search.campaign}
       initialAssetId={search.asset}
+      initialDay={search.day}
       connected={search.ok}
       notice={search.notice}
     />

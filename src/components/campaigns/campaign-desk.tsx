@@ -2,7 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { daysUntil } from "@/lib/club/season";
-import { createSearchForWave } from "@/lib/creative/schedule";
+import { createSearchForWave, displayEventWhen } from "@/lib/creative/schedule";
 import { contentKindLabel } from "@/lib/studio/content";
 import { STATUS_META } from "@/lib/studio/status";
 import { useCreative } from "@/stores/creative-store";
@@ -41,7 +41,7 @@ export function CampaignDesk({ campaignId }: { campaignId: string }) {
       </Link>
       <h1 className="mt-2 font-display text-3xl">{campaign.name}</h1>
       <p className="mt-1 text-sm text-muted">
-        {campaign.date} {campaign.time} · {campaign.location} · 還有 {daysUntil(campaign.date)} 天
+        {displayEventWhen(campaign.date, campaign.time)} · {campaign.location} · 還有 {daysUntil(campaign.date)} 天
       </p>
       <p className="mt-4 font-display text-xl">{campaign.oneLiner}</p>
       <p className="mt-2 text-sm leading-relaxed">{campaign.fullIntro}</p>

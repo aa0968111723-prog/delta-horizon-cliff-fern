@@ -8,6 +8,7 @@ import {
   createSearchForWave,
   inferEventDate,
   displayEventWhen,
+  displayDay,
   eventWhenFromQuery,
   resolvePromoEvent,
   isoFromMs,
@@ -26,6 +27,7 @@ test("inferEventDate reads 下週 and 9/24", () => {
   assert.equal(inferEventDate("下週有一場茶會", from), "2026-09-23");
   assert.equal(inferEventDate("9/24 浮游禪光", from), "2026-09-24");
   assert.equal(displayEventWhen("2026-09-23"), "9/23 19:30");
+  assert.equal(displayDay("2026-09-23"), "9/23");
   assert.equal(displayEventWhen("9/23"), "9/23 19:30");
   assert.equal(displayEventWhen("9/23 19:30"), "9/23 19:30");
   assert.equal(eventWhenFromQuery("下週有一場茶會", from), "9/23 19:30");
@@ -33,7 +35,13 @@ test("inferEventDate reads 下週 and 9/24", () => {
   const tea = resolvePromoEvent({ query: "下週有一場茶會" }, from);
   assert.equal(tea.eventName, "茶會");
   assert.equal(tea.schedule, "9/23 19:30");
+  assert.equal(tea.isoDate, "2026-09-23");
   assert.equal(tea.location, "淡江校園");
+  const fromCal = resolvePromoEvent({ query: "晚上一篇 IG", dayIso: "2026-09-17" }, from);
+  assert.equal(fromCal.schedule, "9/17 19:30");
+  assert.equal(fromCal.isoDate, "2026-09-17");
+  const queryWins = resolvePromoEvent({ query: "下週有一場茶會", dayIso: "2026-09-17" }, from);
+  assert.equal(queryWins.isoDate, "2026-09-23");
 });
 
 test("IG grid titles keep the event name without the format suffix", () => {

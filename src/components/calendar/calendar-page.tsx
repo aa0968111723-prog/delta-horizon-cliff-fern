@@ -8,7 +8,7 @@ import { PublishButton } from "@/components/create/publish-button";
 import { Button } from "@/components/ui/button";
 import { useAssetUrls } from "@/hooks/use-asset-urls";
 import { calendarCoverIds, calendarFrom, rescheduleCalendarItem } from "@/lib/creative/calendar";
-import { createSearchForCalendarItem } from "@/lib/creative/schedule";
+import { createSearchForCalendarItem, displayDay } from "@/lib/creative/schedule";
 import { contentKindLabel } from "@/lib/studio/content";
 import { STATUS_META } from "@/lib/studio/status";
 import { useCreative } from "@/stores/creative-store";
@@ -103,7 +103,7 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
       <p className="mt-2 text-sm text-muted">只服務創作與發布。沒有審核人。桌面可拖曳改日期。</p>
       {focusDay ? (
         <p className="mt-3 rounded-2xl bg-surface px-4 py-3 text-sm shadow-[var(--shadow-border)]">
-          這次排在 {focusDay.slice(5).replace("-", "/")}。Agenda 會亮出來，週視圖從這週看。
+          這次排在 {displayDay(focusDay)}。Agenda 會亮出來，週視圖從這週看。
           {focusProjectId ? (
             <>
               {" "}
@@ -131,7 +131,9 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
           下一檔
         </Button>
         <Button asChild size="sm" variant="secondary">
-          <Link to="/create">快速新增</Link>
+          <Link data-cal-quick="" to="/create" search={{ day: focusDay || format(cursor, "yyyy-MM-dd") }}>
+            快速新增
+          </Link>
         </Button>
       </div>
 
@@ -303,7 +305,12 @@ export function CalendarPage({ focusDay }: { focusDay?: string }) {
                     </div>
                   ))
                 ) : (
-                  <p className="mt-1 text-xs text-subtle">這天還沒排</p>
+                  <p className="mt-1 text-xs text-subtle">
+                    這天還沒排。{" "}
+                    <Link to="/create" search={{ day: iso }} className="text-accent underline-offset-2 hover:underline">
+                      這天發一篇
+                    </Link>
+                  </p>
                 )}
               </li>
             );
@@ -379,7 +386,7 @@ function AgendaRow({
         focused && "ring-2 ring-primary",
       )}
     >
-      <p className="text-xs text-muted">{item.date}</p>
+      <p className="text-xs text-muted">{format(new Date(`${item.date}T12:00:00+08:00`), "M/d EEE", { locale: zhTW })}</p>
       <div className="mt-1 flex items-start gap-3">
         <CalendarThumb item={item} urls={urls} />
         <div className="min-w-0 flex-1">

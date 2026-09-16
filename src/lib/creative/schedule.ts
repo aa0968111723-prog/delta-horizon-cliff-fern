@@ -268,6 +268,23 @@ export function displayEventWhen(isoDate: string, time = "19:30") {
   return `${month}/${day} ${time}`;
 }
 
+/** 月曆／活動列表用，不要讓社團人看 2026-09-23。 */
+export function displayDay(isoDate: string) {
+  const trimmed = isoDate.trim();
+  if (/^\d{1,2}\/\d{1,2}/.test(trimmed)) return trimmed.split(/\s+/)[0] ?? trimmed;
+  const parts = trimmed.split("-");
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  if (!month || !day) return trimmed;
+  return `${month}/${day}`;
+}
+
+function isoDay(value?: string) {
+  const trimmed = value?.trim() ?? "";
+  const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match?.[1] ?? "";
+}
+
 export function eventNameFromQuery(query: string, fallback = "茶會") {
   const q = query.replace(/\s+/g, " ").trim();
   const named = q.match(/浮游禪光|三色光|茶會|坐禪|社課|迎新|招新/);
@@ -291,24 +308,29 @@ export function eventWhenFromQuery(query: string, from = new Date(), time = "19:
   return displayEventWhen(inferEventDate(query, from), time);
 }
 
-/** 沒有 Campaign 時，從「下週有一場茶會」推出名稱、晚上、地點。 */
+/** 沒有 Campaign 時，從「下週有一場茶會」或月曆點進來的那天推出名稱、晚上、地點。 */
 export function resolvePromoEvent(
   input: {
     query: string;
     eventName?: string;
     schedule?: string;
     location?: string;
+    dayIso?: string;
     campaign?: { name?: string; date?: string; time?: string; location?: string } | null;
   },
   from = new Date(),
 ) {
   const campaign = input.campaign;
+  const isoDate =
+    isoDay(campaign?.date) ||
+    (queryMentionsWhen(input.query) ? inferEventDate(input.query, from) : "") ||
+    isoDay(input.dayIso);
+  const time = campaign?.time?.trim() || "19:30";
   return {
     eventName: input.eventName?.trim() || campaign?.name?.trim() || eventNameFromQuery(input.query),
-    schedule:
-      input.schedule?.trim() ||
-      (campaign?.date ? displayEventWhen(campaign.date, campaign.time?.trim() || "19:30") : eventWhenFromQuery(input.query, from)),
+    schedule: input.schedule?.trim() || (isoDate ? displayEventWhen(isoDate, time) : ""),
     location: input.location?.trim() || campaign?.location?.trim() || "淡江校園",
+    isoDate,
   };
 }
 

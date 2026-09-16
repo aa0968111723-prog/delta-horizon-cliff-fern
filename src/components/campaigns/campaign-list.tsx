@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { CAMPAIGN_TYPES, useCreative } from "@/stores/creative-store";
 import type { CampaignType } from "@/lib/creative/types";
 import { daysUntil } from "@/lib/club/season";
+import { displayEventWhen } from "@/lib/creative/schedule";
 
 export function CampaignList() {
   const campaigns = useCreative((s) => s.campaigns);
@@ -63,7 +64,7 @@ export function CampaignList() {
             >
               <p className="font-display text-xl">{c.name}</p>
               <p className="mt-1 text-sm text-muted">
-                {c.date} {c.time} · {c.location} · 還有 {daysUntil(c.date)} 天
+                {displayEventWhen(c.date, c.time)} · {c.location} · 還有 {daysUntil(c.date)} 天
               </p>
               <p className="mt-2 text-sm">{c.oneLiner}</p>
             </Link>
