@@ -13,9 +13,9 @@ export const APP_TAGLINE = "淡江大學禪學社 AI 創作中控台";
 
 /** 三色光：社團視覺核心，暖光／澄光／夜光。 */
 export const THREE_LIGHTS = [
-  { id: "warm", label: "曦光", hex: "#F2A65A", meaning: "陪伴與溫度，用在邀請與人的畫面。" },
+  { id: "warm", label: "曠光", hex: "#F2A65A", meaning: "陪伴與溫度，用在邀請與人的畫面。" },
   { id: "clear", label: "澄光", hex: "#3F9E93", meaning: "安定與專注，主色，用在標題與 CTA。" },
-  { id: "night", label: "夜光", hex: "#5C6B66", meaning: "沉靜與自我探索，用在夜晚與情緒內容。" },
+  { id: "night", label: "夜光", hex: "#5C6BA8", meaning: "沉靜與自我探索，用在夜晚與情緒內容。" },
 ] as const;
 
 export const CLUB_PALETTE = {
@@ -41,7 +41,7 @@ export const CLUB_VOICE =
 
 export const CLUB_DO_SAY = "坐一下、慢下來、喘口氣、認識自己、陪你、第一次來也可以、不用準備什麼";
 
-export const CLUB_DONT_SAY = "誠摯邀請、踊躊參加、洗滌心靈、療癒靈魂、生命的意義、限時名額";
+export const CLUB_DONT_SAY = "誠摯邀請、踴躍參加、洗滌心靈、療癒靈魂、生命的意義、限時名額";
 
 export const CLUB_INTRO_SHORT = "淡江大學禪學社。一週一次，找個位子坐下來，把自己整理一下。";
 
@@ -92,7 +92,7 @@ export function eventKindLabel(id: string): string {
 export const VISUAL_ANCHORS = {
   mood: "明亮、有空氣感、療癒；留白多，不擁擠。",
   lighting: "自然光或夜晚的暖燈，柔和不打硬光。避免高飽和濾鏡與宗教式金光。",
-  palette: "米白紙感底色，三色光（曦光／澄光／夜光）作點綴，一次最多兩個光色。",
+  palette: "米白紙感底色，三色光（曠光／澄光／夜光）作點綴，一次最多兩個光色。",
   composition: "主體偏上或偏一側，下半留白給標題；學生感的日常物件優先。",
   subjects: "校園角落、宮燈大道、克難坡、河邊夕陽、宿舍書桌、熱飲、坐墊、光影、龜龜。",
   avoid: "蓮花、金身佛像、燒香、雲霧仙氣、宗教符號、老氣書法字、AI 感的對稱大光暈。",
