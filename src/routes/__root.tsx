@@ -6,10 +6,10 @@ import { AppShell } from "@/components/shell/app-shell";
 import { StudioProvider } from "@/components/shell/studio-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { APP_NAME, CLUB_NAME } from "@/lib/zen/labels";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "禪學社 Studio";
+const queryClient = new QueryClient();
 
 export const Route = createRootRoute({
   head: () => ({
