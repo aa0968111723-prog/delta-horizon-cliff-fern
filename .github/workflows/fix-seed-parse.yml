@@ -1,0 +1,43 @@
+name: Fix seed.ts seedAsset parse error
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/fix-seed-parse.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Replace unclosed seedAsset({ with {
+        run: |
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path("src/lib/studio/seed.ts")
+          text = p.read_text()
+          needle = "export const SEED_ASSETS: AssetMeta[] = [\n  seedAsset({\n"
+          repl = "export const SEED_ASSETS: AssetMeta[] = [\n  {\n"
+          if needle not in text:
+              if "seedAsset({" not in text:
+                  print("already fixed")
+                  raise SystemExit(0)
+              raise SystemExit("expected seedAsset({ block not found")
+          p.write_text(text.replace(needle, repl, 1))
+          print("patched", p)
+          PY
+      - name: Commit and push
+        run: |
+          git config user.name "Bruce"
+          git config user.email "aa0968111723@gmail.com"
+          git add src/lib/studio/seed.ts
+          git diff --cached --quiet && echo "no change" && exit 0
+          git commit -m "fix(build): close SEED_ASSETS object by dropping leftover seedAsset("
+          git push origin HEAD:main
