@@ -49,7 +49,7 @@ import {
 const SEED_TIME = Date.parse("2026-09-10T20:00:00+08:00");
 
 export const SEED_ASSETS: AssetMeta[] = [
-  seedAsset({
+  {
     id: SEED_LOGO_ID,
     name: "禪光標誌",
     kind: "logo",
