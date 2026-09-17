@@ -32,15 +32,19 @@ export function formatForKind(kind: ContentKind): FormatId {
   return "feed-portrait";
 }
 
+export function kindFromFormat(formatId: FormatId): ContentKind {
+  if (formatId === "story") return "story";
+  if (formatId === "reels-cover") return "reels";
+  if (formatId === "threads") return "threads";
+  if (formatId === "line") return "line";
+  return "ig-post";
+}
+
 export function inferContentKind(project: Pick<Project, "activeFormatId" | "slides" | "contentKind">): ContentKind {
   if (project.contentKind) return project.contentKind;
   const pages = project.slides?.[project.activeFormatId];
   if ((pages?.length ?? 0) > 1) return "carousel";
-  if (project.activeFormatId === "story") return "story";
-  if (project.activeFormatId === "reels-cover") return "reels";
-  if (project.activeFormatId === "threads") return "threads";
-  if (project.activeFormatId === "line") return "line";
-  return "ig-post";
+  return kindFromFormat(project.activeFormatId);
 }
 
 export function migrateStatus(raw?: string | null): ProjectStatus {
