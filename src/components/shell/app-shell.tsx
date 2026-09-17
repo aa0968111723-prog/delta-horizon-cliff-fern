@@ -4,7 +4,6 @@ import {
   Images,
   Instagram,
   Plus,
-  Search,
   Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -13,11 +12,9 @@ import { useState } from "react";
 import { AssistantSheet } from "@/components/assistant/assistant-sheet";
 import { CreateMenu } from "@/components/create/create-menu";
 import { SaveIndicator } from "@/components/shared/save-indicator";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
-import { useState } from "react";
 
 const NAV: { to: string; label: string; icon: LucideIcon; match: string }[] = [
   { to: "/", label: "首頁", icon: Sparkles, match: "home" },
@@ -43,6 +40,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const current = activeKey(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
+
+  function hrefFor(item: (typeof NAV)[number]) {
+    if (item.match === "studio" && lastProjectId) {
+      return { to: "/studio/$projectId" as const, params: { projectId: lastProjectId } };
+    }
+    return { to: item.to };
+  }
 
   return (
     <div className="flex min-h-dvh bg-bg text-fg">
