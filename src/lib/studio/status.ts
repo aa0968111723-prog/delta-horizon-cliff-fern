@@ -1,6 +1,6 @@
 import type { ProjectStatus } from "./types";
 
-export { CONTENT_KIND_META, inferContentKind, migrateStatus } from "./content";
+export { CONTENT_KIND_META, contentKindLabel, inferContentKind, migrateStatus } from "./content";
 
 export const STATUS_META: Record<
   ProjectStatus,
