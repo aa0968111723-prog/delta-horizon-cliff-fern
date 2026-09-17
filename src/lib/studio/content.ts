@@ -16,6 +16,10 @@ export const CONTENT_KINDS: { id: ContentKind; label: string }[] = [
   { id: "knowledge", label: "知識內容" },
 ];
 
+export const CONTENT_KIND_META: Record<ContentKind, { label: string }> = Object.fromEntries(
+  CONTENT_KINDS.map((item) => [item.id, { label: item.label }]),
+) as Record<ContentKind, { label: string }>;
+
 export function contentKindLabel(id: ContentKind) {
   return CONTENT_KINDS.find((item) => item.id === id)?.label ?? id;
 }

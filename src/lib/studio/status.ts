@@ -1,5 +1,7 @@
 import type { ProjectStatus } from "./types";
 
+export { CONTENT_KIND_META, inferContentKind, migrateStatus } from "./content";
+
 export const STATUS_META: Record<
   ProjectStatus,
   { label: string; tone: "default" | "warn" | "success" | "accent" }
