@@ -24,9 +24,8 @@ import { formatById } from "@/lib/studio/formats";
 import { alignBox } from "@/lib/studio/geometry";
 import { uid, uniqueById } from "@/lib/studio/ids";
 import { applyCopyToArtboard, buildLayout, extractImageAssetId } from "@/lib/studio/layout";
-import { inferContentKind, migrateStatus } from "@/lib/studio/content";
+import { CONTENT_KIND_META, inferContentKind, migrateStatus } from "@/lib/studio/content";
 import { inspectProject } from "@/lib/studio/quality";
-import { CONTENT_KIND_META, inferContentKind, migrateStatus } from "@/lib/studio/status";
 import { applyQaFixToPages } from "@/lib/studio/quality-fix";
 import {
   cloneArtboard,
