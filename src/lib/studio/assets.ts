@@ -68,7 +68,7 @@ function inferRemoteOrUpload(raw: Partial<AssetMeta>): AssetSourceKind {
   return "upload";
 }
 
-/** 畫布／卡片預覽：示範素材直接用 public 路徑，不等 IndexedDB。 */
+/** 畫布／卡片預覽：範範素材直接用 public 路徑，不等 IndexedDB。 */
 export function previewUrlForAsset(
   asset: Pick<AssetMeta, "seedSrc">,
   blobUrl?: string | null,
@@ -96,7 +96,7 @@ export function isDisplayableImageBlob(blob: Blob | undefined | null): boolean {
   return false;
 }
 
-/** 匯出畫布時：IndexedDB 裡有可用圖就用 blob，否則退回示範素材的 public 路徑。 */
+/** 匯出畫布時：IndexedDB 裡有可用圖就用 blob，否則退回範範素材的 public 路徑。 */
 export function pickExportImageSource(
   blob: Blob | undefined | null,
   seedSrc?: string,
@@ -177,7 +177,6 @@ export function inferCategory(raw: Partial<AssetMeta>): AssetCategory {
 
 export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: string }): AssetMeta {
   const category = inferCategory(raw);
-  const source = raw.source && SOURCE_IDS.has(raw.source) ? raw.source : "upload";
   return {
     id: raw.id,
     name: raw.name,
@@ -190,7 +189,7 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
     createdAt: raw.createdAt ?? Date.now(),
     updatedAt: raw.updatedAt ?? raw.createdAt ?? Date.now(),
     seedSrc: raw.seedSrc,
-    source: raw.source === "seed" || raw.source === "generated" || raw.source === "upload" ? raw.source : "upload",
+    source: inferAssetSource(raw),
     licenseNotes: raw.licenseNotes ?? "",
     licenseOwner: raw.licenseOwner ?? "",
     favorite: Boolean(raw.favorite),
@@ -199,12 +198,6 @@ export function migrateAsset(raw: Partial<AssetMeta> & { id: string; name: strin
     attribution: raw.attribution ?? "",
     analysisNotes: raw.analysisNotes ?? "",
   };
-}
-
-const ASSET_SOURCE_IDS: AssetSourceKind[] = ["upload", "seed", "generated", "drive", "canva", "instagram"];
-
-function isAssetSource(v: unknown): v is AssetSourceKind {
-  return typeof v === "string" && ASSET_SOURCE_IDS.includes(v as AssetSourceKind);
 }
 
 export function createGeneratedAsset(input: {
