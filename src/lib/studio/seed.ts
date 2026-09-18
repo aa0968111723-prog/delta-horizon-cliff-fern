@@ -1,3 +1,5 @@
+import type { ClubCampaign } from "@/lib/creative/types";
+import { suggestWaves } from "@/lib/creative/schedule";
 import {
   CLUB_CTAS,
   CLUB_DONT_SAY,
@@ -22,24 +24,30 @@ import { DEFAULT_SHADOW } from "./layers";
 import type { AssetMeta, BrandKit, Layer, LineLayer, Project } from "./types";
 
 export {
+  EVENT_DATE,
   SEED_BEANS_ID,
   SEED_BRAND_ID,
+  SEED_CAMPAIGN_ID,
   SEED_CAMPUS_ID,
   SEED_CUP_ID,
   SEED_DRAFT_ID,
   SEED_LIGHT_ID,
   SEED_LOGO_ID,
+  SEED_NIGHT_ID,
   SEED_PROJECT_ID,
   SEED_TAMSUI_ID,
   SEED_TEA_ID,
   SEED_TURTLE_ID,
 } from "./seed-ids";
 import {
+  EVENT_DATE,
   SEED_BRAND_ID,
+  SEED_CAMPAIGN_ID,
   SEED_CAMPUS_ID,
   SEED_DRAFT_ID,
   SEED_LIGHT_ID,
   SEED_LOGO_ID,
+  SEED_NIGHT_ID,
   SEED_PROJECT_ID,
   SEED_TAMSUI_ID,
   SEED_TEA_ID,
@@ -249,7 +257,7 @@ export function createSeedCampaign(): ClubCampaign {
     { date: EVENT_DATE, type: "light", name: "浮游禪光" },
     new Date(SEED_TIME),
   ).map((wave) =>
-    wave.kind === "hero" ? { ...wave, projectId: SEED_PROJECT_ID } : wave,
+    wave.intent === "主視覺" ? { ...wave, projectId: SEED_PROJECT_ID } : wave,
   );
   return {
     id: SEED_CAMPAIGN_ID,
