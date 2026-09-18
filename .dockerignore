@@ -1,0 +1,12 @@
+node_modules
+.git
+.github
+.vercel
+.output
+dist
+screenshots
+.tanstack
+.grok/fonts
+.grok/og-*
+*.log
+npm-debug.log*

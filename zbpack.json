@@ -1,0 +1,4 @@
+{
+  "build_command": "node scripts/build-zeabur.mjs",
+  "start_command": "HOST=0.0.0.0 node .output/server/index.mjs"
+}
