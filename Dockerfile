@@ -1,6 +1,7 @@
-# Zeabur: repo Dockerfile (and any dashboard-injected spec.source.dockerfile)
-# must build with NITRO_PRESET=node-server. vite.config.ts already honors
-# process.env.NITRO_PRESET with a node-server fallback.
+# Production image for Zeabur.
+# Runtime MUST execute the Nitro node-server bundle.
+# `npx vite preview` is forbidden here: Vite blocks public hosts (HTTP 403
+# "This host is not allowed") and the runtime stage has no vite/node_modules.
 FROM node:22-bookworm-slim AS build
 WORKDIR /src
 COPY package.json package-lock.json ./
@@ -18,4 +19,6 @@ ENV NITRO_HOST=0.0.0.0
 ENV PORT=8080
 COPY --from=build /src/.output ./.output
 EXPOSE 8080
-CMD ["node", ".output/server/index.mjs"]
+# PID 1 = Nitro. Do not add vite, npx, or preview in this stage.
+ENTRYPOINT ["node"]
+CMD [".output/server/index.mjs"]
