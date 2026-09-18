@@ -38,7 +38,19 @@ import {
   normalizeArtboard,
   pagesOf,
 } from "@/lib/studio/layers";
-import { SEED_ASSETS, SEED_BRAND, SEED_BRAND_ID, SEED_PROJECT_ID, createSeedDraft, createSeedProject } from "@/lib/studio/seed";
+import {
+  SEED_ASSETS,
+  SEED_BRAND,
+  SEED_BRAND_ID,
+  SEED_PROJECT_ID,
+  createSeedDraft,
+  createSeedProject,
+  SEED_CAMPAIGNS,
+  SEED_DRAFT_ID,
+  SEED_IG_MEMORY,
+  SEED_REMOTE_FILES,
+  SEED_SCHEDULE,
+} from "@/lib/studio/seed";
 import { templateById } from "@/lib/studio/templates";
 import type {
   AlignMode,
@@ -67,6 +79,7 @@ import type {
 } from "@/lib/studio/types";
 
 const STORAGE_KEY = "tamkang-zen-studio-v1";
+const DEFAULT_CONNECTIONS: { provider: string }[] = [];
 const AUTO_SNAP_MS = 20000;
 
 type EditorState = {
@@ -303,7 +316,7 @@ function withPages(project: Project, formatId: FormatId, pages: Artboard[], slid
 }
 
 function migrateScheduleItem(raw: ScheduleItem): ScheduleItem {
-  const seed = SEED_SCHEDULE.find((item) => item.id === raw.id);
+  const seed = (SEED_SCHEDULE ?? []).find((item) => item.id === raw.id);
   return {
     ...raw,
     caption: raw.caption ?? seed?.caption ?? "",
@@ -374,11 +387,11 @@ export const useStudio = create<StudioState>()(
       brands: [SEED_BRAND],
       assets: SEED_ASSETS,
       projects: [createSeedProject(), createSeedDraft()],
-      campaigns: SEED_CAMPAIGNS,
-      schedule: SEED_SCHEDULE,
-      connections: DEFAULT_CONNECTIONS,
-      igMemory: SEED_IG_MEMORY,
-      remoteFiles: SEED_REMOTE_FILES,
+      campaigns: SEED_CAMPAIGNS ?? [],
+      schedule: SEED_SCHEDULE ?? [],
+      connections: DEFAULT_CONNECTIONS ?? [],
+      igMemory: SEED_IG_MEMORY ?? [],
+      remoteFiles: SEED_REMOTE_FILES ?? [],
       lastProjectId: SEED_PROJECT_ID,
       editor: {
         selectedId: null,
@@ -1626,8 +1639,8 @@ export const useStudio = create<StudioState>()(
         const brands = (state.brands ?? []).map(migrateBrandRecord);
         const assets = (state.assets ?? []).map(migrateAssetRecord);
         const projects = (state.projects ?? []).map(migrateProject);
-        let campaigns = (state.campaigns ?? SEED_CAMPAIGNS).map(migrateCampaign);
-        let schedule = (state.schedule ?? SEED_SCHEDULE).map(migrateScheduleItem);
+        let campaigns = (state.campaigns ?? SEED_CAMPAIGNS ?? []).map(migrateCampaign);
+        let schedule = (state.schedule ?? SEED_SCHEDULE ?? []).map(migrateScheduleItem);
         if ((fromVersion ?? 0) < 6) {
           const next = retuneCadence(campaigns, schedule);
           campaigns = next.campaigns;
