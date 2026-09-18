@@ -1,0 +1,27 @@
+name: apply-home-todayswave
+on:
+  push:
+    paths:
+      - .github/workflows/apply-home-todayswave.yml
+      - scripts/patch-home-todayswave.mjs
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove leftover todaysWave suggestion
+        run: node scripts/patch-home-todayswave.mjs
+      - name: Commit patched home page
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/components/home/home-page.tsx
+          if git diff --cached --quiet; then
+            echo no file change
+            exit 0
+          fi
+          git commit -m "fix(ssr): drop leftover todaysWave/focus/localTodayIdeas on home"
+          git push
