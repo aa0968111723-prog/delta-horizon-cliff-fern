@@ -1,0 +1,26 @@
+name: apply-studio-store-seeds
+on:
+  push:
+    paths:
+      - .github/workflows/apply-studio-store-seeds.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch studio-store seed imports
+        run: node scripts/patch-studio-store-seeds.mjs
+      - name: Commit patched store
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/stores/studio-store.ts
+          if git diff --cached --quiet; then
+            echo no file change
+            exit 0
+          fi
+          git commit -m "fix(ssr): bind seed campaigns/schedule/ig/remote in studio-store"
+          git push
