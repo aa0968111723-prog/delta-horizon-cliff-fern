@@ -103,11 +103,6 @@ export function HomePage() {
     });
   }
 
-  const suggestion =
-    todaysWave?.hook ||
-    focus?.painPoint ||
-    localTodayIdeas()[0]?.hook ||
-    "第一次來，會經歷什麼？";
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
