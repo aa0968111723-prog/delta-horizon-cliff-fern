@@ -9,3 +9,6 @@ export const SEED_CAMPUS_ID = "asset_campus_path";
 export const SEED_TAMSUI_ID = "asset_tamsui_dusk";
 export const SEED_CUP_ID = SEED_TEA_ID;
 export const SEED_BEANS_ID = SEED_TAMSUI_ID;
+export const SEED_NIGHT_ID = SEED_LIGHT_ID;
+export const SEED_CAMPAIGN_ID = "camp_float_light";
+export const EVENT_DATE = "2026-09-24";
