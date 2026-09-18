@@ -1,0 +1,93 @@
+name: patch-seed-suggestwaves
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/patch-seed-suggestwaves.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch src/lib/studio/seed.ts
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const path = "src/lib/studio/seed.ts";
+          let src = fs.readFileSync(path, "utf8");
+          const before = src;
+
+          if (!src.includes('from "@/lib/creative/schedule"')) {
+            src = 'import { suggestWaves } from "@/lib/creative/schedule";\n' + src;
+          }
+          if (!src.includes('from "@/lib/creative/types"')) {
+            src = 'import type { ClubCampaign } from "@/lib/creative/types";\n' + src;
+          }
+
+          src = src.replace(
+            /from "\.\/seed-ids";/g,
+            (block, offset) => {
+              // handled below by targeted list edits
+              return block;
+            },
+          );
+
+          function addToNamedImport(src, names) {
+            return src.replace(
+              /import \{([^}]+)\} from "\.\/seed-ids";/g,
+              (full, inner) => {
+                const existing = inner.split(",").map((s) => s.trim()).filter(Boolean);
+                const next = [...existing];
+                for (const name of names) {
+                  if (!next.includes(name)) next.push(name);
+                }
+                next.sort();
+                return "import {\n  " + next.join(",\n  ") + ",\n} from \"./seed-ids\";";
+              },
+            );
+          }
+
+          function addToReexport(src, names) {
+            return src.replace(
+              /export \{([^}]+)\} from "\.\/seed-ids";/g,
+              (full, inner) => {
+                const existing = inner.split(",").map((s) => s.trim()).filter(Boolean);
+                const next = [...existing];
+                for (const name of names) {
+                  if (!next.includes(name)) next.push(name);
+                }
+                next.sort();
+                return "export {\n  " + next.join(",\n  ") + ",\n} from \"./seed-ids\";";
+              },
+            );
+          }
+
+          const extra = ["EVENT_DATE", "SEED_CAMPAIGN_ID", "SEED_NIGHT_ID"];
+          src = addToNamedImport(src, extra);
+          src = addToReexport(src, extra);
+
+          src = src.replace(/wave\.kind === "hero"/g, 'wave.intent === "\u4e3b\u8996\u89ba"');
+
+          if (src === before) {
+            console.log("No changes needed");
+            process.exit(0);
+          }
+          fs.writeFileSync(path, src);
+          console.log("Patched", path);
+          NODE
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/studio/seed.ts
+          if git diff --cached --quiet; then
+            echo "seed.ts already patched"
+          else
+            git commit -m "fix(ssr): import suggestWaves and seed campaign constants"
+            git push
+          fi
