@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { useDuePublishFlush } from "@/components/calendar/due-publish-bar";
 import { hydrateSeedAsset } from "@/lib/studio/assets-idb";
+import { useCreative } from "@/stores/creative-store";
 import { useStudio } from "@/stores/studio-store";
 import { useUi } from "@/stores/ui-store";
 
