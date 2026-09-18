@@ -56,13 +56,13 @@ type FilterId = "all" | AssetCategory | "favorite";
 export function AssetLibrary({ initialAssetId, initialCategory }: { initialAssetId?: string; initialCategory?: string } = {}) {
   const navigate = useNavigate();
   const hydrated = useStudio((s) => s.hydrated);
-  const assets = useStudio((s) => s.assets);
+  const assets = useStudio((s) => s.assets) ?? [];
   const brands = useStudio((s) => s.brands);
   const projects = useStudio((s) => s.projects);
-  const campaigns = useStudio((s) => s.campaigns);
-  const contents = useStudio((s) => s.contents);
+  const campaigns = useStudio((s) => s.campaigns) ?? [];
+  const contents = useStudio((s) => s.contents) ?? [];
   const lastProjectId = useStudio((s) => s.lastProjectId);
-  const remoteFiles = useStudio((s) => s.remoteFiles);
+  const remoteFiles = useStudio((s) => s.remoteFiles) ?? [];
   const addAsset = useStudio((s) => s.addAsset);
   const removeAsset = useStudio((s) => s.removeAsset);
   const toggleFavorite = useStudio((s) => s.toggleFavorite);
@@ -84,7 +84,7 @@ export function AssetLibrary({ initialAssetId, initialCategory }: { initialAsset
   const [liveNote, setLiveNote] = useState("");
 
   const usedIds = useMemo(
-    () => collectUsedAssetIds(projects, brands, [...campaigns, ...contents]),
+    () => collectUsedAssetIds(projects ?? [], brands ?? [], [...(campaigns ?? []), ...(contents ?? [])]),
     [projects, brands, campaigns, contents],
   );
   const brand = brands[0];
