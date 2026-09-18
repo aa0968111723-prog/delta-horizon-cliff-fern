@@ -5,17 +5,18 @@ let src = fs.readFileSync(path, "utf8");
 const orig = src;
 
 if (!src.includes("todaysWave")) {
-  console.log("already patched or no todaysWave");
+  console.log("already patched or todaysWave not found");
   process.exit(0);
 }
 
-const block =
-  /\n  const suggestion =\n    todaysWave\?\.hook \|\|\n    focus\?\.painPoint \|\|\n    localTodayIdeas\(\)\[0\]\?\.hook \|\|\n    "第一次來，會經歷什麼？";\n/;
+const next = src.replace(
+  /\n  const suggestion =\s*\n    todaysWave\?\.hook \|\|\s*\n    focus\?\.painPoint \|\|\s*\n    localTodayIdeas\(\)\[0\]\?\.hook \|\|\s*\n    "第一次來，會經歷什麼？";\n/,
+  "\n",
+);
 
-if (!block.test(src)) {
-  throw new Error("todaysWave present but suggestion block pattern mismatch");
+if (next === src) {
+  throw new Error("suggestion block not matched");
 }
 
-src = src.replace(block, "\n");
-fs.writeFileSync(path, src);
-console.log("patched home-page.tsx", src.length - orig.length, "bytes delta");
+fs.writeFileSync(path, next);
+console.log("patched home-page.tsx", next.length - orig.length, "bytes delta");

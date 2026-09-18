@@ -3,7 +3,6 @@ on:
   push:
     paths:
       - .github/workflows/apply-home-todayswave.yml
-      - scripts/patch-home-todayswave.mjs
   workflow_dispatch:
 permissions:
   contents: write
@@ -12,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Remove leftover todaysWave suggestion
+      - name: Remove leftover todaysWave suggestion block
         run: node scripts/patch-home-todayswave.mjs
       - name: Commit patched home page
         run: |
@@ -23,5 +22,5 @@ jobs:
             echo no file change
             exit 0
           fi
-          git commit -m "fix(ssr): drop leftover todaysWave/focus/localTodayIdeas on home"
+          git commit -m "fix(ssr): drop unbound todaysWave leftover on home page"
           git push
